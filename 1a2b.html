@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>1A2B 猜數字遊戲</title>
     <style>
         :root {
@@ -26,16 +26,26 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            min-height: 100vh;
+            /* 保持 flex-start 以避免直向內容被切掉 */
+
+            /* 優化 1: 改用 dvh 解決手機網址列遮擋問題 */
+            min-height: 100dvh;
             margin: 0;
-            padding: 40px 20px;
+
+            /* 優化 2: 加入安全區域設定 (適配 iPhone 瀏海) */
+            padding: max(40px, env(safe-area-inset-top) + 20px) 20px 20px 20px;
+
             box-sizing: border-box;
             position: relative;
+
+            /* 禁止手機雙擊縮放 */
+            touch-action: manipulation;
         }
 
         .back-btn {
             position: absolute;
-            top: 20px;
+            /* 配合安全區域調整位置 */
+            top: max(20px, env(safe-area-inset-top) + 10px);
             left: 20px;
             text-decoration: none;
             color: var(--text-secondary);
@@ -48,6 +58,8 @@
             border-radius: 8px;
             transition: all 0.2s ease;
             background-color: #f8f9fa;
+            z-index: 10;
+            /* 確保在最上層 */
         }
 
         .back-btn:hover {
@@ -60,12 +72,14 @@
             width: 100%;
             max-width: 480px;
             text-align: center;
-            margin-top: 20px;
+            /* 稍微調整 margin 避免跟返回按鈕太近 */
+            margin-top: 30px;
         }
 
         h1 {
             margin-top: 0;
-            font-size: 2.5rem;
+            /* 優化 3: 使用 clamp 讓字體隨寬度平滑縮放 */
+            font-size: clamp(2rem, 5vw, 2.5rem);
             margin-bottom: 0.5rem;
             letter-spacing: 1px;
             background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
@@ -89,12 +103,10 @@
             margin-left: 5px;
         }
 
-        /* --- 新增：當次結果顯示區 --- */
         .current-result-display {
             font-size: 3rem;
             font-weight: 900;
             height: 60px;
-            /* 固定高度避免版面跳動 */
             margin-bottom: 0.5rem;
             color: var(--gradient-end);
             opacity: 0;
@@ -118,18 +130,13 @@
             display: flex;
             justify-content: center;
             gap: 10px;
-            /* 間距稍微縮小 */
             margin-bottom: 2rem;
         }
 
-        /* --- 修改：輸入框縮小 --- */
         .digit-input {
             width: 55px;
-            /* 原本 65px -> 改為 55px */
             height: 65px;
-            /* 原本 75px -> 改為 65px */
             font-size: 2.2rem;
-            /* 字體稍微縮小適配 */
             text-align: center;
             border: 2px solid var(--border-color);
             border-radius: 12px;
@@ -140,6 +147,8 @@
             transition: all 0.15s ease-out;
             caret-color: transparent;
             cursor: pointer;
+            /* 防止輸入框被手機選取放大 */
+            -webkit-user-select: none;
         }
 
         .digit-input:focus {
@@ -148,6 +157,7 @@
             transform: translateY(-2px);
         }
 
+        /* 隱藏數字輸入框的上下箭頭 */
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button {
             -webkit-appearance: none;
@@ -167,6 +177,9 @@
             transition: background-color 0.2s, transform 0.1s;
             margin-bottom: 1rem;
             letter-spacing: 1px;
+            /* 優化 4: 防止手機連點時選取到按鈕文字 */
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         button:hover {
@@ -253,22 +266,22 @@
             }
         }
 
+        /* 手機版樣式調整 */
         @media (max-width: 480px) {
-
-            /* --- 手機版同步縮小 --- */
             .digit-input {
                 width: 45px;
-                /* 原本 60px -> 改為 45px */
                 height: 55px;
-                /* 原本 70px -> 改為 55px */
                 font-size: 1.8rem;
             }
 
             .back-btn {
-                top: 10px;
-                left: 10px;
                 padding: 6px 10px;
                 font-size: 0.85rem;
+            }
+
+            .container {
+                margin-top: 40px;
+                /* 手機版多留一點空間給返回按鈕 */
             }
         }
     </style>
@@ -324,7 +337,6 @@
         const msgBox = document.getElementById('msgBox');
         const historyList = document.getElementById('historyList');
         const guessCountSpan = document.getElementById('guessCount');
-        // 新增 DOM 選擇
         const currentResultDiv = document.getElementById('currentResult');
 
         function initGame() {
@@ -344,7 +356,6 @@
             msgBox.textContent = "";
             historyList.innerHTML = "";
 
-            // 重置顯示區
             currentResultDiv.textContent = "";
             currentResultDiv.classList.remove('show', 'win');
 
@@ -361,7 +372,6 @@
             return nums.slice(0, 4).join('');
         }
 
-        // 核心邏輯：鍵盤自動跳格處理
         inputs.forEach((input, index) => {
             input.addEventListener('input', (e) => {
                 const val = input.value;
@@ -392,7 +402,6 @@
                 input.select();
             });
 
-            // 貼上功能支援
             input.addEventListener('paste', (e) => {
                 e.preventDefault();
                 const pasteData = (e.clipboardData || window.clipboardData).getData('text');
@@ -449,7 +458,6 @@
 
             const result = checkAB(val, answer);
 
-            // --- 更新當次結果顯示 ---
             currentResultDiv.textContent = result;
             currentResultDiv.classList.add('show');
             if (result === "4A0B") {
