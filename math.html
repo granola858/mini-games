@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Math Lock - 難度選擇版</title>
+    <style>
+        :root {
+            --primary-color: #00b894;
+            --dark-green: #2d3436;
+            --btn-op-bg: #e6fffa;
+            --btn-op-text: #00b894;
+            --disabled-bg: #f1f2f6;
+            --disabled-text: #dfe6e9;
+            --warn-color: #ff7675;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100dvh;
+            margin: 0;
+            padding: 20px;
+            color: var(--dark-green);
+            touch-action: manipulation; 
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- 難度選擇器 (Segmented Control) --- */
+        .mode-selector {
+            display: flex;
+            background: #f1f2f6;
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 300px; /* 限制寬度讓它好看一點 */
+        }
+
+        .mode-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #b2bec3;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: white;
+            color: var(--primary-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* --- 規則與目標 --- */
+        .target-section {
+            text-align: center;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+        .target-number {
+            font-size: clamp(3.5rem, 15vw, 5rem);
+            font-weight: 800;
+            color: var(--primary-color);
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+
+        .target-hint {
+            color: #b2bec3;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* --- 答題空格區 --- */
+        .slots-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 25px;
+            justify-content: center;
+            width: 100%;
+            height: 60px;
+        }
+
+        .slot {
+            flex: 1;
+            max-width: 55px;
+            height: 100%;
+            background: white;
+            border: 2px dashed #dfe6e9;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--dark-green);
+            transition: all 0.2s;
+        }
+
+        .slot.filled {
+            border-style: solid;
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background-color: #fff;
+            box-shadow: 0 4px 10px rgba(0, 184, 148, 0.15);
+            transform: translateY(-2px);
+        }
+
+        /* --- 控制區 --- */
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            width: 100%;
+        }
+
+        .btn {
+            background: white;
+            border: 1px solid #dfe6e9;
+            border-radius: 14px;
+            aspect-ratio: 1.2 / 1; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--dark-green);
+            box-shadow: 0 3px 0 #dfe6e9;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+            padding: 0;
+        }
+
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 0 0 #dfe6e9;
+        }
+
+        .btn.op {
+            background-color: var(--btn-op-bg);
+            border-color: var(--btn-op-bg);
+            color: var(--btn-op-text);
+            box-shadow: 0 3px 0 #b3ede0;
+        }
+        
+        .btn.op:active { box-shadow: 0 0 0 #b3ede0; }
+
+        .btn:disabled {
+            background-color: var(--disabled-bg);
+            border-color: var(--disabled-bg);
+            color: var(--disabled-text);
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: translateY(3px);
+        }
+
+        .btn.undo {
+            grid-column: span 2;
+            background-color: var(--warn-color);
+            border-color: var(--warn-color);
+            color: white;
+            box-shadow: 0 3px 0 #fab1a0;
+            aspect-ratio: auto;
+            height: 55px;
+            font-size: 1rem;
+        }
+        .btn.undo:active { box-shadow: 0 0 0 #fab1a0; }
+        
+        .btn.op-div {
+            aspect-ratio: auto;
+            height: 55px;
+        }
+
+        .btn.reset {
+            grid-column: span 4;
+            margin-top: 10px;
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 0 #008c70;
+            height: 60px;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            aspect-ratio: auto;
+        }
+        .btn.reset:active { box-shadow: 0 0 0 #008c70; }
+
+        /* --- 提示訊息 (Toast) --- */
+        .message-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100%);
+            background: #2d3436;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            font-size: 1rem;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .message-toast.show { opacity: 1; transform: translateX(-50%) translateY(20px); }
+        .message-toast.success { background: var(--primary-color); }
+        .message-toast.error { background: var(--warn-color); }
+
+        @media (max-width: 380px) {
+            .btn { font-size: 1.2rem; border-radius: 10px; }
+            .target-number { font-size: 3.5rem; }
+            .slots-container { gap: 5px; }
+        }
+        
+        @media (max-height: 600px) {
+            body { padding: 10px; }
+            .target-section { margin-bottom: 5px; }
+            .slots-container { margin-bottom: 10px; }
+            .mode-selector { margin-bottom: 10px; padding: 2px; }
+            .btn { aspect-ratio: auto; height: 40px; }
+            .btn.reset, .btn.undo, .btn.op-div { height: 40px; }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="message-toast" id="toast">提示訊息</div>
+
+<div class="game-container">
+    
+    <div class="mode-selector">
+        <button class="mode-btn" id="mode-3" onclick="setMode(3)">簡單 (3)</button>
+        <button class="mode-btn active" id="mode-random" onclick="setMode('random')">隨機 🎲</button>
+        <button class="mode-btn" id="mode-5" onclick="setMode(5)">困難 (5)</button>
+    </div>
+
+    <div class="target-section">
+        <div class="target-hint">TARGET NUMBER</div>
+        <div class="target-number" id="targetNum">?</div>
+    </div>
+
+    <div class="slots-container" id="slotsArea"></div>
+
+    <div class="controls">
+        <button class="btn num" data-val="1" onclick="handleInput(1, this)">1</button>
+        <button class="btn num" data-val="2" onclick="handleInput(2, this)">2</button>
+        <button class="btn num" data-val="3" onclick="handleInput(3, this)">3</button>
+        <button class="btn op"  data-val="+" onclick="handleInput('+', this)">+</button>
+
+        <button class="btn num" data-val="4" onclick="handleInput(4, this)">4</button>
+        <button class="btn num" data-val="5" onclick="handleInput(5, this)">5</button>
+        <button class="btn num" data-val="6" onclick="handleInput(6, this)">6</button>
+        <button class="btn op"  data-val="-" onclick="handleInput('-', this)">-</button>
+
+        <button class="btn num" data-val="7" onclick="handleInput(7, this)">7</button>
+        <button class="btn num" data-val="8" onclick="handleInput(8, this)">8</button>
+        <button class="btn num" data-val="9" onclick="handleInput(9, this)">9</button>
+        <button class="btn op"  data-val="*" onclick="handleInput('*', this)">×</button>
+
+        <button class="btn num" data-val="10" onclick="handleInput(10, this)">10</button>
+        
+        <button class="btn undo" onclick="undoLast()">↶ 復原</button>
+        <button class="btn op op-div" data-val="/" onclick="handleInput('/', this)">÷</button>
+
+        <button class="btn reset" onclick="initGame()">下一題 ➔</button>
+    </div>
+</div>
+
+<script>
+    let targetValue = 0;
+    let targetLength = 5; 
+    let currentSteps = []; 
+    let currentMode = 'random'; // 預設隨機模式
+    
+    // 設定模式並重新開始
+    function setMode(mode) {
+        currentMode = mode;
+        
+        // 更新按鈕樣式
+        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+        if (mode === 'random') {
+            document.getElementById('mode-random').classList.add('active');
+        } else {
+            document.getElementById(`mode-${mode}`).classList.add('active');
+        }
+
+        initGame();
+    }
+
+    function initGame() {
+        resetState();
+        
+        // 核心修改：根據模式決定長度
+        if (currentMode === 'random') {
+            targetLength = Math.random() > 0.5 ? 5 : 3;
+        } else {
+            targetLength = currentMode;
+        }
+
+        renderSlots(targetLength);
+        generateSolvableTarget(targetLength);
+        updateButtonStates();
+    }
+
+    function renderSlots(count) {
+        const container = document.getElementById('slotsArea');
+        container.innerHTML = '';
+        for(let i=0; i<count; i++) {
+            let div = document.createElement('div');
+            div.className = 'slot';
+            div.id = `slot-${i}`;
+            container.appendChild(div);
+        }
+    }
+
+    function generateSolvableTarget(length) {
+        const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        const ops = ['+', '-', '*', '/'];
+        
+        let valid = false;
+        while (!valid) {
+            const shuffledNums = [...nums].sort(() => 0.5 - Math.random());
+            const shuffledOps = [...ops].sort(() => 0.5 - Math.random());
+            
+            let formulaParts = [];
+            let currentNumIdx = 0;
+            let currentOpIdx = 0;
+
+            for (let i = 0; i < length; i++) {
+                if (i % 2 === 0) { 
+                    formulaParts.push(shuffledNums[currentNumIdx++]);
+                } else { 
+                    formulaParts.push(shuffledOps[currentOpIdx++]);
+                }
+            }
+
+            const formulaStr = formulaParts.join(' ');
+            
+            try {
+                const ans = new Function('return ' + formulaStr)();
+                if (Number.isInteger(ans) && ans > 0 && ans <= 100) {
+                    targetValue = ans;
+                    valid = true;
+                    // console.log("答案:", formulaStr, "=", ans); 
+                }
+            } catch(e) {}
+        }
+        
+        document.getElementById('targetNum').innerText = targetValue;
+        document.getElementById('targetNum').style.color = "#00b894";
+    }
+
+    function handleInput(val, btn) {
+        if (currentSteps.length >= targetLength) return;
+
+        currentSteps.push({ value: val, btn: btn });
+
+        const slotIndex = currentSteps.length - 1;
+        const slot = document.getElementById(`slot-${slotIndex}`);
+        slot.innerText = (val === '*') ? '×' : (val === '/') ? '÷' : val;
+        slot.classList.add('filled');
+
+        if (currentSteps.length === targetLength) {
+            checkResult();
+        }
+
+        updateButtonStates();
+    }
+
+    function undoLast() {
+        if (currentSteps.length === 0) return;
+        const lastStep = currentSteps.pop();
+        const slot = document.getElementById(`slot-${currentSteps.length}`);
+        slot.innerText = '';
+        slot.classList.remove('filled');
+        updateButtonStates();
+        document.getElementById('targetNum').style.color = "#00b894";
+    }
+
+    function updateButtonStates() {
+        const allNumBtns = document.querySelectorAll('.btn.num');
+        const allOpBtns = document.querySelectorAll('.btn.op');
+        const allBtns = [...allNumBtns, ...allOpBtns];
+
+        allBtns.forEach(btn => {
+            const isUsed = currentSteps.some(step => step.btn === btn);
+            btn.disabled = isUsed; 
+        });
+
+        const nextIsNumber = (currentSteps.length % 2 === 0);
+        
+        if (currentSteps.length < targetLength) {
+            if (nextIsNumber) {
+                allOpBtns.forEach(btn => btn.disabled = true);
+            } else {
+                allNumBtns.forEach(btn => btn.disabled = true);
+            }
+        } else {
+            allBtns.forEach(btn => btn.disabled = true);
+        }
+    }
+
+    function checkResult() {
+        const formulaStr = currentSteps.map(s => s.value).join(' ');
+        try {
+            const result = new Function('return ' + formulaStr)();
+            if (Math.abs(result - targetValue) < 0.001) {
+                showToast("🎉 太神啦！答對了！", "success");
+                document.getElementById('targetNum').style.color = "#00b894";
+            } else {
+                showToast(`結果是 ${result} ... 再試試！`, "error");
+                document.getElementById('targetNum').style.color = "#ff7675";
+            }
+        } catch (e) {
+            showToast("算式錯誤", "error");
+        }
+    }
+
+    function showToast(msg, type) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.className = `message-toast show ${type}`;
+        setTimeout(() => {
+            toast.className = 'message-toast';
+        }, 2000);
+    }
+
+    function resetState() {
+        currentSteps = [];
+        document.querySelectorAll('.slot').forEach(el => {
+            el.innerText = '';
+            el.className = 'slot';
+        });
+        document.querySelectorAll('.btn').forEach(btn => btn.disabled = false);
+    }
+
+    // 啟動
+    initGame();
+
+</script>
+
+</body>
+</html>
