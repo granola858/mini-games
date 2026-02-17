@@ -19,8 +19,7 @@
         }
 
         body {
-            /* 修改 1: 將字體改為與 1A2B/Math 頁面一致的系統字體，解決粗細問題 */
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: "jf-openhuninn", "微軟正黑體", sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             display: flex;
@@ -32,13 +31,7 @@
             padding: 20px;
             box-sizing: border-box;
             position: relative;
-        }
-
-        /* 如果你希望遊戲顯示的文字(卡片內)還是保持可愛風格，可以單獨設定這裡 */
-        /* 若不需要，可以刪除這段 */
-        .result-text,
-        .card h3 {
-            font-family: "jf-openhuninn", "微軟正黑體", sans-serif;
+            /* 為了讓回首頁按鈕絕對定位 */
         }
 
         /* 返回按鈕樣式 */
@@ -63,16 +56,13 @@
         }
 
         .back-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
             color: var(--primary-color);
-            background-color: #fff0e6;
-            transform: translateX(-3px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
         h1 {
             margin-bottom: 20px;
-            font-weight: 900;
-            /* 修改 2: 加強粗度，現在字體支援了所以會生效 */
+            font-weight: 800;
             letter-spacing: 1px;
             font-size: 2.5rem;
 
@@ -82,24 +72,24 @@
             color: transparent;
         }
 
-        /* 切換按鈕區塊 */
+        /* --- 1. 語言切換區塊 --- */
         .toggle-container {
             display: flex;
             background: #e0e0e0;
-            padding: 5px;
-            border-radius: 50px;
-            margin-bottom: 25px;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .mode-btn {
             border: none;
-            padding: 10px 25px;
-            border-radius: 40px;
+            padding: 8px 30px;
+            border-radius: 10px;
             font-size: 1rem;
             cursor: pointer;
             background: transparent;
-            color: var(--inactive-btn-text);
+            color: #888;
             font-weight: bold;
             transition: all 0.3s ease;
         }
@@ -107,40 +97,118 @@
         .mode-btn.active {
             background-color: #fff;
             color: var(--primary-color);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
+        /* --- 2. 雙注音開關 (iOS Switch Style) --- */
+        .switch-container {
+            display: flex;
+            /* JS會控制這裡變成 none */
+            align-items: center;
+            margin-bottom: 25px;
+            gap: 10px;
+            font-weight: bold;
+            color: #555;
+            transition: opacity 0.3s;
+            height: 30px;
+            /* 固定高度避免跳動太劇烈 */
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked+.slider {
+            background-color: var(--secondary-color);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(22px);
+        }
+
+        /* --- 3. 卡片區域 --- */
         .game-container {
             display: flex;
             flex-direction: column;
             gap: 20px;
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
         }
 
         .card-row {
             display: flex;
             gap: 15px;
             justify-content: center;
+            transition: all 0.5s ease;
         }
 
         .card {
-            background: #fff;
+            background: var(--card-bg);
             border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
             padding: 25px 20px;
             flex: 1;
+            /* 預設平分 */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            min-height: 160px;
+            min-height: 180px;
             border: 1px solid #f0f0f0;
-            transition: transform 0.2s;
+            transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow: hidden;
         }
 
-        .card:hover {
-            transform: translateY(-5px);
+        /* 雙注音模式下的樣式 */
+        .double-mode-active .card-row .card.category-card {
+            flex: 0;
+            padding: 0;
+            min-height: 0;
+            width: 0;
+            opacity: 0;
+            margin: 0;
+            border: none;
+        }
+
+        .double-mode-active .card-row .card.symbol-card {
+            flex: 100%;
+            /* 佔滿整行 */
+            border-color: var(--secondary-color);
+            background-color: #fff;
         }
 
         .card h3 {
@@ -148,6 +216,7 @@
             color: #999;
             font-size: 0.9rem;
             font-weight: normal;
+            white-space: nowrap;
         }
 
         .result-text {
@@ -155,6 +224,8 @@
             font-weight: bold;
             line-height: 1.2;
             color: var(--text-color);
+            text-align: center;
+            word-break: break-all;
         }
 
         .result-category {
@@ -183,6 +254,7 @@
             transform: scale(0.98);
         }
 
+        /* 動畫：搖晃效果 */
         @keyframes shake {
             0% {
                 transform: rotate(0deg);
@@ -240,16 +312,6 @@
         .hint-btn:hover {
             border-color: var(--secondary-color);
             color: var(--secondary-color);
-            background-color: #f0fffd;
-        }
-
-        @media (max-width: 480px) {
-            .back-btn {
-                top: 10px;
-                left: 10px;
-                padding: 6px 10px;
-                font-size: 0.85rem;
-            }
         }
     </style>
 </head>
@@ -259,7 +321,7 @@
     <a href="index.html" class="back-btn">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
+            <path d="M19 12H5M12 19l-7-7 7-7"></path>
         </svg>
         回首頁
     </a>
@@ -267,17 +329,25 @@
     <h1>聯想遊戲</h1>
 
     <div class="toggle-container">
-        <button id="btn-zh" class="mode-btn active" onclick="setMode('zh')">注音</button>
-        <button id="btn-en" class="mode-btn" onclick="setMode('en')">English</button>
+        <button id="btn-zh" class="mode-btn active" onclick="setLang('zh')">注音</button>
+        <button id="btn-en" class="mode-btn" onclick="setLang('en')">English</button>
     </div>
 
-    <div class="game-container">
+    <div class="switch-container" id="doubleModeContainer">
+        <label class="switch">
+            <input type="checkbox" id="doubleModeToggle" onchange="toggleDoubleMode()">
+            <span class="slider"></span>
+        </label>
+        <span>雙注音挑戰</span>
+    </div>
+
+    <div class="game-container" id="gameContainer">
         <div class="card-row">
-            <div class="card">
-                <h3>開頭是...</h3>
+            <div class="card symbol-card">
+                <h3 id="symbolTitle">開頭是...</h3>
                 <div id="symbolDisplay" class="result-text">-</div>
             </div>
-            <div class="card">
+            <div class="card category-card">
                 <h3>題目是...</h3>
                 <div id="categoryDisplay" class="result-text result-category">-</div>
             </div>
@@ -291,7 +361,7 @@
     </div>
 
     <script>
-        const zhuyin = ["ㄅ", "ㄆ", "ㄇ", "ㄈ", "ㄉ", "ㄊ", "ㄋ", "ㄌ", "ㄍ", "ㄎ", "ㄏ", "ㄐ", "ㄑ", "ㄒ", "ㄓ", "ㄔ", "ㄕ", "ㄖ", "ㄗ", "ㄘ", "ㄙ", "ㄧ", "ㄨ", "ㄩ", "ㄚ", "ㄛ", "ㄜ", "ㄝ", "ㄞ", "ㄟ", "ㄠ", "ㄡ", "ㄢ", "ㄣ", "ㄤ", "ㄥ", "ㄦ"];
+        const zhuyin = ["ㄅ", "ㄆ", "ㄇ", "ㄈ", "ㄉ", "ㄊ", "ㄋ", "ㄌ", "ㄍ", "ㄎ", "ㄏ", "ㄐ", "ㄑ", "ㄒ", "ㄓ", "ㄔ", "ㄕ", "ㄖ", "ㄗ", "ㄘ", "ㄙ", "ㄧ", "ㄨ", "ㄩ", "ㄚ", "ㄦ"];
         const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
         const categories = [
@@ -300,15 +370,57 @@
             "卡通人物", "動作", "形容詞"
         ];
 
-        let currentMode = 'zh'; // 'zh' or 'en'
-        let currentSymbol = "";
-        let currentCategory = "";
+        let currentLang = 'zh'; // 'zh' or 'en'
+        let isDoubleMode = false;
+        let currentResult = { s1: "", s2: "", cat: "" };
         let isRolling = false;
 
-        function setMode(mode) {
-            currentMode = mode;
-            document.getElementById('btn-zh').className = mode === 'zh' ? 'mode-btn active' : 'mode-btn';
-            document.getElementById('btn-en').className = mode === 'en' ? 'mode-btn active' : 'mode-btn';
+        function setLang(lang) {
+            currentLang = lang;
+
+            // UI 更新
+            document.getElementById('btn-zh').className = lang === 'zh' ? 'mode-btn active' : 'mode-btn';
+            document.getElementById('btn-en').className = lang === 'en' ? 'mode-btn active' : 'mode-btn';
+
+            // 處理雙注音開關狀態
+            const doubleContainer = document.getElementById('doubleModeContainer');
+            const doubleToggle = document.getElementById('doubleModeToggle');
+
+            if (lang === 'en') {
+                // English模式：如果有開啟雙注音，先強制關閉，再隱藏UI
+                if (isDoubleMode) {
+                    doubleToggle.checked = false;
+                    toggleDoubleMode();
+                }
+                // 完全隱藏 Switch
+                doubleContainer.style.display = 'none';
+            } else {
+                // 注音模式：顯示 Switch
+                doubleContainer.style.display = 'flex';
+            }
+
+            resetDisplay();
+        }
+
+        function toggleDoubleMode() {
+            const toggle = document.getElementById('doubleModeToggle');
+            const gameContainer = document.getElementById('gameContainer');
+            const symbolTitle = document.getElementById('symbolTitle');
+
+            isDoubleMode = toggle.checked;
+
+            if (isDoubleMode) {
+                gameContainer.classList.add('double-mode-active');
+                symbolTitle.innerText = "用這兩個字造詞/聯想";
+            } else {
+                gameContainer.classList.remove('double-mode-active');
+                symbolTitle.innerText = "開頭是...";
+            }
+
+            resetDisplay();
+        }
+
+        function resetDisplay() {
             document.getElementById('symbolDisplay').innerText = "-";
             document.getElementById('categoryDisplay').innerText = "-";
             document.getElementById('hintSection').classList.remove('visible');
@@ -317,21 +429,32 @@
         function startRoll() {
             if (isRolling) return;
             isRolling = true;
+
             const rollBtn = document.getElementById('rollBtn');
             const symbolDisplay = document.getElementById('symbolDisplay');
             const categoryDisplay = document.getElementById('categoryDisplay');
             const hintSec = document.getElementById('hintSection');
+
             hintSec.classList.remove('visible');
             rollBtn.classList.add('btn-animating');
 
             let counter = 0;
-            const sourceArray = currentMode === 'en' ? alphabet : zhuyin;
+            const sourceArray = currentLang === 'en' ? alphabet : zhuyin;
 
             const interval = setInterval(() => {
-                symbolDisplay.innerText = sourceArray[Math.floor(Math.random() * sourceArray.length)];
-                categoryDisplay.innerText = categories[Math.floor(Math.random() * categories.length)];
+                if (isDoubleMode) {
+                    // 雙注音跳動
+                    const r1 = sourceArray[Math.floor(Math.random() * sourceArray.length)];
+                    const r2 = sourceArray[Math.floor(Math.random() * sourceArray.length)];
+                    symbolDisplay.innerText = `${r1} ${r2}`;
+                } else {
+                    // 一般跳動
+                    symbolDisplay.innerText = sourceArray[Math.floor(Math.random() * sourceArray.length)];
+                    categoryDisplay.innerText = categories[Math.floor(Math.random() * categories.length)];
+                }
+
                 counter++;
-                if (counter > 10) {
+                if (counter > 12) {
                     clearInterval(interval);
                     finalizeResult(sourceArray);
                 }
@@ -340,26 +463,44 @@
 
         function finalizeResult(sourceArray) {
             const rollBtn = document.getElementById('rollBtn');
-            currentSymbol = sourceArray[Math.floor(Math.random() * sourceArray.length)];
-            currentCategory = categories[Math.floor(Math.random() * categories.length)];
-            document.getElementById('symbolDisplay').innerText = currentSymbol;
-            document.getElementById('categoryDisplay').innerText = currentCategory;
-            const catEl = document.getElementById('categoryDisplay');
-            catEl.style.fontSize = currentCategory.length > 3 ? "1.5rem" : "2rem";
+
+            if (isDoubleMode) {
+                currentResult.s1 = sourceArray[Math.floor(Math.random() * sourceArray.length)];
+                currentResult.s2 = sourceArray[Math.floor(Math.random() * sourceArray.length)];
+                currentResult.cat = null;
+
+                document.getElementById('symbolDisplay').innerText = `${currentResult.s1}  ${currentResult.s2}`;
+            } else {
+                currentResult.s1 = sourceArray[Math.floor(Math.random() * sourceArray.length)];
+                currentResult.s2 = null;
+                currentResult.cat = categories[Math.floor(Math.random() * categories.length)];
+
+                document.getElementById('symbolDisplay').innerText = currentResult.s1;
+                document.getElementById('categoryDisplay').innerText = currentResult.cat;
+
+                const catEl = document.getElementById('categoryDisplay');
+                catEl.style.fontSize = currentResult.cat.length > 3 ? "1.5rem" : "2rem";
+            }
+
             rollBtn.classList.remove('btn-animating');
             isRolling = false;
+
             setTimeout(() => {
                 document.getElementById('hintSection').classList.add('visible');
             }, 300);
         }
 
         function openHint() {
-            if (!currentSymbol || !currentCategory) return;
             let query = "";
-            if (currentMode === 'en') {
-                query = `${currentCategory} starts with ${currentSymbol}`;
+
+            if (isDoubleMode) {
+                query = `"${currentResult.s1}${currentResult.s2}" 造詞`;
             } else {
-                query = `${currentSymbol}開頭的${currentCategory}`;
+                if (currentLang === 'en') {
+                    query = `${currentResult.cat} starts with ${currentResult.s1}`;
+                } else {
+                    query = `${currentResult.s1}開頭的${currentResult.cat}`;
+                }
             }
             window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
         }
