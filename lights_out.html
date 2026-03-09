@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LightsOut</title>
+  <style>
+    /* 宣告 CSS 變數 (CSS Variables) */
+    :root {
+      --inactive-btn-text: #666; 
+      /* 黃色漸層變數 (Yellow Gradient Variables) */
+      --primary-gradient-start: #FFD700; /* 金黃色 */
+      --primary-gradient-end: #FFA500;   /* 橘黃色 */
+    }
+
+    /* 全域設定 (Global Styles) */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      /* 手機優先設計 (Mobile First) */
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 24px 16px;
+      background-color: transparent;
+      font-family: sans-serif;
+    }
+
+    /* 容器 (Container) */
+    .container {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* 回首頁樣式 (Back Button Style) */
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--inactive-btn-text);
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 1rem;
+      align-self: flex-start;
+      transition: opacity 0.2s;
+    }
+
+    .back-btn:hover {
+      opacity: 0.7;
+    }
+
+    /* 標題與資訊區 (Header & Info) */
+    .header-info {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* 標題樣式 (Title Style) */
+    .main-title {
+      margin-bottom: 20px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    /* 步數顯示 (Move Count) */
+    .move-counter {
+      font-size: 1rem;
+      color: #666;
+      font-weight: bold;
+    }
+
+    /* 模式切換容器 (Toggle Container) */
+    .toggle-container {
+      display: flex;
+      width: 100%;
+      gap: 4px;
+      background-color: #f5f5f5;
+      padding: 4px;
+      border-radius: 10px;
+    }
+
+    .mode-btn {
+      background-color: transparent;
+      flex: 1;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      padding: 10px 0;
+      cursor: pointer;
+      transition: 0.2s;
+      color: #999;
+    }
+
+    /* tag樣式 (Level Tag Style) */
+    .mode-btn.active {
+      background-color: #ffffff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      color: var(--inactive-btn-text);
+    }
+
+    /* 遊戲網格 (Grid System) */
+    .game-board {
+      display: grid;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      gap: 8px;
+      grid-template-columns: repeat(var(--grid-size), 1fr);
+      grid-template-rows: repeat(var(--grid-size), 1fr);
+    }
+
+    /* 斷點微調 (Breakpoint Adjustment) */
+    .game-board[style*="--grid-size: 6;"],
+    .game-board[style*="--grid-size: 7;"] {
+      gap: 4px;
+    }
+
+    /* 卡片 (Cards) */
+    .card {
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
+      background-color: #f0f0f0;
+      cursor: pointer;
+      transition: 0.2s;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    /* 卡片亮燈狀態 (Active State) */
+    .card.active {
+      background-color: #FFFACD; 
+      box-shadow: inset 0 0 10px rgba(255, 250, 205, 0.8);
+    }
+
+    /* 過關彈出視窗 (Popup Modal) */
+    .popup-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 100;
+    }
+
+    .popup-overlay.show {
+      display: flex;
+      opacity: 1;
+    }
+
+    .popup-content {
+      background: #ffffff;
+      padding: 32px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transform: translateY(20px);
+      transition: transform 0.2s;
+      width: 80%;
+      max-width: 300px;
+    }
+
+    .popup-overlay.show .popup-content {
+      transform: translateY(0);
+    }
+
+    .popup-content h2 {
+      color: #333;
+      margin-bottom: 12px;
+    }
+
+    .popup-content p {
+      color: #666;
+      margin-bottom: 24px;
+      font-weight: bold;
+    }
+
+    .restart-btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      background-color: #FFFACD;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: 0.2s;
+      width: 100%;
+      font-size: 1rem;
+    }
+
+    .restart-btn:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="back-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5M12 19l-7-7 7-7"></path>
+      </svg>
+      回首頁
+    </a>
+
+    <div class="header-info">
+      <h1 class="main-title">LightsOut</h1>
+      <div class="move-counter">步數：<span id="moveCount">0</span></div>
+    </div>
+    
+    <div class="toggle-container">
+      <button class="mode-btn active" data-size="4">４</button>
+      <button class="mode-btn" data-size="5">５</button>
+      <button class="mode-btn" data-size="6">６</button>
+      <button class="mode-btn" data-size="7">７</button>
+    </div>
+
+    <div class="game-board" id="board" style="--grid-size: 4;"></div>
+  </div>
+
+  <div class="popup-overlay" id="winPopup">
+    <div class="popup-content">
+      <h2>過關！</h2>
+      <p>總步數：<span id="finalMoves">0</span></p>
+      <button class="restart-btn" id="restartBtn">再玩一次</button>
+    </div>
+  </div>
+
+  <script>
+    const board = document.getElementById('board');
+    const modeBtns = document.querySelectorAll('.mode-btn');
+    const moveDisplay = document.getElementById('moveCount');
+    const winPopup = document.getElementById('winPopup');
+    const finalMovesDisplay = document.getElementById('finalMoves');
+    const restartBtn = document.getElementById('restartBtn');
+    
+    let size = 4;
+    let grid = []; 
+    let moves = 0; 
+    let isGameActive = true;
+
+    // 初始化遊戲 (Initialize Game)
+    function initGame(newSize) {
+      size = newSize;
+      moves = 0;
+      isGameActive = true;
+      moveDisplay.innerText = moves;
+      winPopup.classList.remove('show');
+      
+      board.style.setProperty('--grid-size', size);
+      board.innerHTML = '';
+      grid = [];
+
+      for (let r = 0; r < size; r++) {
+        let row = [];
+        for (let c = 0; c < size; c++) {
+          row.push(false);
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.addEventListener('click', () => handleCardClick(r, c));
+          board.appendChild(card);
+        }
+        grid.push(row);
+      }
+      
+      const shuffleCount = size * size * 2; 
+      for(let i = 0; i < shuffleCount; i++) {
+        if(Math.random() > 0.5) {
+          toggleCell(Math.floor(Math.random() * size), Math.floor(Math.random() * size), false);
+        }
+      }
+      updateUI();
+    }
+
+    // 處理點擊事件 (Event Handler)
+    function handleCardClick(r, c) {
+      if (!isGameActive) return;
+      moves++;
+      moveDisplay.innerText = moves;
+      toggleCell(r, c, true);
+    }
+
+    // 切換狀態邏輯 (Toggle Logic)
+    function toggleCell(r, c, checkWinCondition = true) {
+      const toggle = (row, col) => {
+        if (row >= 0 && row < size && col >= 0 && col < size) {
+          grid[row][col] = !grid[row][col];
+        }
+      };
+
+      toggle(r, c);
+      toggle(r - 1, c);
+      toggle(r + 1, c);
+      toggle(r, c - 1);
+      toggle(r, c + 1);
+
+      if (checkWinCondition) {
+        updateUI();
+        checkWin();
+      }
+    }
+
+    // 更新畫面 (Render)
+    function updateUI() {
+      const cards = board.children;
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          const index = r * size + c;
+          if (grid[r][c]) {
+            cards[index].classList.add('active');
+          } else {
+            cards[index].classList.remove('active');
+          }
+        }
+      }
+    }
+
+    // 檢查勝利條件 (Win Condition)
+    function checkWin() {
+      const isWin = grid.every(row => row.every(cell => !cell));
+      if (isWin) {
+        isGameActive = false;
+        setTimeout(() => {
+          finalMovesDisplay.innerText = moves;
+          winPopup.classList.add('show');
+        }, 300);
+      }
+    }
+
+    // 綁定難度按鈕事件 (Bind Button Events)
+    modeBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        modeBtns.forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        initGame(parseInt(e.target.dataset.size));
+      });
+    });
+
+    // 綁定重新開始按鈕 (Bind Restart Event)
+    restartBtn.addEventListener('click', () => {
+      initGame(size);
+    });
+
+    // 啟動預設遊戲 (Start Default Game)
+    initGame(size);
+  </script>
+</body>
+</html>

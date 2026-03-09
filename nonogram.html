@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nonogram</title>
+  <style>
+    :root {
+      --primary-color: #FFB7F1;
+      --error-color: #FF6B81;
+      --inactive-btn-text: #333;
+      --line-color: #f0f0f0; 
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+
+    body {
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* 回首頁按鈕 (Back Button) */
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      color: var(--inactive-btn-text); background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); padding: 8px 12px;
+      border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1rem;
+      align-self: flex-start; transition: opacity 0.2s; border: 1px solid var(--line-color);
+    }
+
+    .h1 {
+      font-size: 32px; font-weight: 900; letter-spacing: 1px;
+      color: var(--primary-color); text-align: center; margin: 0;
+    }
+
+    /* 難度切換 (Level Toggle) */
+    .toggle-container {
+      display: flex; width: 100%; max-width: 320px; gap: 4px;
+      background-color: #f5f5f5; padding: 4px; border-radius: 10px;
+    }
+    .mode-btn {
+      background-color: transparent; flex: 1; border: none; border-radius: 6px;
+      font-weight: bold; font-size: 1rem; padding: 8px 0; cursor: pointer; color: #999;
+    }
+    .mode-btn.active {
+      background-color: #ffffff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color: var(--inactive-btn-text);
+    }
+
+    /* 操作與訊息容器 (Action & Message Container) */
+    .action-msg-container {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 34px; /* 確保切換時畫面不跳動 */
+      width: 100%;
+    }
+
+    /* 分段控制切換器 (Segmented Control) */
+    .action-toggle {
+      display: inline-flex; background-color: #eeeeee; padding: 3px; 
+      border-radius: 20px; gap: 0;
+    }
+    .action-btn {
+      padding: 6px 16px; border: none; border-radius: 18px;
+      background: transparent; font-size: 0.8rem; font-weight: bold; cursor: pointer; 
+      color: #999; transition: all 0.2s ease;
+    }
+    .action-btn.active {
+      background: #fff; color: var(--primary-color); box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* 頂部訊息文字 (Top Message Text) */
+    .top-msg {
+      font-size: 1.1rem; font-weight: bold; color: #333; text-align: center;
+    }
+
+    /* 網格佈局 (Grid Layout) */
+    .game-board-wrapper {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+      padding: 10px; 
+    }
+    
+    .game-board {
+      display: grid;
+      background-color: #ffffff; 
+      border: 1px solid var(--line-color); 
+      border-radius: 12px; 
+      overflow: hidden; 
+      width: 100%;
+      user-select: none;
+      touch-action: manipulation;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.04); 
+    }
+
+    .cell, .clue-cell {
+      background-color: #ffffff; 
+      border-right: 1px solid var(--line-color); 
+      border-bottom: 1px solid var(--line-color);
+    }
+    
+    .cell {
+      display: flex; justify-content: center; align-items: center;
+      font-size: 0.8rem; font-weight: bold; cursor: pointer;
+      aspect-ratio: 1/1;
+      width: 100%;
+      transition: background-color 0.2s;
+    }
+    
+    .clue-cell {
+      display: flex; justify-content: center; align-items: center;
+      color: #777; flex-direction: column;
+      font-size: 0.75rem;
+    }
+    .clue-cell span { line-height: 1.2; }
+    
+    .cell.filled { background-color: var(--primary-color); }
+    .cell.crossed::after { content: "✕"; color: #ccc; font-size: 1rem; }
+    .cell.error { background-color: var(--error-color) !important; color: white; }
+    .cell.error::after { display: none; }
+
+    /* 狀態控制區塊 (Action Area) */
+    .status-area {
+      display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%;
+    }
+
+    .primary-btn {
+      background-color: var(--primary-color); color: #fff; border: none;
+      padding: 12px 32px; border-radius: 20px; font-size: 1rem; font-weight: bold;
+      cursor: pointer; box-shadow: 0 2px 6px rgba(255, 183, 241, 0.4);
+      transition: 0.2s;
+    }
+    .primary-btn:active { transform: scale(0.95); }
+
+    .secondary-btn {
+      background-color: #f0f0f0; color: #555; border: none;
+      padding: 10px 24px; border-radius: 20px; font-size: 0.9rem; font-weight: bold;
+      cursor: pointer; transition: 0.2s;
+    }
+    
+    .btn-group { display: flex; gap: 10px; justify-content: center; }
+    .hidden { display: none !important; }
+
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <a href="index.html" class="back-btn">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5M12 19l-7-7 7-7"></path>
+    </svg>
+    回首頁
+  </a>
+
+  <h1 class="h1">Nonogram</h1>
+
+  <div class="toggle-container" id="level-toggle">
+    <button class="mode-btn active" data-size="6">6x6</button>
+    <button class="mode-btn" data-size="8">8x8</button>
+    <button class="mode-btn" data-size="10">10x10</button>
+  </div>
+
+  <div class="action-msg-container">
+    <div class="action-toggle" id="action-toggle">
+      <button class="action-btn active" data-action="fill">塗黑</button>
+      <button class="action-btn" data-action="cross">標記 ✕</button>
+    </div>
+    <div id="top-msg" class="top-msg hidden"></div>
+  </div>
+
+  <div class="game-board-wrapper">
+    <div id="board" class="game-board"></div>
+  </div>
+
+  <div class="status-area">
+    <button id="check-btn" class="primary-btn">確認答案</button>
+    
+    <div id="result-box" class="status-area hidden">
+      <div id="result-btns" class="btn-group"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let size = 6;
+  let currentAction = 'fill';
+  let solution = [];
+  let playerState = []; 
+  let isGameOver = false;
+
+  const levelBtns = document.querySelectorAll('#level-toggle .mode-btn');
+  const actionBtns = document.querySelectorAll('#action-toggle .action-btn');
+  const actionToggle = document.getElementById('action-toggle');
+  const topMsg = document.getElementById('top-msg');
+  const boardEl = document.getElementById('board');
+  const checkBtn = document.getElementById('check-btn');
+  const resultBox = document.getElementById('result-box');
+  const resultBtns = document.getElementById('result-btns');
+
+  levelBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      levelBtns.forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      size = parseInt(e.target.dataset.size);
+      initGame();
+    });
+  });
+
+  actionBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      actionBtns.forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      currentAction = e.target.dataset.action;
+    });
+  });
+
+  checkBtn.addEventListener('click', checkAnswer);
+
+  function generatePuzzle() {
+    solution = [];
+    playerState = [];
+    for(let r=0; r<size; r++){
+      let row = [], pRow = [];
+      for(let c=0; c<size; c++){
+        row.push(Math.random() > 0.45 ? 1 : 0);
+        pRow.push(0);
+      }
+      solution.push(row);
+      playerState.push(pRow);
+    }
+  }
+
+  function getClues(arr) {
+    let clues = [], count = 0;
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i] === 1) count++;
+      else if (count > 0) { clues.push(count); count = 0; }
+    }
+    if (count > 0) clues.push(count);
+    return clues.length > 0 ? clues : [0];
+  }
+
+  function initGame() {
+    isGameOver = false;
+    resetUI();
+    generatePuzzle();
+    
+    boardEl.style.gridTemplateColumns = `max-content repeat(${size}, minmax(0, 1fr))`;
+    boardEl.innerHTML = '';
+
+    const rowClues = [], colClues = [];
+    for (let r = 0; r < size; r++) rowClues.push(getClues(solution[r]));
+    for (let c = 0; c < size; c++) {
+      let col = [];
+      for (let r = 0; r < size; r++) col.push(solution[r][c]);
+      colClues.push(getClues(col));
+    }
+
+    const emptyCorner = document.createElement('div');
+    emptyCorner.className = 'clue-cell';
+    boardEl.appendChild(emptyCorner);
+
+    for (let c = 0; c < size; c++) {
+      const el = document.createElement('div');
+      el.className = 'clue-cell';
+      el.innerHTML = colClues[c].map(n => `<span>${n}</span>`).join('');
+      boardEl.appendChild(el);
+    }
+
+    for (let r = 0; r < size; r++) {
+      const rClue = document.createElement('div');
+      rClue.className = 'clue-cell';
+      rClue.style.flexDirection = 'row';
+      rClue.style.gap = '4px';
+      rClue.style.padding = '0 8px';
+      rClue.innerHTML = rowClues[r].map(n => `<span>${n}</span>`).join('');
+      boardEl.appendChild(rClue);
+
+      for (let c = 0; c < size; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        cell.addEventListener('click', handleCellClick);
+        boardEl.appendChild(cell);
+      }
+    }
+  }
+
+  function handleCellClick(e) {
+    if (isGameOver) return; 
+    
+    const r = e.target.dataset.r, c = e.target.dataset.c;
+    e.target.classList.remove('error'); 
+
+    if (currentAction === 'fill') {
+      if (playerState[r][c] === 1) { 
+        playerState[r][c] = 0; e.target.classList.remove('filled'); 
+      } else { 
+        playerState[r][c] = 1; e.target.classList.add('filled'); e.target.classList.remove('crossed'); 
+      }
+    } else {
+      if (playerState[r][c] === 2) { 
+        playerState[r][c] = 0; e.target.classList.remove('crossed'); 
+      } else { 
+        playerState[r][c] = 2; e.target.classList.add('crossed'); e.target.classList.remove('filled'); 
+      }
+    }
+  }
+
+  function checkAnswer() {
+    let win = true;
+    for(let r=0; r<size; r++) {
+      for(let c=0; c<size; c++) {
+        if((playerState[r][c] === 1) !== (solution[r][c] === 1)) { 
+          win = false; 
+          break; 
+        }
+      }
+    }
+    showResult(win);
+  }
+
+  function showResult(isWin) {
+    // 隱藏下方確認按鈕、顯示底部按鈕群
+    checkBtn.classList.add('hidden');
+    resultBox.classList.remove('hidden');
+    resultBtns.innerHTML = '';
+    
+    // 隱藏 Toggle 區域，顯示頂部訊息
+    actionToggle.classList.add('hidden');
+    topMsg.classList.remove('hidden');
+
+    if (isWin) {
+      isGameOver = true;
+      topMsg.style.color = 'var(--primary-color)';
+      topMsg.innerText = '答對了！';
+      
+      const newGameBtn = document.createElement('button');
+      newGameBtn.className = 'primary-btn';
+      newGameBtn.innerText = '新的一局';
+      newGameBtn.onclick = initGame;
+      resultBtns.appendChild(newGameBtn);
+    } else {
+      topMsg.style.color = '#555';
+      topMsg.innerText = '你再想想看';
+      
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'secondary-btn';
+      retryBtn.innerText = '再試一次';
+      retryBtn.onclick = () => {
+        resetUI();
+      };
+      
+      const answerBtn = document.createElement('button');
+      answerBtn.className = 'primary-btn';
+      answerBtn.innerText = '直接解答';
+      answerBtn.onclick = showSolution;
+
+      resultBtns.appendChild(retryBtn);
+      resultBtns.appendChild(answerBtn);
+    }
+  }
+
+  function showSolution() {
+    isGameOver = true;
+    for(let r=0; r<size; r++) {
+      for(let c=0; c<size; c++) {
+        const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+        const isFilled = playerState[r][c] === 1;
+        const shouldFill = solution[r][c] === 1;
+        
+        if (isFilled !== shouldFill) {
+          cell.classList.add('error'); 
+        }
+      }
+    }
+    topMsg.innerText = '解答如上標示';
+    resultBtns.innerHTML = '';
+    const newGameBtn = document.createElement('button');
+    newGameBtn.className = 'primary-btn';
+    newGameBtn.innerText = '新的一局';
+    newGameBtn.onclick = initGame;
+    resultBtns.appendChild(newGameBtn);
+  }
+
+  function resetUI() {
+    // 恢復 Toggle，隱藏頂部訊息
+    actionToggle.classList.remove('hidden');
+    topMsg.classList.add('hidden');
+    
+    // 恢復下方確認按鈕
+    checkBtn.classList.remove('hidden');
+    resultBox.classList.add('hidden');
+    
+    document.querySelectorAll('.cell.error').forEach(el => el.classList.remove('error'));
+  }
+
+  initGame();
+</script>
+</body>
+</html>
