@@ -131,9 +131,8 @@
     /* 遊戲狀態樣式 */
     .cell.filled { background-color: var(--primary-color); }
     
-    /* 標記 Ｏ 樣式：底色與塗黑統一 */
-    .cell.marked { background-color: var(--primary-color); }
-    .cell.marked::after { content: "Ｏ"; color: #ffffff; font-size: 1.1rem; font-weight: bold; }
+    /* 標記 Ｏ 樣式：無底色，Ｏ為主色粉色 */
+    .cell.marked::after { content: "Ｏ"; color: var(--primary-color); font-size: 1.1rem; font-weight: bold; }
     
     .cell.error-wrong { background-color: var(--wrong-color) !important; } 
     .cell.error-wrong::after { display: none; }
@@ -178,9 +177,9 @@
   <h1 class="h1">Nonogram</h1>
 
   <div class="toggle-container" id="level-toggle">
-    <button class="mode-btn active" data-size="6">6x6</button>
-    <button class="mode-btn" data-size="8">8x8</button>
+    <button class="mode-btn active" data-size="8">8x8</button>
     <button class="mode-btn" data-size="10">10x10</button>
+    <button class="mode-btn" data-size="12">12x12</button>
   </div>
 
   <div class="action-msg-container">
@@ -208,7 +207,7 @@
 </div>
 
 <script>
-  let size = 6;
+  let size = 8; // 預設難度改為 8x8
   let currentAction = 'fill';
   
   // 記錄每個難度的遊戲狀態 (Store Game States for Levels)
