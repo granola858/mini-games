@@ -33,7 +33,7 @@
       gap: 16px;
     }
 
-    /* Back Button */
+    /* 回首頁樣式 (Back Button) */
     .back-btn {
       display: flex; align-items: center; gap: 6px;
       color: var(--inactive-btn-text); background-color: #fff;
@@ -47,7 +47,7 @@
       color: var(--primary-color); text-align: center; margin: 0;
     }
 
-    /* Level Toggle */
+    /* 難度切換 (Level Toggle) */
     .toggle-container {
       display: flex; width: 100%; max-width: 320px; gap: 4px;
       background-color: #f5f5f5; padding: 4px; border-radius: 10px;
@@ -60,14 +60,14 @@
       background-color: #ffffff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color: var(--inactive-btn-text);
     }
 
-    /* Action & Message Container */
+    /* 操作與訊息容器 (Action & Message Container) */
     .action-msg-container {
       display: flex; align-items: center; justify-content: center;
       min-height: 34px; 
       width: 100%;
     }
 
-    /* Segmented Control */
+    /* 分段控制 (Segmented Control) */
     .action-toggle {
       display: inline-flex; background-color: #eeeeee; padding: 3px; 
       border-radius: 20px; gap: 0;
@@ -85,10 +85,10 @@
       font-size: 1.1rem; font-weight: bold; color: #333; text-align: center;
     }
 
-    /* Grid Layout */
+    /* 網格佈局 (Grid Layout) */
     .game-board-wrapper {
       width: 100%;
-      max-width: 400px;
+      max-width: 420px; 
       display: flex;
       justify-content: center;
       margin-bottom: 10px;
@@ -103,7 +103,8 @@
       overflow: hidden; 
       width: 100%;
       user-select: none;
-      touch-action: manipulation;
+      /* 關鍵：停用行動裝置瀏覽器預設的滑動行為，確保可流暢拖曳塗黑 */
+      touch-action: none; 
       box-shadow: 0 8px 24px rgba(0,0,0,0.04); 
     }
 
@@ -131,7 +132,6 @@
     /* 遊戲狀態樣式 */
     .cell.filled { background-color: var(--primary-color); }
     
-    /* 標記 Ｏ 樣式：無底色，Ｏ為主色粉色 */
     .cell.marked::after { content: "Ｏ"; color: var(--primary-color); font-size: 1.1rem; font-weight: bold; }
     
     .cell.error-wrong { background-color: var(--wrong-color) !important; } 
@@ -140,7 +140,7 @@
     .cell.error-miss { background-color: var(--error-color) !important; } 
     .cell.error-miss::after { display: none; }
 
-    /* Action Area */
+    /* 狀態控制區塊 (Action Area) */
     .status-area {
       display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%;
     }
@@ -199,7 +199,6 @@
       <button id="new-game-btn" class="secondary-btn">新的一局</button>
       <button id="check-btn" class="primary-btn">確認答案</button>
     </div>
-    
     <div id="result-box" class="status-area hidden">
       <div id="result-btns" class="btn-group"></div>
     </div>
@@ -207,11 +206,13 @@
 </div>
 
 <script>
-  let size = 8; // 預設難度改為 8x8
+  let size = 8; 
   let currentAction = 'fill';
-  
-  // 記錄每個難度的遊戲狀態 (Store Game States for Levels)
   let gameStates = {};
+  
+  // 拖曳狀態變數 (Drag State Variables)
+  let isDragging = false;
+  let dragAction = null; // 'fill', 'unfill', 'mark', 'unmark'
 
   const levelBtns = document.querySelectorAll('#level-toggle .mode-btn');
   const actionBtns = document.querySelectorAll('#action-toggle .action-btn');
@@ -242,10 +243,11 @@
   });
 
   checkBtn.addEventListener('click', checkAnswer);
-  
-  newGameBtn.addEventListener('click', () => {
-    startNewGame(size);
-  });
+  newGameBtn.addEventListener('click', () => { startNewGame(size); });
+
+  // 全域滑鼠/觸控釋放事件 (Global Pointer Up Event)
+  document.addEventListener('mouseup', handlePointerUp);
+  document.addEventListener('touchend', handlePointerUp);
 
   function getClues(arr) {
     let clues = [], count = 0;
@@ -257,10 +259,20 @@
     return clues.length > 0 ? clues : [0];
   }
 
-  // 獨立資料初始化邏輯 (Data Initialization Logic)
+  function generateDeterminedLine(sz) {
+    let line = new Array(sz).fill(0);
+    line[0] = 1;
+    for(let i=1; i<sz-1; i++) {
+      line[i] = (line[i-1] === 0) ? 1 : (Math.random() > 0.45 ? 1 : 0);
+    }
+    line[sz-1] = 1; 
+    return line;
+  }
+
   function initGameData(targetSize) {
     let sol = [];
     let pState = [];
+    
     for(let r=0; r<targetSize; r++){
       let row = [], pRow = [];
       for(let c=0; c<targetSize; c++){
@@ -269,6 +281,24 @@
       }
       sol.push(row);
       pState.push(pRow);
+    }
+
+    if (targetSize === 12) {
+      const anchorRow = Math.floor(Math.random() * (targetSize - 2)) + 1;
+      const anchorCol = Math.floor(Math.random() * (targetSize - 2)) + 1;
+
+      sol[anchorRow] = generateDeterminedLine(targetSize);
+
+      let targetVal = sol[anchorRow][anchorCol];
+      let colLine = [];
+      while (true) {
+        colLine = generateDeterminedLine(targetSize);
+        if (colLine[anchorRow] === targetVal) break; 
+      }
+
+      for (let r = 0; r < targetSize; r++) {
+        sol[r][anchorCol] = colLine[r];
+      }
     }
 
     let rClues = [];
@@ -289,17 +319,13 @@
     };
   }
 
-  // 載入特定難度盤面 (Load Specific Level Board)
   function loadLevel(newSize) {
     size = newSize;
-    if (!gameStates[size]) {
-      initGameData(size);
-    }
+    if (!gameStates[size]) initGameData(size);
     renderBoard();
     resetUI();
   }
 
-  // 渲染網格與套用現存狀態 (Render Board & Apply States)
   function renderBoard() {
     let state = gameStates[size];
     boardEl.style.gridTemplateColumns = `max-content repeat(${size}, minmax(0, 1fr))`;
@@ -331,42 +357,94 @@
         cell.dataset.r = r;
         cell.dataset.c = c;
         
-        // 恢復先前的作答狀態 (Restore previous player answers)
         let val = state.playerState[r][c];
         if (val === 1) cell.classList.add('filled');
         if (val === 2) cell.classList.add('marked');
 
-        cell.addEventListener('click', handleCellClick);
+        // 綁定滑鼠與觸控事件 (Mouse & Touch Events)
+        cell.addEventListener('mousedown', handlePointerDown);
+        cell.addEventListener('mouseenter', handlePointerEnter);
+        cell.addEventListener('touchstart', handlePointerDown, {passive: false});
+        cell.addEventListener('touchmove', handleTouchMove, {passive: false});
+
         boardEl.appendChild(cell);
       }
     }
   }
 
-  // 產生新的一局 (Start New Game)
   function startNewGame(targetSize) {
     initGameData(targetSize);
     renderBoard();
     resetUI();
   }
 
-  function handleCellClick(e) {
-    let state = gameStates[size];
-    if (state.isGameOver) return; 
-    
-    const r = e.target.dataset.r, c = e.target.dataset.c;
-    e.target.classList.remove('error-wrong', 'error-miss'); 
+  // --- 拖曳連續塗黑/標記邏輯 (Drag to Fill / Mark Logic) ---
+  function handlePointerDown(e) {
+    if (gameStates[size].isGameOver) return;
+    if (e.type === 'touchstart') e.preventDefault(); // 防止長按出現選單
 
+    const cell = e.target.closest('.cell');
+    if (!cell) return;
+
+    isDragging = true;
+    const r = cell.dataset.r;
+    const c = cell.dataset.c;
+    const currentState = gameStates[size].playerState[r][c];
+
+    // 依據點擊第一格的狀態決定這次拖曳是「塗/取消塗」或「標記/取消標記」
     if (currentAction === 'fill') {
-      if (state.playerState[r][c] === 1) { 
-        state.playerState[r][c] = 0; e.target.classList.remove('filled'); 
-      } else { 
-        state.playerState[r][c] = 1; e.target.classList.add('filled'); e.target.classList.remove('marked'); 
+      dragAction = (currentState === 1) ? 'unfill' : 'fill';
+    } else {
+      dragAction = (currentState === 2) ? 'unmark' : 'mark';
+    }
+    
+    applyAction(cell, r, c);
+  }
+
+  function handlePointerEnter(e) {
+    if (!isDragging || gameStates[size].isGameOver) return;
+    const cell = e.target;
+    applyAction(cell, cell.dataset.r, cell.dataset.c);
+  }
+
+  function handleTouchMove(e) {
+    if (!isDragging || gameStates[size].isGameOver) return;
+    e.preventDefault(); // 防止滑動螢幕
+    
+    const touch = e.touches[0];
+    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    if (targetElement && targetElement.classList.contains('cell')) {
+      applyAction(targetElement, targetElement.dataset.r, targetElement.dataset.c);
+    }
+  }
+
+  function handlePointerUp() {
+    isDragging = false;
+    dragAction = null;
+  }
+
+  function applyAction(cell, r, c) {
+    let state = gameStates[size];
+    cell.classList.remove('error-wrong', 'error-miss'); 
+
+    if (dragAction === 'fill') {
+      state.playerState[r][c] = 1;
+      cell.classList.add('filled');
+      cell.classList.remove('marked');
+    } else if (dragAction === 'unfill') {
+      if (state.playerState[r][c] === 1) {
+        state.playerState[r][c] = 0;
+        cell.classList.remove('filled');
       }
-    } else { // 'mark' 模式
-      if (state.playerState[r][c] === 2) { 
-        state.playerState[r][c] = 0; e.target.classList.remove('marked'); 
-      } else { 
-        state.playerState[r][c] = 2; e.target.classList.add('marked'); e.target.classList.remove('filled'); 
+    } else if (dragAction === 'mark') {
+      state.playerState[r][c] = 2;
+      cell.classList.add('marked');
+      cell.classList.remove('filled');
+    } else if (dragAction === 'unmark') {
+      if (state.playerState[r][c] === 2) {
+        state.playerState[r][c] = 0;
+        cell.classList.remove('marked');
       }
     }
   }
@@ -378,8 +456,7 @@
     for(let r = 0; r < size; r++) {
       let pRowClues = getClues(state.playerState[r]);
       if (pRowClues.join(',') !== state.globalRowClues[r].join(',')) {
-        win = false;
-        break;
+        win = false; break;
       }
     }
 
@@ -389,12 +466,10 @@
         for(let r = 0; r < size; r++) pCol.push(state.playerState[r][c]);
         let pColClues = getClues(pCol);
         if (pColClues.join(',') !== state.globalColClues[c].join(',')) {
-          win = false;
-          break;
+          win = false; break;
         }
       }
     }
-
     showResult(win);
   }
 
@@ -470,7 +545,6 @@
     });
   }
 
-  // 初次載入
   loadLevel(size);
 </script>
 </body>
