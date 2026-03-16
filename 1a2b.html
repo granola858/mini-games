@@ -26,25 +26,16 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            /* 保持 flex-start 以避免直向內容被切掉 */
-
-            /* 優化 1: 改用 dvh 解決手機網址列遮擋問題 */
             min-height: 100dvh;
             margin: 0;
-
-            /* 優化 2: 加入安全區域設定 (適配 iPhone 瀏海) */
             padding: max(40px, env(safe-area-inset-top) + 20px) 20px 20px 20px;
-
             box-sizing: border-box;
             position: relative;
-
-            /* 禁止手機雙擊縮放 */
             touch-action: manipulation;
         }
 
         .back-btn {
             position: absolute;
-            /* 配合安全區域調整位置 */
             top: max(20px, env(safe-area-inset-top) + 10px);
             left: 20px;
             text-decoration: none;
@@ -59,7 +50,6 @@
             transition: all 0.2s ease;
             background-color: #f8f9fa;
             z-index: 10;
-            /* 確保在最上層 */
         }
 
         .back-btn:hover {
@@ -72,13 +62,11 @@
             width: 100%;
             max-width: 480px;
             text-align: center;
-            /* 稍微調整 margin 避免跟返回按鈕太近 */
             margin-top: 30px;
         }
 
         h1 {
             margin-top: 0;
-            /* 優化 3: 使用 clamp 讓字體隨寬度平滑縮放 */
             font-size: clamp(2rem, 5vw, 2.5rem);
             margin-bottom: 0.5rem;
             letter-spacing: 1px;
@@ -147,7 +135,6 @@
             transition: all 0.15s ease-out;
             caret-color: transparent;
             cursor: pointer;
-            /* 防止輸入框被手機選取放大 */
             -webkit-user-select: none;
         }
 
@@ -157,7 +144,6 @@
             transform: translateY(-2px);
         }
 
-        /* 隱藏數字輸入框的上下箭頭 */
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button {
             -webkit-appearance: none;
@@ -177,7 +163,6 @@
             transition: background-color 0.2s, transform 0.1s;
             margin-bottom: 1rem;
             letter-spacing: 1px;
-            /* 優化 4: 防止手機連點時選取到按鈕文字 */
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
@@ -266,7 +251,6 @@
             }
         }
 
-        /* 手機版樣式調整 */
         @media (max-width: 480px) {
             .digit-input {
                 width: 45px;
@@ -281,7 +265,6 @@
 
             .container {
                 margin-top: 40px;
-                /* 手機版多留一點空間給返回按鈕 */
             }
         }
     </style>
@@ -327,9 +310,11 @@
     </div>
 
     <script>
+        // 遊戲狀態變數
         let answer = "";
         let isGameOver = false;
         let count = 0;
+        let historyData = [];
 
         const inputs = document.querySelectorAll('.digit-input');
         const submitBtn = document.getElementById('submitBtn');
@@ -339,12 +324,69 @@
         const guessCountSpan = document.getElementById('guessCount');
         const currentResultDiv = document.getElementById('currentResult');
 
-        function initGame() {
-            answer = generateAnswer();
-            isGameOver = false;
-            count = 0;
-            guessCountSpan.textContent = count;
+        const STORAGE_KEY = '1a2b_game_state';
 
+        function saveGameState() {
+            const state = {
+                answer: answer,
+                isGameOver: isGameOver,
+                count: count,
+                historyData: historyData
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        function loadGameState() {
+            const savedState = localStorage.getItem(STORAGE_KEY);
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                answer = state.answer;
+                isGameOver = state.isGameOver;
+                count = state.count;
+                historyData = state.historyData || [];
+
+                guessCountSpan.textContent = count;
+                historyList.innerHTML = "";
+                
+                // 修正點：移除 .reverse()。
+                // 因為 renderHistoryDOM 內部是用 prepend (插在最上方)，
+                // 依照原本 [舊 -> 新] 的順序推入，最後一筆新的自然會被擠到最上面。
+                historyData.forEach(item => {
+                    renderHistoryDOM(item.guess, item.result);
+                });
+
+                if (historyData.length > 0) {
+                    const lastResult = historyData[historyData.length - 1].result;
+                    currentResultDiv.textContent = lastResult;
+                    currentResultDiv.classList.add('show');
+                    if (lastResult === "4A0B") {
+                        currentResultDiv.classList.add('win');
+                    }
+                }
+
+                if (isGameOver) {
+                    gameWinUI();
+                }
+
+                console.log("已恢復上次遊戲進度，謎底: " + answer);
+            } else {
+                initGame(true);
+            }
+        }
+
+        function initGame(forceNew = false) {
+            if (forceNew) {
+                localStorage.removeItem(STORAGE_KEY);
+                answer = generateAnswer();
+                isGameOver = false;
+                count = 0;
+                historyData = [];
+                saveGameState();
+                console.log("新局謎底: " + answer);
+            }
+            
+            guessCountSpan.textContent = count;
+            
             inputs.forEach(input => {
                 input.value = "";
                 input.disabled = false;
@@ -354,13 +396,13 @@
             submitBtn.disabled = false;
             restartBtn.style.display = "none";
             msgBox.textContent = "";
-            historyList.innerHTML = "";
-
-            currentResultDiv.textContent = "";
-            currentResultDiv.classList.remove('show', 'win');
-
-            console.log("謎底: " + answer);
-            inputs[0].focus();
+            
+            if (forceNew) {
+                historyList.innerHTML = "";
+                currentResultDiv.textContent = "";
+                currentResultDiv.classList.remove('show', 'win');
+                inputs[0].focus();
+            }
         }
 
         function generateAnswer() {
@@ -466,31 +508,34 @@
                 currentResultDiv.classList.remove('win');
             }
 
-            addHistory(val, result);
+            historyData.push({ guess: val, result: result });
+            renderHistoryDOM(val, result);
 
             if (result !== "4A0B") {
                 inputs.forEach(input => input.value = "");
                 inputs[0].focus();
+                saveGameState();
             } else {
-                gameWin();
+                isGameOver = true;
+                saveGameState();
+                gameWinUI();
             }
         }
 
-        function addHistory(guess, result) {
+        function renderHistoryDOM(guess, result) {
             const item = document.createElement('div');
             item.className = 'history-item';
             let resultClass = 'result-text';
             if (result === "4A0B") resultClass += ' result-success';
 
             item.innerHTML = `
-            <span class="guess-val">${guess}</span>
-            <span class="${resultClass}">${result}</span>
-        `;
+                <span class="guess-val">${guess}</span>
+                <span class="${resultClass}">${result}</span>
+            `;
             historyList.prepend(item);
         }
 
-        function gameWin() {
-            isGameOver = true;
+        function gameWinUI() {
             msgBox.textContent = `恭喜！你用了 ${count} 次猜中答案！`;
             msgBox.style.color = "var(--success-color)";
             inputs.forEach(input => input.disabled = true);
@@ -499,9 +544,12 @@
         }
 
         submitBtn.addEventListener('click', handleGuess);
-        restartBtn.addEventListener('click', initGame);
+        
+        restartBtn.addEventListener('click', () => {
+            initGame(true);
+        });
 
-        initGame();
+        loadGameState();
     </script>
 
 </body>

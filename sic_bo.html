@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>骰寶</title>
+    <style>
+        :root {
+            --primary-red: #D32F2F;
+            --text-dark: #333333;
+            --bg-white: #FFFFFF;
+            --border-gray: #CCCCCC;
+            --light-red: #ffebee;
+            --gold: #FFB300;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: "Nunito", "Varela Round", ui-rounded, "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-white);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        h1 {
+            color: var(--primary-red);
+            font-size: 32px;
+            margin: 10px 0 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .section {
+            border: 2px solid var(--primary-red);
+            border-radius: 16px;
+            padding: 16px;
+            background-color: #fffafb;
+        }
+
+        /* 骰子顯示區 */
+        .dice-container {
+            display: flex;
+            justify-content: center;
+            gap: 4vw;
+            margin: 10px 0 20px 0;
+        }
+        .dice {
+            font-size: clamp(80px, 20vw, 120px); 
+            color: var(--primary-red);
+            line-height: 1;
+            text-shadow: 3px 5px 0px rgba(211, 47, 47, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes roll {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(15deg) scale(1.1); }
+            50% { transform: rotate(-15deg) scale(0.9); }
+            75% { transform: rotate(10deg) scale(1.1); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        .rolling {
+            animation: roll 0.4s infinite;
+            color: var(--border-gray);
+        }
+
+        /* 已押注 (置中、無底色) */
+        .total-bet-display {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary-red);
+            margin-bottom: 12px;
+        }
+
+        /* 遊戲訊息 */
+        .result-msg {
+            text-align: center;
+            font-weight: bold;
+            height: 24px;
+            margin-bottom: 16px;
+            font-size: 18px;
+            color: var(--text-dark);
+        }
+        .win-text { color: #d32f2f; }
+        .lose-text { color: #666666; }
+
+        /* PLAY 按鈕 */
+        .btn-roll {
+            background-color: var(--primary-red);
+            color: var(--bg-white);
+            border: none;
+            padding: 16px;
+            font-size: 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            box-shadow: 0 6px 0 #b71c1c;
+            transition: all 0.1s;
+        }
+        .btn-roll:active { 
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #b71c1c;
+        }
+        .btn-roll:disabled { 
+            background-color: var(--border-gray); 
+            box-shadow: 0 6px 0 #999;
+            cursor: not-allowed; 
+        }
+
+        /* 餘額顯示 (縮小並移至籌碼上方) */
+        .balance-display {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+        }
+
+        /* 下注控制區 */
+        .bet-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .chip-container {
+            display: flex;
+            gap: 12px;
+        }
+        .chip {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 2px dashed var(--primary-red);
+            background-color: var(--bg-white);
+            color: var(--primary-red);
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .chip.selected {
+            background-color: var(--primary-red);
+            color: var(--bg-white);
+            border: 2px solid #b71c1c;
+            transform: scale(1.15);
+            box-shadow: 0 4px 8px rgba(211, 47, 47, 0.3);
+        }
+
+        /* 功能按鈕區 (縮小) */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-action {
+            background-color: var(--border-gray);
+            color: var(--text-dark);
+            border: none;
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 3px 0 #aaa;
+        }
+        .btn-action:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #aaa;
+        }
+
+        /* 押分區 */
+        .bet-table {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .bet-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+        .bet-btn {
+            position: relative;
+            background-color: var(--bg-white);
+            border: 2px solid var(--primary-red);
+            color: var(--primary-red);
+            border-radius: 14px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 4px;
+            flex: 1;
+            font-weight: bold;
+            font-size: 26px;
+            transition: all 0.1s;
+            box-shadow: 0 4px 0 var(--light-red);
+        }
+        .bet-btn.active {
+            background-color: var(--light-red);
+            box-shadow: 0 4px 0 #b71c1c;
+        }
+        .bet-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 var(--light-red);
+        }
+        
+        .bet-btn .rate {
+            font-size: 13px;
+            font-weight: normal;
+            margin-top: 4px;
+            opacity: 0.85;
+        }
+        .dice-icon { font-size: 28px; line-height: 1; }
+        
+        /* 堆疊籌碼樣式 (Stacked Chips) */
+        .bet-badge {
+            position: absolute;
+            top: -12px;
+            right: -8px;
+            background: var(--bg-white);
+            color: var(--primary-red);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            border: 2px dashed var(--primary-red);
+            box-shadow: 
+                0 3px 0 -1px var(--bg-white), 0 3px 0 1px var(--primary-red),
+                0 6px 0 -1px var(--bg-white), 0 6px 0 1px #b71c1c;
+            z-index: 10;
+        }
+        
+        .row-big-small .bet-btn { flex: 2; font-size: 28px; }
+        .row-big-small .bet-btn-mid { flex: 3; font-size: 22px; }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+        .history-item {
+            border: 1px solid var(--border-gray);
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: #f9f9f9;
+            display: flex;
+            justify-content: space-between;
+        }
+        .history-item.win { border-left: 4px solid #d32f2f; }
+        .history-item.lose { border-left: 4px solid #999; }
+        .section-title {
+            color: var(--primary-red);
+            font-weight: bold;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--light-red);
+            padding-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>骰寶</h1>
+
+    <div class="container">
+        
+        <div class="section">
+            <div class="dice-container" id="diceContainer">
+                <div class="dice">⚀</div>
+                <div class="dice">⚀</div>
+                <div class="dice">⚀</div>
+            </div>
+            
+            <div id="resultMsg" class="result-msg">請選擇籌碼並下注</div>
+            
+            <div class="total-bet-display">已押注：<span id="totalBet">0</span></div>
+
+            <button class="btn-roll" id="rollBtn" onclick="rollDice()">PLAY</button>
+        </div>
+
+        <div class="section">
+            
+            <div class="balance-display">餘額：<span id="balance">1000</span></div>
+            
+            <div class="bet-controls">
+                <div class="chip-container" id="chipContainer">
+                    <div class="chip selected" onclick="selectChip(10, this)">10</div>
+                    <div class="chip" onclick="selectChip(50, this)">50</div>
+                    <div class="chip" onclick="selectChip(100, this)">100</div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn-action" onclick="rebet()">同上局下注</button>
+                    <button class="btn-action" onclick="clearBets()">清除下注</button>
+                </div>
+            </div>
+
+            <div class="bet-table">
+                <div class="bet-row row-big-small">
+                    <button class="bet-btn" onclick="placeBet('bs', 'small', 1, this)">小<span class="rate">1:1</span></button>
+                    <button class="bet-btn bet-btn-mid" onclick="placeBet('triple_any', 'any', 30, this)">任意圍骰<span class="rate">1:30</span></button>
+                    <button class="bet-btn" onclick="placeBet('bs', 'big', 1, this)">大<span class="rate">1:1</span></button>
+                </div>
+
+                <div class="bet-row" style="flex-wrap: wrap;">
+                    <button class="bet-btn" onclick="placeBet('sum', 4, 60, this)">4<span class="rate">1:60</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 5, 20, this)">5<span class="rate">1:20</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 6, 18, this)">6<span class="rate">1:18</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 7, 12, this)">7<span class="rate">1:12</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 8, 8, this)">8<span class="rate">1:8</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 9, 6, this)">9<span class="rate">1:6</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 10, 6, this)">10<span class="rate">1:6</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 11, 6, this)">11<span class="rate">1:6</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 12, 6, this)">12<span class="rate">1:6</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 13, 8, this)">13<span class="rate">1:8</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 14, 12, this)">14<span class="rate">1:12</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 15, 18, this)">15<span class="rate">1:18</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 16, 20, this)">16<span class="rate">1:20</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 17, 60, this)">17<span class="rate">1:60</span></button>
+                </div>
+
+                <div class="bet-row">
+                    <button class="bet-btn" onclick="placeBet('double', 1, 11, this)"><span class="dice-icon">⚀⚀</span><span class="rate">1:11</span></button>
+                    <button class="bet-btn" onclick="placeBet('double', 2, 11, this)"><span class="dice-icon">⚁⚁</span><span class="rate">1:11</span></button>
+                    <button class="bet-btn" onclick="placeBet('double', 3, 11, this)"><span class="dice-icon">⚂⚂</span><span class="rate">1:11</span></button>
+                    <button class="bet-btn" onclick="placeBet('double', 4, 11, this)"><span class="dice-icon">⚃⚃</span><span class="rate">1:11</span></button>
+                    <button class="bet-btn" onclick="placeBet('double', 5, 11, this)"><span class="dice-icon">⚄⚄</span><span class="rate">1:11</span></button>
+                    <button class="bet-btn" onclick="placeBet('double', 6, 11, this)"><span class="dice-icon">⚅⚅</span><span class="rate">1:11</span></button>
+                </div>
+
+                <div class="bet-row">
+                    <button class="bet-btn" onclick="placeBet('single', 1, 1, this)"><span class="dice-icon">⚀</span><span class="rate">1:1</span></button>
+                    <button class="bet-btn" onclick="placeBet('single', 2, 1, this)"><span class="dice-icon">⚁</span><span class="rate">1:1</span></button>
+                    <button class="bet-btn" onclick="placeBet('single', 3, 1, this)"><span class="dice-icon">⚂</span><span class="rate">1:1</span></button>
+                    <button class="bet-btn" onclick="placeBet('single', 4, 1, this)"><span class="dice-icon">⚃</span><span class="rate">1:1</span></button>
+                    <button class="bet-btn" onclick="placeBet('single', 5, 1, this)"><span class="dice-icon">⚄</span><span class="rate">1:1</span></button>
+                    <button class="bet-btn" onclick="placeBet('single', 6, 1, this)"><span class="dice-icon">⚅</span><span class="rate">1:1</span></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">歷史紀錄</div>
+            <div class="history-list" id="historyBox"></div>
+        </div>
+
+    </div>
+
+    <script>
+        let balance = 1000;
+        let currentChip = 10;
+        let totalBetAmount = 0;
+        let currentBets = []; 
+        let lastBets = []; 
+        let history = []; 
+        let isRolling = false;
+
+        const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+        function selectChip(amount, el) {
+            if(isRolling) return;
+            currentChip = amount;
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function placeBet(type, value, multiplier, btn, amountOverride = null) {
+            if(isRolling) return;
+            let betAmount = amountOverride || currentChip;
+            
+            if (balance < betAmount) {
+                alert('餘額不足！');
+                return;
+            }
+
+            let existingBet = currentBets.find(b => b.type === type && b.value === value);
+            if (existingBet) {
+                existingBet.amount += betAmount;
+            } else {
+                currentBets.push({ type, value, multiplier, amount: betAmount, element: btn });
+                btn.classList.add('active');
+            }
+            
+            balance -= betAmount;
+            totalBetAmount += betAmount;
+            updateBetBadge(btn, existingBet ? existingBet.amount : betAmount);
+            updateUI();
+        }
+
+        function updateBetBadge(btn, totalAmount) {
+            let badge = btn.querySelector('.bet-badge');
+            if(!badge) {
+                badge = document.createElement('div');
+                badge.className = 'bet-badge';
+                btn.appendChild(badge);
+            }
+            badge.innerText = totalAmount;
+        }
+
+        function clearBets() {
+            if(isRolling) return;
+            currentBets.forEach(bet => {
+                bet.element.classList.remove('active');
+                const badge = bet.element.querySelector('.bet-badge');
+                if (badge) badge.remove();
+            });
+            balance += totalBetAmount; 
+            currentBets = [];
+            totalBetAmount = 0;
+            updateUI();
+        }
+
+        function rebet() {
+            if (isRolling) return;
+            if (lastBets.length === 0) {
+                alert('沒有上一局的下注紀錄！');
+                return;
+            }
+            
+            let neededBalance = lastBets.reduce((sum, bet) => sum + bet.amount, 0);
+            if (balance + totalBetAmount < neededBalance) {
+                alert('餘額不足以重複上局下注！');
+                return;
+            }
+            
+            clearBets();
+            lastBets.forEach(bet => {
+                placeBet(bet.type, bet.value, bet.multiplier, bet.element, bet.amount);
+            });
+        }
+
+        function rollDice() {
+            if (isRolling) return;
+            if (currentBets.length === 0) {
+                alert('請先下注！');
+                return;
+            }
+
+            isRolling = true;
+            document.getElementById('rollBtn').disabled = true;
+            
+            const msgEl = document.getElementById('resultMsg');
+            msgEl.innerText = "骰子轉動中...";
+            msgEl.className = "result-msg lose-text";
+            
+            lastBets = currentBets.map(b => ({...b}));
+            let betThisRound = totalBetAmount; 
+            
+            const diceDivs = document.querySelectorAll('#diceContainer .dice');
+            diceDivs.forEach(d => d.classList.add('rolling'));
+            
+            let rollInterval = setInterval(() => {
+                 diceDivs[0].innerText = diceFaces[Math.floor(Math.random() * 6)];
+                 diceDivs[1].innerText = diceFaces[Math.floor(Math.random() * 6)];
+                 diceDivs[2].innerText = diceFaces[Math.floor(Math.random() * 6)];
+            }, 100);
+
+            setTimeout(() => {
+                clearInterval(rollInterval);
+                diceDivs.forEach(d => d.classList.remove('rolling'));
+                
+                const d1 = Math.floor(Math.random() * 6) + 1;
+                const d2 = Math.floor(Math.random() * 6) + 1;
+                const d3 = Math.floor(Math.random() * 6) + 1;
+                const dice = [d1, d2, d3];
+                const sum = d1 + d2 + d3;
+                
+                diceDivs[0].innerText = diceFaces[d1-1];
+                diceDivs[1].innerText = diceFaces[d2-1];
+                diceDivs[2].innerText = diceFaces[d3-1];
+                
+                calculateWin(dice, sum, betThisRound);
+                resetRound();
+                isRolling = false;
+                document.getElementById('rollBtn').disabled = false;
+            }, 1200);
+        }
+
+        function calculateWin(dice, sum, betThisRound) {
+            let totalWin = 0;
+            const diceCounts = {};
+            dice.forEach(d => { diceCounts[d] = (diceCounts[d] || 0) + 1; });
+            const isTriple = Object.values(diceCounts).includes(3);
+
+            currentBets.forEach(bet => {
+                let winAmount = 0;
+                let betAmount = bet.amount;
+                
+                switch(bet.type) {
+                    case 'bs':
+                        if (!isTriple) {
+                            if (bet.value === 'small' && sum >= 4 && sum <= 10) winAmount = betAmount * bet.multiplier;
+                            if (bet.value === 'big' && sum >= 11 && sum <= 17) winAmount = betAmount * bet.multiplier;
+                        }
+                        break;
+                    case 'triple_any':
+                        if (isTriple) winAmount = betAmount * bet.multiplier;
+                        break;
+                    case 'sum':
+                        if (sum === bet.value) winAmount = betAmount * bet.multiplier;
+                        break;
+                    case 'single':
+                        if (diceCounts[bet.value]) winAmount = betAmount * diceCounts[bet.value]; 
+                        break;
+                    case 'double':
+                        if (diceCounts[bet.value] >= 2) winAmount = betAmount * bet.multiplier;
+                        break;
+                }
+
+                if (winAmount > 0) totalWin += (winAmount + betAmount); 
+            });
+
+            balance += totalWin;
+            
+            let netProfit = totalWin - betThisRound;
+            const msgEl = document.getElementById('resultMsg');
+            
+            if (netProfit > 0) {
+                msgEl.innerText = `中獎！贏了 ${netProfit} 分`;
+                msgEl.className = "result-msg win-text";
+            } else if (netProfit < 0) {
+                msgEl.innerText = `未中獎，輸了 ${Math.abs(netProfit)} 分`;
+                msgEl.className = "result-msg lose-text";
+            } else {
+                msgEl.innerText = `打平，不輸不贏`;
+                msgEl.className = "result-msg";
+            }
+            
+            updateHistory(dice, sum, netProfit);
+        }
+
+        function resetRound() {
+            currentBets.forEach(bet => {
+                bet.element.classList.remove('active');
+                const badge = bet.element.querySelector('.bet-badge');
+                if (badge) badge.remove();
+            });
+            currentBets = [];
+            totalBetAmount = 0;
+            updateUI();
+        }
+
+        function updateHistory(dice, sum, netProfit) {
+            const isTriple = (dice[0] === dice[1] && dice[1] === dice[2]);
+            const bs = isTriple ? '圍骰' : ((sum >= 4 && sum <= 10) ? '小' : '大');
+            
+            let profitStr = netProfit >= 0 ? `<span class="win-text">+${netProfit}</span>` : `<span class="lose-text">${netProfit}</span>`;
+            
+            let li = `<div class="history-item ${netProfit >= 0 ? 'win' : 'lose'}">
+                        <span>[${dice.join(', ')}] ${sum} (${bs})</span>
+                        <span>${profitStr}</span>
+                      </div>`;
+            
+            history.unshift(li);
+            if (history.length > 50) history.pop();
+            
+            document.getElementById('historyBox').innerHTML = history.join('');
+        }
+
+        function updateUI() {
+            document.getElementById('balance').innerText = balance;
+            document.getElementById('totalBet').innerText = totalBetAmount;
+        }
+    </script>
+</body>
+</html>
