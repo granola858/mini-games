@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,13 +8,19 @@
   <style>
     :root {
       --primary-color: #FFB7F1;
-      --error-color: #FF6B81; 
-      --wrong-color: #e0e0e0; 
+      --primary-shadow: rgba(255, 183, 241, 0.4);
+      --error-color: #FF6B81;
+      --wrong-color: #e0e0e0;
       --inactive-btn-text: #333;
-      --line-color: #f0f0f0; 
+      --line-color: #f0f0f0;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+    }
 
     body {
       background-color: #ffffff;
@@ -33,591 +40,1449 @@
       gap: 16px;
     }
 
+    .top-bar {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
     /* 回首頁樣式 (Back Button) */
     .back-btn {
-      display: flex; align-items: center; gap: 6px;
-      color: var(--inactive-btn-text); background-color: #fff;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); padding: 8px 12px;
-      border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1rem;
-      align-self: flex-start; transition: opacity 0.2s; border: 1px solid var(--line-color);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--inactive-btn-text);
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 1rem;
+      align-self: flex-start;
+      transition: opacity 0.2s;
+      border: 1px solid var(--line-color);
+    }
+
+    .menu-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .menu-btn {
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      border: 1px solid var(--line-color);
+      background: #fff;
+      color: var(--inactive-btn-text);
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .menu-btn.active {
+      border-color: var(--primary-color);
+      transform: translateY(-1px);
+    }
+
+    .menu-panel {
+      position: absolute;
+      top: 52px;
+      right: 0;
+      width: min(320px, calc(100vw - 32px));
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: #fff;
+      border: 1px solid var(--line-color);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12);
+      z-index: 20;
+    }
+
+    .menu-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .menu-section+.menu-section {
+      padding-top: 16px;
+      border-top: 1px solid #f4f4f4;
+    }
+
+    .menu-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #222;
+    }
+
+    .menu-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #555;
+    }
+
+    .menu-note,
+    .menu-feedback {
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: #777;
+    }
+
+    .menu-feedback {
+      min-height: 20px;
+    }
+
+    .menu-feedback.error {
+      color: var(--error-color);
+    }
+
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .palette-swatch {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background: var(--swatch-color);
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .palette-swatch.active {
+      border-color: #222;
+      transform: scale(1.06);
+    }
+
+    .custom-color-input,
+    .seed-display,
+    .seed-input {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--line-color);
+      background: #fafafa;
+      color: #333;
+    }
+
+    .custom-color-input {
+      height: 42px;
+      padding: 4px;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .seed-display,
+    .seed-input {
+      padding: 12px;
+      font-size: 0.9rem;
+      font-family: Consolas, Monaco, monospace;
+    }
+
+    .seed-display {
+      min-height: 72px;
+      resize: none;
+    }
+
+    .seed-input {
+      outline: none;
+    }
+
+    .seed-input:focus {
+      border-color: var(--primary-color);
+    }
+
+    .menu-btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .menu-btn-row .secondary-btn,
+    .menu-btn-row .primary-btn,
+    .menu-action-btn {
+      width: 100%;
     }
 
     .h1 {
-      font-size: 32px; font-weight: 900; letter-spacing: 1px;
-      color: var(--primary-color); text-align: center; margin: 0;
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: var(--primary-color);
+      text-align: center;
+      margin: 0;
     }
 
     /* 難度切換 (Level Toggle) */
     .toggle-container {
-      display: flex; width: 100%; max-width: 320px; gap: 4px;
-      background-color: #f5f5f5; padding: 4px; border-radius: 10px;
+      display: flex;
+      width: 100%;
+      max-width: 320px;
+      gap: 4px;
+      background-color: #f5f5f5;
+      padding: 4px;
+      border-radius: 10px;
     }
+
     .mode-btn {
-      background-color: transparent; flex: 1; border: none; border-radius: 6px;
-      font-weight: bold; font-size: 1rem; padding: 8px 0; cursor: pointer; color: #999;
+      background-color: transparent;
+      flex: 1;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 1rem;
+      padding: 8px 0;
+      cursor: pointer;
+      color: #999;
     }
+
     .mode-btn.active {
-      background-color: #ffffff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color: var(--inactive-btn-text);
+      background-color: #ffffff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      color: var(--inactive-btn-text);
     }
 
     /* 操作與訊息容器 (Action & Message Container) */
     .action-msg-container {
-      display: flex; align-items: center; justify-content: center;
-      min-height: 34px; 
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
       width: 100%;
     }
 
     /* 分段控制 (Segmented Control) */
     .action-toggle {
-      display: inline-flex; background-color: #eeeeee; padding: 3px; 
-      border-radius: 20px; gap: 0;
+      display: inline-flex;
+      background-color: #eeeeee;
+      padding: 3px;
+      border-radius: 20px;
+      gap: 0;
     }
+
     .action-btn {
-      padding: 6px 16px; border: none; border-radius: 18px;
-      background: transparent; font-size: 0.8rem; font-weight: bold; cursor: pointer; 
-      color: #999; transition: all 0.2s ease;
+      padding: 6px 16px;
+      border: none;
+      border-radius: 18px;
+      background: transparent;
+      font-size: 0.8rem;
+      font-weight: bold;
+      cursor: pointer;
+      color: #999;
+      transition: all 0.2s ease;
     }
+
     .action-btn.active {
-      background: #fff; color: var(--primary-color); box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      background: #fff;
+      color: var(--primary-color);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .top-msg {
-      font-size: 1.1rem; font-weight: bold; color: #333; text-align: center;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #333;
+      text-align: center;
     }
 
     /* 網格佈局 (Grid Layout) */
     .game-board-wrapper {
       width: 100%;
-      max-width: 420px; 
+      max-width: 420px;
       display: flex;
       justify-content: center;
       margin-bottom: 10px;
-      padding: 10px; 
-    }
-    
-    .game-board {
-      display: grid;
-      background-color: #ffffff; 
-      border: 1px solid var(--line-color); 
-      border-radius: 12px; 
-      overflow: hidden; 
-      width: 100%;
-      user-select: none;
-      touch-action: none; 
-      box-shadow: 0 8px 24px rgba(0,0,0,0.04); 
+      padding: 10px;
     }
 
-    .cell, .clue-cell {
-      background-color: #ffffff; 
-      border-right: 1px solid var(--line-color); 
+    .game-board {
+      display: grid;
+      background-color: #ffffff;
+      border: 1px solid var(--line-color);
+      border-radius: 12px;
+      overflow: hidden;
+      width: 100%;
+      user-select: none;
+      touch-action: none;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+    }
+
+    .cell,
+    .clue-cell {
+      background-color: #ffffff;
+      border-right: 1px solid var(--line-color);
       border-bottom: 1px solid var(--line-color);
     }
-    
+
     .cell {
-      display: flex; justify-content: center; align-items: center;
-      font-size: 0.8rem; font-weight: bold; cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 0.8rem;
+      font-weight: bold;
+      cursor: pointer;
       aspect-ratio: 1/1;
       width: 100%;
-      position: relative; /* 確保標記可以絕對定位，不撐開格子 */
+      position: relative;
+      /* 確保標記可以絕對定位，不撐開格子 */
       transition: background-color 0.2s;
     }
-    
+
     .clue-cell {
-      display: flex; justify-content: center; align-items: center;
-      color: #777; flex-direction: column;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #777;
+      flex-direction: column;
       font-size: 0.75rem;
     }
-    .clue-cell span { line-height: 1.2; }
-    
+
+    .clue-cell span {
+      line-height: 1.2;
+    }
+
     /* 遊戲狀態樣式 */
-    .cell.filled { background-color: var(--primary-color); }
-    
+    .cell.filled {
+      background-color: var(--primary-color);
+    }
+
     /* 標記 Ｏ 樣式：縮小70% 並使用絕對定位，避免撐開 12x12 的表格 */
-    .cell.marked::after { 
-      content: "Ｏ"; 
-      color: var(--primary-color); 
-      font-size: 1rem; 
+    .cell.marked::after {
+      content: "Ｏ";
+      color: var(--primary-color);
+      font-size: 1rem;
       font-weight: bold;
       position: absolute;
       top: 50%;
       left: 50%;
-      transform: translate(-50%, -50%) scale(0.7); /* 縮小比例 */
+      transform: translate(-50%, -50%) scale(0.7);
+      /* 縮小比例 */
     }
-    
-    .cell.error-wrong { background-color: var(--wrong-color) !important; } 
-    .cell.error-wrong::after { display: none; }
-    
-    .cell.error-miss { background-color: var(--error-color) !important; } 
-    .cell.error-miss::after { display: none; }
+
+    .cell.error-wrong {
+      background-color: var(--wrong-color) !important;
+    }
+
+    .cell.error-wrong::after {
+      display: none;
+    }
+
+    .cell.error-miss {
+      background-color: var(--error-color) !important;
+    }
+
+    .cell.error-miss::after {
+      display: none;
+    }
 
     /* 狀態控制區塊 (Action Area) */
     .status-area {
-      display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
     }
 
     .primary-btn {
-      background-color: var(--primary-color); color: #fff; border: none;
-      padding: 12px 32px; border-radius: 20px; font-size: 1rem; font-weight: bold;
-      cursor: pointer; box-shadow: 0 2px 6px rgba(255, 183, 241, 0.4);
+      background-color: var(--primary-color);
+      color: #fff;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 20px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 6px var(--primary-shadow);
       transition: 0.2s;
     }
-    .primary-btn:active { transform: scale(0.95); }
+
+    .primary-btn:active {
+      transform: scale(0.95);
+    }
 
     .secondary-btn {
-      background-color: #f0f0f0; color: #555; border: none;
-      padding: 12px 24px; border-radius: 20px; font-size: 0.9rem; font-weight: bold;
-      cursor: pointer; transition: 0.2s;
+      background-color: #f0f0f0;
+      color: #555;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
     }
-    
-    .btn-group { display: flex; gap: 10px; justify-content: center; width: 100%; }
-    .hidden { display: none !important; }
 
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
+
 <body>
 
-<div class="container">
-  <a href="index.html" class="back-btn">
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M19 12H5M12 19l-7-7 7-7"></path>
-    </svg>
-    回首頁
-  </a>
+  <div class="container">
+    <div class="top-bar">
+      <a href="index.html" class="back-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7"></path>
+        </svg>
+        回首頁
+      </a>
 
-  <h1 class="h1">Nonogram</h1>
+      <div class="menu-wrap">
+        <button id="menu-btn" class="menu-btn" type="button" aria-label="開啟設定選單" aria-expanded="false"
+          aria-controls="menu-panel">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="7" x2="20" y2="7"></line>
+            <line x1="4" y1="12" x2="20" y2="12"></line>
+            <line x1="4" y1="17" x2="20" y2="17"></line>
+          </svg>
+        </button>
 
-  <div class="toggle-container" id="level-toggle">
-    <button class="mode-btn active" data-size="8">8x8</button>
-    <button class="mode-btn" data-size="10">10x10</button>
-    <button class="mode-btn" data-size="12">12x12</button>
-  </div>
+        <div id="menu-panel" class="menu-panel hidden">
+          <div class="menu-section">
+            <div class="menu-title">外觀設定</div>
+            <div class="menu-note">調整方塊和標題顏色，方便比賽時區分自己的盤面。</div>
+            <div class="palette-grid">
+              <button class="palette-swatch active" type="button" data-color="#FFB7F1" style="--swatch-color: #FFB7F1;"
+                aria-label="粉色"></button>
+              <button class="palette-swatch" type="button" data-color="#FF8A65" style="--swatch-color: #FF8A65;"
+                aria-label="橘色"></button>
+              <button class="palette-swatch" type="button" data-color="#F28482" style="--swatch-color: #F28482;"
+                aria-label="珊瑚紅"></button>
+              <button class="palette-swatch" type="button" data-color="#FFD166" style="--swatch-color: #FFD166;"
+                aria-label="金黃色"></button>
+              <button class="palette-swatch" type="button" data-color="#6BCB77" style="--swatch-color: #6BCB77;"
+                aria-label="綠色"></button>
+              <button class="palette-swatch" type="button" data-color="#00B8A9" style="--swatch-color: #00B8A9;"
+                aria-label="青綠色"></button>
+              <button class="palette-swatch" type="button" data-color="#4D96FF" style="--swatch-color: #4D96FF;"
+                aria-label="藍色"></button>
+              <button class="palette-swatch" type="button" data-color="#577590" style="--swatch-color: #577590;"
+                aria-label="灰藍色"></button>
+              <button class="palette-swatch" type="button" data-color="#9B5DE5" style="--swatch-color: #9B5DE5;"
+                aria-label="紫色"></button>
+              <button class="palette-swatch" type="button" data-color="#EF476F" style="--swatch-color: #EF476F;"
+                aria-label="莓果紅"></button>
+              <button class="palette-swatch" type="button" data-color="#118AB2" style="--swatch-color: #118AB2;"
+                aria-label="湖水藍"></button>
+              <button class="palette-swatch" type="button" data-color="#3A86FF" style="--swatch-color: #3A86FF;"
+                aria-label="亮藍色"></button>
+            </div>
+            <label class="menu-label" for="custom-color-input">自訂顏色</label>
+            <input id="custom-color-input" class="custom-color-input" type="color" value="#ffb7f1">
+          </div>
 
-  <div class="action-msg-container">
-    <div class="action-toggle" id="action-toggle">
-      <button class="action-btn active" data-action="fill">塗黑</button>
-      <button class="action-btn" data-action="mark">標記 Ｏ</button>
+          <div class="menu-section">
+            <div class="menu-title">Seed 同步</div>
+            <label class="menu-label" for="current-seed-output">目前題目 Seed</label>
+            <textarea id="current-seed-output" class="seed-display" rows="3" readonly></textarea>
+            <div class="menu-btn-row">
+              <button id="copy-seed-btn" class="secondary-btn" type="button">複製 Seed</button>
+            </div>
+            <label class="menu-label" for="seed-input">讀取 Seed</label>
+            <input id="seed-input" class="seed-input" type="text" spellcheck="false" autocomplete="off"
+              placeholder="例如 NGM-10-0123ABCD...">
+            <button id="load-seed-btn" class="primary-btn menu-action-btn" type="button">載入 Seed</button>
+            <div id="seed-feedback" class="menu-feedback"></div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div id="top-msg" class="top-msg hidden"></div>
-  </div>
 
-  <div class="game-board-wrapper">
-    <div id="board" class="game-board"></div>
-  </div>
+    <h1 class="h1">Nonogram</h1>
 
-  <div class="status-area">
-    <div id="main-actions" class="btn-group">
-      <button id="new-game-btn" class="secondary-btn">新的一局</button>
-      <button id="check-btn" class="primary-btn">確認答案</button>
+    <div class="toggle-container" id="level-toggle">
+      <button class="mode-btn active" data-size="8">8x8</button>
+      <button class="mode-btn" data-size="10">10x10</button>
+      <button class="mode-btn" data-size="12">12x12</button>
     </div>
-    <div id="result-box" class="status-area hidden">
-      <div id="result-btns" class="btn-group"></div>
+
+    <div class="action-msg-container">
+      <div class="action-toggle" id="action-toggle">
+        <button class="action-btn active" data-action="fill">塗黑</button>
+        <button class="action-btn" data-action="mark">標記 Ｏ</button>
+      </div>
+      <div id="top-msg" class="top-msg hidden"></div>
+    </div>
+
+    <div class="game-board-wrapper">
+      <div id="board" class="game-board"></div>
+    </div>
+
+    <div class="status-area">
+      <div id="main-actions" class="btn-group">
+        <button id="new-game-btn" class="secondary-btn">新的一局</button>
+        <button id="check-btn" class="primary-btn">確認答案</button>
+      </div>
+      <div id="result-box" class="status-area hidden">
+        <div id="result-btns" class="btn-group"></div>
+      </div>
     </div>
   </div>
-</div>
 
-<script>
-  let size = 8; 
-  let currentAction = 'fill';
-  let gameStates = {};
-  
-  let isDragging = false;
-  let dragAction = null; 
+  <script>
+    let size = 8;
+    let currentAction = 'fill';
+    let gameStates = {};
+    let themeColor = '#FFB7F1';
 
-  const SAVE_KEY = 'nonogram_save_data';
+    let isDragging = false;
+    let dragAction = null;
 
-  const levelBtns = document.querySelectorAll('#level-toggle .mode-btn');
-  const actionBtns = document.querySelectorAll('#action-toggle .action-btn');
-  const actionToggle = document.getElementById('action-toggle');
-  const topMsg = document.getElementById('top-msg');
-  const boardEl = document.getElementById('board');
-  const mainActions = document.getElementById('main-actions');
-  const checkBtn = document.getElementById('check-btn');
-  const newGameBtn = document.getElementById('new-game-btn');
-  const resultBox = document.getElementById('result-box');
-  const resultBtns = document.getElementById('result-btns');
-
-  // --- 本地儲存資料功能 (Local Storage) ---
-  function saveData() {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({
-      size: size,
-      gameStates: gameStates
-    }));
-  }
-
-  function loadData() {
-    const data = localStorage.getItem(SAVE_KEY);
-    if (data) {
-      try {
-        const parsed = JSON.parse(data);
-        size = parsed.size;
-        gameStates = parsed.gameStates;
-        
-        levelBtns.forEach(b => {
-          b.classList.remove('active');
-          if(parseInt(b.dataset.size) === size) b.classList.add('active');
-        });
-        return true;
-      } catch (e) {
-        console.error("Cookie parsing error", e);
-        return false;
-      }
-    }
-    return false;
-  }
-
-  // --- 綁定事件 (Event Listeners) ---
-  levelBtns.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      levelBtns.forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      let newSize = parseInt(e.target.dataset.size);
-      loadLevel(newSize);
-    });
-  });
-
-  actionBtns.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      actionBtns.forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      currentAction = e.target.dataset.action;
-    });
-  });
-
-  checkBtn.addEventListener('click', checkAnswer);
-  newGameBtn.addEventListener('click', () => { startNewGame(size); });
-
-  document.addEventListener('mouseup', handlePointerUp);
-  document.addEventListener('touchend', handlePointerUp);
-
-  // --- 核心邏輯 (Core Logic) ---
-  function getClues(arr) {
-    let clues = [], count = 0;
-    for (let i = 0; i < arr.length; i++) {
-      if (arr[i] === 1) count++;
-      else if (count > 0) { clues.push(count); count = 0; }
-    }
-    if (count > 0) clues.push(count);
-    return clues.length > 0 ? clues : [0];
-  }
-
-  function generateDeterminedLine(sz) {
-    let line = new Array(sz).fill(0);
-    line[0] = 1;
-    for(let i=1; i<sz-1; i++) {
-      line[i] = (line[i-1] === 0) ? 1 : (Math.random() > 0.45 ? 1 : 0);
-    }
-    line[sz-1] = 1; 
-    return line;
-  }
-
-  function initGameData(targetSize) {
-    let sol = [];
-    let pState = [];
-    
-    for(let r=0; r<targetSize; r++){
-      let row = [], pRow = [];
-      for(let c=0; c<targetSize; c++){
-        row.push(Math.random() > 0.45 ? 1 : 0);
-        pRow.push(0);
-      }
-      sol.push(row);
-      pState.push(pRow);
-    }
-
-    if (targetSize === 12) {
-      const anchorRow = Math.floor(Math.random() * (targetSize - 2)) + 1;
-      const anchorCol = Math.floor(Math.random() * (targetSize - 2)) + 1;
-
-      sol[anchorRow] = generateDeterminedLine(targetSize);
-
-      let targetVal = sol[anchorRow][anchorCol];
-      let colLine = [];
-      while (true) {
-        colLine = generateDeterminedLine(targetSize);
-        if (colLine[anchorRow] === targetVal) break; 
-      }
-
-      for (let r = 0; r < targetSize; r++) {
-        sol[r][anchorCol] = colLine[r];
-      }
-    }
-
-    let rClues = [];
-    let cClues = [];
-    for (let r = 0; r < targetSize; r++) rClues.push(getClues(sol[r]));
-    for (let c = 0; c < targetSize; c++) {
-      let col = [];
-      for (let r = 0; r < targetSize; r++) col.push(sol[r][c]);
-      cClues.push(getClues(col));
-    }
-
-    gameStates[targetSize] = {
-      solution: sol,
-      playerState: pState,
-      globalRowClues: rClues,
-      globalColClues: cClues,
-      isGameOver: false
+    const SAVE_KEY = 'nonogram_save_data';
+    const ALLOWED_SIZES = [8, 10, 12];
+    const DEFAULT_THEME_COLOR = '#FFB7F1';
+    const SHARED_SEED_PREFIX = 'NGM';
+    const RESULT_STATE = {
+      IN_PROGRESS: 'in-progress',
+      WIN: 'win',
+      REVEALED: 'revealed',
+      COMPLETED: 'completed'
     };
-    saveData();
-  }
+    const MAX_GENERATION_ATTEMPTS = 120;
+    const linePatternCache = new Map();
 
-  function loadLevel(newSize) {
-    size = newSize;
-    if (!gameStates[size]) initGameData(size);
-    renderBoard();
-    resetUI();
-    saveData();
-  }
+    const levelBtns = document.querySelectorAll('#level-toggle .mode-btn');
+    const actionBtns = document.querySelectorAll('#action-toggle .action-btn');
+    const actionToggle = document.getElementById('action-toggle');
+    const topMsg = document.getElementById('top-msg');
+    const boardEl = document.getElementById('board');
+    const mainActions = document.getElementById('main-actions');
+    const checkBtn = document.getElementById('check-btn');
+    const newGameBtn = document.getElementById('new-game-btn');
+    const resultBox = document.getElementById('result-box');
+    const resultBtns = document.getElementById('result-btns');
+    const menuBtn = document.getElementById('menu-btn');
+    const menuPanel = document.getElementById('menu-panel');
+    const paletteBtns = document.querySelectorAll('.palette-swatch');
+    const customColorInput = document.getElementById('custom-color-input');
+    const currentSeedOutput = document.getElementById('current-seed-output');
+    const copySeedBtn = document.getElementById('copy-seed-btn');
+    const seedInput = document.getElementById('seed-input');
+    const loadSeedBtn = document.getElementById('load-seed-btn');
+    const seedFeedback = document.getElementById('seed-feedback');
 
-  function renderBoard() {
-    let state = gameStates[size];
-    boardEl.style.gridTemplateColumns = `max-content repeat(${size}, minmax(0, 1fr))`;
-    boardEl.innerHTML = '';
-
-    const emptyCorner = document.createElement('div');
-    emptyCorner.className = 'clue-cell';
-    boardEl.appendChild(emptyCorner);
-
-    for (let c = 0; c < size; c++) {
-      const el = document.createElement('div');
-      el.className = 'clue-cell';
-      el.innerHTML = state.globalColClues[c].map(n => `<span>${n}</span>`).join('');
-      boardEl.appendChild(el);
+    function isValidHexColor(value) {
+      return /^#[0-9A-F]{6}$/i.test(value || '');
     }
 
-    for (let r = 0; r < size; r++) {
-      const rClue = document.createElement('div');
-      rClue.className = 'clue-cell';
-      rClue.style.flexDirection = 'row';
-      rClue.style.gap = '4px';
-      rClue.style.padding = '0 8px';
-      rClue.innerHTML = state.globalRowClues[r].map(n => `<span>${n}</span>`).join('');
-      boardEl.appendChild(rClue);
+    function normalizeThemeColor(value) {
+      return isValidHexColor(value) ? value.toUpperCase() : DEFAULT_THEME_COLOR;
+    }
 
-      for (let c = 0; c < size; c++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.dataset.r = r;
-        cell.dataset.c = c;
-        
-        let val = state.playerState[r][c];
-        if (val === 1) cell.classList.add('filled');
-        if (val === 2) cell.classList.add('marked');
+    function hexToRgb(value) {
+      const normalized = normalizeThemeColor(value).slice(1);
+      return {
+        r: parseInt(normalized.slice(0, 2), 16),
+        g: parseInt(normalized.slice(2, 4), 16),
+        b: parseInt(normalized.slice(4, 6), 16)
+      };
+    }
 
-        cell.addEventListener('mousedown', handlePointerDown);
-        cell.addEventListener('mouseenter', handlePointerEnter);
-        cell.addEventListener('touchstart', handlePointerDown, {passive: false});
-        cell.addEventListener('touchmove', handleTouchMove, {passive: false});
+    function hexToRgba(value, alpha) {
+      const { r, g, b } = hexToRgb(value);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
 
-        boardEl.appendChild(cell);
+    function updatePaletteSelection() {
+      paletteBtns.forEach(btn => {
+        btn.classList.toggle('active', normalizeThemeColor(btn.dataset.color) === themeColor);
+      });
+    }
+
+    function applyThemeColor(nextColor) {
+      themeColor = normalizeThemeColor(nextColor);
+      document.documentElement.style.setProperty('--primary-color', themeColor);
+      document.documentElement.style.setProperty('--primary-shadow', hexToRgba(themeColor, 0.4));
+      customColorInput.value = themeColor.toLowerCase();
+      updatePaletteSelection();
+    }
+
+    function closeMenu() {
+      menuPanel.classList.add('hidden');
+      menuBtn.classList.remove('active');
+      menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    function toggleMenu() {
+      const isOpening = menuPanel.classList.contains('hidden');
+      menuPanel.classList.toggle('hidden', !isOpening);
+      menuBtn.classList.toggle('active', isOpening);
+      menuBtn.setAttribute('aria-expanded', String(isOpening));
+    }
+
+    function solutionToHex(solution) {
+      const bits = solution.flat().join('');
+      let hex = '';
+      for (let i = 0; i < bits.length; i += 4) {
+        hex += parseInt(bits.slice(i, i + 4), 2).toString(16).toUpperCase();
+      }
+      return hex;
+    }
+
+    function encodeShareSeed(solution) {
+      return `${SHARED_SEED_PREFIX}-${solution.length}-${solutionToHex(solution)}`;
+    }
+
+    function decodeShareSeed(seedText) {
+      if (typeof seedText !== 'string') return null;
+
+      const normalized = seedText.trim().toUpperCase();
+      const match = normalized.match(/^NGM-(8|10|12)-([0-9A-F]+)$/);
+      if (!match) return null;
+
+      const targetSize = parseInt(match[1], 10);
+      const hex = match[2];
+      const expectedHexLength = (targetSize * targetSize) / 4;
+      if (hex.length !== expectedHexLength) return null;
+
+      let bits = '';
+      for (const char of hex) {
+        bits += parseInt(char, 16).toString(2).padStart(4, '0');
+      }
+
+      const solution = [];
+      let pointer = 0;
+      for (let r = 0; r < targetSize; r++) {
+        const rowBits = bits.slice(pointer, pointer + targetSize);
+        solution.push(rowBits.split('').map(Number));
+        pointer += targetSize;
+      }
+
+      const { rowClues, colClues } = buildCluesFromSolution(solution);
+      if (countSolutions(rowClues, colClues, 2) !== 1) return null;
+
+      return {
+        size: targetSize,
+        solution: solution,
+        rowClues: rowClues,
+        colClues: colClues,
+        seed: normalized
+      };
+    }
+
+    function updateCurrentSeedDisplay() {
+      const currentState = gameStates[size];
+      currentSeedOutput.value = currentState ? encodeShareSeed(currentState.solution) : '';
+    }
+
+    function showSeedFeedback(message, isError = false) {
+      seedFeedback.textContent = message;
+      seedFeedback.classList.toggle('error', isError);
+    }
+
+    function loadSeedFromInput() {
+      const decodedSeed = decodeShareSeed(seedInput.value);
+      if (!decodedSeed) {
+        showSeedFeedback('Seed 格式錯誤，或這個題目不是唯一解。', true);
+        return;
+      }
+
+      size = decodedSeed.size;
+      updateLevelButtons();
+      gameStates[size] = {
+        solution: decodedSeed.solution,
+        playerState: createEmptyPlayerState(size),
+        globalRowClues: decodedSeed.rowClues,
+        globalColClues: decodedSeed.colClues,
+        isGameOver: false,
+        resultState: RESULT_STATE.IN_PROGRESS
+      };
+
+      renderBoard();
+      resetUI();
+      seedInput.value = decodedSeed.seed;
+      showSeedFeedback('已載入指定 Seed。');
+      saveData();
+    }
+
+    async function copyCurrentSeed() {
+      const currentSeed = currentSeedOutput.value.trim();
+      if (!currentSeed) {
+        showSeedFeedback('目前還沒有可分享的 Seed。', true);
+        return;
+      }
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(currentSeed);
+          showSeedFeedback('Seed 已複製。');
+          return;
+        }
+
+        currentSeedOutput.focus();
+        currentSeedOutput.select();
+        const copied = document.execCommand('copy');
+        showSeedFeedback(copied ? 'Seed 已複製。' : '無法自動複製，請手動複製。', !copied);
+      } catch (error) {
+        console.error(error);
+        showSeedFeedback('無法自動複製，請手動複製。', true);
       }
     }
-    
-    // 若重載時遊戲已經結束，保留結束狀態
-    if (state.isGameOver) {
-      // 若已結束，預設只顯示頂部文字
+
+    function updateLevelButtons() {
+      levelBtns.forEach(b => {
+        b.classList.remove('active');
+        if (parseInt(b.dataset.size) === size) b.classList.add('active');
+      });
+    }
+
+    function showGenerationFailure() {
+      closeMenu();
       actionToggle.classList.add('hidden');
       topMsg.classList.remove('hidden');
-      topMsg.innerText = '本局已結束';
+      topMsg.style.color = 'var(--error-color)';
+      topMsg.innerText = '題目生成失敗，請再試一次';
+      mainActions.classList.remove('hidden');
+      resultBox.classList.add('hidden');
+    }
+
+    // --- 本地儲存資料功能 (Local Storage) ---
+    function saveData() {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        size: size,
+        themeColor: themeColor,
+        gameStates: gameStates
+      }));
+    }
+
+    function loadData() {
+      const data = localStorage.getItem(SAVE_KEY);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          const validatedData = validateSavedData(parsed);
+          if (!validatedData) {
+            localStorage.removeItem(SAVE_KEY);
+            return false;
+          }
+
+          size = validatedData.size;
+          themeColor = validatedData.themeColor;
+          gameStates = validatedData.gameStates;
+
+          applyThemeColor(themeColor);
+          updateLevelButtons();
+          saveData();
+          return true;
+        } catch (e) {
+          console.error('localStorage parsing error', e);
+          localStorage.removeItem(SAVE_KEY);
+          return false;
+        }
+      }
+      return false;
+    }
+
+    // --- 綁定事件 (Event Listeners) ---
+    levelBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        levelBtns.forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        let newSize = parseInt(e.target.dataset.size);
+        loadLevel(newSize);
+      });
+    });
+
+    actionBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        actionBtns.forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        currentAction = e.target.dataset.action;
+      });
+    });
+
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMenu();
+    });
+
+    menuPanel.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    paletteBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        applyThemeColor(btn.dataset.color);
+        showSeedFeedback('顏色已更新。');
+        saveData();
+      });
+    });
+
+    customColorInput.addEventListener('input', (e) => {
+      applyThemeColor(e.target.value);
+      showSeedFeedback('顏色已更新。');
+      saveData();
+    });
+
+    copySeedBtn.addEventListener('click', copyCurrentSeed);
+    loadSeedBtn.addEventListener('click', loadSeedFromInput);
+    seedInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadSeedFromInput();
+    });
+
+    checkBtn.addEventListener('click', checkAnswer);
+    newGameBtn.addEventListener('click', () => { startNewGame(size); });
+
+    document.addEventListener('click', () => {
+      closeMenu();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMenu();
+    });
+
+    document.addEventListener('mouseup', handlePointerUp);
+    document.addEventListener('touchend', handlePointerUp);
+    document.addEventListener('touchcancel', handlePointerUp);
+
+    // --- 核心邏輯 (Core Logic) ---
+    function getClues(arr) {
+      let clues = [], count = 0;
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i] === 1) count++;
+        else if (count > 0) { clues.push(count); count = 0; }
+      }
+      if (count > 0) clues.push(count);
+      return clues.length > 0 ? clues : [0];
+    }
+
+    function generateDeterminedLine(sz) {
+      let line = new Array(sz).fill(0);
+      line[0] = 1;
+      for (let i = 1; i < sz - 1; i++) {
+        line[i] = (line[i - 1] === 0) ? 1 : (Math.random() > 0.45 ? 1 : 0);
+      }
+      line[sz - 1] = 1;
+      return line;
+    }
+
+    function cloneGrid(grid) {
+      return grid.map(row => row.slice());
+    }
+
+    function createEmptyPlayerState(targetSize) {
+      return Array.from({ length: targetSize }, () => new Array(targetSize).fill(0));
+    }
+
+    function buildCluesFromSolution(solution) {
+      const targetSize = solution.length;
+      const rowClues = solution.map(getClues);
+      const colClues = [];
+
+      for (let c = 0; c < targetSize; c++) {
+        const col = [];
+        for (let r = 0; r < targetSize; r++) col.push(solution[r][c]);
+        colClues.push(getClues(col));
+      }
+
+      return { rowClues, colClues };
+    }
+
+    function createRandomSolution(targetSize) {
+      const solution = [];
+
+      for (let r = 0; r < targetSize; r++) {
+        const row = [];
+        for (let c = 0; c < targetSize; c++) {
+          row.push(Math.random() > 0.45 ? 1 : 0);
+        }
+        solution.push(row);
+      }
+
+      if (targetSize === 12) {
+        const anchorRow = Math.floor(Math.random() * (targetSize - 2)) + 1;
+        const anchorCol = Math.floor(Math.random() * (targetSize - 2)) + 1;
+
+        solution[anchorRow] = generateDeterminedLine(targetSize);
+
+        const targetVal = solution[anchorRow][anchorCol];
+        let colLine = [];
+        while (true) {
+          colLine = generateDeterminedLine(targetSize);
+          if (colLine[anchorRow] === targetVal) break;
+        }
+
+        for (let r = 0; r < targetSize; r++) {
+          solution[r][anchorCol] = colLine[r];
+        }
+      }
+
+      return solution;
+    }
+
+    function generateLinePatterns(length, clues) {
+      if (clues.length === 1 && clues[0] === 0) {
+        return [new Array(length).fill(0)];
+      }
+
+      const patterns = [];
+
+      function backtrack(clueIndex, position, line) {
+        if (clueIndex === clues.length) {
+          patterns.push(line.concat(new Array(length - line.length).fill(0)));
+          return;
+        }
+
+        const blockLength = clues[clueIndex];
+        const remainingBlocks = clues.slice(clueIndex + 1);
+        const remainingMin = remainingBlocks.reduce((sum, value) => sum + value, 0) + remainingBlocks.length;
+        const maxStart = length - blockLength - remainingMin;
+
+        for (let start = position; start <= maxStart; start++) {
+          const nextLine = line.slice();
+          while (nextLine.length < start) nextLine.push(0);
+          for (let i = 0; i < blockLength; i++) nextLine.push(1);
+          if (clueIndex < clues.length - 1) nextLine.push(0);
+          backtrack(clueIndex + 1, nextLine.length, nextLine);
+        }
+      }
+
+      backtrack(0, 0, []);
+      return patterns;
+    }
+
+    function getLinePatterns(length, clues) {
+      const cacheKey = `${length}:${clues.join('-')}`;
+      if (!linePatternCache.has(cacheKey)) {
+        linePatternCache.set(cacheKey, generateLinePatterns(length, clues));
+      }
+      return linePatternCache.get(cacheKey);
+    }
+
+    function getForcedLineValue(patterns, index) {
+      const firstValue = patterns[0][index];
+      for (let i = 1; i < patterns.length; i++) {
+        if (patterns[i][index] !== firstValue) return -1;
+      }
+      return firstValue;
+    }
+
+    function cloneDomains(domains) {
+      return domains.map(domain => domain.slice());
+    }
+
+    function propagateConstraints(board, rowDomains, colDomains) {
+      const targetSize = board.length;
+      let changed = true;
+
+      while (changed) {
+        changed = false;
+
+        for (let r = 0; r < targetSize; r++) {
+          const filteredRowPatterns = rowDomains[r].filter(pattern => {
+            for (let c = 0; c < targetSize; c++) {
+              if (board[r][c] !== -1 && board[r][c] !== pattern[c]) return false;
+            }
+            return true;
+          });
+
+          if (!filteredRowPatterns.length) return false;
+          if (filteredRowPatterns.length !== rowDomains[r].length) {
+            rowDomains[r] = filteredRowPatterns;
+            changed = true;
+          }
+
+          for (let c = 0; c < targetSize; c++) {
+            const forcedValue = getForcedLineValue(rowDomains[r], c);
+            if (forcedValue === -1) continue;
+            if (board[r][c] === -1) {
+              board[r][c] = forcedValue;
+              changed = true;
+            } else if (board[r][c] !== forcedValue) {
+              return false;
+            }
+          }
+        }
+
+        for (let c = 0; c < targetSize; c++) {
+          const filteredColPatterns = colDomains[c].filter(pattern => {
+            for (let r = 0; r < targetSize; r++) {
+              if (board[r][c] !== -1 && board[r][c] !== pattern[r]) return false;
+            }
+            return true;
+          });
+
+          if (!filteredColPatterns.length) return false;
+          if (filteredColPatterns.length !== colDomains[c].length) {
+            colDomains[c] = filteredColPatterns;
+            changed = true;
+          }
+
+          for (let r = 0; r < targetSize; r++) {
+            const forcedValue = getForcedLineValue(colDomains[c], r);
+            if (forcedValue === -1) continue;
+            if (board[r][c] === -1) {
+              board[r][c] = forcedValue;
+              changed = true;
+            } else if (board[r][c] !== forcedValue) {
+              return false;
+            }
+          }
+        }
+      }
+
+      return true;
+    }
+
+    function isBoardSolved(board) {
+      return board.every(row => row.every(cell => cell !== -1));
+    }
+
+    function searchSolutions(board, rowDomains, colDomains, limit, counter) {
+      if (counter.count >= limit) return;
+      if (!propagateConstraints(board, rowDomains, colDomains)) return;
+
+      if (isBoardSolved(board)) {
+        counter.count++;
+        return;
+      }
+
+      let branch = null;
+
+      for (let r = 0; r < rowDomains.length; r++) {
+        if (rowDomains[r].length > 1 && (!branch || rowDomains[r].length < branch.domainSize)) {
+          branch = { type: 'row', index: r, domainSize: rowDomains[r].length };
+        }
+      }
+
+      for (let c = 0; c < colDomains.length; c++) {
+        if (colDomains[c].length > 1 && (!branch || colDomains[c].length < branch.domainSize)) {
+          branch = { type: 'col', index: c, domainSize: colDomains[c].length };
+        }
+      }
+
+      if (!branch) return;
+
+      const patterns = branch.type === 'row' ? rowDomains[branch.index] : colDomains[branch.index];
+
+      for (const pattern of patterns) {
+        if (counter.count >= limit) return;
+
+        const nextBoard = cloneGrid(board);
+        const nextRowDomains = cloneDomains(rowDomains);
+        const nextColDomains = cloneDomains(colDomains);
+
+        if (branch.type === 'row') {
+          nextRowDomains[branch.index] = [pattern];
+          for (let c = 0; c < pattern.length; c++) {
+            if (nextBoard[branch.index][c] !== -1 && nextBoard[branch.index][c] !== pattern[c]) {
+              return;
+            }
+            nextBoard[branch.index][c] = pattern[c];
+          }
+        } else {
+          nextColDomains[branch.index] = [pattern];
+          for (let r = 0; r < pattern.length; r++) {
+            if (nextBoard[r][branch.index] !== -1 && nextBoard[r][branch.index] !== pattern[r]) {
+              return;
+            }
+            nextBoard[r][branch.index] = pattern[r];
+          }
+        }
+
+        searchSolutions(nextBoard, nextRowDomains, nextColDomains, limit, counter);
+      }
+    }
+
+    function countSolutions(rowClues, colClues, limit = 2) {
+      const targetSize = rowClues.length;
+      const board = Array.from({ length: targetSize }, () => new Array(targetSize).fill(-1));
+      const rowDomains = rowClues.map(clues => getLinePatterns(targetSize, clues));
+      const colDomains = colClues.map(clues => getLinePatterns(targetSize, clues));
+      const counter = { count: 0 };
+
+      searchSolutions(board, rowDomains, colDomains, limit, counter);
+      return counter.count;
+    }
+
+    function generateUniquePuzzle(targetSize) {
+      for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
+        const solution = createRandomSolution(targetSize);
+        const { rowClues, colClues } = buildCluesFromSolution(solution);
+
+        if (countSolutions(rowClues, colClues, 2) === 1) {
+          return { solution, rowClues, colClues };
+        }
+      }
+
+      throw new Error(`Unable to generate a unique ${targetSize}x${targetSize} puzzle.`);
+    }
+
+    function areClueLinesEqual(left, right) {
+      return left.length === right.length && left.every((value, index) => value === right[index]);
+    }
+
+    function isValidMatrix(matrix, targetSize, isValidCell) {
+      return Array.isArray(matrix) &&
+        matrix.length === targetSize &&
+        matrix.every(row => Array.isArray(row) && row.length === targetSize && row.every(isValidCell));
+    }
+
+    function isValidClueSet(clues, targetSize) {
+      return Array.isArray(clues) &&
+        clues.length === targetSize &&
+        clues.every(line => Array.isArray(line) && line.length > 0 && line.every(value => Number.isInteger(value) && value >= 0));
+    }
+
+    function validateSavedGameState(savedState, targetSize) {
+      if (!savedState || typeof savedState !== 'object') return null;
+      if (!isValidMatrix(savedState.solution, targetSize, value => value === 0 || value === 1)) return null;
+      if (!isValidMatrix(savedState.playerState, targetSize, value => value === 0 || value === 1 || value === 2)) return null;
+      if (!isValidClueSet(savedState.globalRowClues, targetSize)) return null;
+      if (!isValidClueSet(savedState.globalColClues, targetSize)) return null;
+
+      const derivedClues = buildCluesFromSolution(savedState.solution);
+      const isClueMismatch = derivedClues.rowClues.some((clues, index) => !areClueLinesEqual(clues, savedState.globalRowClues[index])) ||
+        derivedClues.colClues.some((clues, index) => !areClueLinesEqual(clues, savedState.globalColClues[index]));
+
+      if (isClueMismatch) return null;
+
+      const isGameOver = Boolean(savedState.isGameOver);
+      const resultState = isGameOver && (savedState.resultState === RESULT_STATE.WIN || savedState.resultState === RESULT_STATE.REVEALED)
+        ? savedState.resultState
+        : (isGameOver ? RESULT_STATE.COMPLETED : RESULT_STATE.IN_PROGRESS);
+
+      return {
+        solution: cloneGrid(savedState.solution),
+        playerState: cloneGrid(savedState.playerState),
+        globalRowClues: savedState.globalRowClues.map(line => line.slice()),
+        globalColClues: savedState.globalColClues.map(line => line.slice()),
+        isGameOver: isGameOver,
+        resultState: resultState
+      };
+    }
+
+    function validateSavedData(parsed) {
+      if (!parsed || typeof parsed !== 'object' || !parsed.gameStates || typeof parsed.gameStates !== 'object') {
+        return null;
+      }
+
+      const validatedStates = {};
+
+      ALLOWED_SIZES.forEach(allowedSize => {
+        const validatedState = validateSavedGameState(parsed.gameStates[allowedSize], allowedSize);
+        if (validatedState) validatedStates[allowedSize] = validatedState;
+      });
+
+      const availableSizes = Object.keys(validatedStates).map(Number);
+      if (!availableSizes.length) return null;
+
+      const validatedSize = ALLOWED_SIZES.includes(parsed.size) && validatedStates[parsed.size]
+        ? parsed.size
+        : availableSizes[0];
+
+      return {
+        size: validatedSize,
+        themeColor: normalizeThemeColor(parsed.themeColor),
+        gameStates: validatedStates
+      };
+    }
+
+    function initGameData(targetSize) {
+      const { solution, rowClues, colClues } = generateUniquePuzzle(targetSize);
+
+      gameStates[targetSize] = {
+        solution: solution,
+        playerState: createEmptyPlayerState(targetSize),
+        globalRowClues: rowClues,
+        globalColClues: colClues,
+        isGameOver: false
+        , resultState: RESULT_STATE.IN_PROGRESS
+      };
+      saveData();
+    }
+
+    function loadLevel(newSize) {
+      const previousSize = size;
+      size = newSize;
+
+      if (!gameStates[size]) {
+        try {
+          initGameData(size);
+        } catch (error) {
+          console.error(error);
+          size = previousSize;
+          updateLevelButtons();
+          showGenerationFailure();
+          return;
+        }
+      }
+
+      renderBoard();
+      resetUI();
+      saveData();
+    }
+
+    function createNewGameButton() {
+      const ngBtn = document.createElement('button');
+      ngBtn.className = 'primary-btn';
+      ngBtn.innerText = '新的一局';
+      ngBtn.onclick = () => startNewGame(size);
+      return ngBtn;
+    }
+
+    function renderFinishedUI(state) {
+      actionToggle.classList.add('hidden');
+      topMsg.classList.remove('hidden');
       mainActions.classList.add('hidden');
       resultBox.classList.remove('hidden');
       resultBtns.innerHTML = '';
-      const ngBtn = document.createElement('button');
-      ngBtn.className = 'primary-btn';
-      ngBtn.innerText = '新的一局';
-      ngBtn.onclick = () => startNewGame(size);
-      resultBtns.appendChild(ngBtn);
-    }
-  }
+      resultBtns.appendChild(createNewGameButton());
 
-  function startNewGame(targetSize) {
-    initGameData(targetSize);
-    renderBoard();
-    resetUI();
-    saveData();
-  }
-
-  function handlePointerDown(e) {
-    if (gameStates[size].isGameOver) return;
-    if (e.type === 'touchstart') e.preventDefault();
-
-    const cell = e.target.closest('.cell');
-    if (!cell) return;
-
-    isDragging = true;
-    const r = cell.dataset.r;
-    const c = cell.dataset.c;
-    const currentState = gameStates[size].playerState[r][c];
-
-    if (currentAction === 'fill') {
-      dragAction = (currentState === 1) ? 'unfill' : 'fill';
-    } else {
-      dragAction = (currentState === 2) ? 'unmark' : 'mark';
-    }
-    
-    applyAction(cell, r, c);
-  }
-
-  function handlePointerEnter(e) {
-    if (!isDragging || gameStates[size].isGameOver) return;
-    const cell = e.target;
-    applyAction(cell, cell.dataset.r, cell.dataset.c);
-  }
-
-  function handleTouchMove(e) {
-    if (!isDragging || gameStates[size].isGameOver) return;
-    e.preventDefault(); 
-    
-    const touch = e.touches[0];
-    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
-    
-    if (targetElement && targetElement.classList.contains('cell')) {
-      applyAction(targetElement, targetElement.dataset.r, targetElement.dataset.c);
-    }
-  }
-
-  function handlePointerUp() {
-    if (isDragging) {
-      isDragging = false;
-      dragAction = null;
-      saveData(); // 拖曳結束後存檔
-    }
-  }
-
-  function applyAction(cell, r, c) {
-    let state = gameStates[size];
-    cell.classList.remove('error-wrong', 'error-miss'); 
-
-    if (dragAction === 'fill') {
-      state.playerState[r][c] = 1;
-      cell.classList.add('filled');
-      cell.classList.remove('marked');
-    } else if (dragAction === 'unfill') {
-      if (state.playerState[r][c] === 1) {
-        state.playerState[r][c] = 0;
-        cell.classList.remove('filled');
+      if (state.resultState === RESULT_STATE.WIN) {
+        topMsg.style.color = 'var(--primary-color)';
+        topMsg.innerText = '答對了！';
+        return;
       }
-    } else if (dragAction === 'mark') {
-      state.playerState[r][c] = 2;
-      cell.classList.add('marked');
-      cell.classList.remove('filled');
-    } else if (dragAction === 'unmark') {
-      if (state.playerState[r][c] === 2) {
-        state.playerState[r][c] = 0;
-        cell.classList.remove('marked');
-      }
-    }
-  }
 
-  function checkAnswer() {
-    let state = gameStates[size];
-    let win = true;
-
-    for(let r = 0; r < size; r++) {
-      let pRowClues = getClues(state.playerState[r]);
-      if (pRowClues.join(',') !== state.globalRowClues[r].join(',')) {
-        win = false; break;
-      }
-    }
-
-    if (win) {
-      for(let c = 0; c < size; c++) {
-        let pCol = [];
-        for(let r = 0; r < size; r++) pCol.push(state.playerState[r][c]);
-        let pColClues = getClues(pCol);
-        if (pColClues.join(',') !== state.globalColClues[c].join(',')) {
-          win = false; break;
-        }
-      }
-    }
-    showResult(win);
-  }
-
-  function showResult(isWin) {
-    mainActions.classList.add('hidden');
-    resultBox.classList.remove('hidden');
-    resultBtns.innerHTML = '';
-    
-    actionToggle.classList.add('hidden');
-    topMsg.classList.remove('hidden');
-
-    if (isWin) {
-      gameStates[size].isGameOver = true;
-      topMsg.style.color = 'var(--primary-color)';
-      topMsg.innerText = '答對了！';
-      
-      const ngBtn = document.createElement('button');
-      ngBtn.className = 'primary-btn';
-      ngBtn.innerText = '新的一局';
-      ngBtn.onclick = () => startNewGame(size);
-      resultBtns.appendChild(ngBtn);
-      
-      saveData();
-    } else {
       topMsg.style.color = '#555';
-      topMsg.innerText = '你再想想看';
-      
-      // 依據要求：直接解答為次要(左)，再試一次為主要(右)
-      const answerBtn = document.createElement('button');
-      answerBtn.className = 'secondary-btn'; 
-      answerBtn.innerText = '直接解答';
-      answerBtn.onclick = showSolution;
-
-      const retryBtn = document.createElement('button');
-      retryBtn.className = 'primary-btn'; 
-      retryBtn.innerText = '再試一次';
-      retryBtn.onclick = () => { resetUI(); };
-
-      resultBtns.appendChild(answerBtn); // 先加入，會排在左側
-      resultBtns.appendChild(retryBtn);  // 後加入，會排在右側
+      topMsg.innerText = state.resultState === RESULT_STATE.REVEALED ? '答案已顯示' : '本局已結束';
     }
-  }
 
-  function showSolution() {
-    let state = gameStates[size];
-    state.isGameOver = true;
-    for(let r=0; r<size; r++) {
-      for(let c=0; c<size; c++) {
-        const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
-        const isFilled = state.playerState[r][c] === 1;
-        const shouldFill = state.solution[r][c] === 1;
-        
-        if (isFilled && !shouldFill) {
-          cell.classList.add('error-wrong'); 
-        } else if (!isFilled && shouldFill) {
-          cell.classList.add('error-miss'); 
+    function isPlayerSolutionCorrect(state) {
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          const isFilled = state.playerState[r][c] === 1;
+          const shouldFill = state.solution[r][c] === 1;
+          if (isFilled !== shouldFill) return false;
+        }
+      }
+      return true;
+    }
+
+    function renderBoard() {
+      let state = gameStates[size];
+      boardEl.style.gridTemplateColumns = `max-content repeat(${size}, minmax(0, 1fr))`;
+      boardEl.innerHTML = '';
+
+      const emptyCorner = document.createElement('div');
+      emptyCorner.className = 'clue-cell';
+      boardEl.appendChild(emptyCorner);
+
+      for (let c = 0; c < size; c++) {
+        const el = document.createElement('div');
+        el.className = 'clue-cell';
+        el.innerHTML = state.globalColClues[c].map(n => `<span>${n}</span>`).join('');
+        boardEl.appendChild(el);
+      }
+
+      for (let r = 0; r < size; r++) {
+        const rClue = document.createElement('div');
+        rClue.className = 'clue-cell';
+        rClue.style.flexDirection = 'row';
+        rClue.style.gap = '4px';
+        rClue.style.padding = '0 8px';
+        rClue.innerHTML = state.globalRowClues[r].map(n => `<span>${n}</span>`).join('');
+        boardEl.appendChild(rClue);
+
+        for (let c = 0; c < size; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+
+          let val = state.playerState[r][c];
+          if (val === 1) cell.classList.add('filled');
+          if (val === 2) cell.classList.add('marked');
+
+          cell.addEventListener('mousedown', handlePointerDown);
+          cell.addEventListener('mouseenter', handlePointerEnter);
+          cell.addEventListener('touchstart', handlePointerDown, { passive: false });
+          cell.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+          boardEl.appendChild(cell);
+        }
+      }
+
+      if (state.isGameOver) {
+        renderFinishedUI(state);
+      }
+
+      updateCurrentSeedDisplay();
+    }
+
+    function startNewGame(targetSize) {
+      try {
+        initGameData(targetSize);
+      } catch (error) {
+        console.error(error);
+        showGenerationFailure();
+        return;
+      }
+
+      renderBoard();
+      resetUI();
+      saveData();
+    }
+
+    function handlePointerDown(e) {
+      if (gameStates[size].isGameOver) return;
+      if (e.type === 'touchstart') e.preventDefault();
+
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+
+      isDragging = true;
+      const r = cell.dataset.r;
+      const c = cell.dataset.c;
+      const currentState = gameStates[size].playerState[r][c];
+
+      if (currentAction === 'fill') {
+        dragAction = (currentState === 1) ? 'unfill' : 'fill';
+      } else {
+        dragAction = (currentState === 2) ? 'unmark' : 'mark';
+      }
+
+      applyAction(cell, r, c);
+    }
+
+    function handlePointerEnter(e) {
+      if (!isDragging || gameStates[size].isGameOver) return;
+      const cell = e.target;
+      applyAction(cell, cell.dataset.r, cell.dataset.c);
+    }
+
+    function handleTouchMove(e) {
+      if (!isDragging || gameStates[size].isGameOver) return;
+      e.preventDefault();
+
+      const touch = e.touches[0];
+      const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+
+      if (targetElement && targetElement.classList.contains('cell')) {
+        applyAction(targetElement, targetElement.dataset.r, targetElement.dataset.c);
+      }
+    }
+
+    function handlePointerUp() {
+      if (isDragging) {
+        isDragging = false;
+        dragAction = null;
+        saveData(); // 拖曳結束後存檔
+      }
+    }
+
+    function applyAction(cell, r, c) {
+      let state = gameStates[size];
+      cell.classList.remove('error-wrong', 'error-miss');
+
+      if (dragAction === 'fill') {
+        state.playerState[r][c] = 1;
+        cell.classList.add('filled');
+        cell.classList.remove('marked');
+      } else if (dragAction === 'unfill') {
+        if (state.playerState[r][c] === 1) {
+          state.playerState[r][c] = 0;
+          cell.classList.remove('filled');
+        }
+      } else if (dragAction === 'mark') {
+        state.playerState[r][c] = 2;
+        cell.classList.add('marked');
+        cell.classList.remove('filled');
+      } else if (dragAction === 'unmark') {
+        if (state.playerState[r][c] === 2) {
+          state.playerState[r][c] = 0;
+          cell.classList.remove('marked');
         }
       }
     }
-    topMsg.innerText = '解答如上標示';
-    resultBtns.innerHTML = '';
-    const ngBtn = document.createElement('button');
-    ngBtn.className = 'primary-btn';
-    ngBtn.innerText = '新的一局';
-    ngBtn.onclick = () => startNewGame(size);
-    resultBtns.appendChild(ngBtn);
-    
-    saveData();
-  }
 
-  function resetUI() {
-    if(gameStates[size] && gameStates[size].isGameOver) return; // 避免結束後還原按鈕
-    
-    actionToggle.classList.remove('hidden');
-    topMsg.classList.add('hidden');
-    mainActions.classList.remove('hidden');
-    resultBox.classList.add('hidden');
-    document.querySelectorAll('.cell.error-wrong, .cell.error-miss').forEach(el => {
-      el.classList.remove('error-wrong', 'error-miss');
-    });
-  }
+    function checkAnswer() {
+      let state = gameStates[size];
+      if (state.isGameOver) return;
+      showResult(isPlayerSolutionCorrect(state));
+    }
 
-  // --- 初始化啟動 (Initialization) ---
-  if (!loadData()) {
-    loadLevel(size); // 如果沒有 cookie/localStorage 記錄，載入預設 8x8
-  } else {
-    renderBoard(); // 如果有記錄，直接繪製盤面
-  }
-</script>
+    function showResult(isWin) {
+      mainActions.classList.add('hidden');
+      resultBox.classList.remove('hidden');
+      resultBtns.innerHTML = '';
+
+      actionToggle.classList.add('hidden');
+      topMsg.classList.remove('hidden');
+
+      if (isWin) {
+        gameStates[size].playerState = cloneGrid(gameStates[size].solution);
+        gameStates[size].isGameOver = true;
+        gameStates[size].resultState = RESULT_STATE.WIN;
+        renderBoard();
+
+        saveData();
+      } else {
+        gameStates[size].resultState = RESULT_STATE.IN_PROGRESS;
+        topMsg.style.color = '#555';
+        topMsg.innerText = '你再想想看';
+
+        const answerBtn = document.createElement('button');
+        answerBtn.className = 'secondary-btn';
+        answerBtn.innerText = '直接解答';
+        answerBtn.onclick = showSolution;
+
+        const retryBtn = document.createElement('button');
+        retryBtn.className = 'primary-btn';
+        retryBtn.innerText = '再試一次';
+        retryBtn.onclick = () => { resetUI(); };
+
+        resultBtns.appendChild(answerBtn);
+        resultBtns.appendChild(retryBtn);
+      }
+    }
+
+    function showSolution() {
+      let state = gameStates[size];
+      state.playerState = cloneGrid(state.solution);
+      state.isGameOver = true;
+      state.resultState = RESULT_STATE.REVEALED;
+      renderBoard();
+
+      saveData();
+    }
+
+    function resetUI() {
+      if (gameStates[size] && gameStates[size].isGameOver) return; // 避免結束後還原按鈕
+
+      actionToggle.classList.remove('hidden');
+      topMsg.classList.add('hidden');
+      mainActions.classList.remove('hidden');
+      resultBox.classList.add('hidden');
+      document.querySelectorAll('.cell.error-wrong, .cell.error-miss').forEach(el => {
+        el.classList.remove('error-wrong', 'error-miss');
+      });
+    }
+
+    // --- 初始化啟動 (Initialization) ---
+    applyThemeColor(themeColor);
+
+    if (!loadData()) {
+      loadLevel(size); // 如果沒有 cookie/localStorage 記錄，載入預設 8x8
+    } else {
+      renderBoard(); // 如果有記錄，直接繪製盤面
+    }
+  </script>
 </body>
+
 </html>
