@@ -423,6 +423,15 @@
       font-weight: bold;
       cursor: pointer;
       transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    #clear-board-btn {
+      min-width: 46px;
+      padding-inline: 12px;
     }
 
     .btn-group {
@@ -534,8 +543,18 @@
 
     <div class="status-area">
       <div id="main-actions" class="btn-group">
-        <button id="new-game-btn" class="secondary-btn">新的一局</button>
-        <button id="check-btn" class="primary-btn">確認答案</button>
+        <button id="new-game-btn" class="secondary-btn" type="button" aria-label="新的一局">新的一局</button>
+        <button id="clear-board-btn" class="secondary-btn" type="button" aria-label="清空盤面">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 6h18"></path>
+            <path d="M8 6V4h8v2"></path>
+            <path d="M19 6l-1 14H6L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+          </svg>
+        </button>
+        <button id="check-btn" class="primary-btn" type="button">確認答案</button>
       </div>
       <div id="result-box" class="status-area hidden">
         <div id="result-btns" class="btn-group"></div>
@@ -573,6 +592,7 @@
     const mainActions = document.getElementById('main-actions');
     const checkBtn = document.getElementById('check-btn');
     const newGameBtn = document.getElementById('new-game-btn');
+    const clearBoardBtn = document.getElementById('clear-board-btn');
     const resultBox = document.getElementById('result-box');
     const resultBtns = document.getElementById('result-btns');
     const menuBtn = document.getElementById('menu-btn');
@@ -846,6 +866,7 @@
 
     checkBtn.addEventListener('click', checkAnswer);
     newGameBtn.addEventListener('click', () => { startNewGame(size); });
+    clearBoardBtn.addEventListener('click', clearBoard);
 
     document.addEventListener('click', () => {
       closeMenu();
@@ -1306,6 +1327,23 @@
         return;
       }
 
+      renderBoard();
+      resetUI();
+      saveData();
+    }
+
+    function clearBoard() {
+      const state = gameStates[size];
+      if (!state || state.isGameOver) return;
+
+      const firstConfirm = window.confirm('確定要清空整個盤面嗎？');
+      if (!firstConfirm) return;
+
+      const secondConfirm = window.confirm('再次確認：這會移除目前所有塗黑與標記。');
+      if (!secondConfirm) return;
+
+      state.playerState = createEmptyPlayerState(size);
+      state.resultState = RESULT_STATE.IN_PROGRESS;
       renderBoard();
       resetUI();
       saveData();
