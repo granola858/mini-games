@@ -429,6 +429,12 @@
       gap: 6px;
     }
 
+    .secondary-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
     #clear-board-btn {
       min-width: 46px;
       padding-inline: 12px;
@@ -930,7 +936,7 @@
     });
 
     checkBtn.addEventListener('click', checkAnswer);
-    newGameBtn.addEventListener('click', () => { startNewGame(size); });
+    newGameBtn.addEventListener('click', () => { confirmStartNewGame(size); });
     clearBoardBtn.addEventListener('click', clearBoard);
 
     document.addEventListener('click', () => {
@@ -1299,7 +1305,7 @@
       const ngBtn = document.createElement('button');
       ngBtn.className = 'primary-btn';
       ngBtn.innerText = '新的一局';
-      ngBtn.onclick = () => startNewGame(size);
+      ngBtn.onclick = () => confirmStartNewGame(size);
       return ngBtn;
     }
 
@@ -1330,6 +1336,18 @@
         }
       }
       return true;
+    }
+
+    function isBoardEmpty(playerState) {
+      return playerState.every(row => row.every(cell => cell === 0));
+    }
+
+    function updateClearBoardButtonState() {
+      const state = gameStates[size];
+      const isEmpty = state ? isBoardEmpty(state.playerState) : true;
+      const shouldDisable = !state || state.isGameOver || isEmpty;
+      clearBoardBtn.disabled = shouldDisable;
+      clearBoardBtn.setAttribute('aria-disabled', String(shouldDisable));
     }
 
     function renderBoard() {
@@ -1381,6 +1399,7 @@
       }
 
       updateCurrentSeedDisplay();
+      updateClearBoardButtonState();
     }
 
     function startNewGame(targetSize) {
@@ -1395,6 +1414,19 @@
       renderBoard();
       resetUI();
       saveData();
+    }
+
+    async function confirmStartNewGame(targetSize) {
+      const state = gameStates[targetSize];
+      if (state && state.isGameOver) {
+        startNewGame(targetSize);
+        return;
+      }
+
+      const confirmed = await showConfirmDialog('新的一局', '確定要開始新的一局嗎？目前進度會遺失。', '開始新局');
+      if (confirmed) {
+        startNewGame(targetSize);
+      }
     }
 
     function showConfirmDialog(title, message, confirmLabel) {
@@ -1502,6 +1534,8 @@
           cell.classList.remove('marked');
         }
       }
+
+      updateClearBoardButtonState();
     }
 
     function checkAnswer() {
@@ -1562,6 +1596,7 @@
       topMsg.classList.add('hidden');
       mainActions.classList.remove('hidden');
       resultBox.classList.add('hidden');
+      updateClearBoardButtonState();
       document.querySelectorAll('.cell.error-wrong, .cell.error-miss').forEach(el => {
         el.classList.remove('error-wrong', 'error-miss');
       });
