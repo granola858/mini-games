@@ -1422,11 +1422,8 @@
       const state = gameStates[size];
       if (!state || state.isGameOver) return;
 
-      const firstConfirm = await showConfirmDialog('清空盤面', '確定要清空整個盤面嗎？', '確認清空');
-      if (!firstConfirm) return;
-
-      const secondConfirm = await showConfirmDialog('再次確認', '這會移除目前所有塗黑與標記。', '我確定要清空');
-      if (!secondConfirm) return;
+      const confirmed = await showConfirmDialog('清空盤面', '確定要清空整個盤面嗎？這會移除目前所有塗黑與標記。', '確認清空');
+      if (!confirmed) return;
 
       state.playerState = createEmptyPlayerState(size);
       state.resultState = RESULT_STATE.IN_PROGRESS;
