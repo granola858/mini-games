@@ -890,7 +890,8 @@
       localStorage.setItem(SAVE_KEY, JSON.stringify({
         size: size,
         themeColor: themeColor,
-        gameStates: gameStates
+        gameStates: gameStates,
+        actionHistory: actionHistory
       }));
     }
 
@@ -908,6 +909,7 @@
           size = validatedData.size;
           themeColor = validatedData.themeColor;
           gameStates = validatedData.gameStates;
+          actionHistory = validatedData.actionHistory || [];
 
           applyThemeColor(themeColor);
           updateLevelButtons();
@@ -1294,10 +1296,15 @@
         ? parsed.size
         : availableSizes[0];
 
+      const validHistory = Array.isArray(parsed.actionHistory)
+        ? parsed.actionHistory.filter(snapshot => isValidMatrix(snapshot, validatedSize, value => value === 0 || value === 1 || value === 2))
+        : [];
+
       return {
         size: validatedSize,
         themeColor: normalizeThemeColor(parsed.themeColor),
-        gameStates: validatedStates
+        gameStates: validatedStates,
+        actionHistory: validHistory.map(snapshot => cloneGrid(snapshot))
       };
     }
 
