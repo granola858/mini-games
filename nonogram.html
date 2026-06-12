@@ -441,6 +441,54 @@
       width: 100%;
     }
 
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 60;
+    }
+
+    .confirm-card {
+      width: min(360px, 100%);
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .confirm-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #222;
+    }
+
+    .confirm-message {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #555;
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .confirm-actions .secondary-btn,
+    .confirm-actions .primary-btn {
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 0.92rem;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -560,6 +608,18 @@
         <div id="result-btns" class="btn-group"></div>
       </div>
     </div>
+
+    <div id="confirm-overlay" class="confirm-overlay hidden" aria-hidden="true">
+      <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title"
+        aria-describedby="confirm-message">
+        <div id="confirm-title" class="confirm-title"></div>
+        <p id="confirm-message" class="confirm-message"></p>
+        <div class="confirm-actions">
+          <button id="confirm-cancel-btn" class="secondary-btn" type="button">取消</button>
+          <button id="confirm-ok-btn" class="primary-btn" type="button"></button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -595,6 +655,11 @@
     const clearBoardBtn = document.getElementById('clear-board-btn');
     const resultBox = document.getElementById('result-box');
     const resultBtns = document.getElementById('result-btns');
+    const confirmOverlay = document.getElementById('confirm-overlay');
+    const confirmTitle = document.getElementById('confirm-title');
+    const confirmMessage = document.getElementById('confirm-message');
+    const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+    const confirmOkBtn = document.getElementById('confirm-ok-btn');
     const menuBtn = document.getElementById('menu-btn');
     const menuPanel = document.getElementById('menu-panel');
     const paletteBtns = document.querySelectorAll('.palette-swatch');
@@ -1332,14 +1397,35 @@
       saveData();
     }
 
-    function clearBoard() {
+    function showConfirmDialog(title, message, confirmLabel) {
+      return new Promise(resolve => {
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmOkBtn.textContent = confirmLabel;
+        confirmOverlay.classList.remove('hidden');
+        confirmOverlay.setAttribute('aria-hidden', 'false');
+
+        const finish = (result) => {
+          confirmOverlay.classList.add('hidden');
+          confirmOverlay.setAttribute('aria-hidden', 'true');
+          confirmCancelBtn.onclick = null;
+          confirmOkBtn.onclick = null;
+          resolve(result);
+        };
+
+        confirmCancelBtn.onclick = () => finish(false);
+        confirmOkBtn.onclick = () => finish(true);
+      });
+    }
+
+    async function clearBoard() {
       const state = gameStates[size];
       if (!state || state.isGameOver) return;
 
-      const firstConfirm = window.confirm('確定要清空整個盤面嗎？');
+      const firstConfirm = await showConfirmDialog('清空盤面', '確定要清空整個盤面嗎？', '確認清空');
       if (!firstConfirm) return;
 
-      const secondConfirm = window.confirm('再次確認：這會移除目前所有塗黑與標記。');
+      const secondConfirm = await showConfirmDialog('再次確認', '這會移除目前所有塗黑與標記。', '我確定要清空');
       if (!secondConfirm) return;
 
       state.playerState = createEmptyPlayerState(size);
