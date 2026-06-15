@@ -358,6 +358,19 @@
       line-height: 1.2;
     }
 
+    .clue-cell.completed {
+      color: #b3b3b3;
+      background-color: #f6f6f6;
+      text-decoration: line-through;
+      text-decoration-thickness: 1.5px;
+      text-decoration-color: #c7c7c7;
+      opacity: 0.9;
+    }
+
+    .clue-cell.completed span {
+      color: inherit;
+    }
+
     /* 遊戲狀態樣式 */
     .cell.filled {
       background-color: var(--primary-color);
@@ -668,6 +681,8 @@
 
     let isDragging = false;
     let dragAction = null;
+    let dragSnapshot = null;
+    let dragHistoryCommitted = false;
     let actionHistory = [];
 
     const SAVE_KEY = 'nonogram_save_data';
@@ -1405,6 +1420,40 @@
       undoBtn.setAttribute('aria-disabled', String(shouldDisable));
     }
 
+    function isRowCompleted(state, rowIndex) {
+      return state.solution[rowIndex].every((expectedValue, colIndex) => {
+        const actualValue = state.playerState[rowIndex][colIndex];
+        return expectedValue === 1 ? actualValue === 1 : actualValue !== 1;
+      });
+    }
+
+    function isColumnCompleted(state, colIndex) {
+      return state.solution.every((row, rowIndex) => {
+        const expectedValue = row[colIndex];
+        const actualValue = state.playerState[rowIndex][colIndex];
+        return expectedValue === 1 ? actualValue === 1 : actualValue !== 1;
+      });
+    }
+
+    function updateCompletedClueStatus(state) {
+      const rowClues = boardEl.querySelectorAll('.clue-cell');
+      const clueCells = Array.from(rowClues);
+
+      for (let r = 0; r < size; r++) {
+        const clueCell = clueCells[r + size + 1];
+        if (clueCell) {
+          clueCell.classList.toggle('completed', isRowCompleted(state, r));
+        }
+      }
+
+      for (let c = 0; c < size; c++) {
+        const clueCell = clueCells[c + 1];
+        if (clueCell) {
+          clueCell.classList.toggle('completed', isColumnCompleted(state, c));
+        }
+      }
+    }
+
     function renderBoard() {
       let state = gameStates[size];
       boardEl.style.gridTemplateColumns = `max-content repeat(${size}, minmax(0, 1fr))`;
@@ -1448,6 +1497,8 @@
           boardEl.appendChild(cell);
         }
       }
+
+      updateCompletedClueStatus(state);
 
       if (state.isGameOver) {
         renderFinishedUI(state);
@@ -1542,6 +1593,8 @@
       if (!cell) return;
 
       isDragging = true;
+      dragSnapshot = cloneGrid(gameStates[size].playerState);
+      dragHistoryCommitted = false;
       const r = cell.dataset.r;
       const c = cell.dataset.c;
       const currentState = gameStates[size].playerState[r][c];
@@ -1577,6 +1630,8 @@
       if (isDragging) {
         isDragging = false;
         dragAction = null;
+        dragSnapshot = null;
+        dragHistoryCommitted = false;
         saveData(); // 拖曳結束後存檔
       }
     }
@@ -1604,10 +1659,14 @@
       }
 
       if (currentValue !== nextValue) {
-        actionHistory.push(cloneGrid(state.playerState));
+        if (!dragHistoryCommitted && dragSnapshot) {
+          actionHistory.push(dragSnapshot);
+          dragHistoryCommitted = true;
+        }
         state.playerState[r][c] = nextValue;
       }
 
+      updateCompletedClueStatus(state);
       updateClearBoardButtonState();
       updateUndoButtonState();
     }
