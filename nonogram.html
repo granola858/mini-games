@@ -1420,19 +1420,18 @@
       undoBtn.setAttribute('aria-disabled', String(shouldDisable));
     }
 
+    function doesPlayerLineMatchClues(lineValues, targetClues) {
+      const filledLine = lineValues.map(value => value === 1 ? 1 : 0);
+      return areClueLinesEqual(getClues(filledLine), targetClues);
+    }
+
     function isRowCompleted(state, rowIndex) {
-      return state.solution[rowIndex].every((expectedValue, colIndex) => {
-        const actualValue = state.playerState[rowIndex][colIndex];
-        return expectedValue === 1 ? actualValue === 1 : actualValue !== 1;
-      });
+      return doesPlayerLineMatchClues(state.playerState[rowIndex], state.globalRowClues[rowIndex]);
     }
 
     function isColumnCompleted(state, colIndex) {
-      return state.solution.every((row, rowIndex) => {
-        const expectedValue = row[colIndex];
-        const actualValue = state.playerState[rowIndex][colIndex];
-        return expectedValue === 1 ? actualValue === 1 : actualValue !== 1;
-      });
+      const columnValues = state.playerState.map(row => row[colIndex]);
+      return doesPlayerLineMatchClues(columnValues, state.globalColClues[colIndex]);
     }
 
     function updateCompletedClueStatus(state) {
