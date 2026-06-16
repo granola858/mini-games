@@ -988,7 +988,7 @@
             return true;
         }
 
-        function placeRandomSegment(board, targetSize, availablePaletteSize) {
+        function placeRandomSegment(board, targetSize, availablePaletteSize, forcedColorValue = null) {
             const directions = [
                 { row: 0, col: 1 },
                 { row: 1, col: 0 }
@@ -1001,7 +1001,7 @@
                 const maxStartCol = direction.col === 1 ? targetSize - length : targetSize - 1;
                 const startRow = Math.floor(Math.random() * (maxStartRow + 1));
                 const startCol = Math.floor(Math.random() * (maxStartCol + 1));
-                const colorValue = 1 + Math.floor(Math.random() * availablePaletteSize);
+                const colorValue = forcedColorValue ?? (1 + Math.floor(Math.random() * availablePaletteSize));
 
                 if (!canPlaceSegment(board, startRow, startCol, direction, length, colorValue)) continue;
 
@@ -1017,11 +1017,29 @@
             return false;
         }
 
+        function getUsedColors(solution) {
+            const usedColors = new Set();
+
+            for (const row of solution) {
+                for (const value of row) {
+                    if (value > 0) usedColors.add(value);
+                }
+            }
+
+            return usedColors;
+        }
+
         function createRandomSolution(targetSize, availablePaletteSize) {
             const solution = Array.from({ length: targetSize }, () => new Array(targetSize).fill(0));
             const targetSegments = Math.max(4, Math.floor((targetSize * targetSize) / 10));
 
-            for (let index = 0; index < targetSegments; index++) {
+            for (let colorValue = 1; colorValue <= availablePaletteSize; colorValue++) {
+                if (!placeRandomSegment(solution, targetSize, availablePaletteSize, colorValue)) {
+                    return null;
+                }
+            }
+
+            for (let index = availablePaletteSize; index < targetSegments; index++) {
                 if (!placeRandomSegment(solution, targetSize, availablePaletteSize)) break;
             }
 
@@ -1289,10 +1307,12 @@
         function createPuzzle(targetSize, availablePaletteSize) {
             for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
                 const solution = createRandomSolution(targetSize, availablePaletteSize);
-                const { rowClues, colClues } = buildCluesFromSolution(solution);
-                const hasAnyColor = solution.some(row => row.some(value => value > 0));
+                if (!solution) continue;
 
-                if (hasAnyColor && countSolutions(rowClues, colClues, 2) === 1) {
+                const { rowClues, colClues } = buildCluesFromSolution(solution);
+                const usedColors = getUsedColors(solution);
+
+                if (usedColors.size === availablePaletteSize && countSolutions(rowClues, colClues, 2) === 1) {
                     return { solution, rowClues, colClues };
                 }
             }
@@ -1345,8 +1365,9 @@
             const derivedClues = buildCluesFromSolution(savedState.solution);
             const hasRowMismatch = derivedClues.rowClues.some((line, index) => !areClueLinesEqual(line, savedState.rowClues[index]));
             const hasColMismatch = derivedClues.colClues.some((line, index) => !areClueLinesEqual(line, savedState.colClues[index]));
+            const usedColors = getUsedColors(savedState.solution);
 
-            if (hasRowMismatch || hasColMismatch) return null;
+            if (hasRowMismatch || hasColMismatch || usedColors.size !== availablePaletteSize) return null;
 
             return {
                 size: targetSize,
