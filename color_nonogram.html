@@ -9,8 +9,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap');
 
         :root {
-            --primary-color: #FFB7F1;
-            --primary-shadow: rgba(255, 183, 241, 0.4);
+            --primary-color: #1f1f1f;
+            --primary-shadow: rgba(0, 0, 0, 0.2);
             --error-color: #FF6B81;
             --inactive-btn-text: #333;
             --line-color: #f0f0f0;
@@ -32,7 +32,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 16px 16px 12px;
+            padding: 20px 18px 16px;
             min-height: 100dvh;
             min-height: 100vh;
         }
@@ -43,7 +43,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 18px;
         }
 
         .top-bar {
@@ -52,7 +52,7 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 12px;
+            gap: 16px;
         }
 
         .back-btn {
@@ -92,7 +92,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 2px;
+            gap: 6px;
         }
 
         .h1 {
@@ -155,7 +155,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 16px;
         }
 
         .control-group {
@@ -163,7 +163,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
         }
 
         .control-label {
@@ -238,7 +238,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 20px;
+            min-height: 24px;
             width: 100%;
         }
 
@@ -267,8 +267,8 @@
             max-width: 420px;
             display: flex;
             justify-content: center;
-            margin-bottom: 10px;
-            padding: 10px;
+            margin-bottom: 14px;
+            padding: 14px;
             overflow-x: auto;
         }
 
@@ -348,7 +348,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
             width: 100%;
         }
 
@@ -361,7 +361,7 @@
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 2px 6px var(--primary-shadow);
+            box-shadow: 0 5px 14px var(--primary-shadow);
             transition: 0.2s;
         }
 
@@ -370,9 +370,9 @@
         }
 
         .secondary-btn {
-            background-color: #f0f0f0;
-            color: #555;
-            border: none;
+            background-color: #f4f4f4;
+            color: #444;
+            border: 1px solid #e4e4e4;
             padding: 12px 24px;
             border-radius: 20px;
             font-size: 0.9rem;
@@ -383,6 +383,7 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         }
 
         .secondary-btn:disabled,
@@ -400,7 +401,7 @@
 
         .btn-group {
             display: flex;
-            gap: 8px;
+            gap: 12px;
             justify-content: center;
             width: min(100%, 420px);
             margin: 0 auto;
@@ -464,11 +465,11 @@
 
         @media (max-width: 480px) {
             body {
-                padding: 12px 10px 10px;
+                padding: 16px 12px 12px;
             }
 
             .container {
-                gap: 10px;
+                gap: 14px;
             }
 
             .top-bar {
@@ -496,11 +497,11 @@
             }
 
             .control-stack {
-                gap: 8px;
+                gap: 12px;
             }
 
             .control-group {
-                gap: 4px;
+                gap: 6px;
             }
 
             .control-label {
@@ -530,12 +531,12 @@
             }
 
             .action-msg-container {
-                min-height: 18px;
+                min-height: 22px;
             }
 
             .game-board-wrapper {
-                margin-bottom: 4px;
-                padding: 4px 0 0;
+                margin-bottom: 8px;
+                padding: 8px 0 2px;
             }
 
             .clue-cell {
@@ -550,11 +551,11 @@
             }
 
             .status-area {
-                gap: 10px;
+                gap: 12px;
             }
 
             .btn-group {
-                gap: 6px;
+                gap: 8px;
                 width: min(100%, 390px);
             }
 
@@ -568,11 +569,11 @@
 
         @media (max-height: 760px) {
             body {
-                padding: 8px 8px 6px;
+                padding: 10px 10px 8px;
             }
 
             .container {
-                gap: 6px;
+                gap: 8px;
             }
 
             .top-bar {
@@ -591,7 +592,7 @@
             }
 
             .title-wrap {
-                gap: 0;
+                gap: 3px;
             }
 
             .h1 {
@@ -609,12 +610,12 @@
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 6px;
+                gap: 8px;
             }
 
             .control-group {
                 width: 100%;
-                gap: 3px;
+                gap: 4px;
             }
 
             .control-label {
@@ -642,8 +643,8 @@
             }
 
             .game-board-wrapper {
-                margin-bottom: 2px;
-                padding: 0;
+                margin-bottom: 4px;
+                padding: 2px 0 0;
             }
 
             .clue-cell {
