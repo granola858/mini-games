@@ -35,6 +35,7 @@
         .game-card-shell {
             position: relative;
             height: 100%;
+            transform: translateY(0);
             transition: transform 0.3s ease;
         }
 
@@ -62,13 +63,15 @@
             background: rgba(255, 255, 255, 0.95);
             color: #94a3b8;
             box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
-            transition: transform 0.2s ease, color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+            transition: transform 0.2s ease, color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .pin-button:hover {
             transform: translateY(-1px);
-            color: #f59e0b;
-            border-color: #fcd34d;
+            color: #64748b;
+            border-color: #94a3b8;
+            background: #f8fafc;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
         }
 
         .pin-button:focus-visible {
@@ -79,13 +82,20 @@
         .pin-button svg {
             width: 1.1rem;
             height: 1.1rem;
-            fill: currentColor;
+            fill: transparent;
+            stroke: currentColor;
+            stroke-width: 2;
+            transition: fill 0.2s ease, stroke 0.2s ease;
         }
 
         .game-card-shell[data-pinned="true"] .pin-button {
             color: #f59e0b;
             border-color: #fcd34d;
             background: #fff7ed;
+        }
+
+        .game-card-shell[data-pinned="true"] .pin-button svg {
+            fill: currentColor;
         }
     </style>
 </head>
@@ -103,7 +113,7 @@
                 </p>
             </div>
             <div class="text-xs font-mono bg-slate-100 px-3 py-1 rounded text-slate-500">
-                v1.8.3
+                v1.8.4
             </div>
         </div>
     </header>
@@ -524,7 +534,7 @@
 
             const validCardIds = new Set(shells.map((shell) => shell.dataset.cardId));
             const originalOrder = new Map(shells.map((shell, index) => [shell.dataset.cardId, index]));
-
+            const staticChildren = Array.from(grid.children).filter((child) => !child.matches('.game-card-shell'));
             const normalizePinnedIds = (value) => {
                 if (!Array.isArray(value)) {
                     return [];
@@ -542,9 +552,15 @@
                 });
             };
 
+            const sortPinnedIds = (value) => {
+                return normalizePinnedIds(value).sort((leftId, rightId) => {
+                    return originalOrder.get(leftId) - originalOrder.get(rightId);
+                });
+            };
+
             const readPinnedIds = () => {
                 try {
-                    return normalizePinnedIds(JSON.parse(localStorage.getItem(storageKey) || '[]'));
+                    return sortPinnedIds(JSON.parse(localStorage.getItem(storageKey) || '[]'));
                 } catch (error) {
                     console.warn('Pinned cards could not be restored.', error);
                     return [];
@@ -569,19 +585,15 @@
             };
 
             const sortCards = () => {
-                const pinnedOrder = new Map(pinnedIds.map((cardId, index) => [cardId, index]));
+                const pinnedSet = new Set(pinnedIds);
                 const sortedShells = [...shells].sort((left, right) => {
                     const leftId = left.dataset.cardId;
                     const rightId = right.dataset.cardId;
-                    const leftPinned = pinnedOrder.has(leftId);
-                    const rightPinned = pinnedOrder.has(rightId);
-
-                    if (leftPinned && rightPinned) {
-                        return pinnedOrder.get(leftId) - pinnedOrder.get(rightId);
-                    }
+                    const leftPinned = pinnedSet.has(leftId);
+                    const rightPinned = pinnedSet.has(rightId);
 
                     if (leftPinned) {
-                        return -1;
+                        return rightPinned ? originalOrder.get(leftId) - originalOrder.get(rightId) : -1;
                     }
 
                     if (rightPinned) {
@@ -595,11 +607,9 @@
                     grid.appendChild(shell);
                 });
 
-                Array.from(grid.children)
-                    .filter((child) => !child.matches('.game-card-shell'))
-                    .forEach((child) => {
-                        grid.appendChild(child);
-                    });
+                staticChildren.forEach((child) => {
+                    grid.appendChild(child);
+                });
             };
 
             const renderPinnedState = () => {
@@ -622,9 +632,9 @@
 
             const togglePinned = (cardId) => {
                 if (pinnedIds.includes(cardId)) {
-                    pinnedIds = pinnedIds.filter((pinnedId) => pinnedId !== cardId);
+                    pinnedIds = sortPinnedIds(pinnedIds.filter((pinnedId) => pinnedId !== cardId));
                 } else {
-                    pinnedIds = [cardId, ...pinnedIds];
+                    pinnedIds = sortPinnedIds([...pinnedIds, cardId]);
                 }
 
                 writePinnedIds(pinnedIds);
@@ -642,6 +652,7 @@
                     event.preventDefault();
                     event.stopPropagation();
                     togglePinned(shell.dataset.cardId);
+                    pinButton.blur();
                 });
             });
 
