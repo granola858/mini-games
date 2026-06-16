@@ -74,7 +74,7 @@
 
         .palette-size-badge {
             min-width: 58px;
-            display: inline-flex;
+            display: none;
             align-items: center;
             justify-content: center;
             padding: 10px 12px;
@@ -599,15 +599,17 @@
             }
 
             .title-sub {
-                display: none;
+                display: block;
+                font-size: 0.66rem;
+                letter-spacing: 1.2px;
             }
 
             .control-stack {
-                width: min(100%, 360px);
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                column-gap: 8px;
-                row-gap: 4px;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 6px;
             }
 
             .control-group {
@@ -616,18 +618,17 @@
             }
 
             .control-label {
-                max-width: none;
+                max-width: 300px;
                 padding-left: 4px;
                 font-size: 0.68rem;
             }
 
             .toggle-container {
-                max-width: none;
+                max-width: 300px;
             }
 
             .palette-row {
-                grid-column: 1 / -1;
-                max-width: none;
+                max-width: 300px;
                 gap: 6px;
             }
 
@@ -672,7 +673,6 @@
                 </svg>
                 回首頁
             </a>
-            <div id="palette-size-badge" class="palette-size-badge">4 色</div>
         </div>
 
         <div class="title-wrap">
@@ -778,6 +778,7 @@
         let dragHistoryCommitted = false;
         let actionHistory = [];
         let gameState = null;
+        let savedSessions = createEmptySaveStore();
 
         const SAVE_KEY = 'color_nonogram_save_data';
         const DEFAULT_SIZE = 8;
@@ -807,7 +808,6 @@
         const boardWrapperEl = document.querySelector('.game-board-wrapper');
         const statusAreaEl = document.querySelector('.status-area');
         const paletteRow = document.getElementById('palette-row');
-        const paletteSizeBadge = document.getElementById('palette-size-badge');
         const topMsg = document.getElementById('top-msg');
         const boardEl = document.getElementById('board');
         const undoBtn = document.getElementById('undo-btn');
@@ -835,8 +835,23 @@
             return Number.isInteger(normalized) && normalized >= 1 && normalized <= maxPaletteSize ? normalized : 1;
         }
 
+        function getConfigKey(targetSize = size, availablePaletteSize = paletteSize) {
+            return `${normalizeSize(targetSize)}x${normalizePaletteSize(availablePaletteSize)}`;
+        }
+
+        function createEmptySaveStore() {
+            return {
+                activeConfigKey: '',
+                states: {}
+            };
+        }
+
         function cloneGrid(grid) {
             return grid.map(row => row.slice());
+        }
+
+        function cloneClueSet(clues) {
+            return clues.map(line => line.map(item => ({ color: item.color, length: item.length })));
         }
 
         function createEmptyPlayerState(targetSize) {
@@ -1361,13 +1376,97 @@
             };
         }
 
+        function validateSavedStore(parsed) {
+            if (!parsed || typeof parsed !== 'object') return null;
+
+            const legacySlot = validateSavedData(parsed);
+            if (legacySlot) {
+                const legacyKey = getConfigKey(legacySlot.gameState.size, legacySlot.gameState.paletteSize);
+                return {
+                    activeConfigKey: legacyKey,
+                    states: {
+                        [legacyKey]: legacySlot
+                    }
+                };
+            }
+
+            if (!parsed.states || typeof parsed.states !== 'object') return null;
+
+            const validatedStates = {};
+
+            Object.values(parsed.states).forEach(slot => {
+                const validatedSlot = validateSavedData(slot);
+                if (!validatedSlot) return;
+
+                const configKey = getConfigKey(validatedSlot.gameState.size, validatedSlot.gameState.paletteSize);
+                validatedStates[configKey] = validatedSlot;
+            });
+
+            const availableKeys = Object.keys(validatedStates);
+            if (!availableKeys.length) return null;
+
+            const activeConfigKey = typeof parsed.activeConfigKey === 'string' && validatedStates[parsed.activeConfigKey]
+                ? parsed.activeConfigKey
+                : availableKeys[0];
+
+            return {
+                activeConfigKey,
+                states: validatedStates
+            };
+        }
+
+        function createSavedSlot() {
+            return {
+                currentColor: normalizeColorId(currentColor, gameState.paletteSize),
+                gameState: {
+                    size: gameState.size,
+                    paletteSize: gameState.paletteSize,
+                    solution: cloneGrid(gameState.solution),
+                    playerState: cloneGrid(gameState.playerState),
+                    rowClues: cloneClueSet(gameState.rowClues),
+                    colClues: cloneClueSet(gameState.colClues),
+                    isGameOver: gameState.isGameOver,
+                    resultState: gameState.resultState
+                },
+                actionHistory: actionHistory.map(snapshot => cloneGrid(snapshot))
+            };
+        }
+
+        function applySavedSlot(savedSlot) {
+            size = savedSlot.gameState.size;
+            paletteSize = savedSlot.gameState.paletteSize;
+            currentColor = normalizeColorId(savedSlot.currentColor, paletteSize);
+            gameState = savedSlot.gameState;
+            actionHistory = savedSlot.actionHistory;
+        }
+
+        function restoreSession(targetSize, availablePaletteSize) {
+            const configKey = getConfigKey(targetSize, availablePaletteSize);
+            const savedSlot = savedSessions.states[configKey];
+
+            if (!savedSlot) return false;
+
+            const validatedSlot = validateSavedData(savedSlot);
+            if (!validatedSlot) {
+                delete savedSessions.states[configKey];
+                return false;
+            }
+
+            savedSessions.activeConfigKey = configKey;
+            applySavedSlot(validatedSlot);
+            return true;
+        }
+
         function saveData() {
             if (!gameState) return;
 
+            const configKey = getConfigKey(gameState.size, gameState.paletteSize);
+            savedSessions.activeConfigKey = configKey;
+            savedSessions.states[configKey] = createSavedSlot();
+
             localStorage.setItem(SAVE_KEY, JSON.stringify({
-                currentColor: currentColor,
-                gameState: gameState,
-                actionHistory: actionHistory
+                activeConfigKey: savedSessions.activeConfigKey,
+                states: savedSessions.states
             }));
         }
 
@@ -1377,17 +1476,15 @@
 
             try {
                 const parsed = JSON.parse(rawData);
-                const validatedData = validateSavedData(parsed);
-                if (!validatedData) {
+                const validatedStore = validateSavedStore(parsed);
+                if (!validatedStore) {
                     localStorage.removeItem(SAVE_KEY);
+                    savedSessions = createEmptySaveStore();
                     return false;
                 }
 
-                size = validatedData.gameState.size;
-                paletteSize = validatedData.gameState.paletteSize;
-                currentColor = normalizeColorId(validatedData.currentColor, paletteSize);
-                gameState = validatedData.gameState;
-                actionHistory = validatedData.actionHistory;
+                savedSessions = validatedStore;
+                applySavedSlot(validatedStore.states[validatedStore.activeConfigKey]);
 
                 syncControls();
                 renderBoard();
@@ -1396,13 +1493,16 @@
                 if (gameState.isGameOver && gameState.resultState === RESULT_STATE.WIN) {
                     showTopMessage('答對了！', 'success');
                 } else {
-                    showTopMessage('已載入上次進度。');
+                    hideTopMessage();
                 }
+
+                saveData();
 
                 return true;
             } catch (error) {
                 console.error('localStorage parsing error', error);
                 localStorage.removeItem(SAVE_KEY);
+                savedSessions = createEmptySaveStore();
                 return false;
             }
         }
@@ -1415,8 +1515,6 @@
             paletteCountBtns.forEach(btn => {
                 btn.classList.toggle('active', Number(btn.dataset.count) === paletteSize);
             });
-
-            paletteSizeBadge.textContent = `${paletteSize} 色`;
             updatePaletteButtons();
         }
 
@@ -1624,63 +1722,59 @@
             });
         }
 
-        async function handleSizeChange(nextSize) {
-            const normalizedSize = normalizeSize(nextSize);
-            if (normalizedSize === size) return;
-
-            if (hasActiveProgress()) {
-                const confirmed = await showConfirmDialog('切換盤面', '切換大小會開啟新的題目，目前進度不會保留。', '切換');
-                if (!confirmed) return;
-            }
-
-            const previousSize = size;
-            size = normalizedSize;
+        function switchSession(targetSize, availablePaletteSize) {
+            const previousState = {
+                size,
+                paletteSize,
+                currentColor,
+                gameState,
+                actionHistory
+            };
 
             try {
-                initGameData(size, paletteSize);
+                if (!restoreSession(targetSize, availablePaletteSize)) {
+                    size = normalizeSize(targetSize);
+                    paletteSize = normalizePaletteSize(availablePaletteSize);
+                    currentColor = normalizeColorId(currentColor, paletteSize);
+                    initGameData(size, paletteSize);
+                }
+
                 syncControls();
                 renderBoard();
                 updateSelectedColorIndicator();
-                hideTopMessage();
+
+                if (gameState.isGameOver && gameState.resultState === RESULT_STATE.WIN) {
+                    showTopMessage('答對了！', 'success');
+                } else {
+                    hideTopMessage();
+                }
+
                 saveData();
+                return true;
             } catch (error) {
                 console.error(error);
-                size = previousSize;
+                size = previousState.size;
+                paletteSize = previousState.paletteSize;
+                currentColor = previousState.currentColor;
+                gameState = previousState.gameState;
+                actionHistory = previousState.actionHistory;
                 syncControls();
+                if (gameState) renderBoard();
                 showGenerationFailure();
+                return false;
             }
         }
 
-        async function handlePaletteSizeChange(nextPaletteSize) {
+        function handleSizeChange(nextSize) {
+            const normalizedSize = normalizeSize(nextSize);
+            if (normalizedSize === size) return;
+            switchSession(normalizedSize, paletteSize);
+        }
+
+        function handlePaletteSizeChange(nextPaletteSize) {
             const normalizedPaletteSize = normalizePaletteSize(nextPaletteSize);
             if (normalizedPaletteSize === paletteSize) return;
-
-            if (hasActiveProgress()) {
-                const confirmed = await showConfirmDialog('切換顏色數量', '切換顏色數量會開啟新的題目，目前進度不會保留。', '切換');
-                if (!confirmed) return;
-            }
-
-            const previousPaletteSize = paletteSize;
-            const previousColor = currentColor;
-
-            paletteSize = normalizedPaletteSize;
-            currentColor = normalizeColorId(currentColor, paletteSize);
-
-            try {
-                initGameData(size, paletteSize);
-                syncControls();
-                renderBoard();
-                updateSelectedColorIndicator();
-                hideTopMessage();
-                saveData();
-            } catch (error) {
-                console.error(error);
-                paletteSize = previousPaletteSize;
-                currentColor = previousColor;
-                syncControls();
-                updateSelectedColorIndicator();
-                showGenerationFailure();
-            }
+            switchSession(size, normalizedPaletteSize);
         }
 
         function undoLastAction() {
