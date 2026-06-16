@@ -25,6 +25,58 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
+
+        .game-card-link {
+            display: block;
+            height: 100%;
+            padding-right: 4.5rem;
+        }
+
+        .game-card-shell[data-pinned="true"] .game-card-link {
+            border-color: #f59e0b;
+            box-shadow: 0 18px 35px rgba(245, 158, 11, 0.18);
+        }
+
+        .pin-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 20;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 9999px;
+            border: 1px solid #cbd5e1;
+            background: rgba(255, 255, 255, 0.95);
+            color: #94a3b8;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+            transition: transform 0.2s ease, color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .pin-button:hover {
+            transform: translateY(-1px);
+            color: #f59e0b;
+            border-color: #fcd34d;
+        }
+
+        .pin-button:focus-visible {
+            outline: 3px solid rgba(245, 158, 11, 0.22);
+            outline-offset: 2px;
+        }
+
+        .pin-button svg {
+            width: 1.1rem;
+            height: 1.1rem;
+            fill: currentColor;
+        }
+
+        .game-card-shell[data-pinned="true"] .pin-button {
+            color: #f59e0b;
+            border-color: #fcd34d;
+            background: #fff7ed;
+        }
     </style>
 </head>
 
@@ -48,7 +100,7 @@
 
     <main class="flex-grow max-w-5xl mx-auto w-full px-4 py-10">
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div id="game-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
             <a href="guess-song/dist/index.html"
                 class="group bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
@@ -415,6 +467,177 @@
     <footer class="text-center py-6 text-slate-400 text-sm">
         &copy; 2026 波波小遊戲中心. All rights reserved.
     </footer>
+
+    <script>
+        (() => {
+            const storageKey = 'bobo-mini-games-pinned-cards';
+            const grid = document.getElementById('game-grid');
+
+            if (!grid) {
+                return;
+            }
+
+            const linkCards = Array.from(grid.children).filter((element) => element.matches('a[href]'));
+
+            if (linkCards.length === 0) {
+                return;
+            }
+
+            const createPinIcon = () => `
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 2.75l2.86 5.79 6.39.93-4.62 4.51 1.09 6.36L12 17.3l-5.72 3.01 1.09-6.36-4.62-4.51 6.39-.93L12 2.75z"></path>
+                </svg>
+            `;
+
+            const shells = linkCards.map((linkCard) => {
+                const cardId = linkCard.getAttribute('href');
+                const title = linkCard.querySelector('h2')?.textContent?.trim() || '遊戲卡片';
+                const shell = document.createElement('div');
+                const pinButton = document.createElement('button');
+
+                shell.className = 'game-card-shell relative h-full';
+                shell.dataset.cardId = cardId;
+
+                pinButton.type = 'button';
+                pinButton.className = 'pin-button';
+                pinButton.dataset.cardId = cardId;
+                pinButton.dataset.cardTitle = title;
+                pinButton.innerHTML = createPinIcon();
+
+                linkCard.classList.add('game-card-link');
+
+                grid.replaceChild(shell, linkCard);
+                shell.append(pinButton, linkCard);
+
+                return shell;
+            });
+
+            const validCardIds = new Set(shells.map((shell) => shell.dataset.cardId));
+            const originalOrder = new Map(shells.map((shell, index) => [shell.dataset.cardId, index]));
+
+            const normalizePinnedIds = (value) => {
+                if (!Array.isArray(value)) {
+                    return [];
+                }
+
+                const seen = new Set();
+
+                return value.filter((cardId) => {
+                    if (typeof cardId !== 'string' || !validCardIds.has(cardId) || seen.has(cardId)) {
+                        return false;
+                    }
+
+                    seen.add(cardId);
+                    return true;
+                });
+            };
+
+            const readPinnedIds = () => {
+                try {
+                    return normalizePinnedIds(JSON.parse(localStorage.getItem(storageKey) || '[]'));
+                } catch (error) {
+                    console.warn('Pinned cards could not be restored.', error);
+                    return [];
+                }
+            };
+
+            const writePinnedIds = (pinnedIds) => {
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(pinnedIds));
+                } catch (error) {
+                    console.warn('Pinned cards could not be saved.', error);
+                }
+            };
+
+            let pinnedIds = readPinnedIds();
+
+            const updateButtonLabel = (button, pinned) => {
+                const title = button.dataset.cardTitle || '遊戲卡片';
+                button.setAttribute('aria-pressed', String(pinned));
+                button.setAttribute('aria-label', pinned ? `取消釘選 ${title}` : `釘選 ${title} 到最上方`);
+                button.setAttribute('title', pinned ? `取消釘選 ${title}` : `釘選 ${title} 到最上方`);
+            };
+
+            const sortCards = () => {
+                const pinnedOrder = new Map(pinnedIds.map((cardId, index) => [cardId, index]));
+                const sortedShells = [...shells].sort((left, right) => {
+                    const leftId = left.dataset.cardId;
+                    const rightId = right.dataset.cardId;
+                    const leftPinned = pinnedOrder.has(leftId);
+                    const rightPinned = pinnedOrder.has(rightId);
+
+                    if (leftPinned && rightPinned) {
+                        return pinnedOrder.get(leftId) - pinnedOrder.get(rightId);
+                    }
+
+                    if (leftPinned) {
+                        return -1;
+                    }
+
+                    if (rightPinned) {
+                        return 1;
+                    }
+
+                    return originalOrder.get(leftId) - originalOrder.get(rightId);
+                });
+
+                sortedShells.forEach((shell) => {
+                    grid.appendChild(shell);
+                });
+
+                Array.from(grid.children)
+                    .filter((child) => !child.matches('.game-card-shell'))
+                    .forEach((child) => {
+                        grid.appendChild(child);
+                    });
+            };
+
+            const renderPinnedState = () => {
+                const pinnedSet = new Set(pinnedIds);
+
+                shells.forEach((shell) => {
+                    const cardId = shell.dataset.cardId;
+                    const pinned = pinnedSet.has(cardId);
+                    const pinButton = shell.querySelector('.pin-button');
+
+                    shell.dataset.pinned = String(pinned);
+
+                    if (pinButton) {
+                        updateButtonLabel(pinButton, pinned);
+                    }
+                });
+
+                sortCards();
+            };
+
+            const togglePinned = (cardId) => {
+                if (pinnedIds.includes(cardId)) {
+                    pinnedIds = pinnedIds.filter((pinnedId) => pinnedId !== cardId);
+                } else {
+                    pinnedIds = [cardId, ...pinnedIds];
+                }
+
+                writePinnedIds(pinnedIds);
+                renderPinnedState();
+            };
+
+            shells.forEach((shell) => {
+                const pinButton = shell.querySelector('.pin-button');
+
+                if (!pinButton) {
+                    return;
+                }
+
+                pinButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    togglePinned(shell.dataset.cardId);
+                });
+            });
+
+            renderPinnedState();
+        })();
+    </script>
 
 </body>
 
