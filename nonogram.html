@@ -17,6 +17,8 @@
       --wrong-color: #e0e0e0;
       --inactive-btn-text: #222;
       --page-bg: #ffffff;
+      --board-cell-bg: #ffffff;
+      --clue-cell-bg: #ffffff;
       --surface-color: #ffffff;
       --surface-alt: #fafafa;
       --surface-muted: #f5f5f5;
@@ -29,6 +31,7 @@
       --text-disabled: #999;
       --line-color: #f0f0f0;
       --section-divider: #f4f4f4;
+      --clue-text-color: #777;
       --completed-clue-color: #b3b3b3;
       --completed-clue-bg: #f6f6f6;
       --completed-clue-shadow: inset 0 0 0 1px rgba(199, 199, 199, 0.45);
@@ -40,6 +43,8 @@
     :root[data-theme="dark"] {
       --wrong-color: #3a4352;
       --page-bg: #0f141c;
+      --board-cell-bg: #202837;
+      --clue-cell-bg: #161d28;
       --surface-color: #1a212c;
       --surface-alt: #202837;
       --surface-muted: #232c3b;
@@ -52,10 +57,11 @@
       --text-disabled: #7f8b99;
       --line-color: #384456;
       --section-divider: #2a3444;
-      --completed-clue-color: #d4dde8;
+      --clue-text-color: #dbe4ef;
+      --completed-clue-color: #748298;
       --completed-clue-bg: #2b3648;
-      --completed-clue-shadow: inset 0 0 0 1px rgba(212, 221, 232, 0.26);
-      --completed-line-color: #f2f6fb;
+      --completed-clue-shadow: inset 0 0 0 1px rgba(116, 130, 152, 0.28);
+      --completed-line-color: #8c9ab0;
       --overlay-color: rgba(4, 8, 16, 0.72);
       --heading-shadow: rgba(0, 0, 0, 0.35);
     }
@@ -437,9 +443,16 @@
 
     .cell,
     .clue-cell {
-      background-color: var(--surface-color);
       border-right: 1px solid var(--line-color);
       border-bottom: 1px solid var(--line-color);
+    }
+
+    .cell {
+      background-color: var(--board-cell-bg);
+    }
+
+    .clue-cell {
+      background-color: var(--clue-cell-bg);
     }
 
     .cell {
@@ -460,7 +473,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      color: var(--text-muted);
+      color: var(--clue-text-color);
       flex-direction: column;
       font-size: 0.75rem;
     }
