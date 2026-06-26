@@ -11,10 +11,49 @@
     :root {
       --primary-color: #FFB7F1;
       --primary-shadow: rgba(255, 183, 241, 0.4);
+      --primary-display: #FFB7F1;
+      --primary-contrast: #ffffff;
       --error-color: #FF6B81;
       --wrong-color: #e0e0e0;
-      --inactive-btn-text: #333;
+      --inactive-btn-text: #222;
+      --page-bg: #ffffff;
+      --surface-color: #ffffff;
+      --surface-alt: #fafafa;
+      --surface-muted: #f5f5f5;
+      --surface-soft: #f6f6f6;
+      --surface-strong: #f0f0f0;
+      --surface-contrast: #eeeeee;
+      --text-color: #222;
+      --text-secondary: #555;
+      --text-muted: #777;
+      --text-disabled: #999;
       --line-color: #f0f0f0;
+      --section-divider: #f4f4f4;
+      --completed-clue-color: #b3b3b3;
+      --completed-line-color: #c7c7c7;
+      --overlay-color: rgba(17, 24, 39, 0.45);
+      --heading-shadow: rgba(255, 255, 255, 0.6);
+    }
+
+    :root[data-theme="dark"] {
+      --wrong-color: #3a4352;
+      --page-bg: #0f141c;
+      --surface-color: #1a212c;
+      --surface-alt: #202837;
+      --surface-muted: #232c3b;
+      --surface-soft: #1d2531;
+      --surface-strong: #2a3446;
+      --surface-contrast: #303b4d;
+      --text-color: #edf2f7;
+      --text-secondary: #d1dae5;
+      --text-muted: #9fadc0;
+      --text-disabled: #7f8b99;
+      --line-color: #384456;
+      --section-divider: #2a3444;
+      --completed-clue-color: #7f8b9a;
+      --completed-line-color: #677487;
+      --overlay-color: rgba(4, 8, 16, 0.72);
+      --heading-shadow: rgba(0, 0, 0, 0.35);
     }
 
     * {
@@ -25,7 +64,8 @@
     }
 
     body {
-      background-color: #ffffff;
+      background-color: var(--page-bg);
+      color: var(--text-color);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -51,13 +91,20 @@
       gap: 12px;
     }
 
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
     /* 回首頁樣式 (Back Button) */
     .back-btn {
       display: flex;
       align-items: center;
       gap: 6px;
-      color: var(--inactive-btn-text);
-      background-color: #fff;
+      color: var(--text-color);
+      background-color: var(--surface-color);
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
       padding: 8px 12px;
       border-radius: 8px;
@@ -74,6 +121,61 @@
       flex-shrink: 0;
     }
 
+    .theme-toggle-btn {
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid var(--line-color);
+      background: linear-gradient(180deg, var(--surface-color), var(--surface-alt));
+      color: var(--text-color);
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      transition: border-color 0.2s, transform 0.2s, color 0.2s, box-shadow 0.2s;
+    }
+
+    .theme-toggle-btn:hover,
+    .theme-toggle-btn.active {
+      transform: translateY(-1px);
+    }
+
+    .theme-toggle-btn.active {
+      border-color: var(--primary-display);
+      color: var(--primary-display);
+      box-shadow: 0 0 0 3px var(--primary-shadow);
+    }
+
+    .theme-icon {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      transition: transform 0.24s ease, opacity 0.24s ease;
+    }
+
+    .sun-icon {
+      opacity: 0;
+      transform: rotate(-90deg) scale(0.55);
+    }
+
+    .moon-icon {
+      opacity: 1;
+      transform: rotate(0deg) scale(1);
+    }
+
+    .theme-toggle-btn.active .sun-icon {
+      opacity: 1;
+      transform: rotate(0deg) scale(1);
+    }
+
+    .theme-toggle-btn.active .moon-icon {
+      opacity: 0;
+      transform: rotate(90deg) scale(0.55);
+    }
+
     .menu-btn {
       width: 42px;
       height: 42px;
@@ -82,15 +184,15 @@
       justify-content: center;
       border-radius: 12px;
       border: 1px solid var(--line-color);
-      background: #fff;
-      color: var(--inactive-btn-text);
+      background: var(--surface-color);
+      color: var(--text-color);
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
       transition: border-color 0.2s, transform 0.2s;
     }
 
     .menu-btn.active {
-      border-color: var(--primary-color);
+      border-color: var(--primary-display);
       transform: translateY(-1px);
     }
 
@@ -102,7 +204,7 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
-      background: #fff;
+      background: var(--surface-color);
       border: 1px solid var(--line-color);
       border-radius: 18px;
       padding: 16px;
@@ -118,26 +220,26 @@
 
     .menu-section+.menu-section {
       padding-top: 16px;
-      border-top: 1px solid #f4f4f4;
+      border-top: 1px solid var(--section-divider);
     }
 
     .menu-title {
       font-size: 1rem;
       font-weight: 800;
-      color: #222;
+      color: var(--text-color);
     }
 
     .menu-label {
       font-size: 0.85rem;
       font-weight: 700;
-      color: #555;
+      color: var(--text-secondary);
     }
 
     .menu-note,
     .menu-feedback {
       font-size: 0.82rem;
       line-height: 1.5;
-      color: #777;
+      color: var(--text-muted);
     }
 
     .menu-feedback {
@@ -166,7 +268,7 @@
     }
 
     .palette-swatch.active {
-      border-color: #222;
+      border-color: var(--text-color);
       transform: scale(1.06);
     }
 
@@ -176,15 +278,15 @@
       width: 100%;
       border-radius: 12px;
       border: 1px solid var(--line-color);
-      background: #fafafa;
-      color: #333;
+      background: var(--surface-alt);
+      color: var(--text-color);
     }
 
     .custom-color-input {
       height: 42px;
       padding: 4px;
       cursor: pointer;
-      background: #fff;
+      background: var(--surface-color);
     }
 
     .seed-display,
@@ -207,6 +309,11 @@
       border-color: var(--primary-color);
     }
 
+    .seed-input::placeholder {
+      color: var(--text-disabled);
+      opacity: 1;
+    }
+
     .menu-btn-row {
       display: flex;
       gap: 10px;
@@ -223,11 +330,11 @@
       font-size: 36px;
       font-weight: 800;
       letter-spacing: 1.2px;
-      color: var(--primary-color);
+      color: var(--primary-display);
       text-align: center;
       margin: 0;
       line-height: 1.1;
-      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+      text-shadow: 0 1px 0 var(--heading-shadow);
     }
 
     /* 難度切換 (Level Toggle) */
@@ -236,7 +343,7 @@
       width: 100%;
       max-width: 320px;
       gap: 4px;
-      background-color: #f5f5f5;
+      background-color: var(--surface-muted);
       padding: 4px;
       border-radius: 10px;
     }
@@ -250,13 +357,13 @@
       font-size: 1rem;
       padding: 8px 0;
       cursor: pointer;
-      color: #999;
+      color: var(--text-disabled);
     }
 
     .mode-btn.active {
-      background-color: #ffffff;
+      background-color: var(--surface-color);
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-      color: var(--inactive-btn-text);
+      color: var(--text-color);
     }
 
     /* 操作與訊息容器 (Action & Message Container) */
@@ -271,7 +378,7 @@
     /* 分段控制 (Segmented Control) */
     .action-toggle {
       display: inline-flex;
-      background-color: #eeeeee;
+      background-color: var(--surface-contrast);
       padding: 3px;
       border-radius: 20px;
       gap: 0;
@@ -285,20 +392,20 @@
       font-size: 0.8rem;
       font-weight: bold;
       cursor: pointer;
-      color: #999;
+      color: var(--text-disabled);
       transition: all 0.2s ease;
     }
 
     .action-btn.active {
-      background: #fff;
-      color: var(--primary-color);
+      background: var(--surface-color);
+      color: var(--primary-display);
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .top-msg {
       font-size: 1.1rem;
       font-weight: bold;
-      color: #333;
+      color: var(--text-color);
       text-align: center;
     }
 
@@ -314,7 +421,7 @@
 
     .game-board {
       display: grid;
-      background-color: #ffffff;
+      background-color: var(--surface-color);
       border: 1px solid var(--line-color);
       border-radius: 12px;
       overflow: hidden;
@@ -326,7 +433,7 @@
 
     .cell,
     .clue-cell {
-      background-color: #ffffff;
+      background-color: var(--surface-color);
       border-right: 1px solid var(--line-color);
       border-bottom: 1px solid var(--line-color);
     }
@@ -349,7 +456,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      color: #777;
+      color: var(--text-muted);
       flex-direction: column;
       font-size: 0.75rem;
     }
@@ -359,11 +466,11 @@
     }
 
     .clue-cell.completed {
-      color: #b3b3b3;
-      background-color: #f6f6f6;
+      color: var(--completed-clue-color);
+      background-color: var(--surface-soft);
       text-decoration: line-through;
       text-decoration-thickness: 1.5px;
-      text-decoration-color: #c7c7c7;
+      text-decoration-color: var(--completed-line-color);
       opacity: 0.9;
     }
 
@@ -376,10 +483,14 @@
       background-color: var(--primary-color);
     }
 
+    :root[data-theme="dark"] .cell.filled {
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    }
+
     /* 標記 Ｏ 樣式：縮小70% 並使用絕對定位，避免撐開 12x12 的表格 */
     .cell.marked::after {
       content: "Ｏ";
-      color: var(--primary-color);
+      color: var(--primary-display);
       font-size: 1rem;
       font-weight: bold;
       position: absolute;
@@ -416,7 +527,7 @@
 
     .primary-btn {
       background-color: var(--primary-color);
-      color: #fff;
+      color: var(--primary-contrast);
       border: none;
       padding: 12px 32px;
       border-radius: 20px;
@@ -432,8 +543,8 @@
     }
 
     .secondary-btn {
-      background-color: #f0f0f0;
-      color: #555;
+      background-color: var(--surface-strong);
+      color: var(--text-secondary);
       border: none;
       padding: 12px 24px;
       border-radius: 20px;
@@ -477,7 +588,7 @@
     .confirm-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(17, 24, 39, 0.45);
+      background: var(--overlay-color);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -487,7 +598,7 @@
 
     .confirm-card {
       width: min(360px, 100%);
-      background: #fff;
+      background: var(--surface-color);
       border-radius: 18px;
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
       padding: 18px;
@@ -499,13 +610,13 @@
     .confirm-title {
       font-size: 1.05rem;
       font-weight: 800;
-      color: #222;
+      color: var(--text-color);
     }
 
     .confirm-message {
       font-size: 0.95rem;
       line-height: 1.5;
-      color: #555;
+      color: var(--text-secondary);
     }
 
     .confirm-actions {
@@ -540,63 +651,85 @@
         回首頁
       </a>
 
-      <div class="menu-wrap">
-        <button id="menu-btn" class="menu-btn" type="button" aria-label="開啟設定選單" aria-expanded="false"
-          aria-controls="menu-panel">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="4" y1="7" x2="20" y2="7"></line>
-            <line x1="4" y1="12" x2="20" y2="12"></line>
-            <line x1="4" y1="17" x2="20" y2="17"></line>
+      <div class="top-controls">
+        <button id="dark-mode-toggle" class="theme-toggle-btn" type="button" role="switch" aria-checked="false"
+          aria-label="切換為深色模式" title="切換為深色模式">
+          <svg class="theme-icon sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2"></path>
+            <path d="M12 20v2"></path>
+            <path d="m4.93 4.93 1.41 1.41"></path>
+            <path d="m17.66 17.66 1.41 1.41"></path>
+            <path d="M2 12h2"></path>
+            <path d="M20 12h2"></path>
+            <path d="m6.34 17.66-1.41 1.41"></path>
+            <path d="m19.07 4.93-1.41 1.41"></path>
+          </svg>
+          <svg class="theme-icon moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3a6 6 0 1 0 9 9 9 9 0 1 1-9-9z"></path>
           </svg>
         </button>
 
-        <div id="menu-panel" class="menu-panel hidden">
-          <div class="menu-section">
-            <div class="menu-title">外觀設定</div>
-            <div class="menu-note">調整方塊和標題顏色，方便比賽時區分自己的盤面。</div>
-            <div class="palette-grid">
-              <button class="palette-swatch active" type="button" data-color="#FFB7F1" style="--swatch-color: #FFB7F1;"
-                aria-label="粉色"></button>
-              <button class="palette-swatch" type="button" data-color="#FF8A65" style="--swatch-color: #FF8A65;"
-                aria-label="橘色"></button>
-              <button class="palette-swatch" type="button" data-color="#F28482" style="--swatch-color: #F28482;"
-                aria-label="珊瑚紅"></button>
-              <button class="palette-swatch" type="button" data-color="#FFD166" style="--swatch-color: #FFD166;"
-                aria-label="金黃色"></button>
-              <button class="palette-swatch" type="button" data-color="#6BCB77" style="--swatch-color: #6BCB77;"
-                aria-label="綠色"></button>
-              <button class="palette-swatch" type="button" data-color="#00B8A9" style="--swatch-color: #00B8A9;"
-                aria-label="青綠色"></button>
-              <button class="palette-swatch" type="button" data-color="#4D96FF" style="--swatch-color: #4D96FF;"
-                aria-label="藍色"></button>
-              <button class="palette-swatch" type="button" data-color="#577590" style="--swatch-color: #577590;"
-                aria-label="灰藍色"></button>
-              <button class="palette-swatch" type="button" data-color="#9B5DE5" style="--swatch-color: #9B5DE5;"
-                aria-label="紫色"></button>
-              <button class="palette-swatch" type="button" data-color="#EF476F" style="--swatch-color: #EF476F;"
-                aria-label="莓果紅"></button>
-              <button class="palette-swatch" type="button" data-color="#118AB2" style="--swatch-color: #118AB2;"
-                aria-label="湖水藍"></button>
-              <button class="palette-swatch" type="button" data-color="#3A86FF" style="--swatch-color: #3A86FF;"
-                aria-label="亮藍色"></button>
-            </div>
-            <label class="menu-label" for="custom-color-input">自訂顏色</label>
-            <input id="custom-color-input" class="custom-color-input" type="color" value="#ffb7f1">
-          </div>
+        <div class="menu-wrap">
+          <button id="menu-btn" class="menu-btn" type="button" aria-label="開啟設定選單" aria-expanded="false"
+            aria-controls="menu-panel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="7" x2="20" y2="7"></line>
+              <line x1="4" y1="12" x2="20" y2="12"></line>
+              <line x1="4" y1="17" x2="20" y2="17"></line>
+            </svg>
+          </button>
 
-          <div class="menu-section">
-            <div class="menu-title">Seed 同步</div>
-            <label class="menu-label" for="current-seed-output">目前題目 Seed</label>
-            <textarea id="current-seed-output" class="seed-display" rows="3" readonly></textarea>
-            <div class="menu-btn-row">
-              <button id="copy-seed-btn" class="secondary-btn" type="button">複製 Seed</button>
+          <div id="menu-panel" class="menu-panel hidden">
+            <div class="menu-section">
+              <div class="menu-title">外觀設定</div>
+              <div class="menu-note">調整方塊和標題顏色，方便比賽時區分自己的盤面。</div>
+              <div class="palette-grid">
+                <button class="palette-swatch active" type="button" data-color="#FFB7F1"
+                  style="--swatch-color: #FFB7F1;" aria-label="粉色"></button>
+                <button class="palette-swatch" type="button" data-color="#FF8A65" style="--swatch-color: #FF8A65;"
+                  aria-label="橘色"></button>
+                <button class="palette-swatch" type="button" data-color="#F28482" style="--swatch-color: #F28482;"
+                  aria-label="珊瑚紅"></button>
+                <button class="palette-swatch" type="button" data-color="#FFD166" style="--swatch-color: #FFD166;"
+                  aria-label="金黃色"></button>
+                <button class="palette-swatch" type="button" data-color="#6BCB77" style="--swatch-color: #6BCB77;"
+                  aria-label="綠色"></button>
+                <button class="palette-swatch" type="button" data-color="#00B8A9" style="--swatch-color: #00B8A9;"
+                  aria-label="青綠色"></button>
+                <button class="palette-swatch" type="button" data-color="#4D96FF" style="--swatch-color: #4D96FF;"
+                  aria-label="藍色"></button>
+                <button class="palette-swatch" type="button" data-color="#577590" style="--swatch-color: #577590;"
+                  aria-label="灰藍色"></button>
+                <button class="palette-swatch" type="button" data-color="#9B5DE5" style="--swatch-color: #9B5DE5;"
+                  aria-label="紫色"></button>
+                <button class="palette-swatch" type="button" data-color="#EF476F" style="--swatch-color: #EF476F;"
+                  aria-label="莓果紅"></button>
+                <button class="palette-swatch" type="button" data-color="#118AB2" style="--swatch-color: #118AB2;"
+                  aria-label="湖水藍"></button>
+                <button class="palette-swatch" type="button" data-color="#3A86FF" style="--swatch-color: #3A86FF;"
+                  aria-label="亮藍色"></button>
+              </div>
+              <label class="menu-label" for="custom-color-input">自訂顏色</label>
+              <input id="custom-color-input" class="custom-color-input" type="color" value="#ffb7f1">
             </div>
-            <label class="menu-label" for="seed-input">讀取 Seed</label>
-            <input id="seed-input" class="seed-input" type="text" spellcheck="false" autocomplete="off"
-              placeholder="例如 NGM-10-0123ABCD...">
-            <button id="load-seed-btn" class="primary-btn menu-action-btn" type="button">載入 Seed</button>
-            <div id="seed-feedback" class="menu-feedback"></div>
+
+            <div class="menu-section">
+              <div class="menu-title">Seed 同步</div>
+              <label class="menu-label" for="current-seed-output">目前題目 Seed</label>
+              <textarea id="current-seed-output" class="seed-display" rows="3" readonly></textarea>
+              <div class="menu-btn-row">
+                <button id="copy-seed-btn" class="secondary-btn" type="button">複製 Seed</button>
+              </div>
+              <label class="menu-label" for="seed-input">讀取 Seed</label>
+              <input id="seed-input" class="seed-input" type="text" spellcheck="false" autocomplete="off"
+                placeholder="例如 NGM-10-0123ABCD...">
+              <button id="load-seed-btn" class="primary-btn menu-action-btn" type="button">載入 Seed</button>
+              <div id="seed-feedback" class="menu-feedback"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -678,16 +811,21 @@
     let currentAction = 'fill';
     let gameStates = {};
     let themeColor = '#FFB7F1';
+    let darkMode = false;
 
     let isDragging = false;
     let dragAction = null;
     let dragSnapshot = null;
     let dragHistoryCommitted = false;
     let actionHistory = [];
+    let lastSavedAt = 0;
 
     const SAVE_KEY = 'nonogram_save_data';
     const ALLOWED_SIZES = [8, 10, 12];
     const DEFAULT_THEME_COLOR = '#FFB7F1';
+    const PRIMARY_DARK_TEXT = '#13212F';
+    const LIGHT_SURFACE_COLOR = '#FFFFFF';
+    const DARK_SURFACE_COLOR = '#0F141C';
     const SHARED_SEED_PREFIX = 'NGM';
     const RESULT_STATE = {
       IN_PROGRESS: 'in-progress',
@@ -717,6 +855,7 @@
     const confirmOkBtn = document.getElementById('confirm-ok-btn');
     const menuBtn = document.getElementById('menu-btn');
     const menuPanel = document.getElementById('menu-panel');
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
     const paletteBtns = document.querySelectorAll('.palette-swatch');
     const customColorInput = document.getElementById('custom-color-input');
     const currentSeedOutput = document.getElementById('current-seed-output');
@@ -747,6 +886,58 @@
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
+    function toHexChannel(value) {
+      return Math.round(value).toString(16).padStart(2, '0').toUpperCase();
+    }
+
+    function mixHexColors(start, end, amount) {
+      const startRgb = hexToRgb(start);
+      const endRgb = hexToRgb(end);
+      const ratio = Math.min(1, Math.max(0, amount));
+      return `#${toHexChannel(startRgb.r + (endRgb.r - startRgb.r) * ratio)}${toHexChannel(startRgb.g + (endRgb.g - startRgb.g) * ratio)}${toHexChannel(startRgb.b + (endRgb.b - startRgb.b) * ratio)}`;
+    }
+
+    function toLinearChannel(channel) {
+      const normalized = channel / 255;
+      return normalized <= 0.03928
+        ? normalized / 12.92
+        : Math.pow((normalized + 0.055) / 1.055, 2.4);
+    }
+
+    function getRelativeLuminance(value) {
+      const { r, g, b } = hexToRgb(value);
+      return 0.2126 * toLinearChannel(r) + 0.7152 * toLinearChannel(g) + 0.0722 * toLinearChannel(b);
+    }
+
+    function getContrastRatio(foreground, background) {
+      const lighter = Math.max(getRelativeLuminance(foreground), getRelativeLuminance(background));
+      const darker = Math.min(getRelativeLuminance(foreground), getRelativeLuminance(background));
+      return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    function getPrimaryContrastColor(value) {
+      const { r, g, b } = hexToRgb(value);
+      const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+      return yiq >= 165 ? PRIMARY_DARK_TEXT : LIGHT_SURFACE_COLOR;
+    }
+
+    function getReadableAccentColor(value) {
+      if (!darkMode) return value;
+
+      if (getContrastRatio(value, DARK_SURFACE_COLOR) >= 4.5) {
+        return value;
+      }
+
+      for (let step = 1; step <= 10; step++) {
+        const candidate = mixHexColors(value, LIGHT_SURFACE_COLOR, step / 10);
+        if (getContrastRatio(candidate, DARK_SURFACE_COLOR) >= 4.5) {
+          return candidate;
+        }
+      }
+
+      return LIGHT_SURFACE_COLOR;
+    }
+
     function updatePaletteSelection() {
       paletteBtns.forEach(btn => {
         btn.classList.toggle('active', normalizeThemeColor(btn.dataset.color) === themeColor);
@@ -755,10 +946,27 @@
 
     function applyThemeColor(nextColor) {
       themeColor = normalizeThemeColor(nextColor);
-      document.documentElement.style.setProperty('--primary-color', themeColor);
-      document.documentElement.style.setProperty('--primary-shadow', hexToRgba(themeColor, 0.4));
+      const appliedPrimaryColor = getReadableAccentColor(themeColor);
+      document.documentElement.style.setProperty('--primary-color', appliedPrimaryColor);
+      document.documentElement.style.setProperty('--primary-shadow', hexToRgba(appliedPrimaryColor, darkMode ? 0.28 : 0.4));
+      document.documentElement.style.setProperty('--primary-display', appliedPrimaryColor);
+      document.documentElement.style.setProperty('--primary-contrast', getPrimaryContrastColor(appliedPrimaryColor));
       customColorInput.value = themeColor.toLowerCase();
       updatePaletteSelection();
+    }
+
+    function applyDarkMode(nextMode) {
+      darkMode = Boolean(nextMode);
+      document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
+      document.documentElement.style.colorScheme = darkMode ? 'dark' : 'light';
+
+      darkModeToggle.classList.toggle('active', darkMode);
+      darkModeToggle.setAttribute('aria-checked', String(darkMode));
+      const toggleLabel = darkMode ? '切換為淺色模式' : '切換為深色模式';
+      darkModeToggle.setAttribute('aria-label', toggleLabel);
+      darkModeToggle.title = toggleLabel;
+
+      applyThemeColor(themeColor);
     }
 
     function closeMenu() {
@@ -902,41 +1110,83 @@
 
     // --- 本地儲存資料功能 (Local Storage) ---
     function saveData() {
+      const savedAt = Date.now();
+      lastSavedAt = savedAt;
       localStorage.setItem(SAVE_KEY, JSON.stringify({
         size: size,
         themeColor: themeColor,
+        darkMode: darkMode,
         gameStates: gameStates,
-        actionHistory: actionHistory
+        actionHistory: actionHistory,
+        savedAt: savedAt
       }));
     }
 
-    function loadData() {
+    function applySavedData(validatedData, shouldPersist = false) {
+      size = validatedData.size;
+      themeColor = validatedData.themeColor;
+      darkMode = validatedData.darkMode;
+      gameStates = validatedData.gameStates;
+      actionHistory = validatedData.actionHistory || [];
+      lastSavedAt = Math.max(lastSavedAt, validatedData.savedAt || 0);
+
+      applyDarkMode(darkMode);
+      updateLevelButtons();
+
+      if (shouldPersist) saveData();
+    }
+
+    function readSavedData() {
       const data = localStorage.getItem(SAVE_KEY);
-      if (data) {
-        try {
-          const parsed = JSON.parse(data);
-          const validatedData = validateSavedData(parsed);
-          if (!validatedData) {
-            localStorage.removeItem(SAVE_KEY);
-            return false;
-          }
+      if (!data) return null;
 
-          size = validatedData.size;
-          themeColor = validatedData.themeColor;
-          gameStates = validatedData.gameStates;
-          actionHistory = validatedData.actionHistory || [];
-
-          applyThemeColor(themeColor);
-          updateLevelButtons();
-          saveData();
-          return true;
-        } catch (e) {
-          console.error('localStorage parsing error', e);
+      try {
+        const parsed = JSON.parse(data);
+        const validatedData = validateSavedData(parsed);
+        if (!validatedData) {
           localStorage.removeItem(SAVE_KEY);
-          return false;
+          return null;
         }
+
+        return validatedData;
+      } catch (e) {
+        console.error('localStorage parsing error', e);
+        localStorage.removeItem(SAVE_KEY);
+        return null;
       }
-      return false;
+    }
+
+    function loadData() {
+      const validatedData = readSavedData();
+      if (!validatedData) return false;
+
+      applySavedData(validatedData, true);
+      return true;
+    }
+
+    function syncStateFromStorage() {
+      const validatedData = readSavedData();
+      if (!validatedData || (validatedData.savedAt || 0) <= lastSavedAt) return false;
+
+      applySavedData(validatedData);
+      renderBoard();
+
+      if (!gameStates[size] || !gameStates[size].isGameOver) {
+        resetUI();
+      }
+
+      return true;
+    }
+
+    function persistCurrentState() {
+      if (!Object.keys(gameStates).length) return;
+
+      if (isDragging) {
+        handlePointerUp();
+        return;
+      }
+
+      saveData();
     }
 
     // --- 綁定事件 (Event Listeners) ---
@@ -980,6 +1230,11 @@
       saveData();
     });
 
+    darkModeToggle.addEventListener('click', () => {
+      applyDarkMode(!darkMode);
+      saveData();
+    });
+
     copySeedBtn.addEventListener('click', copyCurrentSeed);
     loadSeedBtn.addEventListener('click', loadSeedFromInput);
     seedInput.addEventListener('keydown', (e) => {
@@ -1002,6 +1257,21 @@
     document.addEventListener('mouseup', handlePointerUp);
     document.addEventListener('touchend', handlePointerUp);
     document.addEventListener('touchcancel', handlePointerUp);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        persistCurrentState();
+        return;
+      }
+
+      syncStateFromStorage();
+    });
+
+    window.addEventListener('pagehide', persistCurrentState);
+    window.addEventListener('pageshow', syncStateFromStorage);
+    window.addEventListener('focus', syncStateFromStorage);
+    window.addEventListener('storage', (event) => {
+      if (event.key === SAVE_KEY) syncStateFromStorage();
+    });
 
     // --- 核心邏輯 (Core Logic) ---
     function getClues(arr) {
@@ -1318,8 +1588,10 @@
       return {
         size: validatedSize,
         themeColor: normalizeThemeColor(parsed.themeColor),
+        darkMode: Boolean(parsed.darkMode),
         gameStates: validatedStates,
-        actionHistory: validHistory.map(snapshot => cloneGrid(snapshot))
+        actionHistory: validHistory.map(snapshot => cloneGrid(snapshot)),
+        savedAt: Number.isFinite(parsed.savedAt) && parsed.savedAt > 0 ? parsed.savedAt : 0
       };
     }
 
@@ -1382,12 +1654,12 @@
       resultBtns.appendChild(createNewGameButton());
 
       if (state.resultState === RESULT_STATE.WIN) {
-        topMsg.style.color = 'var(--primary-color)';
+        topMsg.style.color = 'var(--primary-display)';
         topMsg.innerText = '答對了！';
         return;
       }
 
-      topMsg.style.color = '#555';
+      topMsg.style.color = 'var(--text-secondary)';
       topMsg.innerText = state.resultState === RESULT_STATE.REVEALED ? '答案已顯示' : '本局已結束';
     }
 
@@ -1693,7 +1965,7 @@
         saveData();
       } else {
         gameStates[size].resultState = RESULT_STATE.IN_PROGRESS;
-        topMsg.style.color = '#555';
+        topMsg.style.color = 'var(--text-secondary)';
         topMsg.innerText = '你再想想看';
 
         const answerBtn = document.createElement('button');
@@ -1735,7 +2007,7 @@
     }
 
     // --- 初始化啟動 (Initialization) ---
-    applyThemeColor(themeColor);
+    applyDarkMode(darkMode);
 
     if (!loadData()) {
       loadLevel(size); // 如果沒有 cookie/localStorage 記錄，載入預設 8x8
