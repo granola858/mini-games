@@ -139,7 +139,13 @@ function App() {
     }, [query, songs]);
 
     return (
-        <div className="min-h-screen pb-8 bg-slate-50 font-sans">
+        <div className="min-h-screen pb-8 bg-slate-50 font-sans relative">
+            <a href="../../index.html" className="absolute left-4 top-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition-all duration-200 backdrop-blur-sm shadow-sm z-50">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                回首頁
+            </a>
              {/* 這裡複製原本 return 內的所有 JSX，注意：不需要再包 <div id="root">，直接貼內容 */}
              {/* 為了節省篇幅，請將原本程式碼中 return (...) 裡面的內容完整貼過來 */}
              {/* 記得要把 class 改成 className (這部分你原本的程式碼已經是對的了) */}

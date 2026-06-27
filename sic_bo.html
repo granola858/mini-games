@@ -283,9 +283,50 @@
             border-bottom: 1px solid var(--light-red);
             padding-bottom: 8px;
         }
+
+        /* 回首頁按鈕 */
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            text-decoration: none;
+            color: #888888;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            background-color: #f8f9fa;
+            border: 1px solid #eef5ff;
+            z-index: 100;
+        }
+
+        .back-btn:hover {
+            color: var(--primary-red);
+            background-color: #fff5f5;
+            transform: translateX(-3px);
+        }
+
+        @media (max-width: 768px) {
+            .back-btn {
+                position: static;
+                margin-bottom: 15px;
+                align-self: flex-start;
+            }
+        }
     </style>
 </head>
 <body>
+
+    <a href="index.html" class="back-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        回首頁
+    </a>
 
     <h1>骰寶</h1>
 
