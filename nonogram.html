@@ -83,6 +83,13 @@
       min-height: 100vh;
     }
 
+    button,
+    .back-btn,
+    .palette-swatch,
+    .custom-color-input {
+      touch-action: manipulation;
+    }
+
     .container {
       width: 100%;
       max-width: 100%;
@@ -882,6 +889,22 @@
     const loadSeedBtn = document.getElementById('load-seed-btn');
     const seedFeedback = document.getElementById('seed-feedback');
 
+    function bindFastPress(element, handler) {
+      let suppressClickUntil = 0;
+
+      element.addEventListener('pointerup', (event) => {
+        if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+        event.preventDefault();
+        suppressClickUntil = performance.now() + 500;
+        handler(event);
+      });
+
+      element.addEventListener('click', (event) => {
+        if (performance.now() < suppressClickUntil) return;
+        handler(event);
+      });
+    }
+
     function isValidHexColor(value) {
       return /^#[0-9A-F]{6}$/i.test(value || '');
     }
@@ -1209,23 +1232,23 @@
 
     // --- 綁定事件 (Event Listeners) ---
     levelBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      bindFastPress(btn, (e) => {
         levelBtns.forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        let newSize = parseInt(e.target.dataset.size);
+        e.currentTarget.classList.add('active');
+        let newSize = parseInt(e.currentTarget.dataset.size);
         loadLevel(newSize);
       });
     });
 
     actionBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      bindFastPress(btn, (e) => {
         actionBtns.forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        currentAction = e.target.dataset.action;
+        e.currentTarget.classList.add('active');
+        currentAction = e.currentTarget.dataset.action;
       });
     });
 
-    menuBtn.addEventListener('click', (e) => {
+    bindFastPress(menuBtn, (e) => {
       e.stopPropagation();
       toggleMenu();
     });
@@ -1235,8 +1258,8 @@
     });
 
     paletteBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        applyThemeColor(btn.dataset.color);
+      bindFastPress(btn, (e) => {
+        applyThemeColor(e.currentTarget.dataset.color);
         showSeedFeedback('顏色已更新。');
         saveData();
       });
@@ -1248,21 +1271,21 @@
       saveData();
     });
 
-    darkModeToggle.addEventListener('click', () => {
+    bindFastPress(darkModeToggle, () => {
       applyDarkMode(!darkMode);
       saveData();
     });
 
-    copySeedBtn.addEventListener('click', copyCurrentSeed);
-    loadSeedBtn.addEventListener('click', loadSeedFromInput);
+    bindFastPress(copySeedBtn, copyCurrentSeed);
+    bindFastPress(loadSeedBtn, loadSeedFromInput);
     seedInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') loadSeedFromInput();
     });
 
-    checkBtn.addEventListener('click', checkAnswer);
-    newGameBtn.addEventListener('click', () => { confirmStartNewGame(size); });
-    undoBtn.addEventListener('click', undoLastAction);
-    clearBoardBtn.addEventListener('click', clearBoard);
+    bindFastPress(checkBtn, checkAnswer);
+    bindFastPress(newGameBtn, () => { confirmStartNewGame(size); });
+    bindFastPress(undoBtn, undoLastAction);
+    bindFastPress(clearBoardBtn, clearBoard);
 
     document.addEventListener('click', () => {
       closeMenu();
