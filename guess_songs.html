@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Song Search Vibe | 歌曲資料庫</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -13,16 +15,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
         .glass-panel {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
+
 <body>
     <div id="root"></div>
 
@@ -74,7 +95,7 @@
             const [error, setError] = useState(null);
 
             const processData = (data) => {
-                 return data.map(row => {
+                return data.map(row => {
                     const keys = Object.keys(row);
                     const values = Object.values(row);
 
@@ -84,7 +105,7 @@
                     };
 
                     let id = findVal(["編號", "id", "no", "code", "序號"]);
-                    let source = findVal(["電影", "劇", "source", "movie", "film", "origin", "出處", "作品"]); 
+                    let source = findVal(["電影", "劇", "source", "movie", "film", "origin", "出處", "作品"]);
                     let title = findVal(["歌名", "title", "name", "song", "曲目", "歌曲", "名稱"]);
                     let year = findVal(["年份", "year", "date", "日期", "發行"]);
                     let director = findVal(["導演", "director", "directed", "filmmaker", "監製"]);
@@ -137,7 +158,7 @@
                         const wb = XLSX.read(bstr, { type: 'binary' });
                         const wsname = wb.SheetNames[0];
                         const data = XLSX.utils.sheet_to_json(wb.Sheets[wsname]);
-                        
+
                         const normalizedData = processData(data);
 
                         setTimeout(() => {
@@ -157,8 +178,8 @@
             const filteredSongs = useMemo(() => {
                 if (!query) return songs;
                 const lowerQ = query.toLowerCase();
-                return songs.filter(s => 
-                    String(s.title).toLowerCase().includes(lowerQ) || 
+                return songs.filter(s =>
+                    String(s.title).toLowerCase().includes(lowerQ) ||
                     String(s.id).toLowerCase().includes(lowerQ) ||
                     String(s.source).toLowerCase().includes(lowerQ) ||
                     String(s.director).toLowerCase().includes(lowerQ)
@@ -182,7 +203,7 @@
 
                     <div className="max-w-4xl mx-auto px-4 -mt-8">
                         <div className="glass-panel rounded-2xl shadow-xl p-5 mb-6 relative overflow-hidden">
-                            
+
                             {loading && (
                                 <div className="absolute inset-0 bg-white/80 z-20 flex items-center justify-center backdrop-blur-sm transition-all">
                                     <div className="flex items-center gap-3 bg-white px-5 py-2 rounded-full shadow-lg border border-indigo-100">
@@ -233,16 +254,16 @@
 
                             <div className="relative w-full">
                                 <SearchIcon />
-                                <input 
-                                    type="text" 
-                                    placeholder="輸入歌名、電影、導演或編號搜尋..." 
+                                <input
+                                    type="text"
+                                    placeholder="輸入歌名、電影、導演或編號搜尋..."
                                     className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all shadow-inner text-base"
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
                                     disabled={loading}
                                 />
                             </div>
-                            
+
                             {error && <div className="mt-3 text-red-500 text-sm font-medium text-center">{error}</div>}
                         </div>
 
@@ -267,7 +288,7 @@
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                 {filteredSongs.map((song, idx) => (
                                     <div key={idx} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group flex flex-col">
-                                        
+
                                         {/* ID & Year (Year 樣式已調整) */}
                                         <div className="flex justify-between items-start mb-1.5">
                                             <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-1.5 py-0.5 rounded font-mono">
@@ -289,7 +310,7 @@
 
                                         {/* Credits Section */}
                                         <div className="mt-3 pt-2 border-t border-slate-50 space-y-2">
-                                            
+
                                             {/* Director */}
                                             {song.director !== "-" && (
                                                 <div className="flex flex-col">
@@ -300,8 +321,8 @@
 
                                             {/* Cast (參考樣式目標) */}
                                             <div className="flex flex-col">
-                                                 <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">主要演員 / 配音</p>
-                                                 <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{song.cast}</p>
+                                                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">主要演員 / 配音</p>
+                                                <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{song.cast}</p>
                                             </div>
 
                                         </div>
@@ -318,4 +339,5 @@
         root.render(<App />);
     </script>
 </body>
+
 </html>

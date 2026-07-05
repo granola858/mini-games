@@ -1,16 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ColorTextGame</title>
     <style>
         /* --- 全域設定 --- */
         :root {
             /* 主色系 */
-            --primary-blue: #53B4FF; 
+            --primary-blue: #53B4FF;
             /* 輔助淺藍 */
-            --sky-blue: #C4E6FF;     
+            --sky-blue: #C4E6FF;
             --bg-color: #FFFFFF;
             --text-grey: #888888;
             --card-transition: 0.2s;
@@ -136,12 +138,19 @@
             margin-left: 8px;
         }
 
-        .switch input { opacity: 0; width: 0; height: 0; }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
 
         .slider {
             position: absolute;
             cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background-color: #EEE;
             transition: .4s;
             border-radius: 34px;
@@ -159,11 +168,11 @@
             border-radius: 50%;
         }
 
-        input:checked + .slider {
+        input:checked+.slider {
             background-color: var(--primary-blue);
         }
 
-        input:checked + .slider:before {
+        input:checked+.slider:before {
             transform: translateX(18px);
         }
 
@@ -184,7 +193,7 @@
             width: 98%;
             gap: var(--card-gap);
             margin-bottom: 20px;
-            grid-template-columns: repeat(2, 1fr); 
+            grid-template-columns: repeat(2, 1fr);
         }
 
         .card {
@@ -192,7 +201,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 3rem; 
+            font-size: 3rem;
             font-weight: 900;
             border-radius: 12px;
             border: 2px solid #EEE;
@@ -200,9 +209,9 @@
             transition: opacity 0.3s;
             user-select: none;
         }
-        
+
         .card.hidden {
-            opacity: 0; 
+            opacity: 0;
             pointer-events: none;
         }
 
@@ -216,7 +225,7 @@
             overflow: hidden;
             display: none;
         }
-        
+
         .timer-bar-fill {
             height: 100%;
             width: 100%;
@@ -248,7 +257,7 @@
             width: 100%;
             max-width: 480px;
             transition: transform 0.1s, opacity 0.2s;
-            box-shadow: 0 4px 15px rgba(83, 180, 255, 0.35); 
+            box-shadow: 0 4px 15px rgba(83, 180, 255, 0.35);
         }
 
         .btn-main:active {
@@ -269,7 +278,7 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         /* 題目內容樣式 */
         .q-content-text {
             color: var(--primary-blue);
@@ -287,7 +296,7 @@
             vertical-align: middle;
             /* 移除陰影，保留極細微邊框以區分淺色 */
             box-shadow: none;
-            border: 1px solid rgba(0,0,0,0.1);
+            border: 1px solid rgba(0, 0, 0, 0.1);
         }
 
         /* 數字鍵盤容器 */
@@ -331,8 +340,11 @@
         /* 結果顯示 */
         .result-overlay {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255,255,255,0.96);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.96);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -345,6 +357,7 @@
             font-size: 3rem;
             margin-bottom: 10px;
         }
+
         .result-sub {
             font-size: 1.2rem;
             color: var(--text-grey);
@@ -354,21 +367,47 @@
 
         /* 動畫 */
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         @keyframes timerShrink {
-            from { transform: scaleX(1); }
-            to { transform: scaleX(0); }
+            from {
+                transform: scaleX(1);
+            }
+
+            to {
+                transform: scaleX(0);
+            }
         }
 
         /* 文字顏色定義 */
-        .c-red { color: #E63946; }
-        .c-green { color: #2A9D8F; }
-        .c-blue { color: #53B4FF; } 
-        .c-yellow { color: #F4A261; }
-        .c-black { color: #333333; }
+        .c-red {
+            color: #E63946;
+        }
+
+        .c-green {
+            color: #2A9D8F;
+        }
+
+        .c-blue {
+            color: #53B4FF;
+        }
+
+        .c-yellow {
+            color: #F4A261;
+        }
+
+        .c-black {
+            color: #333333;
+        }
 
         /* 回首頁按鈕 */
         .back-btn {
@@ -403,13 +442,14 @@
                 align-self: flex-start;
             }
         }
-
     </style>
 </head>
+
 <body>
 
     <a href="index.html" class="back-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 12H5M12 19l-7-7 7-7" />
         </svg>
         回首頁
@@ -426,12 +466,12 @@
             <button class="mode-btn" onclick="setMode('medium', 6, this)">中等</button>
             <button class="mode-btn" onclick="setMode('hard', 9, this)">困難</button>
         </div>
-        
+
         <div class="status-bar">
             <div class="score-box">
                 連對: <span id="streak-score" class="score-val">0</span>
             </div>
-            
+
             <div class="timer-toggle">
                 <span>計時 (8秒)</span>
                 <label class="switch">
@@ -444,7 +484,7 @@
 
     <div id="game-container">
         <div id="grid" class="grid"></div>
-        
+
         <div id="result-overlay" class="result-overlay">
             <div id="result-icon" class="result-title">🎉</div>
             <div id="result-text" class="result-sub">答對了！</div>
@@ -454,7 +494,7 @@
 
     <div class="action-area">
         <button id="start-btn" class="btn-main" onclick="startGame()">開始記憶</button>
-        
+
         <div id="question-box" class="question-box">
             <div id="timer-bar-container" class="timer-bar-container">
                 <div id="timer-bar-fill" class="timer-bar-fill"></div>
@@ -464,9 +504,9 @@
                 <div>剛剛有幾個...</div>
                 <div id="question-content"></div>
             </div>
-            
+
             <div class="numpad-container" id="numpad-container">
-                </div>
+            </div>
         </div>
     </div>
 
@@ -477,7 +517,7 @@
             medium: 6,
             hard: 9
         };
-        
+
         const items = [
             { text: '紅', class: 'c-red', name: '紅色' },
             { text: '藍', class: 'c-blue', name: '藍色' },
@@ -498,12 +538,12 @@
         function setMode(mode, count, btnElement) {
             currentMode = mode;
             currentCount = count;
-            
+
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
-            
+
             resetGameUI();
-            updateStreak(0, true); 
+            updateStreak(0, true);
         }
 
         function resetGameUI() {
@@ -512,7 +552,7 @@
             document.getElementById('start-btn').style.display = 'block';
             document.getElementById('result-overlay').style.display = 'none';
             document.getElementById('timer-bar-container').style.display = 'none';
-            
+
             const fill = document.getElementById('timer-bar-fill');
             fill.style.animation = 'none';
             if (timerId) clearTimeout(timerId);
@@ -530,14 +570,14 @@
         function startGame() {
             resetGameUI();
             document.getElementById('start-btn').style.display = 'none';
-            
+
             // 1. 生成與排版
             gameData = [];
             const gridEl = document.getElementById('grid');
             gridEl.innerHTML = '';
-            
+
             if (currentMode === 'hard') {
-                gridEl.style.gridTemplateColumns = 'repeat(3, 1fr)'; 
+                gridEl.style.gridTemplateColumns = 'repeat(3, 1fr)';
             } else {
                 gridEl.style.gridTemplateColumns = 'repeat(2, 1fr)';
             }
@@ -545,7 +585,7 @@
             for (let i = 0; i < currentCount; i++) {
                 const textObj = items[Math.floor(Math.random() * items.length)];
                 const colorObj = items[Math.floor(Math.random() * items.length)];
-                
+
                 gameData.push({
                     text: textObj.text,
                     colorClass: colorObj.class,
@@ -560,10 +600,10 @@
 
             // 2. 計算停留時間
             let memoryTime = 2000;
-            if (currentMode === 'easy') memoryTime = 3000; 
+            if (currentMode === 'easy') memoryTime = 3000;
             if (currentMode === 'medium') memoryTime = 6000;
             if (currentMode === 'hard') memoryTime = 10000;
-            
+
             setTimeout(() => {
                 hideGridAndAsk();
             }, memoryTime);
@@ -584,7 +624,7 @@
             const type = Math.random() > 0.5 ? 'color' : 'text';
             const targetItem = items[Math.floor(Math.random() * items.length)];
             const qContent = document.getElementById('question-content');
-            
+
             let questionHtml = '';
             correctAnswer = 0;
 
@@ -609,11 +649,11 @@
             if (currentMode === 'hard') {
                 const row1 = document.createElement('div');
                 row1.className = 'numpad-row';
-                for(let i=0; i<=4; i++) row1.appendChild(createNumBtn(i));
-                
+                for (let i = 0; i <= 4; i++) row1.appendChild(createNumBtn(i));
+
                 const row2 = document.createElement('div');
                 row2.className = 'numpad-row';
-                for(let i=5; i<=9; i++) row2.appendChild(createNumBtn(i));
+                for (let i = 5; i <= 9; i++) row2.appendChild(createNumBtn(i));
 
                 numpadContainer.appendChild(row1);
                 numpadContainer.appendChild(row2);
@@ -622,7 +662,7 @@
                 const row = document.createElement('div');
                 row.className = 'numpad-row';
                 row.style.flexWrap = 'wrap';
-                for(let i=0; i<=currentCount; i++) row.appendChild(createNumBtn(i));
+                for (let i = 0; i <= currentCount; i++) row.appendChild(createNumBtn(i));
                 numpadContainer.appendChild(row);
             }
 
@@ -644,10 +684,10 @@
         function startTimer() {
             const barContainer = document.getElementById('timer-bar-container');
             const fill = document.getElementById('timer-bar-fill');
-            
+
             barContainer.style.display = 'block';
             fill.style.animation = 'none';
-            fill.offsetHeight; 
+            fill.offsetHeight;
             // 8秒計時
             fill.style.animation = 'timerShrink 8s linear forwards';
 
@@ -694,19 +734,20 @@
         }
 
         function getColorCode(className) {
-            switch(className) {
+            switch (className) {
                 case 'c-red': return '#E63946';
                 case 'c-green': return '#2A9D8F';
-                case 'c-blue': return '#53B4FF'; 
+                case 'c-blue': return '#53B4FF';
                 case 'c-yellow': return '#F4A261';
                 case 'c-black': return '#333333';
                 default: return '#000';
             }
         }
-        
+
         // 初始化
         updateStreak(0, true);
 
     </script>
 </body>
+
 </html>

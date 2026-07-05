@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>1A2B 猜數字遊戲</title>
     <style>
@@ -347,7 +348,7 @@
 
                 guessCountSpan.textContent = count;
                 historyList.innerHTML = "";
-                
+
                 // 修正點：移除 .reverse()。
                 // 因為 renderHistoryDOM 內部是用 prepend (插在最上方)，
                 // 依照原本 [舊 -> 新] 的順序推入，最後一筆新的自然會被擠到最上面。
@@ -384,9 +385,9 @@
                 saveGameState();
                 console.log("新局謎底: " + answer);
             }
-            
+
             guessCountSpan.textContent = count;
-            
+
             inputs.forEach(input => {
                 input.value = "";
                 input.disabled = false;
@@ -396,7 +397,7 @@
             submitBtn.disabled = false;
             restartBtn.style.display = "none";
             msgBox.textContent = "";
-            
+
             if (forceNew) {
                 historyList.innerHTML = "";
                 currentResultDiv.textContent = "";
@@ -544,7 +545,7 @@
         }
 
         submitBtn.addEventListener('click', handleGuess);
-        
+
         restartBtn.addEventListener('click', () => {
             initGame(true);
         });

@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LightsOut</title>
   <style>
     /* 宣告 CSS 變數 (CSS Variables) */
     :root {
-      --inactive-btn-text: #666; 
+      --inactive-btn-text: #666;
       /* 黃色漸層變數 (Yellow Gradient Variables) */
-      --primary-gradient-start: #FFD700; /* 金黃色 */
-      --primary-gradient-end: #FFA500;   /* 橘黃色 */
+      --primary-gradient-start: #FFD700;
+      /* 金黃色 */
+      --primary-gradient-end: #FFA500;
+      /* 橘黃色 */
     }
 
     /* 全域設定 (Global Styles) */
@@ -114,7 +118,7 @@
     /* tag樣式 (Level Tag Style) */
     .mode-btn.active {
       background-color: #ffffff;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
       color: var(--inactive-btn-text);
     }
 
@@ -142,12 +146,12 @@
       background-color: #f0f0f0;
       cursor: pointer;
       transition: 0.2s;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     }
 
     /* 卡片亮燈狀態 (Active State) */
     .card.active {
-      background-color: #FFFACD; 
+      background-color: #FFFACD;
       box-shadow: inset 0 0 10px rgba(255, 250, 205, 0.8);
     }
 
@@ -177,7 +181,7 @@
       padding: 32px;
       border-radius: 12px;
       text-align: center;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
       transform: translateY(20px);
       transition: transform 0.2s;
       width: 80%;
@@ -213,14 +217,16 @@
     }
 
     .restart-btn:hover {
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <a href="index.html" class="back-btn">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19 12H5M12 19l-7-7 7-7"></path>
       </svg>
       回首頁
@@ -230,7 +236,7 @@
       <h1 class="main-title">LightsOut</h1>
       <div class="move-counter">步數：<span id="moveCount">0</span></div>
     </div>
-    
+
     <div class="toggle-container">
       <button class="mode-btn active" data-size="4">４</button>
       <button class="mode-btn" data-size="5">５</button>
@@ -256,10 +262,10 @@
     const winPopup = document.getElementById('winPopup');
     const finalMovesDisplay = document.getElementById('finalMoves');
     const restartBtn = document.getElementById('restartBtn');
-    
+
     let size = 4;
-    let grid = []; 
-    let moves = 0; 
+    let grid = [];
+    let moves = 0;
     let isGameActive = true;
 
     // 初始化遊戲 (Initialize Game)
@@ -269,7 +275,7 @@
       isGameActive = true;
       moveDisplay.innerText = moves;
       winPopup.classList.remove('show');
-      
+
       board.style.setProperty('--grid-size', size);
       board.innerHTML = '';
       grid = [];
@@ -285,10 +291,10 @@
         }
         grid.push(row);
       }
-      
-      const shuffleCount = size * size * 2; 
-      for(let i = 0; i < shuffleCount; i++) {
-        if(Math.random() > 0.5) {
+
+      const shuffleCount = size * size * 2;
+      for (let i = 0; i < shuffleCount; i++) {
+        if (Math.random() > 0.5) {
           toggleCell(Math.floor(Math.random() * size), Math.floor(Math.random() * size), false);
         }
       }
@@ -368,4 +374,5 @@
     initGame(size);
   </script>
 </body>
+
 </html>
