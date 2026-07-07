@@ -277,6 +277,9 @@
             padding: 2px;
             box-shadow: 0 10px 25px var(--board-shadow);
             touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
             transition: filter 0.3s ease;
         }
 
@@ -306,6 +309,10 @@
             font-size: clamp(1rem, 4vw, 1.8rem);
             cursor: pointer;
             user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
             transition: transform 0.15s ease, background-color 0.2s;
             border: none;
             border-radius: 10px;
@@ -1388,16 +1395,16 @@
         });
 
         // 部分行動瀏覽器（尤其 iOS Safari）即使設定 touch-action/user-scalable，
-        // 仍會在快速點兩下同一格子時觸發原生「雙擊放大」手勢。這裡在 touchend
-        // 階段主動 preventDefault 來徹底關閉此手勢，避免誤觸縮放畫面。
-        let lastCellTouchEnd = 0;
-        boardEl.addEventListener('touchend', (event) => {
-            const now = Date.now();
-            if (now - lastCellTouchEnd <= 350) {
-                event.preventDefault();
-            }
-            lastCellTouchEnd = now;
-        }, { passive: false });
+        // 仍可能在同一格快速點兩下時觸發原生「雙擊放大」手勢。棋盤互動由
+        // pointer events 處理，因此在 touch 事件層直接取消預設手勢最穩定。
+        function preventBoardTouchGesture(event) {
+            event.preventDefault();
+        }
+
+        boardEl.addEventListener('touchstart', preventBoardTouchGesture, { passive: false });
+        boardEl.addEventListener('touchmove', preventBoardTouchGesture, { passive: false });
+        boardEl.addEventListener('touchend', preventBoardTouchGesture, { passive: false });
+        boardEl.addEventListener('touchcancel', preventBoardTouchGesture, { passive: false });
 
         document.addEventListener('pointerup', () => {
             isDrawingPaw = false;
