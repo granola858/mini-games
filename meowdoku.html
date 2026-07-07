@@ -290,22 +290,39 @@
             justify-content: center;
         }
 
-        .status-message {
-            min-height: 1.3rem;
-            margin: -4px 0 -6px;
-            color: var(--status-color);
+        /* 提示訊息 (Toast) */
+        .message-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100%);
+            background: var(--surface-color);
+            color: var(--text-color);
+            padding: 12px 24px;
+            border-radius: 50px;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
             font-size: 0.95rem;
             font-weight: 700;
-            line-height: 1.3;
-            text-align: center;
+            white-space: nowrap;
+            pointer-events: none;
         }
 
-        .status-message.success {
-            color: var(--status-success);
+        .message-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(20px);
         }
 
-        .status-message.error {
-            color: var(--status-error);
+        .message-toast.success {
+            background: var(--primary-gradient-end);
+            color: #fff;
+        }
+
+        .message-toast.error {
+            background: var(--status-error);
+            color: #fff;
         }
 
         @keyframes shake {
@@ -454,8 +471,6 @@
             <button class="mode-btn" data-size="8">8x8</button>
         </div>
 
-        <div class="status-message" id="statusMessage" role="status" aria-live="polite">單擊標記貓爪，雙擊放置貓咪。</div>
-
         <div class="board-container" id="board"></div>
 
         <div class="controls-row">
@@ -478,6 +493,8 @@
             </button>
         </div>
     </div>
+
+    <div class="message-toast" id="toast"></div>
 
     <div id="helpOverlay" class="modal-overlay hidden">
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
@@ -527,7 +544,7 @@
 
         const boardEl = document.getElementById('board');
         const livesEl = document.getElementById('livesDisplay');
-        const statusEl = document.getElementById('statusMessage');
+        const toastEl = document.getElementById('toast');
         const modeBtns = document.querySelectorAll('.mode-btn');
         const darkModeToggle = document.getElementById('darkModeToggle');
         const resetBtn = document.getElementById('resetBtn');
@@ -542,7 +559,6 @@
         const SAVE_VERSION = 1;
         const DARK_MODE_KEY = 'meowdoku-dark-mode-v1';
         const VALID_SIZES = [6, 7, 8];
-        const DEFAULT_STATUS_MESSAGE = '單擊標記貓爪，雙擊放置貓咪。';
         const CAT_STYLE_KEYS = Object.keys(catAssetPaths).map(Number).sort((a, b) => a - b);
         const savedGameData = loadSavedGameData();
 
@@ -550,6 +566,7 @@
         let isDrawingPaw = false;
         let pawDrawValue = false;
         let darkMode = loadDarkModePreference();
+        let toastTimer = null;
         let gameStates = savedGameData.states;
 
         const palette = [
@@ -648,7 +665,6 @@
                 regionCatStyles: state.regionCatStyles,
                 lives: clampLives(state.lives),
                 status: state.status,
-                message: state.message,
                 cellStates: state.cellStates,
                 savedAt: Date.now()
             };
@@ -691,7 +707,6 @@
                 regionCatStyles,
                 lives: clampLives(saved.lives),
                 status,
-                message: typeof saved.message === 'string' && saved.message ? saved.message : DEFAULT_STATUS_MESSAGE,
                 cellStates,
                 savedAt: Number(saved.savedAt) || Date.now()
             };
@@ -759,7 +774,6 @@
                 regionCatStyles: {},
                 lives: 3,
                 status: 'playing',
-                message: DEFAULT_STATUS_MESSAGE,
                 cellStates: []
             };
             generatePuzzle(state, size);
@@ -818,7 +832,6 @@
             const state = getState(size);
             updateModeButtons();
             updateLives(state.lives);
-            updateStatusMessage(state);
 
             boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
             boardEl.style.gridTemplateRows = `repeat(${size}, 1fr)`;
@@ -833,17 +846,14 @@
             livesEl.textContent = '❤️'.repeat(safeLives) + '🖤'.repeat(3 - safeLives);
         }
 
-        function updateStatusMessage(state) {
-            statusEl.textContent = state.message || DEFAULT_STATUS_MESSAGE;
-            statusEl.classList.toggle('success', state.status === 'won');
-            statusEl.classList.toggle('error', state.status === 'lost');
-        }
-
-        function setMessage(state, message, status = state.status) {
-            state.message = message;
-            state.status = status;
-            updateStatusMessage(state);
-            saveGameStates();
+        function showToast(message, type = 'info') {
+            if (!toastEl) return;
+            toastEl.textContent = message;
+            toastEl.className = `message-toast show ${type}`;
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toastEl.className = 'message-toast';
+            }, 2000);
         }
 
         function generatePuzzle(state, size) {
@@ -860,18 +870,18 @@
                     size,
                     lives: 3,
                     status: 'playing',
-                    message: DEFAULT_STATUS_MESSAGE,
                     cellStates: createEmptyCellStates(size)
                 };
 
                 if (countSolutions(testState, 2) === 1) {
-                    applyPuzzleCandidate(state, candidate, size, DEFAULT_STATUS_MESSAGE);
+                    applyPuzzleCandidate(state, candidate, size);
                     return;
                 }
             }
 
             if (!fallback) throw new Error(`Unable to generate a ${size}x${size} Meowdoku puzzle.`);
-            applyPuzzleCandidate(state, fallback, size, '這題可能不只一種解法；雙擊目前尺寸可重開新題。');
+            console.warn('Meowdoku puzzle generator fell back to a candidate with multiple solutions.');
+            applyPuzzleCandidate(state, fallback, size);
         }
 
         function buildPuzzleCandidate(size) {
@@ -935,7 +945,7 @@
             };
         }
 
-        function applyPuzzleCandidate(state, candidate, size, message) {
+        function applyPuzzleCandidate(state, candidate, size) {
             state.size = size;
             state.solution = candidate.solution;
             state.regions = candidate.regions;
@@ -944,7 +954,6 @@
             state.cellStates = createEmptyCellStates(size);
             state.lives = 3;
             state.status = 'playing';
-            state.message = message;
             state.savedAt = Date.now();
         }
 
@@ -995,9 +1004,12 @@
                                 cell.classList.add('error');
                                 setTimeout(() => cell.classList.remove('error'), 400);
                                 if (state.lives === 0) {
-                                    setMessage(state, '遊戲結束！雙擊目前尺寸可重新開始。', 'lost');
+                                    state.status = 'lost';
+                                    saveGameStates();
+                                    showToast('遊戲結束！可重置盤面重新開始。', 'error');
                                 } else {
-                                    setMessage(state, `那裡沒有貓咪，還剩 ${state.lives} 顆心。`, 'playing');
+                                    saveGameStates();
+                                    showToast(`那裡沒有貓咪，還剩 ${state.lives} 顆心。`, 'error');
                                 }
                             }
                             lastTapTime = 0;
@@ -1041,7 +1053,7 @@
             state.cellStates[r][c].cat = false;
             updateCellData(cell, state.cellStates[r][c]);
             updateCellView(cell);
-            setMessage(state, DEFAULT_STATUS_MESSAGE, 'playing');
+            saveGameStates();
         }
 
         function updateCellView(cell) {
@@ -1084,7 +1096,9 @@
             }
 
             if (correctCats === state.size && complete) {
-                setMessage(state, '恭喜幫貓咪們都放回家中！', 'won');
+                state.status = 'won';
+                saveGameStates();
+                showToast('恭喜幫貓咪們都放回家中！', 'success');
             } else {
                 saveGameStates();
             }
