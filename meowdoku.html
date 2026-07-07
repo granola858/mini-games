@@ -359,6 +359,7 @@
         solution: state.solution,
         regions: state.regions,
         regionColors: state.regionColors,
+        regionCatStyles: state.regionCatStyles,
         lives: clampLives(state.lives),
         status: state.status,
         message: state.message,
@@ -375,6 +376,8 @@
       for (let id = 1; id <= size; id++) {
         if (typeof saved.regionColors[id] !== 'string') return null;
       }
+      const regionCatStyles = normalizeRegionCatStyles(saved.regionCatStyles, size);
+      if (!regionCatStyles) return null;
       if (!Array.isArray(saved.cellStates) || saved.cellStates.length !== size) return null;
 
       const cellStates = [];
@@ -399,6 +402,7 @@
         solution: saved.solution,
         regions: saved.regions,
         regionColors: saved.regionColors,
+        regionCatStyles,
         lives: clampLives(saved.lives),
         status,
         message: typeof saved.message === 'string' && saved.message ? saved.message : DEFAULT_STATUS_MESSAGE,
@@ -417,6 +421,41 @@
       return Math.max(0, Math.min(3, Number(lives) || 0));
     }
 
+    function buildUniqueRegionCatStyles(size) {
+      const shuffledStyles = shuffle(CAT_STYLE_KEYS).slice(0, size);
+      const regionCatStyles = {};
+      for (let id = 1; id <= size; id++) {
+        regionCatStyles[id] = shuffledStyles[id - 1] || CAT_STYLE_KEYS[(id - 1) % CAT_STYLE_KEYS.length];
+      }
+      return regionCatStyles;
+    }
+
+    function normalizeRegionCatStyles(regionCatStyles, size) {
+      if (!regionCatStyles || typeof regionCatStyles !== 'object') {
+        return buildDefaultRegionCatStyles(size);
+      }
+
+      const usedStyles = new Set();
+      const normalized = {};
+      for (let id = 1; id <= size; id++) {
+        const style = Number(regionCatStyles[id]);
+        if (!CAT_STYLE_KEYS.includes(style) || usedStyles.has(style)) {
+          return buildDefaultRegionCatStyles(size);
+        }
+        usedStyles.add(style);
+        normalized[id] = style;
+      }
+      return normalized;
+    }
+
+    function buildDefaultRegionCatStyles(size) {
+      const regionCatStyles = {};
+      for (let id = 1; id <= size; id++) {
+        regionCatStyles[id] = CAT_STYLE_KEYS[(id - 1) % CAT_STYLE_KEYS.length];
+      }
+      return regionCatStyles;
+    }
+
     function getState(size) {
       if (!gameStates[size]) {
         gameStates[size] = createFreshState(size);
@@ -431,6 +470,7 @@
         solution: [],
         regions: [],
         regionColors: {},
+        regionCatStyles: {},
         lives: 3,
         status: 'playing',
         message: DEFAULT_STATUS_MESSAGE,
@@ -561,7 +601,12 @@
         regionColors[i] = colors[i - 2];
       }
 
-      return { solution, regions, regionColors };
+      return {
+        solution,
+        regions,
+        regionColors,
+        regionCatStyles: buildUniqueRegionCatStyles(size)
+      };
     }
 
     function applyPuzzleCandidate(state, candidate, size, message) {
@@ -569,6 +614,7 @@
       state.solution = candidate.solution;
       state.regions = candidate.regions;
       state.regionColors = candidate.regionColors;
+      state.regionCatStyles = candidate.regionCatStyles;
       state.cellStates = createEmptyCellStates(size);
       state.lives = 3;
       state.status = 'playing';
@@ -609,7 +655,7 @@
             const cellKey = `${r}-${c}`;
             if (now - lastTapTime < 220 && lastTapCellKey === cellKey) {
               if (state.solution[r][c] === 1) {
-                const styleIndex = state.cellStates[r][c].catStyle || getCatStyle(r, c);
+                const styleIndex = state.cellStates[r][c].catStyle || getCatStyle(state, r, c);
                 state.cellStates[r][c] = { cat: true, paw: false, catStyle: styleIndex };
                 updateCellData(cell, state.cellStates[r][c]);
                 updateCellView(cell);
@@ -617,7 +663,7 @@
               } else {
                 state.lives = clampLives(state.lives - 1);
                 updateLives(state.lives);
-                state.cellStates[r][c] = { cat: false, paw: false, catStyle: state.cellStates[r][c].catStyle || getCatStyle(r, c) };
+                state.cellStates[r][c] = { cat: false, paw: false, catStyle: 0 };
                 updateCellData(cell, state.cellStates[r][c]);
                 updateCellView(cell);
                 cell.classList.add('error');
@@ -653,8 +699,9 @@
       boardEl.appendChild(fragment);
     }
 
-    function getCatStyle(r, c) {
-      return CAT_STYLE_KEYS[(r * 3 + c * 5) % CAT_STYLE_KEYS.length];
+    function getCatStyle(state, r, c) {
+      const regionId = state.regions[r][c];
+      return state.regionCatStyles?.[regionId] || CAT_STYLE_KEYS[(regionId - 1) % CAT_STYLE_KEYS.length];
     }
 
     function updateCellData(cell, cellState) {
