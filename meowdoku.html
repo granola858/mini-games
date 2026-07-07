@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>meowdoku</title>
+  <style>
+    :root {
+      --primary-gradient-start: #9b59b6;
+      --primary-gradient-end: #8e44ad;
+      --inactive-btn-text: #999;
+      --active-btn-text: #333;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #ffffff;
+      display: flex;
+      justify-content: center;
+      color: #333;
+      touch-action: manipulation;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* 回首頁樣式 */
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--inactive-btn-text);
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 1rem;
+      align-self: flex-start;
+      transition: opacity 0.2s;
+    }
+
+    .back-btn:hover {
+      opacity: 0.7;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* 標題樣式 */
+    .h1 {
+      margin: 0;
+      font-weight: 900;
+      letter-spacing: 1px;
+      font-size: 32px;
+      background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    /* 生命值 */
+    .lives {
+      font-size: 1.2rem;
+      letter-spacing: 2px;
+    }
+
+    /* 模式切換容器 */
+    .toggle-container {
+      display: flex;
+      width: 100%;
+      gap: 4px;
+      background-color: #f5f5f5;
+      padding: 4px;
+      border-radius: 10px;
+      box-sizing: border-box;
+    }
+
+    .mode-btn {
+      background-color: transparent;
+      flex: 1;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      padding: 10px 0;
+      cursor: pointer;
+      transition: 0.2s;
+      color: var(--inactive-btn-text);
+    }
+
+    .mode-btn.active {
+      background-color: #ffffff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      color: var(--active-btn-text);
+    }
+
+    /* 遊戲盤面 */
+    .board-container {
+      width: 100%;
+      aspect-ratio: 1;
+      background-color: #fff7fd;
+      border: 2px solid #f7e9f4;
+      border-radius: 16px;
+      overflow: hidden;
+      display: grid;
+      gap: 1px;
+      padding: 2px;
+      box-shadow: 0 10px 25px rgba(155, 89, 182, 0.12);
+      touch-action: none;
+    }
+
+    .cell {
+      background-color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: clamp(1rem, 4vw, 1.8rem);
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.15s ease, background-color 0.2s;
+      border: none;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .cell:hover {
+      transform: scale(0.97);
+    }
+
+    .cell.error {
+      background-color: #ffcccc !important;
+      animation: shake 0.4s;
+    }
+
+    .cell .cat-face {
+      width: 78%;
+      height: 78%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.12));
+    }
+
+    .cell .cat-face svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .cell .paw-mark {
+      font-size: 1.125em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .status-message {
+      min-height: 1.3rem;
+      margin: -4px 0 -6px;
+      color: #6d3f79;
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1.3;
+      text-align: center;
+    }
+
+    .status-message.success {
+      color: #287a46;
+    }
+
+    .status-message.error {
+      color: #b33a45;
+    }
+
+    @keyframes shake {
+      0% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(-4px);
+      }
+
+      50% {
+        transform: translateX(4px);
+      }
+
+      75% {
+        transform: translateX(-4px);
+      }
+
+      100% {
+        transform: translateX(0);
+      }
+    }
+
+    .instructions {
+      font-size: 0.9rem;
+      color: #666;
+      line-height: 1.5;
+      background: #f9f9f9;
+      padding: 12px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="app">
+    <a href="index.html" class="back-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5M12 19l-7-7 7-7"></path>
+      </svg>
+      回首頁
+    </a>
+
+    <div class="header-row">
+      <div class="h1">meowdoku</div>
+      <div class="lives" id="livesDisplay">♥️♥️♥️</div>
+    </div>
+
+    <div class="toggle-container">
+      <button class="mode-btn active" data-size="6">6x6</button>
+      <button class="mode-btn" data-size="7">7x7</button>
+      <button class="mode-btn" data-size="8">8x8</button>
+    </div>
+
+    <div class="status-message" id="statusMessage" role="status" aria-live="polite">單擊標記貓爪，雙擊放置貓咪。</div>
+
+    <div class="board-container" id="board"></div>
+
+    <div class="instructions">
+      <strong>玩法說明：</strong><br>
+      🐾 單擊或按住拖曳：標記「確定沒有貓」的貓爪。<br>
+      🐱 雙擊：放置貓咪，放置錯誤時扣1顆心。<br>
+      <strong>規則：</strong>每一顏色、每行、每列只能有１隻貓，貓咪周圍８格(含斜角)不能有其他貓咪。放錯扣1顆心！所有的貓咪正確放置完畢，即獲得勝利。
+    </div>
+  </div>
+
+  <script>
+    const catSvgs = {
+      3: `<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90.71 90.71"><defs><style>.cls-1 { fill: #000; stroke-width: 0px; }</style></defs><path class="cls-1" d="M81.06,55.75c1.81,0,3.28-.1,4.72.05.55.06,1.43.62,1.48,1.04.06.5-.51,1.39-1,1.55-1.38.45-2.84.77-4.28.85-1.56.08-2.18.99-2.03,2.21.08.59,1.1,1.24,1.83,1.51,1.22.45,2.59.48,3.8.95.49.19.71,1.05,1.06,1.6-.55.3-1.11.85-1.65.84-1.62-.03-3.23-.35-4.85-.4-.45-.01-.92.54-1.38.83.36.39.64.94,1.08,1.15,1.18.55,2.52.82,3.63,1.47.6.35.86,1.28,1.28,1.94-.76.25-1.56.8-2.26.7-1.36-.2-2.64-.9-4-1.12-.77-.13-2.03,0-2.38.5-5.83,8.18-14.08,11.48-23.74,12.12-9.12.61-18.19.45-26.65-3.43-3.16-1.45-6-3.74-8.72-5.97-1.25-1.03-2.1-1.21-3.44-.54-1.24.62-2.54,1.25-3.88,1.46-.76.12-1.65-.62-2.48-.98.45-.7.74-1.68,1.38-2.05,1.12-.63,2.5-.78,3.68-1.34.58-.28.95-1.01,1.41-1.54-.61-.46-1.19-1.24-1.85-1.32-1.99-.24-4.04-.03-6-.36-.85-.14-1.56-1.18-2.33-1.81.84-.49,1.64-1.18,2.54-1.42,1.1-.29,2.33-.1,3.45-.33.52-.11.93-.73,1.38-1.12-.44-.44-.83-1.17-1.34-1.28-1.35-.28-2.82-.1-4.13-.47-.76-.22-1.31-1.16-1.95-1.77.72-.55,1.41-1.13,2.16-1.62.22-.14.61-.05.91-.03,2.07.11,2.78-.67,2.64-2.9-.38-6.17-1.07-12.41-.49-18.52.77-8.2,2.47-16.33,4.11-24.42.37-1.83,1.83-4.19,3.37-4.78,1.06-.41,3.55,1.49,4.67,2.93,3.6,4.62,6.82,9.55,10.31,14.26.57.77,1.83,1.58,2.7,1.51,7.66-.6,15.3-.85,22.93.37,1.55.25,2.4-.61,3.05-1.93,2.67-5.38,6.1-10.22,10.54-14.31,2.98-2.75,3.89-2.67,5.79,1.02,3.26,6.34,5.26,13.08,5.34,20.24.08,6.88-.13,13.76-.23,20.64-.02,1.3-.13,2.6-.2,4.06ZM36.05,53.13c.02-4.51-3.48-7.77-8.32-7.75-4.89.03-8.38,3.24-8.39,7.72-.01,4.76,3.76,8.66,8.43,8.72,4.72.06,8.26-3.66,8.28-8.69ZM62.21,45.84c-4.72.02-7.83,3.23-7.84,8.12-.01,4.42,3.96,8.15,8.69,8.15,4.23,0,7.94-3.76,7.9-8.02-.05-4.74-3.79-8.27-8.75-8.25ZM50.59,72.92c1.63-.96,3.27-1.75,4.67-2.84.47-.37.36-1.49.51-2.27-.75.05-1.52,0-2.23.18-.58.15-1.05.7-1.63.84-1.81.45-3.39.04-4.45-1.61-.99-1.54-.33-2.64.82-3.86.76-.8,1.57-2.31,1.28-3.12-.28-.8-1.89-1.25-2.99-1.58-.77-.23-1.77-.23-2.51.06-1.09.42-2.46.99-2.91,1.89-.3.61.56,2.14,1.29,2.84,1.22,1.17,1.15,2.22.42,3.5-1.37,2.38-3.41,2.57-5.77.66-.54-.43-1.43-.44-2.16-.64-.1.85-.54,1.85-.24,2.53.92,2.06,2.89,2.97,4.95,2.7,1.8-.24,3.53-1.88,5.24-1.79,1.82.09,3.56,1.49,5.71,2.5ZM17.79,14.13c-.26.09-.53.17-.79.26-1.83,5.35-3.15,10.79-2.97,16.84,4.44-1.85,8.34-3.48,12.62-5.26-3.12-4.17-5.99-8.01-8.85-11.84ZM74.01,14.61c-.31,0-.61-.02-.92-.03-3.24,3.08-5.67,6.77-7.59,10.81-.15.31.4,1.33.8,1.45,3.52,1.05,7.07,1.97,11.27,3.11-1.22-5.25-2.38-10.29-3.55-15.34Z"/><path class="cls-1" d="M28.15,58.17c-2.73-.04-4.49-1.96-4.42-4.81.07-2.65,2.14-4.59,4.82-4.5,2.53.08,4.54,2.4,4.5,5.2-.03,2.38-2.15,4.15-4.91,4.11Z"/><path class="cls-1" d="M57.13,53.78c-.01-2.67,1.76-4.34,4.6-4.33,2.66.01,4.79,1.92,4.81,4.31.02,2.66-2.15,4.92-4.78,4.98-2.67.07-4.62-2.03-4.63-4.96Z"/></svg>`,
+      4: `<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90.71 90.71"><defs><style>.cls-1 { fill: #000; stroke-width: 0px; }</style></defs><path class="cls-1" d="M47.23,85.61c-9.62-.18-18.43-1.85-26.02-7.18-8.43-5.91-12.66-14.53-13.67-24.59-1.04-10.43,1.59-19.93,8.29-28.22.69-.85.78-2.45.64-3.64-.54-4.67-.41-9.27.79-13.82.85-3.23,1.32-3.48,4.6-2.68,4.23,1.03,7.57,3.46,10.28,6.77.85,1.04,1.56,1.35,2.93.97,7.64-2.09,15.3-2.1,22.89.24,1.49.46,2.33-.02,3.46-.96,2.72-2.25,5.53-4.46,8.56-6.25,2.26-1.33,2.94-.75,4.13,1.54,2.72,5.25,2.91,10.81,2.39,16.52-.12,1.29.12,2.79.71,3.93,3.93,7.53,6.32,15.38,6.16,24-.32,17.36-13.08,31.33-30.36,32.94-2.08.19-4.17.3-5.78.41ZM71.81,9.27l-.95-.33c-2.63,1.97-5.49,3.7-7.81,5.98-1.68,1.65-3.11,1.97-5.29,1.49-7.39-1.62-14.89-2.29-22.31-.43-2.78.7-4.65.36-6.28-2-.69-.99-1.68-1.85-2.69-2.53-1.74-1.18-3.61-2.16-5.72-3.4-1.23,4.63-1.93,8.78-1.23,12.91.54,3.2-.31,5.54-2.21,8.05-5.27,6.97-7.94,14.88-6.91,23.69,1.46,12.45,7.3,21.96,19.38,26.62,10.32,3.97,20.88,4.08,31.36.55,8.16-2.75,13.93-8.12,16.8-16.37,3.58-10.29,3.23-20.56-1.58-30.23-2.52-5.06-3.61-9.95-3.34-15.48.14-2.81-.78-5.67-1.22-8.51Z"/><path class="cls-1" d="M34.72,48.84c.97.63,1.7,1.16,2.47,1.61,2.91,1.7,6.44.32,6.83-2.81.11-.85-.59-1.83-.98-2.72-.32-.72-1.14-1.53-.97-2.08.18-.62,1.15-1.21,1.89-1.41.94-.26,2.06-.35,2.97-.08.93.28,2.12.94,2.39,1.72.21.59-.89,1.6-1.34,2.46-.32.6-.81,1.3-.73,1.89.42,3.16,3.06,4.5,5.99,3.17.68-.31,1.38-.6,2.15-.93,1.03,1.75.12,2.79-.98,3.67-2.07,1.66-4.88,1.78-7.08.06-1.15-.91-1.88-.84-3.01-.1-2.37,1.57-4.94,1.68-7.5.42-1.84-.91-2.95-2.24-2.1-4.87Z"/><path class="cls-1" d="M32.25,33.22c1.82.1,4.04.87,5.21,3.28.31.65-.05,1.63-.1,2.46-.76-.06-1.61.06-2.28-.23-1.11-.48-2.05-1.45-3.18-1.8-2.19-.68-3.8.61-5.36,1.97-.5.44-1.28.55-1.93.81-.08-.77-.41-1.63-.18-2.29.87-2.51,3.91-4.23,7.82-4.2Z"/><path class="cls-1" d="M66.79,39.52c-1.12-.48-1.58-.59-1.93-.84-3.01-2.19-5.92-2.13-8.9.15-.53.41-1.61.11-2.43.14-.02-.78-.33-1.73,0-2.31,2.34-4.17,10.25-4.15,12.59.02.37.65.37,1.5.67,2.85Z"/><path class="cls-1" d="M13.31,52.67c1.13-3.41,3.37-4.46,5.73-5.13,1.51-.43,3.17-.38,4.77-.41.41,0,1.22.56,1.19.75-.09.51-.43,1.25-.85,1.39-3.39,1.14-6.81,2.16-10.83,3.4Z"/><path class="cls-1" d="M67.15,50.87c2.82,1.33,5.45,2.51,8,3.85.44.23.52,1.15.77,1.75-.62.04-1.28.24-1.85.09-2.52-.65-5.03-1.31-7.49-2.16-.8-.28-1.41-1.11-2.1-1.7.79-.54,1.57-1.08,2.66-1.84Z"/><path class="cls-1" d="M16.1,59.11c.62-.88,1.05-2.09,1.9-2.58,2.31-1.34,4.76-2.45,7.25-3.45.5-.2,1.37.53,2.06.83-.47.55-.84,1.33-1.44,1.63-2.47,1.23-5,2.32-7.52,3.46-.54.24-1.08.47-1.63.71-.21-.2-.42-.4-.63-.6Z"/><path class="cls-1" d="M77.4,50.86c-1.25-.06-1.83-.03-2.4-.12-2.49-.38-5-.71-7.46-1.23-.73-.16-1.34-.88-2.01-1.35.63-.49,1.36-1.5,1.87-1.4,2.76.52,5.49,1.26,8.18,2.08.57.17.94,1.01,1.81,2.02Z"/></svg>`,
+      5: `<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90.71 90.71"><defs><style>.cls-1 { fill: #000; stroke-width: 0px; }</style></defs><path class="cls-1" d="M45.08,86.48c-10.1-.11-19.53-2.48-27.96-8.09-8.69-5.78-12.96-14.36-14.36-24.43-.99-7.07.28-13.87,3.45-20.3.31-.64.34-1.74,0-2.33-2.47-4.16-2.69-8.64-1.29-13.02,1.38-4.32,3.42-8.43,5.23-12.6.71-1.63,1.89-1.98,3.32-.79,3.78,3.16,7.51,6.37,11.34,9.46.56.45,1.66.74,2.29.51,10.83-4.03,21.82-3.92,32.91-1.4,2.17.49,4.54,2.18,6.35,1.67,1.79-.51,2.86-3.24,4.47-4.75,1.8-1.68,3.83-3.12,5.8-4.61,1.17-.89,2.23-.76,3.2.46,4.57,5.73,6.7,12.3,6.67,19.57,0,.97-.2,2.23-.81,2.84-1.72,1.68-1.03,3.23-.32,5,3.37,8.41,3.91,17.04,1.13,25.67-5.01,15.51-16.03,23.94-31.94,26.27-3.13.46-6.31.59-9.47.87ZM42.8,82.76c10.57,0,17.21-1,23.06-3.82,12.25-5.92,18.87-16.02,19.34-29.43.48-13.51-5.89-23.78-17.95-29.85-14.81-7.46-29.86-6.73-44.39.88C1.62,31.65-.19,61.87,19.26,75.86c7.77,5.59,16.59,6.79,23.54,6.9Z"/><path class="cls-1" d="M47.02,24.05c13-.48,23.48,6,28.23,17.2,4.44,10.46-.95,19.63-10.03,24.02-3.55,1.72-6.82,3.46-9.2,6.74-4.77,6.57-15.82,5.72-21.03,1.4-4.53-3.76-9.24-7.12-14.27-10.21-5.74-3.54-7.09-9.57-6.12-15.93,1.99-13.02,11.51-21.42,25.32-22.63,2.62-.23,5.24-.43,7.09-.58ZM35.87,48.42c0-4.42-3.13-7.43-7.71-7.44-4.02,0-7.73,3.84-7.74,8,0,3.97,3.4,7.1,7.65,7.03,4.27-.06,7.81-3.51,7.8-7.6ZM61.87,55.38c4.95.04,7.96-2.6,7.99-7.04.03-4.14-3.15-7.11-7.73-7.23-4.31-.11-7.54,2.91-7.57,7.06-.03,4.37,2.81,7.17,7.32,7.21ZM45.33,63.71c1.13.8,2.23,1.81,3.53,2.41.63.3,1.62-.16,2.44-.28-.32-.75-.48-1.65-.99-2.23-1.05-1.19-2.57-2.04-3.38-3.35-.89-1.45-1.39-3.25,1.38-3.75.54-.1,1.22-1.19,1.25-1.85.02-.51-.84-1.47-1.37-1.51-1.89-.15-3.82-.1-5.72.09-.51.05-1.32.87-1.31,1.31.02.61.56,1.54,1.1,1.73,1.33.48,1.4,1.36,1.47,2.52.14,2.65-1.92,3.41-3.57,4.65-.69.52-.95,1.63-1.4,2.47.97.07,2.07.46,2.87.14,1.32-.53,2.45-1.54,3.7-2.37Z"/><path class="cls-1" d="M33.28,48.55c-.06,2.23-2.2,4.2-4.46,4.12-2.31-.08-4.12-1.92-4.11-4.17,0-2.47,2-4.45,4.42-4.37,2.27.07,4.21,2.14,4.15,4.42Z"/><path class="cls-1" d="M61.56,52.19c-2.41-.07-4.38-1.82-4.36-3.87.02-2.27,2.39-4.28,4.92-4.19,2.15.08,3.72,1.73,3.7,3.9-.03,2.44-1.86,4.23-4.26,4.17Z"/></svg>`,
+      6: `<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90.71 90.71"><defs><style>.cls-1 { fill: #000; stroke-width: 0px; }</style></defs><path class="cls-1" d="M90.32,58.85c-1.11-.19-2.23-.33-3.32-.58-2.1-.48-4.18-1.03-6.27-1.55-1.77-.44-2.73.16-2.79,2.08-.02.7-.29,1.39-.45,2.12,2.96,1.78,6.87,2.06,8.42,5.61l-.31.63c-3.06-1.23-6.11-2.47-9.09-3.67-1.82,2.31-1.76,2.35.33,3.79,1.92,1.32,3.99,2.59,4.35,5.69-.8-.23-1.36-.27-1.78-.53-.61-.37-1.14-.88-1.7-1.34-3.71-2.99-3.99-2.98-7.46,0-6.01,5.16-13.21,7.52-20.91,7.85-5.72.25-11.51-.39-17.23-.99-4.11-.43-7.69-2.44-10.74-5.22-1.01-.92-1.84-1.18-3.02-.36-1.88,1.32-3.83,2.56-5.77,3.8-.78.5-1.62.89-2.64,1.04,1.17-4.18,5-5.6,7.9-7.89-.96-2.66-1.11-2.79-3.49-1.77-2.78,1.19-5.5,2.53-8.25,3.8-.76.35-1.53.69-2.41,1.09q.16-2.35,11.38-8.37c-.24-2.08-1.05-3.29-3.47-2.73-3.02.7-6.07,1.25-9.1,1.88-.6.12-1.19.3-1.89.2,3.33-3.18,7.52-4.36,11.97-4.9-.47-3.42-1-6.53-1.32-9.67-1.26-12.15-.16-24.07,3.69-35.69.56-1.7,1.32-3.37,2.2-4.93,1.17-2.09,2.15-2.22,3.91-.64,5.02,4.5,8.9,9.85,11.48,16.07.66,1.59,1.32,1.93,3.01,1.59,6.12-1.22,12.31-1.66,18.51-.64,1.43.23,1.62-.46,2.08-1.46,2.19-4.7,4.32-9.43,6.83-13.96,1.38-2.5,2.75-2.58,4.18-.14,2.24,3.83,4.24,7.88,5.71,12.06,3.49,9.91,5.74,20.13,5.76,30.71,0,1.58.7,1.73,2.04,1.99,2.72.53,5.39,1.37,8,2.32.8.29,1.35,1.31,2.01,2-.12.25-.23.5-.35.74ZM19.97,9.26l-1.08.32c-.91,3.46-1.93,6.9-2.72,10.38-2.81,12.41-3.3,24.88-.34,37.34,2.28,9.61,7.9,16.27,17.88,18.07,8.98,1.62,17.99,1.16,26.7-1.95,6.78-2.43,12.36-6.34,14.03-13.76.92-4.1,1.17-8.44,1.07-12.65-.21-8.52-2.56-16.66-5.31-24.66-1.39-4.05-3.03-8.02-4.74-12.54-.62.99-.9,1.38-1.11,1.79-2.2,4.39-4.39,8.77-6.57,13.17-.78,1.58-1.92,2.45-3.79,2.21-6.73-.84-13.4-.29-20.04.92-1.82.33-3.07-.24-3.83-1.97-.84-1.92-1.57-3.92-2.68-5.67-2.37-3.74-4.96-7.34-7.47-10.99Z"/><path class="cls-1" d="M31.23,53.63c-1.51,0-3.03.1-4.54-.02-3.69-.28-5.56-3.29-4.28-6.78,1.49-4.08,6.47-6.91,10.82-6.17,3.8.65,7.01,4.65,7.18,8.93.09,2.37-.76,3.5-3.15,3.81-1.99.26-4.02.3-6.03.44,0-.07,0-.15,0-.22ZM31.44,50.88c1.99,0,3.69.05,5.39-.05.33-.02.84-.59.9-.96.62-4.05-4.15-7.87-8.15-6.26,2.29,1.9,2.75,4.33,1.87,7.27Z"/><path class="cls-1" d="M61.3,52.72c-1.86-.12-3.76-.05-5.57-.41-2.55-.51-3.55-2.22-3.2-4.79.59-4.31,4.87-7.89,9.33-7.78,4.14.1,7.7,3.71,8.06,8.16.21,2.58-.86,4-3.42,4.31-1.71.21-3.45.21-5.18.31,0,.07,0,.13-.01.2ZM62.3,49.56c1.28,0,2.34.11,3.36-.04.61-.09,1.54-.49,1.67-.95.59-1.95-.39-3.49-1.77-4.76-1.84-1.68-3.52-1.99-5.18-.99,2.18,1.71,2.62,3.99,1.92,6.74Z"/><path class="cls-1" d="M58.96,62.02c-.44,2.83-1.74,4.4-3.76,5.39-3.1,1.51-5.54.95-8.15-1.48-2.34.97-4.4,2.17-6.61,2.6-1.2.23-2.78-.66-3.96-1.39-1.66-1.03-2.46-2.59-1.45-4.93,1.66,2.28,3.37,4.25,6.4,3.42,1.79-.49,2.7-1.5,3.34-3.66-.71-.43-1.48-.82-2.16-1.33-2.11-1.59-1.91-4.33.61-5.05,2.05-.58,4.42-.58,6.53-.22,2.15.37,2.62,2.44,1.28,4.21-.39.51-.94.89-1.41,1.34-.53.51-1.56,1.35-1.47,1.49.58.93,1.24,2.02,2.17,2.47,2.2,1.06,4.2-.11,6.11-1.15.73-.4,1.39-.93,2.53-1.71ZM46.22,60.16c1.25-.96,2.3-1.76,3.34-2.56-1.14-.31-2.28-.62-3.42-.93-.06-.02-.16-.02-.21.02-.74.52-1.48,1.05-2.23,1.58.72.54,1.45,1.09,2.52,1.89Z"/></svg>`,
+      7: `<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90.71 90.71"><defs><style>.cls-1 { fill: #000; stroke-width: 0px; }</style></defs><path class="cls-1" d="M81.6,41.59c-.41,5.48-.68,10.65-1.21,15.8-1.14,10.99-6.89,18.82-16.71,23.72-9.45,4.72-19.34,6.34-29.75,4.1-13.55-2.92-20.95-11.9-23.83-24.9-.94-4.24-1.04-8.74-.98-13.12.1-7.81.44-15.62,1.01-23.41.36-4.95,1.59-9.77,4.23-14.1.4-.66.83-1.32,1.34-1.89,2.19-2.46,4.32-2.66,6.5-.23,1.63,1.82,3,3.93,4.18,6.08,1.42,2.57,2.57,5.29,3.72,7.99.51,1.19,1.03,1.7,2.42,1.31,7.32-2.05,14.69-1.9,22.03-.11,1.69.41,2.49.17,3.08-1.55,1.89-5.51,5.09-10.23,9.21-14.32,3.58-3.55,5.82-3.32,8.48.89,3.52,5.57,4.86,11.87,5.53,18.27.54,5.22.53,10.49.75,15.46ZM44.42,77.82c1.73-.22,3.36-.32,4.94-.65,4.62-.97,7.98-4.56,8.56-9.24.7-5.71-.67-10.63-5.86-13.87-5-3.12-12.13-3.01-16.68.3-4.74,3.45-6.49,8.11-5.22,13.84,1.17,5.24,4.75,7.94,9.76,9.01,1.5.32,3.05.42,4.49.6ZM61.42,25.48c5.62,1.51,10.64,3.59,14.31,8.19.3-.91.47-1.66.38-2.37-.54-4.13-1-8.28-1.79-12.36-.39-2.01-1.29-3.96-2.19-5.83-.74-1.54-1.99-1.95-3.29-.49-3.25,3.67-5.95,7.67-7.43,12.86ZM14.29,32.38c3.42-2.34,6.78-4.61,10.09-6.94.54-.38,1.34-1.26,1.21-1.57-1.49-3.54-2.96-7.11-4.83-10.45-.95-1.71-2.42-1.42-3.31.47-2.8,6-3.49,12.35-3.16,18.49ZM27.55,44.99c-3.43.03-6.36,2.01-7.2,4.74-.21.69.07,1.52.12,2.29.65-.3,1.4-.48,1.93-.93,3.35-2.89,5.35-2.99,8.87-.49.6.43,1.49.46,2.24.67.03-.94.42-2.09.01-2.77-1.41-2.35-3.73-3.34-5.98-3.51ZM61.29,45c-2.63-.02-5.91,1.79-6.64,3.86-.25.69.06,1.57.11,2.37.69-.12,1.52-.03,2.06-.38,4.29-2.78,5.54-2.73,9.36.47.46.38,1.16.47,1.75.69.11-.62.43-1.29.29-1.85-.69-2.85-3.82-5.13-6.92-5.15Z"/><path class="cls-1" d="M43.56,66.14c-2.36,2.2-5.05,2.41-7.8.76-1.3-.78-2.07-1.99-1.54-4.1.9.63,1.53,1.11,2.2,1.52,2.22,1.37,5.41.29,6.09-2.13.35-1.26.58-2.48-1.17-3.24-.74-.33-1.42-1.66-1.4-2.52,0-.5,1.41-1.26,2.27-1.39,1.43-.22,2.94-.16,4.38.04.71.1,1.88.74,1.9,1.18.03.74-.6,1.58-1.11,2.26-.59.78-1.84,1.36-1.96,2.15-.52,3.48,1.96,5.18,5.23,3.74.97-.43,1.91-.95,2.99-1.49.93,2.03-.34,3.04-1.52,3.94-2.57,1.95-5.03,1.71-8.55-.72Z"/></svg>`,
+      8: `<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90.71 90.71"><defs><style>.cls-1 { fill: #000; stroke-width: 0px; }</style></defs><path class="cls-1" d="M41.86,86.86c-8.58.36-17.01-2.54-24.35-7.83-9.67-6.98-14.74-16.66-13.53-28.82,1.31-13.2,5.55-25.65,10.62-37.82.73-1.75,1.89-3.38,3.1-4.87,1.99-2.43,4.03-2.74,6.44-.7,3.42,2.89,6.67,5.99,9.8,9.2,1.19,1.22,2.13,1.56,3.79,1.13,5.94-1.52,11.98-1.31,17.98-.36,1.68.27,2.39-.24,3.23-1.67,1.88-3.17,3.87-6.33,6.23-9.14,2.57-3.05,4.3-2.86,6.59.51,1.73,2.54,3.3,5.25,4.52,8.07,3.88,9.02,7.66,18.07,9.68,27.76,3.92,18.82-4.66,31.13-19.49,38.94-7.45,3.93-15.48,5.73-24.62,5.6ZM68.42,6.73c-.69.81-1.24,1.34-1.66,1.96-2.29,3.4-4.51,6.84-6.85,10.2-.45.64-1.34,1.36-2.03,1.36-2.23,0-4.46-.53-6.68-.48-5.39.12-10.78.5-16.18.65-.76.02-1.74-.45-2.27-1.02-2.1-2.27-3.86-4.87-6.11-6.96-5.55-5.16-5.59-6.53-9.37,1.84-2.97,6.58-4.8,13.69-6.94,20.62-2.08,6.75-3.7,13.65-2.91,20.77,1.07,9.56,5.54,17.1,14.12,21.88,13.53,7.53,27.35,7.92,41.44,1.6,12.25-5.49,24.61-17.58,19.49-37.53-2.93-11.42-7.15-22.38-12.71-32.8-.35-.65-.8-1.24-1.35-2.09Z"/><path class="cls-1" d="M50.35,63.47c-.8,2.8-2.33,4.59-5.06,4.71-2.85.12-4.22-1.85-4.91-3.95-2.36-.32-4.56-.32-6.55-.96-2.4-.77-3.13-3.41-1.68-5,.26-.28.75-.36,1.47-.68-.34,2.77,1.18,3.46,3.3,3.48,2.8.03,6.13-1.74,6.47-3.62.1-.55-.38-1.39-.84-1.83-1.58-1.49-1.49-2.66.53-3.4.99-.36,2.14-.63,3.15-.48,1.02.15,2.3.66,2.81,1.44.3.46-.78,1.72-1.04,2.68-.21.75-.45,1.78-.11,2.35,1.88,3.14,6.37,3.15,8.49.17.33-.47,1.04-.67,1.57-.99.25.61.71,1.21.72,1.82.03,2.1-1.84,3.89-4.46,4.24-1.2.16-2.46.03-3.85.03ZM45.85,60.44h-.96c-.63,1.11-1.41,2.17-1.78,3.36-.08.26,1.3,1.38,1.98,1.36.7-.02,1.96-.98,1.94-1.49-.04-1.09-.75-2.15-1.18-3.22Z"/><path class="cls-1" d="M17.58,45.88c.1-.33.25-1.26.64-2.07,1.77-3.68,6.96-6.48,11.2-6.15,4.36.35,8.38,3.44,9.58,7.62.29,1.01.32,2.53-.25,3.21-.42.5-2.1.24-3.08-.1-3.53-1.21-6.95-1.34-10.34.4-.89.46-1.79.94-2.73,1.26-2.77.94-5.01-.67-5.02-4.16ZM28.38,40.51c-2.86-.31-6.62,1.7-7.61,4.31-.24.63.3,1.56.48,2.35,1.97-.92,4.15-1.58,5.84-2.88.88-.68.9-2.49,1.3-3.78Z"/><path class="cls-1" d="M15.52,26.76c1.69-4.28,3.3-8.59,5.11-12.81.57-1.33,2.05-1.38,2.91-.37,2.19,2.56,4.35,5.18,6.11,8.03.43.69-.35,2.87-1.21,3.49-2.54,1.84-5.32,3.43-8.16,4.77-2.6,1.22-4.19-.02-4.17-2.88-.19-.08-.39-.15-.58-.23Z"/><path class="cls-1" d="M65.37,39.01c3.41.29,7,1.35,8.79,5.29.47,1.04.59,2.8,0,3.62-.56.78-2.31,1.21-3.4,1.01-4.35-.78-8.54-.73-12.75.88-1.03.39-2.89.24-3.53-.44-.64-.68-.57-2.47-.21-3.57,1.36-4.16,5.66-6.81,11.1-6.78ZM56.73,47.25c1.77-.53,3.21-1.35,4.6-1.29,3.05.14,3.69-1.66,4.03-4.02-3.92-.81-7.75,1.33-8.63,5.3Z"/><path class="cls-1" d="M74.01,24.9c-.01,2.85-1.06,3.67-3.23,2.84-2.37-.91-4.68-1.99-7.01-2.98-1.57-.67-2.17-1.89-1.38-3.35,1.56-2.91,3.27-5.75,5.06-8.52.19-.3,1.76-.25,1.96.07,2.3,3.85,4.06,7.93,4.61,11.94Z"/></svg>`,
+      9: `<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90.71 90.71"><defs><style>.cls-1 { fill: #000; stroke-width: 0px; }</style></defs><path class="cls-1" d="M7.29,46.26c.38-11.51,2.21-21.7,8.01-30.8,1.19-1.87,2.8-3.48,4.23-5.2,1.34-1.62,2.82-1.94,4.2-.16,3.06,3.95,6.15,7.89,8.98,12,1.06,1.54,1.8,2.06,3.8,1.74,6.41-1.02,12.9-1.67,19.37-.39,1.41.28,1.76-.4,2.14-1.41,1.99-5.32,5.36-9.72,9.31-13.72,2.39-2.42,3.19-2.55,4.8.54,3.03,5.8,6.16,11.65,8.25,17.82,3.74,11,4.13,22.27.6,33.52-4.21,13.44-15.22,22.56-29.33,23.75-10.91.92-21.2-1.02-30.52-7.3-7.94-5.35-11.47-13.11-13.01-22.09-.52-3.03-.62-6.14-.82-8.31ZM74.35,65.56c-1-.06-1.66-.11-2.31-.13-11.82-.5-19.38-6.48-21.75-18.07-1.2-5.86-1.33-11.95-1.91-17.94-.08-.77.09-1.56-.03-2.31-.07-.41-.5-.77-.77-1.15-.34.4-.78.76-.98,1.23-.16.4,0,.92-.04,1.38-.62,7.39-1.06,14.8-3.67,21.88-4.18,11.29-16.24,18.07-26.46,15.59-.23-.06-.5.06-.83.11,2.55,4.46,9.14,9.81,14.57,11.59,11.73,3.86,23.37,4.48,34.58-1.77,4.19-2.34,7.43-5.64,9.61-10.39ZM21.99,52.15c-.22.14-.44.29-.65.43.27.84.34,1.83.84,2.51,2.63,3.57,10.94,3.03,13.04-.89.4-.75,0-1.94-.03-2.92-.77.28-1.71.37-2.28.88-2.52,2.24-6.11,2.72-9.04,1.06-.63-.36-1.25-.72-1.88-1.07ZM63.85,57.21c1.85-.79,3.78-1.44,5.51-2.44.58-.33.64-1.55.94-2.36-.79-.01-1.66-.26-2.35,0-2.68,1.02-5.16,1.22-7.65-.61-.6-.44-1.74-.16-2.63-.21.06.92-.21,2.07.23,2.73,1.32,1.96,3.46,2.41,5.94,2.89Z"/><path class="cls-1" d="M55.04,65.28c-.13,3.14-2.8,4.98-6.1,4.05-1.73-.49-3.14-.43-4.83.19-3.53,1.29-7.52-.8-8.12-3.99-.05-.27.06-.57.15-1.24.98.76,1.7,1.4,2.49,1.92,1.76,1.16,4.46.97,5.59-.35.96-1.12.64-3.73-.66-5.25-1.15-1.35-1.01-2.89.51-3.71,1.72-.93,3.52-.75,5,.47,1.15.95,1.22,2.39-.13,3.12-2.29,1.24-1.71,3.24-.93,4.57.52.88,2.47,1.15,3.8,1.24.98.06,2.01-.61,3.21-1.02Z"/></svg>`,
+      10: `<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90.71 90.71"><defs><style>.cls-1 { fill: #000; stroke-width: 0px; }</style></defs><path class="cls-1" d="M16.9,75.63c-1.16-1.05-2.11-1.92-3.32-3.02-1.19,1.41-2.27,2.67-3.33,3.95-.59.71-1.05,1.59-1.77,2.13-.49.36-1.32.26-2,.37-.03-.63-.32-1.45-.03-1.86,1.03-1.43,2.21-2.77,3.42-4.06,1.42-1.5,1.93-2.69.43-4.74-3.6-4.9-4.54-10.77-4.9-16.69-.83-13.44,2.47-26.08,7.62-38.34.57-1.35,1.17-2.7,1.82-4.01,1.33-2.66,2.79-3.17,5.1-1.3,2.57,2.09,5.32,4.22,7.14,6.91,2.84,4.2,5.98,5.43,11.11,4.66,5.59-.84,11.42-.09,17.14-.16.9-.01,2.05-.53,2.64-1.2,2.66-3.01,5.08-6.24,7.75-9.24,2.86-3.2,5.37-2.99,7.23.84,7.3,14.97,11.32,30.61,8.63,47.38-.46,2.84-1.76,5.58-2.94,8.25-.6,1.35-.74,2.11.6,3.05,1.83,1.29,3.46,2.85,5.19,4.28.96.8,1.53,1.83.33,2.64-.53.36-1.92.11-2.47-.38-2.03-1.77-3.87-3.76-5.97-5.86-1.26,1.1-2.5,2.19-3.94,3.45,1.49,1.58,2.99,2.92,4.15,4.51.54.74.92,2.39.5,2.89-1.09,1.28-2.19.37-2.98-.76-1.15-1.64-2.28-3.28-3.55-5.1-4.6,3.76-9.72,6.11-15.32,7.09-10.81,1.9-21.55,1.68-32.03-2.04-1.41-.5-2.95-1.8-4.12-1.51-1.07.27-1.72,2.2-2.56,3.4-.31.44-.63.88-.95,1.32-.72.99-1.53,2-2.82.97-1.32-1.05-.68-2.18.21-3.2.66-.75,1.33-1.51,1.99-2.27.6-.7,1.2-1.4,2.01-2.37ZM47.55,22.98c0,3.82.15,7.44-.04,11.04-.19,3.59-1.31,5.04-3.29,5.01-2.03-.02-3.24-1.73-3.38-5.27-.12-3.09-.02-6.19.11-9.28.1-2.23-1.45-1.72-2.68-1.81-1.49-.11-1.45.73-1.45,1.92,0,2.77-.16,5.55-.41,8.31-.15,1.6-1,2.85-2.82,2.78-1.72-.07-2.94-1.01-3.3-2.74-.22-1.05-.43-2.21-.2-3.22.92-4.07-.26-7.3-3.2-10.23-3.04-3.02-5.79-6.33-8.87-9.73-.58.98-.93,1.41-1.1,1.89-1.82,5.18-3.82,10.31-5.37,15.57-2.86,9.68-4.25,19.6-2.08,29.57,2.31,10.59,8.41,17.91,19.5,20.3,8.09,1.74,16.18,2.25,24.43,1.03,16.67-2.47,27.68-16.34,26.34-33.17-.74-9.27-2.8-18.17-6.42-26.72-1.19-2.81-2.4-5.62-3.74-8.77-1.05.95-1.87,1.53-2.49,2.28-2.13,2.55-4.08,5.27-6.3,7.73-2.1,2.32-3.01,4.84-2.96,8,.04,2.27-.41,4.65-1.2,6.77-.36.97-2.07,2.01-3.14,1.96-.84-.03-2.16-1.58-2.31-2.6-.39-2.57-.25-5.23-.29-7.85-.01-.89.1-1.77.16-2.78h-3.52Z"/><path class="cls-1" d="M43.75,65.85c-3.51,2.93-7.36,4.18-11.65,2.29-1.25-.55-2.35-1.72-3.18-2.86-.4-.55.01-1.68.05-2.55.7.26,1.57.35,2.08.82,1.75,1.62,3.78,2.84,6.07,2.07,1.6-.54,3.02-1.89,4.23-3.16.79-.83.58-1.87-.68-2.66-.69-.44-1.38-1.68-1.25-2.41.13-.73,1.23-1.7,2.01-1.8,1.55-.2,3.25-.16,4.73.3,1.92.6,2.05,2.18.57,3.55-1.83,1.69-1.81,3.14.06,4.72,2.32,1.97,6.06,1.81,8.81-.24.6-.45,1.54-.45,2.32-.66-.12.99.1,2.22-.41,2.91-2.32,3.15-8.32,3.55-12.11.95-.56-.39-1.08-.83-1.66-1.28Z"/><path class="cls-1" d="M27.71,54.74c-2.05-.11-3.77-.09-5.45-.31-2.77-.35-4.3-2.51-3.89-5.28.64-4.27,5.87-8.07,10.35-7.51,4.43.56,8.12,5.42,7.56,9.92-.2,1.63-1.13,2.54-2.68,2.72-2.07.24-4.16.33-5.9.46ZM28.41,51.87c.3,0,1.13,0,1.96,0,3.69,0,4.07-.6,2.52-3.99-.16-.35-.34-.7-.55-1.02-1.45-2.25-4.18-3.19-5.77-2.4.6,2.42,1.17,4.72,1.84,7.41Z"/><path class="cls-1" d="M59.79,54.33c-1.99-.17-4.02-.16-5.96-.55-2.11-.43-3-2.03-2.88-4.15.26-4.46,4.42-8.16,9.13-8.17,4.42,0,7.95,3.46,8.18,8.06.15,2.84-.82,4.02-3.61,4.3-1.61.16-3.24.23-4.85.35,0,.05-.01.11-.02.16ZM61.63,51.22c.28,0,1.04.04,1.79,0,2.24-.14,2.88-1.05,2.28-3.15-.79-2.75-3.66-4.43-6.18-3.94.65,2.19,1.31,4.42,2.1,7.09Z"/></svg>`,
+    };
+
+    const boardEl = document.getElementById('board');
+    const livesEl = document.getElementById('livesDisplay');
+    const statusEl = document.getElementById('statusMessage');
+    const modeBtns = document.querySelectorAll('.mode-btn');
+
+    const SAVE_KEY = 'meowdoku-game-states-v1';
+    const SAVE_VERSION = 1;
+    const VALID_SIZES = [6, 7, 8];
+    const DEFAULT_STATUS_MESSAGE = '單擊標記貓爪，雙擊放置貓咪。';
+    const CAT_STYLE_KEYS = Object.keys(catSvgs).map(Number).sort((a, b) => a - b);
+    const savedGameData = loadSavedGameData();
+
+    let currentSize = savedGameData.currentSize;
+    let isDrawingPaw = false;
+    let pawDrawValue = false;
+    let modeClickTimer = null;
+    let lastModeSize = null;
+    let gameStates = savedGameData.states;
+
+    const palette = [
+      '#F6C6D5', '#A8D8EA', '#A6D8A8', '#FFD6A5', '#CDB4DB',
+      '#BDE0FE', '#F7D6E0', '#D8F3DC', '#FFE5D9', '#B8E0D2',
+      '#F9E2AE', '#CFA8FF', '#8EC5FC', '#F4C2C2', '#D4A373', '#B8C0FF'
+    ];
+    const softPurple = '#E9D7F8';
+
+    function shuffle(array) {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function createCatSvg(style = 2) {
+      const svg = catSvgs[style] || catSvgs[3];
+      return `<div class="cat-face">${svg}</div>`;
+    }
+
+    function createPawSvg() {
+      return `<div class="paw-mark">🐾</div>`;
+    }
+
+    function createEmptyCellState() {
+      return { cat: false, paw: false, catStyle: 0 };
+    }
+
+    function createEmptyCellStates(size) {
+      return Array.from({ length: size }, () => Array.from({ length: size }, createEmptyCellState));
+    }
+
+    function loadSavedGameData() {
+      const fallback = { currentSize: 6, states: {} };
+      try {
+        const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
+        if (!saved || saved.version !== SAVE_VERSION || typeof saved.states !== 'object') return fallback;
+
+        const states = {};
+        for (const size of VALID_SIZES) {
+          const normalized = normalizeSavedState(saved.states[String(size)], size);
+          if (normalized) states[size] = normalized;
+        }
+
+        return {
+          currentSize: VALID_SIZES.includes(saved.currentSize) ? saved.currentSize : 6,
+          states
+        };
+      } catch (error) {
+        console.warn('Meowdoku saved state could not be loaded:', error);
+        return fallback;
+      }
+    }
+
+    function saveGameStates() {
+      try {
+        const states = {};
+        for (const size of VALID_SIZES) {
+          if (gameStates[size]) states[size] = serializeState(gameStates[size]);
+        }
+        localStorage.setItem(SAVE_KEY, JSON.stringify({
+          version: SAVE_VERSION,
+          currentSize,
+          states
+        }));
+      } catch (error) {
+        console.warn('Meowdoku saved state could not be written:', error);
+      }
+    }
+
+    function serializeState(state) {
+      return {
+        size: state.size,
+        solution: state.solution,
+        regions: state.regions,
+        regionColors: state.regionColors,
+        lives: clampLives(state.lives),
+        status: state.status,
+        message: state.message,
+        cellStates: state.cellStates,
+        savedAt: Date.now()
+      };
+    }
+
+    function normalizeSavedState(saved, size) {
+      if (!saved || saved.size !== size) return null;
+      if (!isNumberMatrix(saved.solution, size, (value) => value === 0 || value === 1)) return null;
+      if (!isNumberMatrix(saved.regions, size, (value) => Number.isInteger(value) && value >= 1 && value <= size)) return null;
+      if (!saved.regionColors || typeof saved.regionColors !== 'object') return null;
+      for (let id = 1; id <= size; id++) {
+        if (typeof saved.regionColors[id] !== 'string') return null;
+      }
+      if (!Array.isArray(saved.cellStates) || saved.cellStates.length !== size) return null;
+
+      const cellStates = [];
+      for (let r = 0; r < size; r++) {
+        if (!Array.isArray(saved.cellStates[r]) || saved.cellStates[r].length !== size) return null;
+        const row = [];
+        for (let c = 0; c < size; c++) {
+          const cell = saved.cellStates[r][c] || {};
+          const catStyle = Number(cell.catStyle) || 0;
+          row.push({
+            cat: Boolean(cell.cat),
+            paw: Boolean(cell.paw) && !cell.cat,
+            catStyle: CAT_STYLE_KEYS.includes(catStyle) ? catStyle : 0
+          });
+        }
+        cellStates.push(row);
+      }
+
+      const status = ['playing', 'won', 'lost'].includes(saved.status) ? saved.status : 'playing';
+      return {
+        size,
+        solution: saved.solution,
+        regions: saved.regions,
+        regionColors: saved.regionColors,
+        lives: clampLives(saved.lives),
+        status,
+        message: typeof saved.message === 'string' && saved.message ? saved.message : DEFAULT_STATUS_MESSAGE,
+        cellStates,
+        savedAt: Number(saved.savedAt) || Date.now()
+      };
+    }
+
+    function isNumberMatrix(matrix, size, validator) {
+      return Array.isArray(matrix)
+        && matrix.length === size
+        && matrix.every((row) => Array.isArray(row) && row.length === size && row.every(validator));
+    }
+
+    function clampLives(lives) {
+      return Math.max(0, Math.min(3, Number(lives) || 0));
+    }
+
+    function getState(size) {
+      if (!gameStates[size]) {
+        gameStates[size] = createFreshState(size);
+        saveGameStates();
+      }
+      return gameStates[size];
+    }
+
+    function createFreshState(size) {
+      const state = {
+        size,
+        solution: [],
+        regions: [],
+        regionColors: {},
+        lives: 3,
+        status: 'playing',
+        message: DEFAULT_STATUS_MESSAGE,
+        cellStates: []
+      };
+      generatePuzzle(state, size);
+      return state;
+    }
+
+    function updateModeButtons() {
+      modeBtns.forEach((btn) => {
+        btn.classList.toggle('active', Number(btn.dataset.size) === currentSize);
+      });
+    }
+
+    function initGame(size) {
+      currentSize = size;
+      resetPointerState();
+      const state = getState(size);
+      updateModeButtons();
+      updateLives(state.lives);
+      updateStatusMessage(state);
+
+      boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+      boardEl.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+      boardEl.innerHTML = '';
+
+      renderBoard(state);
+      saveGameStates();
+    }
+
+    function updateLives(lives) {
+      const safeLives = clampLives(lives);
+      livesEl.textContent = '❤️'.repeat(safeLives) + '🖤'.repeat(3 - safeLives);
+    }
+
+    function updateStatusMessage(state) {
+      statusEl.textContent = state.message || DEFAULT_STATUS_MESSAGE;
+      statusEl.classList.toggle('success', state.status === 'won');
+      statusEl.classList.toggle('error', state.status === 'lost');
+    }
+
+    function setMessage(state, message, status = state.status) {
+      state.message = message;
+      state.status = status;
+      updateStatusMessage(state);
+      saveGameStates();
+    }
+
+    function generatePuzzle(state, size) {
+      const maxAttempts = 120;
+      let fallback = null;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const candidate = buildPuzzleCandidate(size);
+        if (!candidate) continue;
+        if (!fallback) fallback = candidate;
+
+        const testState = {
+          ...candidate,
+          size,
+          lives: 3,
+          status: 'playing',
+          message: DEFAULT_STATUS_MESSAGE,
+          cellStates: createEmptyCellStates(size)
+        };
+
+        if (countSolutions(testState, 2) === 1) {
+          applyPuzzleCandidate(state, candidate, size, DEFAULT_STATUS_MESSAGE);
+          return;
+        }
+      }
+
+      if (!fallback) throw new Error(`Unable to generate a ${size}x${size} Meowdoku puzzle.`);
+      applyPuzzleCandidate(state, fallback, size, '這題可能不只一種解法；雙擊目前尺寸可重開新題。');
+    }
+
+    function buildPuzzleCandidate(size) {
+      const solution = Array.from({ length: size }, () => Array(size).fill(0));
+
+      function solve(row) {
+        if (row === size) return true;
+        const cols = shuffle(Array.from({ length: size }, (_, i) => i));
+        for (const col of cols) {
+          if (isValid(solution, row, col, size)) {
+            solution[row][col] = 1;
+            if (solve(row + 1)) return true;
+            solution[row][col] = 0;
+          }
+        }
+        return false;
+      }
+
+      if (!solve(0)) return null;
+
+      const regions = Array.from({ length: size }, () => Array(size).fill(0));
+      const catQueue = [];
+      let regionId = 1;
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (solution[r][c] === 1) {
+            regions[r][c] = regionId;
+            catQueue.push({ r, c, id: regionId });
+            regionId++;
+          }
+        }
+      }
+
+      while (catQueue.length > 0) {
+        const idx = Math.floor(Math.random() * catQueue.length);
+        const { r, c, id } = catQueue.splice(idx, 1)[0];
+        const directions = shuffle([[-1, 0], [1, 0], [0, -1], [0, 1]]);
+
+        for (const [dr, dc] of directions) {
+          const nr = r + dr;
+          const nc = c + dc;
+          if (nr >= 0 && nr < size && nc >= 0 && nc < size && regions[nr][nc] === 0) {
+            regions[nr][nc] = id;
+            catQueue.push({ r: nr, c: nc, id });
+          }
+        }
+      }
+
+      const regionColors = {};
+      const colors = shuffle(palette).filter((color) => color !== softPurple).slice(0, size - 1);
+      regionColors[1] = softPurple;
+      for (let i = 2; i <= size; i++) {
+        regionColors[i] = colors[i - 2];
+      }
+
+      return { solution, regions, regionColors };
+    }
+
+    function applyPuzzleCandidate(state, candidate, size, message) {
+      state.size = size;
+      state.solution = candidate.solution;
+      state.regions = candidate.regions;
+      state.regionColors = candidate.regionColors;
+      state.cellStates = createEmptyCellStates(size);
+      state.lives = 3;
+      state.status = 'playing';
+      state.message = message;
+      state.savedAt = Date.now();
+    }
+
+    function isValid(board, r, c, size) {
+      for (let i = 0; i < size; i++) {
+        if (board[i][c] === 1) return false;
+      }
+      for (let i = -1; i <= 1; i++) {
+        for (let j = -1; j <= 1; j++) {
+          const nr = r + i;
+          const nc = c + j;
+          if (nr >= 0 && nr < size && nc >= 0 && nc < size && board[nr][nc] === 1) return false;
+        }
+      }
+      return true;
+    }
+
+    function renderBoard(state) {
+      const fragment = document.createDocumentFragment();
+      for (let r = 0; r < state.size; r++) {
+        for (let c = 0; c < state.size; c++) {
+          const cell = document.createElement('div');
+          const cellState = state.cellStates[r][c];
+          cell.className = 'cell';
+          cell.style.backgroundColor = state.regionColors[state.regions[r][c]];
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+          updateCellData(cell, cellState);
+
+          cell.addEventListener('pointerdown', (event) => {
+            event.preventDefault();
+            if (state.status !== 'playing' || cell.dataset.cat === 'true') return;
+            const now = Date.now();
+            const cellKey = `${r}-${c}`;
+            if (now - lastTapTime < 220 && lastTapCellKey === cellKey) {
+              if (state.solution[r][c] === 1) {
+                const styleIndex = state.cellStates[r][c].catStyle || getCatStyle(r, c);
+                state.cellStates[r][c] = { cat: true, paw: false, catStyle: styleIndex };
+                updateCellData(cell, state.cellStates[r][c]);
+                updateCellView(cell);
+                checkWin(state);
+              } else {
+                state.lives = clampLives(state.lives - 1);
+                updateLives(state.lives);
+                state.cellStates[r][c] = { cat: false, paw: false, catStyle: state.cellStates[r][c].catStyle || getCatStyle(r, c) };
+                updateCellData(cell, state.cellStates[r][c]);
+                updateCellView(cell);
+                cell.classList.add('error');
+                setTimeout(() => cell.classList.remove('error'), 400);
+                if (state.lives === 0) {
+                  setMessage(state, '遊戲結束！雙擊目前尺寸可重新開始。', 'lost');
+                } else {
+                  setMessage(state, `那裡沒有貓咪，還剩 ${state.lives} 顆心。`, 'playing');
+                }
+              }
+              lastTapTime = 0;
+              lastTapCellKey = '';
+              return;
+            }
+
+            isDrawingPaw = true;
+            pawDrawValue = !state.cellStates[r][c].paw;
+            applyPawState(state, r, c, cell, pawDrawValue);
+            lastTapTime = now;
+            lastTapCellKey = cellKey;
+          });
+
+          cell.addEventListener('pointerenter', () => {
+            if (isDrawingPaw && state.status === 'playing' && cell.dataset.cat !== 'true') {
+              applyPawState(state, r, c, cell, pawDrawValue);
+            }
+          });
+
+          fragment.appendChild(cell);
+          updateCellView(cell);
+        }
+      }
+      boardEl.appendChild(fragment);
+    }
+
+    function getCatStyle(r, c) {
+      return CAT_STYLE_KEYS[(r * 3 + c * 5) % CAT_STYLE_KEYS.length];
+    }
+
+    function updateCellData(cell, cellState) {
+      cell.dataset.cat = String(Boolean(cellState.cat));
+      cell.dataset.paw = String(Boolean(cellState.paw));
+      cell.dataset.catStyle = String(cellState.catStyle || 0);
+    }
+
+    function applyPawState(state, r, c, cell, paw) {
+      state.cellStates[r][c].paw = paw;
+      state.cellStates[r][c].cat = false;
+      updateCellData(cell, state.cellStates[r][c]);
+      updateCellView(cell);
+      setMessage(state, DEFAULT_STATUS_MESSAGE, 'playing');
+    }
+
+    function updateCellView(cell) {
+      if (cell.dataset.cat === 'true') {
+        const styleIndex = Number(cell.dataset.catStyle || '2');
+        cell.innerHTML = createCatSvg(styleIndex);
+      } else if (cell.dataset.paw === 'true') {
+        cell.innerHTML = createPawSvg();
+      } else {
+        cell.innerHTML = '';
+      }
+    }
+
+    function getCorrectCats(state) {
+      let correct = 0;
+      for (let r = 0; r < state.size; r++) {
+        for (let c = 0; c < state.size; c++) {
+          if (state.solution[r][c] === 1 && state.cellStates[r][c].cat) correct++;
+        }
+      }
+      return correct;
+    }
+
+    let lastTapTime = 0;
+    let lastTapCellKey = '';
+
+    function checkWin(state) {
+      if (state.status !== 'playing') return;
+      const complete = state.cellStates.every((row, r) => row.every((cellState, c) => {
+        const shouldHaveCat = state.solution[r][c] === 1;
+        return (shouldHaveCat && cellState.cat) || (!shouldHaveCat && !cellState.cat);
+      }));
+
+      // 從實際答案比對正確放置的貓咪數，而不是只信賴計數變數
+      let correctCats = 0;
+      for (let r = 0; r < state.size; r++) {
+        for (let c = 0; c < state.size; c++) {
+          if (state.solution[r][c] === 1 && state.cellStates[r][c].cat) correctCats++;
+        }
+      }
+
+      if (correctCats === state.size && complete) {
+        setMessage(state, '恭喜幫貓咪們都放回家中！', 'won');
+      } else {
+        saveGameStates();
+      }
+    }
+
+    // 計算在目前玩家已固定放置（貓或標記為無貓）的情況下，符合規則的解答數量
+    function countSolutions(state, maxCount = 2) {
+      const size = state.size;
+      const fixedCatInRow = Array(size).fill(-1);
+      const fixedNoCat = Array.from({ length: size }, () => Array(size).fill(false));
+
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          const cellState = state.cellStates[r][c];
+          if (cellState.cat && cellState.paw) return 0;
+          if (cellState.cat) {
+            if (fixedCatInRow[r] !== -1 && fixedCatInRow[r] !== c) return 0; // 衝突
+            fixedCatInRow[r] = c;
+          }
+          if (cellState.paw) fixedNoCat[r][c] = true;
+        }
+      }
+
+      let count = 0;
+      const placedCols = Array(size).fill(-1);
+      const colsUsed = Array(size).fill(false);
+      const regionsUsed = Array(size + 1).fill(false);
+
+      function tryPlace(row, c) {
+        const regionId = state.regions[row][c];
+        if (fixedNoCat[row][c]) return;
+        if (colsUsed[c]) return;
+        if (regionsUsed[regionId]) return;
+        for (let rr = 0; rr < row; rr++) {
+          const pc = placedCols[rr];
+          if (pc === -1) continue;
+          if (Math.abs(rr - row) <= 1 && Math.abs(pc - c) <= 1) return;
+        }
+
+        colsUsed[c] = true;
+        regionsUsed[regionId] = true;
+        placedCols[row] = c;
+        backtrack(row + 1);
+        placedCols[row] = -1;
+        regionsUsed[regionId] = false;
+        colsUsed[c] = false;
+      }
+
+      function backtrack(row) {
+        if (count >= maxCount) return;
+        if (row === size) {
+          count++;
+          return;
+        }
+
+        if (fixedCatInRow[row] !== -1) {
+          const c = fixedCatInRow[row];
+          tryPlace(row, c);
+          return;
+        }
+
+        for (let c = 0; c < size; c++) {
+          tryPlace(row, c);
+          if (count >= maxCount) return;
+        }
+      }
+
+      backtrack(0);
+      return count;
+    }
+
+    // 在 Console 呼叫： checkPlayerSolutionUnique()，會輸出是否正確與是否唯一
+    function checkPlayerSolutionUnique() {
+      const state = getState(currentSize);
+      // 檢查玩家目前放的貓是否與答案相符
+      let playerMatches = true;
+      for (let r = 0; r < state.size; r++) {
+        for (let c = 0; c < state.size; c++) {
+          const shouldHave = state.solution[r][c] === 1;
+          const hasCat = state.cellStates[r][c].cat;
+          if ((shouldHave && !hasCat) || (!shouldHave && hasCat)) {
+            playerMatches = false;
+            break;
+          }
+        }
+        if (!playerMatches) break;
+      }
+
+      const sols = countSolutions(state, 2);
+      console.log('Player matches generated solution:', playerMatches);
+      if (sols === 0) console.log('No valid solutions given current fixed placements.');
+      else if (sols === 1) console.log('Unique solution exists.');
+      else console.log('Multiple solutions exist (>=2).');
+      return { playerMatches, solutions: sols };
+    }
+
+    window.checkPlayerSolutionUnique = checkPlayerSolutionUnique;
+
+    modeBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const size = Number(btn.dataset.size);
+
+        if (size !== currentSize) {
+          currentSize = size;
+          updateModeButtons();
+          initGame(size);
+          return;
+        }
+
+        if (modeClickTimer && lastModeSize === size) {
+          clearTimeout(modeClickTimer);
+          modeClickTimer = null;
+          lastModeSize = null;
+          gameStates[size] = createFreshState(size);
+          saveGameStates();
+          initGame(size);
+          return;
+        }
+
+        lastModeSize = size;
+        if (modeClickTimer) clearTimeout(modeClickTimer);
+        modeClickTimer = setTimeout(() => {
+          modeClickTimer = null;
+          lastModeSize = null;
+        }, 300);
+      });
+    });
+
+    function resetPointerState() {
+      isDrawingPaw = false;
+      pawDrawValue = false;
+      lastTapTime = 0;
+      lastTapCellKey = '';
+    }
+
+    document.addEventListener('pointerup', () => {
+      isDrawingPaw = false;
+    });
+    document.addEventListener('pointercancel', resetPointerState);
+    window.addEventListener('blur', resetPointerState);
+    window.addEventListener('pagehide', saveGameStates);
+
+    initGame(currentSize);
+  </script>
+</body>
+
+</html>
