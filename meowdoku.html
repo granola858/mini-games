@@ -1387,6 +1387,18 @@
             applyPawState(state, r, c, cell, pawDrawValue);
         });
 
+        // 部分行動瀏覽器（尤其 iOS Safari）即使設定 touch-action/user-scalable，
+        // 仍會在快速點兩下同一格子時觸發原生「雙擊放大」手勢。這裡在 touchend
+        // 階段主動 preventDefault 來徹底關閉此手勢，避免誤觸縮放畫面。
+        let lastCellTouchEnd = 0;
+        boardEl.addEventListener('touchend', (event) => {
+            const now = Date.now();
+            if (now - lastCellTouchEnd <= 350) {
+                event.preventDefault();
+            }
+            lastCellTouchEnd = now;
+        }, { passive: false });
+
         document.addEventListener('pointerup', () => {
             isDrawingPaw = false;
         });
