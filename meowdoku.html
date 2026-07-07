@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="favicon-meowdoku.svg">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Meowdoku</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap');
@@ -229,8 +229,43 @@
             opacity: 0.75;
         }
 
+        .action-btn.highlight {
+            background-color: var(--primary-gradient-end);
+            color: #fff;
+            animation: pulseGlow 1.6s ease-in-out infinite;
+        }
+
+        .action-btn.highlight:hover {
+            opacity: 0.85;
+        }
+
+        .action-btn:disabled,
+        .action-btn.disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .action-btn:disabled:hover,
+        .action-btn.disabled:hover {
+            opacity: 0.35;
+        }
+
+        @keyframes pulseGlow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(155, 89, 182, 0.45);
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(155, 89, 182, 0);
+            }
+        }
+
         /* 遊戲盤面 */
         .board-container {
+            position: relative;
             width: 100%;
             aspect-ratio: 1;
             background-color: var(--board-bg);
@@ -242,6 +277,25 @@
             padding: 2px;
             box-shadow: 0 10px 25px var(--board-shadow);
             touch-action: none;
+            transition: filter 0.3s ease;
+        }
+
+        .board-container.frozen {
+            filter: grayscale(0.55) brightness(0.94);
+        }
+
+        .board-container.frozen .cell {
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .board-container.frozen::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(120, 100, 140, 0.1);
+            backdrop-filter: blur(0.5px);
+            pointer-events: none;
         }
 
         .cell {
@@ -482,6 +536,16 @@
                     <path d="M21 3v6h-6"></path>
                 </svg>
             </button>
+            <button id="clearBtn" class="action-btn" type="button" aria-label="清空盤面" title="清空盤面">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    aria-hidden="true">
+                    <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21">
+                    </path>
+                    <path d="M22 21H7"></path>
+                    <path d="m5 11 9 9"></path>
+                </svg>
+            </button>
             <button id="helpBtn" class="action-btn" type="button" aria-label="遊戲說明" title="遊戲說明">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -548,12 +612,16 @@
         const modeBtns = document.querySelectorAll('.mode-btn');
         const darkModeToggle = document.getElementById('darkModeToggle');
         const resetBtn = document.getElementById('resetBtn');
+        const clearBtn = document.getElementById('clearBtn');
         const helpBtn = document.getElementById('helpBtn');
         const helpOverlay = document.getElementById('helpOverlay');
         const helpCloseBtn = document.getElementById('helpCloseBtn');
         const confirmOverlay = document.getElementById('confirmOverlay');
+        const confirmTitleEl = document.getElementById('confirmTitle');
+        const confirmMessageEl = document.getElementById('confirmMessage');
         const confirmCancelBtn = document.getElementById('confirmCancelBtn');
         const confirmOkBtn = document.getElementById('confirmOkBtn');
+        let pendingConfirmAction = null;
 
         const SAVE_KEY = 'meowdoku-game-states-v1';
         const SAVE_VERSION = 1;
@@ -812,12 +880,23 @@
             helpOverlay.classList.add('hidden');
         }
 
-        function openConfirm() {
+        function openConfirm(action) {
+            pendingConfirmAction = action;
+            if (action === 'clear') {
+                confirmTitleEl.textContent = '清空盤面';
+                confirmMessageEl.textContent = '確定要清空目前的標記與貓咪嗎？此動作無法復原。';
+                confirmOkBtn.textContent = '清空';
+            } else {
+                confirmTitleEl.textContent = '重置盤面';
+                confirmMessageEl.textContent = '確定要重置目前盤面嗎？進度將會消失。';
+                confirmOkBtn.textContent = '重置';
+            }
             confirmOverlay.classList.remove('hidden');
         }
 
         function closeConfirm() {
             confirmOverlay.classList.add('hidden');
+            pendingConfirmAction = null;
         }
 
         function updateModeButtons() {
@@ -838,7 +917,38 @@
             boardEl.innerHTML = '';
 
             renderBoard(state);
+            updateGameOverUI(state);
+            updateClearButtonState(state);
             saveGameStates();
+        }
+
+        function isBoardEmpty(state) {
+            return state.cellStates.every((row) => row.every((cellState) => !cellState.cat && !cellState.paw));
+        }
+
+        function updateClearButtonState(state) {
+            const empty = isBoardEmpty(state);
+            clearBtn.disabled = empty;
+            clearBtn.classList.toggle('disabled', empty);
+        }
+
+        function updateGameOverUI(state) {
+            const isOver = state.status !== 'playing';
+            boardEl.classList.toggle('frozen', isOver);
+            resetBtn.classList.toggle('highlight', isOver);
+        }
+
+        function performReset() {
+            gameStates[currentSize] = createFreshState(currentSize);
+            saveGameStates();
+            initGame(currentSize);
+        }
+
+        function performClear() {
+            const state = getState(currentSize);
+            state.cellStates = createEmptyCellStates(state.size);
+            saveGameStates();
+            initGame(currentSize);
         }
 
         function updateLives(lives) {
@@ -995,6 +1105,8 @@
                                 updateCellData(cell, state.cellStates[r][c]);
                                 updateCellView(cell);
                                 checkWin(state);
+                                updateGameOverUI(state);
+                                updateClearButtonState(state);
                             } else {
                                 state.lives = clampLives(state.lives - 1);
                                 updateLives(state.lives);
@@ -1007,10 +1119,12 @@
                                     state.status = 'lost';
                                     saveGameStates();
                                     showToast('遊戲結束！可重置盤面重新開始。', 'error');
+                                    updateGameOverUI(state);
                                 } else {
                                     saveGameStates();
                                     showToast(`那裡沒有貓咪，還剩 ${state.lives} 顆心。`, 'error');
                                 }
+                                updateClearButtonState(state);
                             }
                             lastTapTime = 0;
                             lastTapCellKey = '';
@@ -1053,6 +1167,7 @@
             state.cellStates[r][c].cat = false;
             updateCellData(cell, state.cellStates[r][c]);
             updateCellView(cell);
+            updateClearButtonState(state);
             saveGameStates();
         }
 
@@ -1207,12 +1322,26 @@
             });
         });
 
-        resetBtn.addEventListener('click', openConfirm);
+        resetBtn.addEventListener('click', () => {
+            const state = getState(currentSize);
+            if (state.status !== 'playing') {
+                performReset();
+            } else {
+                openConfirm('reset');
+            }
+        });
+        clearBtn.addEventListener('click', () => {
+            const state = getState(currentSize);
+            if (isBoardEmpty(state)) return;
+            openConfirm('clear');
+        });
         confirmCancelBtn.addEventListener('click', closeConfirm);
         confirmOkBtn.addEventListener('click', () => {
-            gameStates[currentSize] = createFreshState(currentSize);
-            saveGameStates();
-            initGame(currentSize);
+            if (pendingConfirmAction === 'clear') {
+                performClear();
+            } else {
+                performReset();
+            }
             closeConfirm();
         });
         confirmOverlay.addEventListener('click', (event) => {
@@ -1241,6 +1370,22 @@
             lastTapTime = 0;
             lastTapCellKey = '';
         }
+
+        // 觸控輸入時，pointer 會被瀏覽器隱性鎖定在按下的格子上，
+        // 移動到其他格子不會觸發該格子的 pointerenter，因此改用座標判斷實際所在格子，
+        // 讓觸控也能像滑鼠拖曳一樣連續標記爪子記號。
+        boardEl.addEventListener('pointermove', (event) => {
+            if (!isDrawingPaw) return;
+            const state = getState(currentSize);
+            if (state.status !== 'playing') return;
+            const target = document.elementFromPoint(event.clientX, event.clientY);
+            const cell = target && target.closest('.cell');
+            if (!cell || cell.dataset.cat === 'true') return;
+            const r = Number(cell.dataset.r);
+            const c = Number(cell.dataset.c);
+            if (state.cellStates[r][c].paw === pawDrawValue) return;
+            applyPawState(state, r, c, cell, pawDrawValue);
+        });
 
         document.addEventListener('pointerup', () => {
             isDrawingPaw = false;
