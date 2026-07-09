@@ -1150,18 +1150,172 @@
       resultBox.classList.add('hidden');
     }
 
+    function cloneSavedGameState(state) {
+      if (!state) return null;
+      return {
+        solution: cloneGrid(state.solution),
+        playerState: cloneGrid(state.playerState),
+        globalRowClues: state.globalRowClues.map(line => line.slice()),
+        globalColClues: state.globalColClues.map(line => line.slice()),
+        isGameOver: Boolean(state.isGameOver),
+        resultState: state.resultState || (state.isGameOver ? RESULT_STATE.COMPLETED : RESULT_STATE.IN_PROGRESS)
+      };
+    }
+
+    function getGameStatePriority(state) {
+      if (!state) return -1;
+      if (state.resultState === RESULT_STATE.WIN) return 3;
+      if (state.resultState === RESULT_STATE.REVEALED) return 2;
+      if (state.isGameOver || state.resultState === RESULT_STATE.COMPLETED) return 1;
+      return 0;
+    }
+
+    function countPlayerProgressCells(playerState) {
+      return playerState.reduce((sum, row) => {
+        return sum + row.reduce((cellSum, cell) => cellSum + (cell !== 0 ? 1 : 0), 0);
+      }, 0);
+    }
+
+    function isSamePuzzleState(left, right) {
+      if (!left || !right) return false;
+      return solutionToHex(left.solution) === solutionToHex(right.solution);
+    }
+
+    function resolveGameStateConflict(baseState, incomingState) {
+      if (!baseState) return cloneSavedGameState(incomingState);
+      if (!incomingState) return cloneSavedGameState(baseState);
+
+      // Different puzzle means incoming state is intentional (new game/seed), so keep incoming.
+      if (!isSamePuzzleState(baseState, incomingState)) {
+        return cloneSavedGameState(incomingState);
+      }
+
+      const basePriority = getGameStatePriority(baseState);
+      const incomingPriority = getGameStatePriority(incomingState);
+
+      if (incomingPriority < basePriority) {
+        return cloneSavedGameState(baseState);
+      }
+
+      if (incomingPriority > basePriority) {
+        return cloneSavedGameState(incomingState);
+      }
+
+      if (incomingPriority === 0) {
+        const baseProgress = countPlayerProgressCells(baseState.playerState);
+        const incomingProgress = countPlayerProgressCells(incomingState.playerState);
+        if (incomingProgress < baseProgress) {
+          return cloneSavedGameState(baseState);
+        }
+      }
+
+      return cloneSavedGameState(incomingState);
+    }
+
+    function normalizeActionHistory(history, targetSize) {
+      if (!Array.isArray(history)) return [];
+      return history
+        .filter(snapshot => isValidMatrix(snapshot, targetSize, value => value === 0 || value === 1 || value === 2))
+        .map(snapshot => cloneGrid(snapshot));
+    }
+
+    function createRuntimeSnapshot() {
+      const snapshotStates = {};
+
+      ALLOWED_SIZES.forEach(allowedSize => {
+        const validatedState = validateSavedGameState(gameStates[allowedSize], allowedSize);
+        if (validatedState) snapshotStates[allowedSize] = validatedState;
+      });
+
+      const availableSizes = Object.keys(snapshotStates).map(Number);
+      if (!availableSizes.length) return null;
+
+      const snapshotSize = ALLOWED_SIZES.includes(size) && snapshotStates[size]
+        ? size
+        : availableSizes[0];
+
+      return {
+        size: snapshotSize,
+        themeColor: normalizeThemeColor(themeColor),
+        darkMode: Boolean(darkMode),
+        gameStates: snapshotStates,
+        actionHistory: normalizeActionHistory(actionHistory, snapshotSize),
+        savedAt: Math.max(0, lastSavedAt || 0)
+      };
+    }
+
+    function mergeSavedData(baseData, incomingData) {
+      if (!baseData && !incomingData) return null;
+
+      const mergedStates = {};
+      ALLOWED_SIZES.forEach(allowedSize => {
+        const resolvedState = resolveGameStateConflict(
+          baseData?.gameStates?.[allowedSize],
+          incomingData?.gameStates?.[allowedSize]
+        );
+        if (resolvedState) mergedStates[allowedSize] = resolvedState;
+      });
+
+      const availableSizes = Object.keys(mergedStates).map(Number);
+      if (!availableSizes.length) return null;
+
+      const baseSize = Number(baseData?.size);
+      const incomingSize = Number(incomingData?.size);
+      const mergedSize = Number.isInteger(incomingSize) && mergedStates[incomingSize]
+        ? incomingSize
+        : (Number.isInteger(baseSize) && mergedStates[baseSize] ? baseSize : availableSizes[0]);
+
+      const incomingHistory = normalizeActionHistory(incomingData?.actionHistory, mergedSize);
+      const baseHistory = normalizeActionHistory(baseData?.actionHistory, mergedSize);
+
+      return {
+        size: mergedSize,
+        themeColor: normalizeThemeColor(incomingData?.themeColor ?? baseData?.themeColor),
+        darkMode: Boolean((typeof incomingData?.darkMode === 'boolean') ? incomingData.darkMode : baseData?.darkMode),
+        gameStates: mergedStates,
+        actionHistory: incomingHistory.length ? incomingHistory : baseHistory,
+        savedAt: Math.max(Number(baseData?.savedAt) || 0, Number(incomingData?.savedAt) || 0)
+      };
+    }
+
+    function areSavedStatesEquivalent(leftState, rightState) {
+      if (!leftState || !rightState) return false;
+      if (leftState.isGameOver !== rightState.isGameOver) return false;
+      if (leftState.resultState !== rightState.resultState) return false;
+
+      return JSON.stringify(leftState.solution) === JSON.stringify(rightState.solution) &&
+        JSON.stringify(leftState.playerState) === JSON.stringify(rightState.playerState) &&
+        JSON.stringify(leftState.globalRowClues) === JSON.stringify(rightState.globalRowClues) &&
+        JSON.stringify(leftState.globalColClues) === JSON.stringify(rightState.globalColClues);
+    }
+
+    function shouldRepairStoredData(storedData, resolvedData) {
+      if (!storedData || !resolvedData) return false;
+
+      for (const allowedSize of ALLOWED_SIZES) {
+        const storedState = storedData.gameStates?.[allowedSize];
+        const resolvedState = resolvedData.gameStates?.[allowedSize];
+
+        if (storedState && resolvedState && !areSavedStatesEquivalent(storedState, resolvedState)) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
     // --- 本地儲存資料功能 (Local Storage) ---
     function saveData() {
+      const runtimeSnapshot = createRuntimeSnapshot();
+      if (!runtimeSnapshot) return;
+
+      const storedSnapshot = readSavedData();
+      const mergedSnapshot = mergeSavedData(storedSnapshot, runtimeSnapshot) || runtimeSnapshot;
       const savedAt = Date.now();
+      mergedSnapshot.savedAt = savedAt;
+
       lastSavedAt = savedAt;
-      localStorage.setItem(SAVE_KEY, JSON.stringify({
-        size: size,
-        themeColor: themeColor,
-        darkMode: darkMode,
-        gameStates: gameStates,
-        actionHistory: actionHistory,
-        savedAt: savedAt
-      }));
+      localStorage.setItem(SAVE_KEY, JSON.stringify(mergedSnapshot));
     }
 
     function applySavedData(validatedData, shouldPersist = false) {
@@ -1207,10 +1361,17 @@
     }
 
     function syncStateFromStorage() {
-      const validatedData = readSavedData();
-      if (!validatedData || (validatedData.savedAt || 0) <= lastSavedAt) return false;
+      const storedData = readSavedData();
+      if (!storedData || (storedData.savedAt || 0) <= lastSavedAt) return false;
 
-      applySavedData(validatedData);
+      const runtimeSnapshot = createRuntimeSnapshot();
+      const resolvedData = mergeSavedData(runtimeSnapshot, storedData);
+      if (!resolvedData) return false;
+
+      const shouldPersistResolved = shouldRepairStoredData(storedData, resolvedData);
+      resolvedData.savedAt = Math.max(Number(storedData.savedAt) || 0, Number(runtimeSnapshot?.savedAt) || 0);
+
+      applySavedData(resolvedData, shouldPersistResolved);
       renderBoard();
 
       if (!gameStates[size] || !gameStates[size].isGameOver) {
