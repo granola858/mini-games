@@ -267,9 +267,70 @@
             width: 100%;
             max-width: 420px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
             margin-bottom: 14px;
-            padding: 14px;
+            padding: 0 14px;
+        }
+
+        .board-header-bar {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 6px;
+        }
+
+        .board-lock-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--line-color);
+            background: #ffffff;
+            color: var(--inactive-btn-text);
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .board-lock-btn:hover {
+            border-color: #222;
+            transform: translateY(-1px);
+        }
+
+        .board-lock-btn.locked {
+            background: #1f1f1f;
+            color: #ffffff;
+            border-color: #1f1f1f;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .board-lock-btn .lock-icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        .board-lock-btn .lock-icon.locked-svg {
+            display: none;
+        }
+
+        .board-lock-btn.locked .lock-icon.unlocked-svg {
+            display: none;
+        }
+
+        .board-lock-btn.locked .lock-icon.locked-svg {
+            display: inline-block;
+        }
+
+        .board-container {
+            position: relative;
+            width: 100%;
+            display: flex;
+            justify-content: center;
             overflow-x: auto;
         }
 
@@ -284,6 +345,30 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
             width: max-content;
             --cell-size: 36px;
+            transition: opacity 0.2s ease, filter 0.2s ease;
+        }
+
+        .game-board.board-locked {
+            opacity: 0.75;
+            filter: grayscale(20%);
+        }
+
+        .board-lock-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.45);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: 800;
+            font-size: 0.95rem;
+            border-radius: 12px;
+            backdrop-filter: blur(2px);
+            z-index: 10;
+            pointer-events: none;
+            box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.2);
         }
 
         .cell,
@@ -715,7 +800,32 @@
         </div>
 
         <div class="game-board-wrapper">
-            <div id="board" class="game-board"></div>
+            <div class="board-header-bar">
+                <button id="board-lock-btn" class="board-lock-btn" type="button" aria-label="盤面鎖定 (防誤觸)" title="盤面鎖定 (防誤觸)">
+                    <svg class="lock-icon unlocked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                    </svg>
+                    <svg class="lock-icon locked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span id="board-lock-text" class="lock-text">鎖定盤面</span>
+                </button>
+            </div>
+            <div id="board-container" class="board-container">
+                <div id="board" class="game-board"></div>
+                <div id="board-lock-overlay" class="board-lock-overlay hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>盤面已鎖定 (防誤觸)</span>
+                </div>
+            </div>
         </div>
 
         <div class="status-area">
@@ -781,6 +891,7 @@
         let actionHistory = [];
         let gameState = null;
         let savedSessions = createEmptySaveStore();
+        let isBoardLocked = false;
 
         const SAVE_KEY = 'color_nonogram_save_data';
         const DEFAULT_SIZE = 8;
@@ -821,6 +932,9 @@
         const confirmMessage = document.getElementById('confirm-message');
         const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
         const confirmOkBtn = document.getElementById('confirm-ok-btn');
+        const boardLockBtn = document.getElementById('board-lock-btn');
+        const boardLockText = document.getElementById('board-lock-text');
+        const boardLockOverlay = document.getElementById('board-lock-overlay');
 
         function normalizeSize(value) {
             const normalized = Number(value);
@@ -1378,7 +1492,9 @@
                 rowClues: savedState.rowClues.map(line => line.map(item => ({ color: item.color, length: item.length }))),
                 colClues: savedState.colClues.map(line => line.map(item => ({ color: item.color, length: item.length }))),
                 isGameOver: Boolean(savedState.isGameOver),
-                resultState: savedState.resultState === RESULT_STATE.WIN ? RESULT_STATE.WIN : RESULT_STATE.IN_PROGRESS
+                resultState: (savedState.isGameOver && (savedState.resultState === RESULT_STATE.WIN || savedState.resultState === RESULT_STATE.REVEALED))
+                    ? savedState.resultState
+                    : (savedState.isGameOver ? RESULT_STATE.COMPLETED : RESULT_STATE.IN_PROGRESS)
             };
         }
 
@@ -1487,10 +1603,14 @@
             savedSessions.activeConfigKey = configKey;
             savedSessions.states[configKey] = createSavedSlot();
 
-            localStorage.setItem(SAVE_KEY, JSON.stringify({
-                activeConfigKey: savedSessions.activeConfigKey,
-                states: savedSessions.states
-            }));
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify({
+                    activeConfigKey: savedSessions.activeConfigKey,
+                    states: savedSessions.states
+                }));
+            } catch (error) {
+                console.warn('Unable to save Color Nonogram state to localStorage', error);
+            }
         }
 
         function loadData() {
@@ -1824,8 +1944,23 @@
             saveData();
         }
 
+        function setBoardLockState(locked) {
+            isBoardLocked = Boolean(locked);
+            boardLockBtn.classList.toggle('locked', isBoardLocked);
+            boardLockText.textContent = isBoardLocked ? '解鎖盤面' : '鎖定盤面';
+            boardEl.classList.toggle('board-locked', isBoardLocked);
+            boardLockOverlay.classList.toggle('hidden', !isBoardLocked);
+            if (isBoardLocked && isDragging) {
+                handlePointerUp();
+            }
+        }
+
+        function toggleBoardLock() {
+            setBoardLockState(!isBoardLocked);
+        }
+
         function handlePointerDown(event) {
-            if (!gameState || gameState.isGameOver) return;
+            if (isBoardLocked || !gameState || gameState.isGameOver) return;
             if (event.type === 'touchstart') event.preventDefault();
 
             const cell = event.target.closest('.cell');
@@ -1846,7 +1981,7 @@
         }
 
         function handlePointerEnter(event) {
-            if (!isDragging || !gameState || gameState.isGameOver) return;
+            if (isBoardLocked || !isDragging || !gameState || gameState.isGameOver) return;
 
             const cell = event.target.closest('.cell');
             if (!cell) return;
@@ -1855,7 +1990,7 @@
         }
 
         function handleTouchMove(event) {
-            if (!isDragging || !gameState || gameState.isGameOver) return;
+            if (isBoardLocked || !isDragging || !gameState || gameState.isGameOver) return;
 
             event.preventDefault();
             const touch = event.touches[0];
@@ -1911,9 +2046,15 @@
         function checkAnswer() {
             if (!gameState || gameState.isGameOver) return;
 
+            isDragging = false;
+            dragAction = null;
+            dragSnapshot = null;
+            dragHistoryCommitted = false;
+
             if (isPlayerSolutionCorrect()) {
                 gameState.isGameOver = true;
                 gameState.resultState = RESULT_STATE.WIN;
+                actionHistory = [];
                 renderBoard();
                 showTopMessage('答對了！', 'success');
                 saveData();
@@ -1935,6 +2076,7 @@
             });
         });
 
+        boardLockBtn.addEventListener('click', toggleBoardLock);
         newGameBtn.addEventListener('click', confirmStartNewGame);
         undoBtn.addEventListener('click', undoLastAction);
         clearBoardBtn.addEventListener('click', clearBoard);
