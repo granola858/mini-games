@@ -236,11 +236,13 @@
         }
 
         .action-msg-container {
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 24px;
+            min-height: 34px;
             width: 100%;
+            max-width: 420px;
         }
 
         .top-msg {
@@ -273,35 +275,30 @@
             padding: 0 14px;
         }
 
-        .palette-lock-bar {
-            width: 100%;
-            max-width: 360px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
         .board-lock-btn {
-            width: 44px;
-            height: 44px;
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 34px;
+            height: 34px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 999px;
+            border-radius: 18px;
             border: 1px solid var(--line-color);
             background: #ffffff;
             color: var(--inactive-btn-text);
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
             user-select: none;
             flex-shrink: 0;
+            z-index: 5;
         }
 
         .board-lock-btn:hover {
             border-color: #222;
-            transform: translateY(-1px);
         }
 
         .board-lock-btn.locked {
@@ -312,8 +309,8 @@
         }
 
         .board-lock-btn .lock-icon {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
         }
 
         .board-lock-btn .lock-icon.locked-svg {
@@ -776,25 +773,23 @@
                 </div>
             </div>
 
-            <div class="palette-lock-bar">
-                <div id="palette-row" class="palette-row"></div>
-                <button id="board-lock-btn" class="board-lock-btn" type="button" aria-label="盤面鎖定 (防誤觸)" title="盤面鎖定 (防誤觸)">
-                    <svg class="lock-icon unlocked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-                    </svg>
-                    <svg class="lock-icon locked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                    </svg>
-                </button>
-            </div>
+            <div id="palette-row" class="palette-row"></div>
         </div>
 
         <div class="action-msg-container">
             <div id="top-msg" class="top-msg hidden"></div>
+            <button id="board-lock-btn" class="board-lock-btn" type="button" aria-label="盤面鎖定 (防誤觸)" title="盤面鎖定 (防誤觸)">
+                <svg class="lock-icon unlocked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                </svg>
+                <svg class="lock-icon locked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </button>
         </div>
 
         <div class="game-board-wrapper">
@@ -1579,6 +1574,7 @@
             try {
                 localStorage.setItem(SAVE_KEY, JSON.stringify({
                     activeConfigKey: savedSessions.activeConfigKey,
+                    isBoardLocked: Boolean(isBoardLocked),
                     states: savedSessions.states
                 }));
             } catch (error) {
@@ -1601,6 +1597,10 @@
 
                 savedSessions = validatedStore;
                 applySavedSlot(validatedStore.states[validatedStore.activeConfigKey]);
+
+                if (typeof parsed.isBoardLocked === 'boolean') {
+                    setBoardLockState(parsed.isBoardLocked);
+                }
 
                 syncControls();
                 renderBoard();
@@ -1930,6 +1930,7 @@
 
         function toggleBoardLock() {
             setBoardLockState(!isBoardLocked);
+            saveData();
         }
 
         function handlePointerDown(event) {
