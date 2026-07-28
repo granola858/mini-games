@@ -1356,20 +1356,20 @@
       if (!baseState) return cloneSavedGameState(incomingState);
       if (!incomingState) return cloneSavedGameState(baseState);
 
+      // 不同題目代表使用者有意更換（開新局／載入 Seed），優先保留 incoming
+      if (!isSamePuzzleState(baseState, incomingState)) {
+        return cloneSavedGameState(incomingState);
+      }
+
       const basePriority = getGameStatePriority(baseState);
       const incomingPriority = getGameStatePriority(incomingState);
 
-      // 若其中一方已完成遊戲（Priority > 0），而另一方是進行中（Priority == 0），
+      // 同一道題目下，若其中一方已完成遊戲（Priority > 0），而另一方是進行中（Priority == 0），
       // 永遠優先保留已完成的遊戲狀態，避免背景分頁/舊 Session 覆蓋已通關紀錄
       if (basePriority > 0 && incomingPriority === 0) {
         return cloneSavedGameState(baseState);
       }
       if (incomingPriority > 0 && basePriority === 0) {
-        return cloneSavedGameState(incomingState);
-      }
-
-      // Different puzzle means incoming state is intentional (new game/seed), so keep incoming.
-      if (!isSamePuzzleState(baseState, incomingState)) {
         return cloneSavedGameState(incomingState);
       }
 
@@ -2059,6 +2059,8 @@
         size: validatedSize,
         themeColor: normalizeThemeColor(parsed.themeColor),
         darkMode: Boolean(parsed.darkMode),
+        isBoardLocked: Boolean(parsed.isBoardLocked),
+        isWakeLockEnabled: Boolean(parsed.isWakeLockEnabled),
         gameStates: validatedStates,
         actionHistory: validHistory.map(snapshot => cloneGrid(snapshot)),
         savedAt: Number.isFinite(parsed.savedAt) && parsed.savedAt > 0 ? parsed.savedAt : 0
