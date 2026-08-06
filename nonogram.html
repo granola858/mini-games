@@ -1341,12 +1341,6 @@
       return 0;
     }
 
-    function countPlayerProgressCells(playerState) {
-      return playerState.reduce((sum, row) => {
-        return sum + row.reduce((cellSum, cell) => cellSum + (cell !== 0 ? 1 : 0), 0);
-      }, 0);
-    }
-
     function isSamePuzzleState(left, right) {
       if (!left || !right) return false;
       return solutionToHex(left.solution) === solutionToHex(right.solution);
@@ -1381,14 +1375,7 @@
         return cloneSavedGameState(incomingState);
       }
 
-      if (incomingPriority === 0) {
-        const baseProgress = countPlayerProgressCells(baseState.playerState);
-        const incomingProgress = countPlayerProgressCells(incomingState.playerState);
-        if (incomingProgress < baseProgress) {
-          return cloneSavedGameState(baseState);
-        }
-      }
-
+      // 同 Priority 時，信任 incoming（最新操作結果）
       return cloneSavedGameState(incomingState);
     }
 
@@ -1493,13 +1480,11 @@
       const runtimeSnapshot = createRuntimeSnapshot();
       if (!runtimeSnapshot) return;
 
-      const storedSnapshot = readSavedData();
-      const mergedSnapshot = mergeSavedData(storedSnapshot, runtimeSnapshot) || runtimeSnapshot;
       const savedAt = Date.now();
-      mergedSnapshot.savedAt = savedAt;
+      runtimeSnapshot.savedAt = savedAt;
 
       try {
-        localStorage.setItem(SAVE_KEY, JSON.stringify(mergedSnapshot));
+        localStorage.setItem(SAVE_KEY, JSON.stringify(runtimeSnapshot));
         lastSavedAt = savedAt;
       } catch (e) {
         console.warn('Unable to save Nonogram state to localStorage', e);
