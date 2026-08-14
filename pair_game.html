@@ -47,11 +47,15 @@
         /* 標題與控制區 */
         header {
             width: 100%;
+            max-width: 480px;
             padding: 20px 15px 10px 15px;
             /* 增加一點上方留白 */
             text-align: center;
             background-color: #fff;
             /* 移除 header 陰影讓畫面更乾淨 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         h1 {
@@ -229,14 +233,11 @@
 
         /* 回首頁按鈕 */
         .back-btn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
             text-decoration: none;
             color: #888888;
             font-weight: 600;
             font-size: 0.95rem;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 6px;
             padding: 8px 12px;
@@ -244,7 +245,8 @@
             transition: all 0.2s ease;
             background-color: #f8f9fa;
             border: 1px solid #eef5ff;
-            z-index: 10;
+            align-self: flex-start;
+            margin-bottom: 12px;
         }
 
         .back-btn:hover {
@@ -252,28 +254,19 @@
             background-color: #fcf4fc;
             transform: translateX(-3px);
         }
-
-        @media (max-width: 768px) {
-            .back-btn {
-                position: static;
-                margin-bottom: 15px;
-                align-self: flex-start;
-            }
-        }
     </style>
 </head>
 
 <body>
 
-    <a href="index.html" class="back-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-        </svg>
-        回首頁
-    </a>
-
     <header>
+        <a href="index.html" class="back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            回首頁
+        </a>
         <h1>Pairgame</h1>
         <div class="controls">
             <button onclick="startGame('easy')" class="mode-btn" id="btn-easy">簡單</button>

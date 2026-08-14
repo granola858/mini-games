@@ -39,21 +39,19 @@
 
         /* 新增：返回按鈕樣式 (與其他頁面風格一致) */
         .back-btn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
             text-decoration: none;
             color: #888;
             font-weight: 600;
             font-size: 0.95rem;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 6px;
             padding: 8px 12px;
             border-radius: 8px;
             transition: all 0.2s ease;
             background-color: #f8f9fa;
-            z-index: 10;
+            align-self: flex-start;
+            margin-bottom: 16px;
         }
 
         .back-btn:hover {
@@ -68,8 +66,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-top: 40px;
-            /* 避免擋住返回按鈕 */
         }
 
         /* --- 難度選擇器 (Segmented Control) --- */
@@ -342,17 +338,17 @@
 
 <body>
 
-    <a href="index.html" class="back-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-        </svg>
-        回首頁
-    </a>
-
     <div class="message-toast" id="toast">提示訊息</div>
 
     <div class="game-container">
+
+        <a href="index.html" class="back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            回首頁
+        </a>
 
         <div class="mode-selector">
             <button class="mode-btn" id="mode-3" onclick="setMode(3)">簡單 (3)</button>
