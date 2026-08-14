@@ -1009,6 +1009,11 @@
     let dragHistoryCommitted = false;
     let actionHistory = [];
     let lastSavedAt = 0;
+    // 存檔版本號：每次寫入都以 max(本地, 存檔) + 1 遞增，取代 Date.now() 當權威，
+    // 避免背景分頁／bfcache 舊文件靠「寫得比較晚」搶走主導權。
+    let saveRevision = 0;
+    // 這個文件自上次寫入後真的改動過的盤面尺寸，只有它們會被標記成新版本。
+    const dirtyStateSizes = new Set();
 
     let isBoardLocked = false;
     let wakeLockSentinel = null;
@@ -1270,8 +1275,10 @@
         globalRowClues: decodedSeed.rowClues,
         globalColClues: decodedSeed.colClues,
         isGameOver: false,
-        resultState: RESULT_STATE.IN_PROGRESS
+        resultState: RESULT_STATE.IN_PROGRESS,
+        stateRevision: getStateRevision(gameStates[size])
       };
+      markStateDirty(size);
 
       renderBoard();
       resetUI();
@@ -1321,6 +1328,16 @@
       resultBox.classList.add('hidden');
     }
 
+    function getStateRevision(state) {
+      const revision = Number(state?.stateRevision);
+      return Number.isInteger(revision) && revision > 0 ? revision : 0;
+    }
+
+    // 標記「這個文件動過某個尺寸的盤面」，寫檔時才會把它升到最新版本號。
+    function markStateDirty(targetSize) {
+      dirtyStateSizes.add(Number(targetSize));
+    }
+
     function cloneSavedGameState(state) {
       if (!state) return null;
       return {
@@ -1329,7 +1346,8 @@
         globalRowClues: state.globalRowClues.map(line => line.slice()),
         globalColClues: state.globalColClues.map(line => line.slice()),
         isGameOver: Boolean(state.isGameOver),
-        resultState: state.resultState || (state.isGameOver ? RESULT_STATE.COMPLETED : RESULT_STATE.IN_PROGRESS)
+        resultState: state.resultState || (state.isGameOver ? RESULT_STATE.COMPLETED : RESULT_STATE.IN_PROGRESS),
+        stateRevision: getStateRevision(state)
       };
     }
 
@@ -1341,42 +1359,26 @@
       return 0;
     }
 
-    function isSamePuzzleState(left, right) {
-      if (!left || !right) return false;
-      return solutionToHex(left.solution) === solutionToHex(right.solution);
-    }
-
-    function resolveGameStateConflict(baseState, incomingState) {
+    function resolveGameStateConflict(baseState, incomingState, isIncomingLive = true) {
       if (!baseState) return cloneSavedGameState(incomingState);
       if (!incomingState) return cloneSavedGameState(baseState);
 
-      // 不同題目代表使用者有意更換（開新局／載入 Seed），優先保留 incoming
-      if (!isSamePuzzleState(baseState, incomingState)) {
-        return cloneSavedGameState(incomingState);
-      }
+      // 盤面版本號只有在該文件真的動過這個盤面時才會升版，所以版本高的必定是較新的操作。
+      // 這是防止背景分頁／bfcache 舊文件用過期資料蓋掉已結算牌局的主要防線，
+      // 也讓「開新局／載入 Seed 換題目」自然勝出，不必再靠比對題目是否相同來猜測意圖。
+      const baseRevision = getStateRevision(baseState);
+      const incomingRevision = getStateRevision(incomingState);
+      if (incomingRevision > baseRevision) return cloneSavedGameState(incomingState);
+      if (baseRevision > incomingRevision) return cloneSavedGameState(baseState);
 
+      // 版本相同（舊版存檔，或兩份資料同時被修改）才退回結算優先權：已完成的牌局永遠優先。
       const basePriority = getGameStatePriority(baseState);
       const incomingPriority = getGameStatePriority(incomingState);
+      if (basePriority > incomingPriority) return cloneSavedGameState(baseState);
+      if (incomingPriority > basePriority) return cloneSavedGameState(incomingState);
 
-      // 同一道題目下，若其中一方已完成遊戲（Priority > 0），而另一方是進行中（Priority == 0），
-      // 永遠優先保留已完成的遊戲狀態，避免背景分頁/舊 Session 覆蓋已通關紀錄
-      if (basePriority > 0 && incomingPriority === 0) {
-        return cloneSavedGameState(baseState);
-      }
-      if (incomingPriority > 0 && basePriority === 0) {
-        return cloneSavedGameState(incomingState);
-      }
-
-      if (incomingPriority < basePriority) {
-        return cloneSavedGameState(baseState);
-      }
-
-      if (incomingPriority > basePriority) {
-        return cloneSavedGameState(incomingState);
-      }
-
-      // 同 Priority 時，信任 incoming（最新操作結果）
-      return cloneSavedGameState(incomingState);
+      // 完全平手時，信任「目前正在操作的那一份」。
+      return cloneSavedGameState(isIncomingLive ? incomingState : baseState);
     }
 
     function normalizeActionHistory(history, targetSize) {
@@ -1409,18 +1411,29 @@
         isWakeLockEnabled: Boolean(isWakeLockEnabled),
         gameStates: snapshotStates,
         actionHistory: normalizeActionHistory(actionHistory, snapshotSize),
+        revision: Math.max(0, saveRevision || 0),
         savedAt: Math.max(0, lastSavedAt || 0)
       };
     }
 
-    function mergeSavedData(baseData, incomingData) {
+    // options.liveSide 指出哪一邊是「目前這個文件正在操作的資料」：
+    //   'incoming' → 寫檔（base = localStorage、incoming = 本文件執行中的狀態）
+    //   'base'     → 讀檔同步（base = 本文件執行中的狀態、incoming = localStorage）
+    // 關卡選擇與個人化設定屬於這個文件本身，必須跟著 live 那一側，
+    // 否則其他分頁的舊存檔會把正在結算的頁面拉到別的關卡。
+    function mergeSavedData(baseData, incomingData, options = {}) {
       if (!baseData && !incomingData) return null;
+
+      const isBaseLive = options.liveSide === 'base';
+      const liveData = isBaseLive ? baseData : incomingData;
+      const staleData = isBaseLive ? incomingData : baseData;
 
       const mergedStates = {};
       ALLOWED_SIZES.forEach(allowedSize => {
         const resolvedState = resolveGameStateConflict(
           baseData?.gameStates?.[allowedSize],
-          incomingData?.gameStates?.[allowedSize]
+          incomingData?.gameStates?.[allowedSize],
+          !isBaseLive
         );
         if (resolvedState) mergedStates[allowedSize] = resolvedState;
       });
@@ -1428,23 +1441,24 @@
       const availableSizes = Object.keys(mergedStates).map(Number);
       if (!availableSizes.length) return null;
 
-      const baseSize = Number(baseData?.size);
-      const incomingSize = Number(incomingData?.size);
-      const mergedSize = Number.isInteger(incomingSize) && mergedStates[incomingSize]
-        ? incomingSize
-        : (Number.isInteger(baseSize) && mergedStates[baseSize] ? baseSize : availableSizes[0]);
+      const liveSize = Number(liveData?.size);
+      const staleSize = Number(staleData?.size);
+      const mergedSize = Number.isInteger(liveSize) && mergedStates[liveSize]
+        ? liveSize
+        : (Number.isInteger(staleSize) && mergedStates[staleSize] ? staleSize : availableSizes[0]);
 
-      const incomingHistory = normalizeActionHistory(incomingData?.actionHistory, mergedSize);
-      const baseHistory = normalizeActionHistory(baseData?.actionHistory, mergedSize);
+      const liveHistory = normalizeActionHistory(liveData?.actionHistory, mergedSize);
+      const staleHistory = normalizeActionHistory(staleData?.actionHistory, mergedSize);
 
       return {
         size: mergedSize,
-        themeColor: normalizeThemeColor(incomingData?.themeColor ?? baseData?.themeColor),
-        darkMode: Boolean((typeof incomingData?.darkMode === 'boolean') ? incomingData.darkMode : baseData?.darkMode),
-        isBoardLocked: Boolean((typeof incomingData?.isBoardLocked === 'boolean') ? incomingData.isBoardLocked : baseData?.isBoardLocked),
-        isWakeLockEnabled: Boolean((typeof incomingData?.isWakeLockEnabled === 'boolean') ? incomingData.isWakeLockEnabled : baseData?.isWakeLockEnabled),
+        themeColor: normalizeThemeColor(liveData?.themeColor ?? staleData?.themeColor),
+        darkMode: Boolean((typeof liveData?.darkMode === 'boolean') ? liveData.darkMode : staleData?.darkMode),
+        isBoardLocked: Boolean((typeof liveData?.isBoardLocked === 'boolean') ? liveData.isBoardLocked : staleData?.isBoardLocked),
+        isWakeLockEnabled: Boolean((typeof liveData?.isWakeLockEnabled === 'boolean') ? liveData.isWakeLockEnabled : staleData?.isWakeLockEnabled),
         gameStates: mergedStates,
-        actionHistory: incomingHistory.length ? incomingHistory : baseHistory,
+        actionHistory: liveHistory.length ? liveHistory : staleHistory,
+        revision: Math.max(Number(baseData?.revision) || 0, Number(incomingData?.revision) || 0),
         savedAt: Math.max(Number(baseData?.savedAt) || 0, Number(incomingData?.savedAt) || 0)
       };
     }
@@ -1460,14 +1474,14 @@
         JSON.stringify(leftState.globalColClues) === JSON.stringify(rightState.globalColClues);
     }
 
-    function shouldRepairStoredData(storedData, resolvedData) {
-      if (!storedData || !resolvedData) return false;
+    function hasGameStateDifference(leftData, rightData) {
+      if (!leftData || !rightData) return false;
 
       for (const allowedSize of ALLOWED_SIZES) {
-        const storedState = storedData.gameStates?.[allowedSize];
-        const resolvedState = resolvedData.gameStates?.[allowedSize];
+        const leftState = leftData.gameStates?.[allowedSize];
+        const rightState = rightData.gameStates?.[allowedSize];
 
-        if (storedState && resolvedState && !areSavedStatesEquivalent(storedState, resolvedState)) {
+        if (leftState && rightState && !areSavedStatesEquivalent(leftState, rightState)) {
           return true;
         }
       }
@@ -1480,14 +1494,39 @@
       const runtimeSnapshot = createRuntimeSnapshot();
       if (!runtimeSnapshot) return;
 
-      const savedAt = Date.now();
-      runtimeSnapshot.savedAt = savedAt;
+      // 寫入前先重讀並合併（read-merge-write），否則背景分頁／bfcache 舊文件
+      // 被瀏覽器回收時觸發的 pagehide 存檔，會整包蓋掉別處剛完成的結算。
+      const storedData = readSavedData();
+      const revision = Math.max(saveRevision, storedData?.revision || 0) + 1;
+
+      dirtyStateSizes.forEach(dirtySize => {
+        const dirtyState = runtimeSnapshot.gameStates[dirtySize];
+        if (dirtyState) dirtyState.stateRevision = revision;
+      });
+
+      const mergedSnapshot = mergeSavedData(storedData, runtimeSnapshot, { liveSide: 'incoming' }) || runtimeSnapshot;
+      mergedSnapshot.revision = revision;
+      mergedSnapshot.savedAt = Date.now();
 
       try {
-        localStorage.setItem(SAVE_KEY, JSON.stringify(runtimeSnapshot));
-        lastSavedAt = savedAt;
+        localStorage.setItem(SAVE_KEY, JSON.stringify(mergedSnapshot));
       } catch (e) {
         console.warn('Unable to save Nonogram state to localStorage', e);
+        return;
+      }
+
+      saveRevision = revision;
+      lastSavedAt = mergedSnapshot.savedAt;
+      dirtyStateSizes.forEach(dirtySize => {
+        if (gameStates[dirtySize]) gameStates[dirtySize].stateRevision = revision;
+      });
+      dirtyStateSizes.clear();
+
+      // 合併時若採用了其他分頁較新的資料，立即套回畫面，避免記憶體與存檔長期不一致。
+      if (hasGameStateDifference(runtimeSnapshot, mergedSnapshot)) {
+        applySavedData(mergedSnapshot, false);
+        renderBoard();
+        if (!gameStates[size] || !gameStates[size].isGameOver) resetUI();
       }
     }
 
@@ -1497,6 +1536,7 @@
       darkMode = validatedData.darkMode;
       gameStates = validatedData.gameStates;
       actionHistory = validatedData.actionHistory || [];
+      saveRevision = Math.max(saveRevision, validatedData.revision || 0);
       lastSavedAt = Math.max(lastSavedAt, validatedData.savedAt || 0);
 
       applyDarkMode(darkMode);
@@ -1542,13 +1582,15 @@
 
     function syncStateFromStorage() {
       const storedData = readSavedData();
-      if (!storedData || (storedData.savedAt || 0) <= lastSavedAt) return false;
+      // 用版本號而非時間戳判斷新舊：舊文件寫得再晚，版本號也不會超前。
+      if (!storedData || (storedData.revision || 0) <= saveRevision) return false;
 
       const runtimeSnapshot = createRuntimeSnapshot();
-      const resolvedData = mergeSavedData(runtimeSnapshot, storedData);
+      const resolvedData = mergeSavedData(runtimeSnapshot, storedData, { liveSide: 'base' });
       if (!resolvedData) return false;
 
-      const shouldPersistResolved = shouldRepairStoredData(storedData, resolvedData);
+      const shouldPersistResolved = hasGameStateDifference(storedData, resolvedData);
+      resolvedData.revision = Math.max(Number(storedData.revision) || 0, Number(runtimeSnapshot?.revision) || 0);
       resolvedData.savedAt = Math.max(Number(storedData.savedAt) || 0, Number(runtimeSnapshot?.savedAt) || 0);
 
       applySavedData(resolvedData, shouldPersistResolved);
@@ -2013,7 +2055,8 @@
         globalRowClues: savedState.globalRowClues.map(line => line.slice()),
         globalColClues: savedState.globalColClues.map(line => line.slice()),
         isGameOver: isGameOver,
-        resultState: resultState
+        resultState: resultState,
+        stateRevision: getStateRevision(savedState)
       };
     }
 
@@ -2048,6 +2091,7 @@
         isWakeLockEnabled: Boolean(parsed.isWakeLockEnabled),
         gameStates: validatedStates,
         actionHistory: validHistory.map(snapshot => cloneGrid(snapshot)),
+        revision: Number.isInteger(parsed.revision) && parsed.revision > 0 ? parsed.revision : 0,
         savedAt: Number.isFinite(parsed.savedAt) && parsed.savedAt > 0 ? parsed.savedAt : 0
       };
     }
@@ -2062,7 +2106,9 @@
         globalColClues: colClues,
         isGameOver: false
         , resultState: RESULT_STATE.IN_PROGRESS
+        , stateRevision: getStateRevision(gameStates[targetSize])
       };
+      markStateDirty(targetSize);
       saveData();
     }
 
@@ -2292,6 +2338,7 @@
 
       state.playerState = actionHistory.pop();
       state.resultState = RESULT_STATE.IN_PROGRESS;
+      markStateDirty(size);
       renderBoard();
       resetUI();
       saveData();
@@ -2308,6 +2355,7 @@
       actionHistory.push(cloneGrid(state.playerState));
       state.playerState = createEmptyPlayerState(size);
       state.resultState = RESULT_STATE.IN_PROGRESS;
+      markStateDirty(size);
       renderBoard();
       resetUI();
       saveData();
@@ -2392,6 +2440,7 @@
           dragHistoryCommitted = true;
         }
         state.playerState[r][c] = nextValue;
+        markStateDirty(size);
       }
 
       updateCompletedClueStatus(state);
@@ -2423,6 +2472,7 @@
         gameStates[size].isGameOver = true;
         gameStates[size].resultState = RESULT_STATE.WIN;
         actionHistory = [];
+        markStateDirty(size);
         renderBoard();
 
         saveData();
@@ -2451,6 +2501,7 @@
       state.playerState = cloneGrid(state.solution);
       state.isGameOver = true;
       state.resultState = RESULT_STATE.REVEALED;
+      markStateDirty(size);
       renderBoard();
 
       saveData();
