@@ -184,14 +184,6 @@
       tagsWrapper.append(existingBadge, playTag);
     }
 
-    // 點擊卡片時立即樂觀累加並記錄遊玩事件
-    const cardLink = c.querySelector('.card-link');
-    if (cardLink && typeof Stats !== 'undefined') {
-      cardLink.addEventListener('click', () => {
-        Stats.recordGamePlay(c.dataset.id, true);
-      });
-    }
-
     // 拖曳排序事件
     c.ondragstart = (e) => {
       if (!body.classList.contains('editing')) return e.preventDefault();
@@ -333,4 +325,11 @@
   theme(prefs.theme);
   render();
   initStats();
+
+  // 當使用者點擊「回首頁」或從上一頁返回（bfcache）時，重新同步最新數據
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      initStats();
+    }
+  });
 })();
