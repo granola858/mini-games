@@ -131,7 +131,10 @@
     const b = document.getElementById('edit-toggle');
     b.setAttribute('aria-pressed', String(on));
     b.querySelector('.edit-label').textContent = on ? '完成編輯' : '編輯首頁';
-    cards.forEach((c) => (c.draggable = on));
+    if (!on) {
+      clearPending();
+      if (dragged) endDrag(false);
+    }
     render();
   };
 
@@ -150,6 +153,158 @@
     toast(`${title(c)}已向${d < 0 ? '前' : '後'}移動`);
     c.querySelector(d < 0 ? '.move-prev' : '.move-next').focus();
   };
+
+  // ─── 拖曳排序（Pointer Events：滑鼠、觸控與觸控筆共用同一套流程）───
+  const HOLD_MS = 260; // 觸控長按多久才啟動拖曳
+  const HOLD_TOLERANCE = 8; // 長按期間手指位移超過此值視為捲動頁面
+  const MOUSE_THRESHOLD = 5; // 滑鼠移動超過此距離才算拖曳
+  const EDGE = 84; // 靠近視窗上下緣多少距離開始自動捲動
+  const EDGE_SPEED = 16;
+
+  let pending = null; // 尚未成立的拖曳意圖
+  let ghost = null; // 跟隨指標的浮動分身
+  let dragPointer = null; // 目前拖曳中的指標 ID，避免多指觸控互相干擾
+  let dragCols = 1; // 拖曳開始時的格線欄數
+  let pointerX = 0;
+  let pointerY = 0;
+  let originX = 0;
+  let originY = 0;
+  let scrollFrame = 0;
+
+  // 以卡片實際位置推算欄數（比解析 grid-template-columns 可靠）
+  const columns = () => {
+    const rects = [...grid.querySelectorAll('.game-card:not([hidden])')].map((c) => c.getBoundingClientRect());
+    if (!rects.length) return 1;
+    return rects.filter((r) => Math.abs(r.top - rects[0].top) < 4).length;
+  };
+
+  const clearPending = () => {
+    if (pending) clearTimeout(pending.timer);
+    pending = null;
+  };
+
+  // 拖到視窗上下緣時自動捲動，方便在手機上把卡片移到很遠的位置
+  const autoScroll = () => {
+    if (!dragged) return (scrollFrame = 0);
+    const overTop = pointerY - EDGE;
+    const overBottom = pointerY - (innerHeight - EDGE);
+    let dy = 0;
+    if (overTop < 0) dy = Math.max(-EDGE_SPEED, (overTop / EDGE) * EDGE_SPEED);
+    else if (overBottom > 0) dy = Math.min(EDGE_SPEED, (overBottom / EDGE) * EDGE_SPEED);
+    if (dy) {
+      scrollBy(0, dy);
+      moveDrag(pointerX, pointerY); // 捲動後重新判斷手指下方的落點
+    }
+    scrollFrame = requestAnimationFrame(autoScroll);
+  };
+
+  const startDrag = (c, x, y, id) => {
+    clearPending();
+    dragged = c;
+    dragPointer = id;
+    dragCols = columns();
+    originX = pointerX = x;
+    originY = pointerY = y;
+
+    const r = c.getBoundingClientRect();
+    ghost = c.cloneNode(true);
+    ghost.classList.add('drag-ghost');
+    ghost.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+    ghost.style.width = `${r.width}px`;
+    ghost.style.height = `${r.height}px`;
+    ghost.style.left = `${r.left}px`;
+    ghost.style.top = `${r.top}px`;
+    document.body.append(ghost);
+
+    c.classList.add('dragging');
+    body.classList.add('dragging-active');
+    if (navigator.vibrate) navigator.vibrate(12);
+    scrollFrame = requestAnimationFrame(autoScroll);
+  };
+
+  const moveDrag = (x, y) => {
+    pointerX = x;
+    pointerY = y;
+    ghost.style.transform = `translate3d(${x - originX}px, ${y - originY}px, 0) scale(1.04) rotate(1.2deg)`;
+
+    const over = document.elementFromPoint(x, y);
+    const target = over && over.closest ? over.closest('.game-card') : null;
+    if (!target || target === dragged || target.hidden || target.parentElement !== grid) return;
+
+    // 多欄時以左右中線判斷前後，單欄（手機）時改用上下中線
+    const r = target.getBoundingClientRect();
+    const after = dragCols > 1 ? x > r.left + r.width / 2 : y > r.top + r.height / 2;
+    const ref = after ? target.nextElementSibling : target;
+    if (ref === dragged || dragged.nextElementSibling === ref) return;
+    grid.insertBefore(dragged, ref);
+  };
+
+  const endDrag = (notify = true) => {
+    if (scrollFrame) cancelAnimationFrame(scrollFrame);
+    scrollFrame = 0;
+    if (ghost) ghost.remove();
+    ghost = null;
+    body.classList.remove('dragging-active');
+    const c = dragged;
+    dragged = null;
+    dragPointer = null;
+    if (!c) return;
+    c.classList.remove('dragging');
+    persistOrder();
+    if (notify) toast('遊戲順序已儲存');
+  };
+
+  const beginPointer = (c, e) => {
+    if (!body.classList.contains('editing') || dragged || e.button > 0) return;
+    if (e.target.closest('.mini-button')) return;
+
+    const x = e.clientX;
+    const y = e.clientY;
+    const id = e.pointerId;
+
+    if (e.target.closest('.drag-handle')) {
+      // 拖曳把手已設定 touch-action: none，觸控可直接開始
+      e.preventDefault();
+      return startDrag(c, x, y, id);
+    }
+
+    if (e.pointerType === 'touch') {
+      pending = { card: c, x, y, id, touch: true, timer: setTimeout(() => startDrag(c, x, y, id), HOLD_MS) };
+    } else {
+      pending = { card: c, x, y, id, touch: false, timer: 0 };
+    }
+  };
+
+  addEventListener(
+    'pointermove',
+    (e) => {
+      if (dragged) {
+        if (e.pointerId === dragPointer) moveDrag(e.clientX, e.clientY);
+        return;
+      }
+      if (!pending || e.pointerId !== pending.id) return;
+      const dist = Math.hypot(e.clientX - pending.x, e.clientY - pending.y);
+      if (pending.touch) {
+        if (dist > HOLD_TOLERANCE) clearPending(); // 判定為捲動頁面，取消長按
+      } else if (dist > MOUSE_THRESHOLD) {
+        startDrag(pending.card, pending.x, pending.y, pending.id);
+        moveDrag(e.clientX, e.clientY);
+      }
+    },
+    { passive: true }
+  );
+
+  const finish = (e) => {
+    if (pending && e.pointerId === pending.id) clearPending();
+    if (dragged && e.pointerId === dragPointer) endDrag();
+  };
+  addEventListener('pointerup', finish);
+  addEventListener('pointercancel', finish);
+
+  // 拖曳中阻擋頁面捲動與長按選單，並停用瀏覽器原生拖曳
+  addEventListener('touchmove', (e) => dragged && e.preventDefault(), { passive: false });
+  addEventListener('contextmenu', (e) => dragged && e.preventDefault());
+  grid.addEventListener('dragstart', (e) => body.classList.contains('editing') && e.preventDefault());
 
   // 初始化每張卡片的結構（按鈕控制器與遊玩次數標籤）
   cards.forEach((c) => {
@@ -184,36 +339,8 @@
       tagsWrapper.append(existingBadge, playTag);
     }
 
-    // 拖曳排序事件
-    c.ondragstart = (e) => {
-      if (!body.classList.contains('editing')) return e.preventDefault();
-      dragged = c;
-      c.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', c.dataset.id);
-    };
-    c.ondragend = () => {
-      dragged = null;
-      cards.forEach((x) => x.classList.remove('dragging', 'drag-over'));
-      persistOrder();
-    };
-    c.ondragover = (e) => {
-      if (!dragged || dragged === c || c.hidden) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      c.classList.add('drag-over');
-    };
-    c.ondragleave = () => c.classList.remove('drag-over');
-    c.ondrop = (e) => {
-      e.preventDefault();
-      c.classList.remove('drag-over');
-      if (!dragged || dragged === c) return;
-      const r = c.getBoundingClientRect();
-      const after = e.clientY > r.top + r.height / 2;
-      grid.insertBefore(dragged, after ? c.nextSibling : c);
-      persistOrder();
-      toast('遊戲順序已儲存');
-    };
+    // 拖曳排序：滑鼠按住卡片、觸控長按卡片或直接按住拖曳把手皆可啟動
+    c.addEventListener('pointerdown', (e) => beginPointer(c, e));
   });
 
   // 工具列與篩選按鈕事件

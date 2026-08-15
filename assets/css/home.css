@@ -657,14 +657,34 @@ body.editing .edit-notice {
   transform: scale(0.96);
 }
 
-.game-card.drag-over {
-  outline: 3px solid var(--brand);
-  outline-offset: 4px;
+/* 跟隨手指／滑鼠移動的拖曳分身 */
+.drag-ghost {
+  position: fixed;
+  z-index: 90;
+  margin: 0;
+  opacity: 0.94;
+  box-shadow: var(--shadow-hover);
+  pointer-events: none;
+  animation: none;
+  transition: none;
+  will-change: transform;
+}
+
+body.dragging-active {
+  cursor: grabbing;
+}
+
+/* 拖曳中停用 hover 位移，避免卡片跳動影響落點判斷 */
+body.dragging-active .game-card:not(.dragging):hover {
+  transform: none;
 }
 
 body.editing .game-card {
   border-style: dashed;
   border-color: var(--accent);
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 body.editing .game-card:hover {
@@ -841,11 +861,16 @@ body.editing .card-link {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0 0.35rem;
+  padding: 0.35rem;
   color: var(--muted);
   cursor: grab;
   font-size: 0.75rem;
   font-weight: 800;
+  touch-action: none; /* 觸控直接拖曳把手時不觸發頁面捲動 */
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .drag-handle svg {

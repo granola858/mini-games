@@ -64,6 +64,27 @@ test('搜尋、類型篩選與隨機選擇控制均存在', () => {
   assert.match(html, /id="random-game"/);
 });
 
+test('卡片排序改用 Pointer Events，觸控與滑鼠皆可拖曳', () => {
+  const homeCss = fs.readFileSync(path.join(projectRoot, 'assets', 'css', 'home.css'), 'utf8');
+
+  // 不可再依賴僅支援滑鼠的 HTML5 拖放 API
+  assert.doesNotMatch(homeJs, /ondrag(start|over|leave|end)\s*=/);
+  assert.doesNotMatch(homeJs, /dataTransfer/);
+  assert.doesNotMatch(homeJs, /\.draggable\s*=/);
+
+  // 指標事件、觸控長按與多指隔離
+  assert.match(homeJs, /addEventListener\('pointerdown'/);
+  assert.match(homeJs, /'pointermove'/);
+  assert.match(homeJs, /'pointercancel'/);
+  assert.match(homeJs, /pointerType === 'touch'/);
+  assert.match(homeJs, /pointerId/);
+
+  // 拖曳中必須阻擋觸控捲動，把手則直接停用 touch-action
+  assert.match(homeJs, /addEventListener\('touchmove'[\s\S]{0,80}passive: false/);
+  assert.match(homeCss, /\.drag-handle\s*\{[^}]*touch-action:\s*none/);
+  assert.match(homeCss, /\.drag-ghost\s*\{/);
+});
+
 test('首頁具備全站流量與遊戲遊玩統計元素', () => {
   assert.match(html, /id="hero-stats"/);
   assert.match(html, /id="stat-home-views"/);
