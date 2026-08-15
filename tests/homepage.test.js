@@ -5,6 +5,11 @@ const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+const homeJs = fs.existsSync(path.join(projectRoot, 'assets', 'js', 'home.js'))
+  ? fs.readFileSync(path.join(projectRoot, 'assets', 'js', 'home.js'), 'utf8')
+  : '';
+const combinedSource = html + '\n' + homeJs;
+
 const cards = [...html.matchAll(/<article class="game-card"\s+data-id="([^"]+)"\s+data-category="([^"]+)"\s+data-search="([^"]+)"[^>]*>[\s\S]*?<a class="card-link" href="([^"]+)"[^>]*>[\s\S]*?<h3>([^<]+)<\/h3>[\s\S]*?<\/article>/g)]
   .map(([, id, category, search, href, title]) => ({ id, category, search, href, title }));
 
@@ -25,19 +30,26 @@ test('每個首頁遊戲連結都指向現有檔案', () => {
   });
 });
 
-test('所有 inline JavaScript 都能通過語法編譯', () => {
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
-  assert.ok(scripts.length >= 2);
-  scripts.forEach((source, index) => {
-    assert.doesNotThrow(() => new Function(source), `第 ${index + 1} 段 script 語法錯誤`);
+test('所有首頁 JavaScript 都能通過語法編譯', () => {
+  const inlineScripts = [...html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi)].map(match => match[1]);
+  inlineScripts.forEach((source, index) => {
+    assert.doesNotThrow(() => new Function(source), `第 ${index + 1} 段 inline script 語法錯誤`);
+  });
+
+  const externalScriptMatches = [...html.matchAll(/<script\s+src="([^"]+)"/gi)].map(m => m[1]);
+  externalScriptMatches.forEach(src => {
+    const filePath = path.join(projectRoot, ...src.split('/'));
+    assert.ok(fs.existsSync(filePath), `找不到外部 script 檔案: ${src}`);
+    const source = fs.readFileSync(filePath, 'utf8');
+    assert.doesNotThrow(() => new Function(source), `${src} 語法錯誤`);
   });
 });
 
 test('排序、隱藏與主題控制都使用同一份持久化偏好', () => {
-  assert.match(html, /bobo-home-preferences-v2/);
-  assert.match(html, /prefs\.order/);
-  assert.match(html, /prefs\.hidden/);
-  assert.match(html, /prefs\.theme/);
+  assert.match(combinedSource, /bobo-home-preferences-v2/);
+  assert.match(combinedSource, /prefs\.order/);
+  assert.match(combinedSource, /prefs\.hidden/);
+  assert.match(combinedSource, /prefs\.theme/);
   assert.match(html, /class="card-controls"/);
   assert.match(html, /id="hidden-panel"/);
   assert.match(html, /id="theme-toggle"/);

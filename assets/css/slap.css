@@ -1,0 +1,390 @@
+:root {
+            /* --- 顏色調整區 --- */
+            --primary-color: #86D16A;
+            /* 新主色調：清新綠 */
+            --primary-light: #f0f9eb;
+            /* 搭配主色的淺綠背景 */
+            /* ----------------- */
+            --accent-color: #ff5252;
+            /* 錯誤/退步提示色 (紅) */
+            --success-color: #4caf50;
+            /* 進步提示色 (深綠) */
+            --text-color: #37474f;
+            /* 深灰文字 */
+            --card-bg: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--primary-light);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 頂部區域 */
+        .header {
+            padding: 16px 16px 0;
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            margin: 0;
+            color: var(--primary-color);
+            letter-spacing: 1.5px;
+            font-weight: 800;
+        }
+
+        /* 遊戲主視覺區域 (卡片) */
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            position: relative;
+        }
+
+        /* 口號顯示 - 初始隱藏 */
+        .call-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            background: rgba(255, 255, 255, 0.8);
+            padding: 8px 25px;
+            border-radius: 50px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            opacity: 0;
+            /* 初始隱藏 */
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+        }
+
+        .call-number.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 撲克牌 */
+        .card {
+            width: 200px;
+            height: 280px;
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            position: relative;
+            transition: transform 0.1s, box-shadow 0.2s;
+            cursor: pointer;
+            /* 讓滑鼠變成手指 */
+        }
+
+        /* 遊戲進行中卡片不可點擊的樣式 */
+        .card.playing {
+            cursor: default;
+        }
+
+        .card.red {
+            color: #e91e63;
+        }
+
+        .card.black {
+            color: #2d3436;
+        }
+
+        .card-top,
+        .card-bottom {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 1.4rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .card-bottom {
+            transform: rotate(180deg);
+        }
+
+        .card-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+        }
+
+        /* 初始狀態的卡片內容 */
+        .start-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            /* 使用主色調 */
+            text-align: center;
+            width: 100%;
+            line-height: 1.5;
+        }
+
+        /* 下方操作區域 */
+        .controls-container {
+            width: 100%;
+            padding: 25px;
+            background: white;
+            border-top-left-radius: 30px;
+            border-top-right-radius: 30px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            height: 48%;
+        }
+
+        /* SNAP 按鈕 (最大) */
+        .btn-snap {
+            width: 100%;
+            background-color: #cfd8dc;
+            /* 初始灰色 */
+            color: white;
+            height: 75px;
+            border: none;
+            border-radius: 18px;
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+            box-shadow: none;
+        }
+
+        /* 遊戲中 SNAP 按鈕變色 */
+        .btn-snap.active {
+            background-color: var(--primary-color);
+            /* 產生一個比主色深一點的陰影 */
+            box-shadow: 0 6px 0 #6ebf55;
+            cursor: pointer;
+        }
+
+        .btn-snap.active:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* 歷史紀錄區 - 初始隱藏 */
+        .history-panel {
+            width: 100%;
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #f0f0f0;
+            border-radius: 12px;
+            padding: 15px;
+            background: #fafafa;
+            font-size: 0.95rem;
+            display: none;
+            /* 隱藏 */
+        }
+
+        .history-panel.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px dashed #eee;
+            color: #607d8b;
+        }
+
+        .history-item:first-child {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .history-item .bad {
+            color: var(--accent-color);
+            font-size: 0.85em;
+        }
+
+        .history-item .good {
+            color: var(--success-color);
+            font-size: 0.85em;
+        }
+
+        /* 重新開局按鈕 */
+        .btn-restart {
+            width: 200px;
+            padding: 12px;
+            font-size: 1rem;
+            background: transparent;
+            color: #b0bec5;
+            border: 1px solid #eceff1;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: auto;
+            /* 推到底部 */
+            transition: all 0.2s;
+        }
+
+        .btn-restart:hover {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        /* 彈窗樣式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            width: 85%;
+            max-width: 320px;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .result-title {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .result-time {
+            font-size: 3rem;
+            color: var(--text-color);
+            font-weight: bold;
+            margin: 5px 0 15px 0;
+        }
+
+        .result-msg {
+            color: #78909c;
+            margin-bottom: 25px;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .btn-continue {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(134, 209, 106, 0.4);
+            /* 使用主色調的陰影 */
+        }
+
+        /* 錯誤動畫 */
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-10px);
+            }
+
+            75% {
+                transform: translateX(10px);
+            }
+        }
+
+        .shake {
+            animation: shake 0.3s;
+        }
+
+        /* 回首頁按鈕 */
+        .back-btn {
+            text-decoration: none;
+            color: #888888;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            background-color: #f8f9fa;
+            border: 1px solid #eef5ff;
+            align-self: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .back-btn:hover {
+            color: var(--primary-color);
+            background-color: var(--primary-light);
+            transform: translateX(-3px);
+        }
+
+        @media (max-width: 480px) {
+            .back-btn {
+                padding: 6px 10px;
+                font-size: 0.85rem;
+            }
+        }
