@@ -685,6 +685,13 @@ let size = 8;
       if (e.key === 'Escape') closeMenu();
     });
 
+    // 盤面互動一律走事件委派：這四個監聽器取代原本每格各掛四個的做法，
+    // 盤面重繪時也不必重新掛載
+    boardEl.addEventListener('mousedown', handlePointerDown);
+    boardEl.addEventListener('mouseover', handlePointerEnter);
+    boardEl.addEventListener('touchstart', handlePointerDown, { passive: false });
+    boardEl.addEventListener('touchmove', handleTouchMove, { passive: false });
+
     document.addEventListener('mouseup', handlePointerUp);
     document.addEventListener('touchend', handlePointerUp);
     document.addEventListener('touchcancel', handlePointerUp);
@@ -1229,10 +1236,22 @@ let size = 8;
       }
     }
 
+    // 依格子數值套用外觀。單格更新與整盤重建共用同一套規則
+    function paintCell(cell, value) {
+      if (!cell) return;
+      cell.classList.remove('error-wrong', 'error-miss');
+      cell.classList.toggle('filled', value === 1);
+      cell.classList.toggle('marked', value === 2);
+    }
+
+    // cellEls[r][c] → 該格的 DOM 節點，讓單格更新不必每次查詢 DOM
+    let cellEls = [];
+
     function renderBoard() {
       let state = gameStates[size];
       boardEl.style.gridTemplateColumns = `max-content repeat(${size}, minmax(0, 1fr))`;
       boardEl.innerHTML = '';
+      cellEls = Array.from({ length: size }, () => new Array(size));
 
       const emptyCorner = document.createElement('div');
       emptyCorner.className = 'clue-cell';
@@ -1260,15 +1279,10 @@ let size = 8;
           cell.dataset.r = r;
           cell.dataset.c = c;
 
-          let val = state.playerState[r][c];
-          if (val === 1) cell.classList.add('filled');
-          if (val === 2) cell.classList.add('marked');
+          paintCell(cell, state.playerState[r][c]);
+          cellEls[r][c] = cell;
 
-          cell.addEventListener('mousedown', handlePointerDown);
-          cell.addEventListener('mouseenter', handlePointerEnter);
-          cell.addEventListener('touchstart', handlePointerDown, { passive: false });
-          cell.addEventListener('touchmove', handleTouchMove, { passive: false });
-
+          // 互動事件統一委派給 boardEl，這裡不逐格掛載
           boardEl.appendChild(cell);
         }
       }
@@ -1337,10 +1351,29 @@ let size = 8;
       const state = gameStates[size];
       if (!state || state.isGameOver || !actionHistory.length) return;
 
-      state.playerState = actionHistory.pop();
+      const previous = state.playerState;
+      const restored = actionHistory.pop();
+      state.playerState = restored;
       state.resultState = RESULT_STATE.IN_PROGRESS;
       markStateDirty(size);
-      renderBoard();
+
+      // 只更新真正改變的格子，不重建整個盤面。
+      // 盤面結構若還沒建立（例如剛切換尺寸）才退回完整重繪
+      const canPatch = cellEls.length === size && restored.length === size;
+      if (canPatch) {
+        for (let r = 0; r < size; r++) {
+          for (let c = 0; c < size; c++) {
+            if (previous[r][c] !== restored[r][c]) {
+              paintCell(cellEls[r][c], restored[r][c]);
+            }
+          }
+        }
+        updateCompletedClueStatus(state);
+        updateClearBoardButtonState();
+      } else {
+        renderBoard();
+      }
+
       resetUI();
       saveData();
       updateUndoButtonState();
@@ -1370,6 +1403,7 @@ let size = 8;
       if (!cell) return;
 
       isDragging = true;
+      lastHoveredCell = cell;
       dragSnapshot = cloneGrid(gameStates[size].playerState);
       dragHistoryCommitted = false;
       const r = cell.dataset.r;
@@ -1385,9 +1419,15 @@ let size = 8;
       applyAction(cell, r, c);
     }
 
+    // 註：使用會冒泡的 mouseover 以便委派（mouseenter 不冒泡）。
+    // 在同一格內移動會重複觸發，因此記住上一格避免多餘工作
+    let lastHoveredCell = null;
+
     function handlePointerEnter(e) {
       if (isBoardLocked || !isDragging || gameStates[size].isGameOver) return;
-      const cell = e.target;
+      const cell = e.target.closest('.cell');
+      if (!cell || cell === lastHoveredCell) return;
+      lastHoveredCell = cell;
       applyAction(cell, cell.dataset.r, cell.dataset.c);
     }
 
@@ -1404,6 +1444,7 @@ let size = 8;
     }
 
     function handlePointerUp() {
+      lastHoveredCell = null;
       if (isDragging) {
         isDragging = false;
         dragAction = null;
@@ -1435,14 +1476,15 @@ let size = 8;
         cell.classList.remove('marked');
       }
 
-      if (currentValue !== nextValue) {
-        if (!dragHistoryCommitted && dragSnapshot) {
-          actionHistory.push(dragSnapshot);
-          dragHistoryCommitted = true;
-        }
-        state.playerState[r][c] = nextValue;
-        markStateDirty(size);
+      // 數值沒變就不必重掃線索與重算按鈕狀態（掃描是 O(size²)）
+      if (currentValue === nextValue) return;
+
+      if (!dragHistoryCommitted && dragSnapshot) {
+        actionHistory.push(dragSnapshot);
+        dragHistoryCommitted = true;
       }
+      state.playerState[r][c] = nextValue;
+      markStateDirty(size);
 
       updateCompletedClueStatus(state);
       updateClearBoardButtonState();

@@ -155,29 +155,57 @@ let size = 8;
             return Math.max(minimumCellSize, computedCellSize);
         }
 
+        // 盤面未縮放時的高度。盤面重建時失效，其餘情況（例如顯示提示訊息）可重複使用，
+        // 省去「先還原成 scale(1) 再量測」那一輪寫入與強制排版
+        let naturalBoardHeight = 0;
+
+        function invalidateBoardMetrics() {
+            naturalBoardHeight = 0;
+        }
+
         function fitBoardToViewport() {
             if (!gameState) return;
-
-            boardEl.style.transform = 'scale(1)';
-            boardEl.style.transformOrigin = 'top center';
-            boardWrapperEl.style.height = 'auto';
 
             const viewportHeight = window.innerHeight || 0;
             if (!viewportHeight) return;
 
-            const boardHeight = boardEl.getBoundingClientRect().height;
+            // ── 量測階段：只讀不寫 ──
+            if (!naturalBoardHeight) {
+                // 尚未量過原始高度，得先還原縮放才能取得正確值
+                boardEl.style.transform = 'scale(1)';
+                boardEl.style.transformOrigin = 'top center';
+                boardWrapperEl.style.height = 'auto';
+                naturalBoardHeight = boardEl.getBoundingClientRect().height;
+            }
+
+            const boardHeight = naturalBoardHeight;
             if (!boardHeight) return;
 
-            const nonBoardHeight = document.documentElement.scrollHeight - boardHeight;
+            const renderedHeight = boardEl.getBoundingClientRect().height;
+            const nonBoardHeight = document.documentElement.scrollHeight - renderedHeight;
             const availableBoardHeight = viewportHeight - nonBoardHeight;
-
-            if (availableBoardHeight >= boardHeight) return;
-
-            const scale = Math.max(0.58, Math.min(1, availableBoardHeight / boardHeight));
             const wrapperPaddingY = getStyleNumber(boardWrapperEl, 'padding-top') + getStyleNumber(boardWrapperEl, 'padding-bottom');
 
+            const scale = availableBoardHeight >= boardHeight
+                ? 1
+                : Math.max(0.58, Math.min(1, availableBoardHeight / boardHeight));
+
+            // ── 套用階段：量測全部完成後才寫入 ──
+            boardEl.style.transformOrigin = 'top center';
             boardEl.style.transform = `scale(${scale})`;
-            boardWrapperEl.style.height = `${Math.ceil((boardHeight * scale) + wrapperPaddingY)}px`;
+            boardWrapperEl.style.height = scale === 1
+                ? 'auto'
+                : `${Math.ceil((boardHeight * scale) + wrapperPaddingY)}px`;
+        }
+
+        // 同一幀內只重算一次縮放，避免 resize 連續觸發時反覆排版
+        let fitFrame = 0;
+        function scheduleFitBoardToViewport() {
+            if (fitFrame) return;
+            fitFrame = requestAnimationFrame(() => {
+                fitFrame = 0;
+                fitBoardToViewport();
+            });
         }
 
         function isInsideBoard(rowIndex, colIndex, targetSize) {
@@ -869,16 +897,13 @@ let size = 8;
 
                     renderCellValue(cell, gameState.playerState[rowIndex][colIndex]);
 
-                    cell.addEventListener('mousedown', handlePointerDown);
-                    cell.addEventListener('mouseenter', handlePointerEnter);
-                    cell.addEventListener('touchstart', handlePointerDown, { passive: false });
-                    cell.addEventListener('touchmove', handleTouchMove, { passive: false });
-
+                    // 互動事件統一委派給 boardEl，這裡不逐格掛載
                     boardEl.appendChild(cell);
                 }
             }
 
             updateActionButtons();
+            invalidateBoardMetrics();
             fitBoardToViewport();
         }
 
@@ -1092,6 +1117,7 @@ let size = 8;
             const currentValue = gameState.playerState[rowIndex][colIndex];
 
             isDragging = true;
+            lastHoveredCell = cell;
             dragSnapshot = cloneGrid(gameState.playerState);
             dragHistoryCommitted = false;
             dragAction = currentValue === currentColor
@@ -1101,11 +1127,16 @@ let size = 8;
             applyAction(cell, rowIndex, colIndex);
         }
 
+        // 註：使用會冒泡的 mouseover 以便委派（mouseenter 不冒泡）。
+        // 在同一格內移動會重複觸發，因此記住上一格避免多餘工作
+        let lastHoveredCell = null;
+
         function handlePointerEnter(event) {
             if (isBoardLocked || !isDragging || !gameState || gameState.isGameOver) return;
 
             const cell = event.target.closest('.cell');
-            if (!cell) return;
+            if (!cell || cell === lastHoveredCell) return;
+            lastHoveredCell = cell;
 
             applyAction(cell, Number(cell.dataset.r), Number(cell.dataset.c));
         }
@@ -1126,6 +1157,7 @@ let size = 8;
             if (!isDragging) return;
 
             isDragging = false;
+            lastHoveredCell = null;
             dragAction = null;
             dragSnapshot = null;
             dragHistoryCommitted = false;
@@ -1203,6 +1235,13 @@ let size = 8;
         clearBoardBtn.addEventListener('click', clearBoard);
         checkBtn.addEventListener('click', checkAnswer);
 
+        // 盤面互動一律走事件委派：這四個監聽器取代原本每格各掛四個的做法，
+        // 盤面重繪時也不必重新掛載
+        boardEl.addEventListener('mousedown', handlePointerDown);
+        boardEl.addEventListener('mouseover', handlePointerEnter);
+        boardEl.addEventListener('touchstart', handlePointerDown, { passive: false });
+        boardEl.addEventListener('touchmove', handleTouchMove, { passive: false });
+
         document.addEventListener('mouseup', handlePointerUp);
         document.addEventListener('touchend', handlePointerUp);
         document.addEventListener('touchcancel', handlePointerUp);
@@ -1212,8 +1251,12 @@ let size = 8;
                 undoLastAction();
             }
         });
+        // resize 只會改變可用高度，格子數與內容都沒變，
+        // 因此重算縮放即可，不需要重建整個盤面
         window.addEventListener('resize', () => {
-            if (gameState) renderBoard();
+            if (!gameState) return;
+            invalidateBoardMetrics();
+            scheduleFitBoardToViewport();
         });
 
         if (!loadData()) {
