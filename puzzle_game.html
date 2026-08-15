@@ -55,7 +55,11 @@
         </div>
     </div>
 
+    <script src="assets/js/stats.js"></script>
     <script src="assets/js/puzzle.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('association');
+    </script>
 </body>
 
 </html>

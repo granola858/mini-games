@@ -61,8 +61,11 @@
         </div>
     </div>
 
+    <script src="assets/js/stats.js"></script>
     <script src="assets/js/math.js"></script>
-
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('math');
+    </script>
 </body>
 
 </html>

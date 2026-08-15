@@ -308,6 +308,82 @@ h1 {
   line-height: 1.8;
 }
 
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.48rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(62, 47, 34, 0.05);
+  font-size: 0.82rem;
+  font-weight: 750;
+  color: var(--muted);
+  backdrop-filter: blur(12px);
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.stat-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(62, 47, 34, 0.09);
+  background: var(--strong);
+}
+
+.stat-chip strong {
+  color: var(--ink);
+  font-weight: 900;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.stat-pulse-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  height: 10px;
+}
+
+.stat-pulse {
+  position: relative;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.stat-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: #10b981;
+  opacity: 0.6;
+  animation: pulse-ring 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  70% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.stat-chip-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
 .hero-visual {
   position: relative;
   min-height: 310px;
@@ -511,6 +587,16 @@ h1 {
   color: var(--bg);
 }
 
+.filter-button.popular-filter {
+  font-weight: 850;
+}
+
+.filter-button.popular-filter[aria-pressed="true"] {
+  background: linear-gradient(135deg, #ff6547, #ff8c42);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 101, 71, 0.35);
+}
+
 .edit-notice {
   display: none;
   align-items: center;
@@ -641,6 +727,13 @@ body.editing .game-card:hover {
   height: 30px;
 }
 
+.card-tags {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
 .card-badge {
   position: relative;
   padding: 0.4rem 0.65rem;
@@ -649,6 +742,35 @@ body.editing .game-card:hover {
   color: var(--accent);
   font-size: 0.72rem;
   font-weight: 900;
+}
+
+.card-play-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.32rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(8px);
+  transition: transform 0.2s, background-color 0.2s, color 0.2s;
+}
+
+.game-card:hover .card-play-tag {
+  background: var(--solid);
+  color: var(--ink);
+}
+
+.card-play-tag svg {
+  width: 12px;
+  height: 12px;
+  color: #ff6b4a;
+  flex-shrink: 0;
 }
 
 .card-content {

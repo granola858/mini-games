@@ -73,7 +73,11 @@
         </div>
     </div>
 
+    <script src="assets/js/stats.js"></script>
     <script src="assets/js/color-text.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('color-text');
+    </script>
 </body>
 
 </html>

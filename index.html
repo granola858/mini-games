@@ -51,6 +51,18 @@
         <p class="eyebrow"><span class="eyebrow-dot"></span> 隨時開玩 · 不用登入</p>
         <h1 id="hero-title">今天，想讓腦袋<br><span class="hero-highlight">玩哪一局？</span></h1>
         <p class="hero-lead">從反應力、邏輯到派對熱身，挑一款剛剛好的小遊戲。你也可以把首頁排成最順手的樣子。</p>
+        <div class="hero-stats" id="hero-stats">
+          <div class="stat-chip" title="首頁累積造訪人次">
+            <span class="stat-pulse-wrap"><span class="stat-pulse"></span></span>
+            <span>首頁造訪</span>
+            <strong id="stat-home-views">--</strong>
+          </div>
+          <div class="stat-chip" title="所有遊戲累計遊玩局數">
+            <span class="stat-chip-icon">🎮</span>
+            <span>全站遊玩</span>
+            <strong id="stat-total-plays">--</strong>
+          </div>
+        </div>
       </div>
       <div class="hero-visual">
         <span class="orb orb-small one" aria-hidden="true"></span>
@@ -95,6 +107,7 @@
         </label>
         <div class="filters" role="group" aria-label="依類型篩選">
           <button class="filter-button" data-filter="all" aria-pressed="true">全部</button>
+          <button class="filter-button popular-filter" data-filter="popular" aria-pressed="false">🔥 熱門排行</button>
           <button class="filter-button" data-filter="logic" aria-pressed="false">動動腦</button>
           <button class="filter-button" data-filter="party" aria-pressed="false">多人同樂</button>
           <button class="filter-button" data-filter="reaction" aria-pressed="false">反應挑戰</button>
@@ -362,6 +375,7 @@
       </span>
     </div>
   </template>
+  <script src="assets/js/stats.js"></script>
   <script src="assets/js/home.js"></script>
 </body>
 </html>

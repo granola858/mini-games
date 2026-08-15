@@ -202,7 +202,11 @@
     </div>
   </div>
 
+  <script src="assets/js/stats.js"></script>
   <script src="assets/js/nonogram.js"></script>
+  <script>
+    if (typeof Stats !== 'undefined') Stats.recordGamePlay('nonogram');
+  </script>
 </body>
 
 </html>

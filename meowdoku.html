@@ -114,7 +114,11 @@
         </div>
     </div>
 
+    <script src="assets/js/stats.js"></script>
     <script src="assets/js/meowdoku.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('meowdoku');
+    </script>
 </body>
 
 </html>

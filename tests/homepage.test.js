@@ -57,8 +57,29 @@ test('排序、隱藏與主題控制都使用同一份持久化偏好', () => {
 
 test('搜尋、類型篩選與隨機選擇控制均存在', () => {
   assert.match(html, /id="game-search"/);
+  assert.match(html, /data-filter="popular"/);
   assert.match(html, /data-filter="logic"/);
   assert.match(html, /data-filter="party"/);
   assert.match(html, /data-filter="reaction"/);
   assert.match(html, /id="random-game"/);
 });
+
+test('首頁具備全站流量與遊戲遊玩統計元素', () => {
+  assert.match(html, /id="hero-stats"/);
+  assert.match(html, /id="stat-home-views"/);
+  assert.match(html, /id="stat-total-plays"/);
+  assert.match(html, /assets\/js\/stats\.js/);
+});
+
+test('Stats 模組具備完整的數字格式化與核心方法', () => {
+  const Stats = require('../assets/js/stats.js');
+  assert.equal(typeof Stats.formatNumber, 'function');
+  assert.equal(Stats.formatNumber(0), '0');
+  assert.equal(Stats.formatNumber(1234), '1,234');
+  assert.equal(Stats.formatNumber(15600), '15.6k');
+  assert.equal(Stats.formatNumber(1200000), '1.2M');
+  assert.equal(typeof Stats.recordHomeVisit, 'function');
+  assert.equal(typeof Stats.recordGamePlay, 'function');
+  assert.equal(typeof Stats.getMultipleGames, 'function');
+});
+

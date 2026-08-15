@@ -40,7 +40,11 @@
         <button class="restart-btn" onclick="restartCurrentLevel()">再玩一次</button>
     </div>
 
+    <script src="assets/js/stats.js"></script>
     <script src="assets/js/pair.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('pairs');
+    </script>
 </body>
 
 </html>

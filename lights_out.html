@@ -42,7 +42,11 @@
     </div>
   </div>
 
+  <script src="assets/js/stats.js"></script>
   <script src="assets/js/lights-out.js"></script>
+  <script>
+    if (typeof Stats !== 'undefined') Stats.recordGamePlay('lights-out');
+  </script>
 </body>
 
 </html>

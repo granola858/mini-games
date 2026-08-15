@@ -48,8 +48,11 @@
         </div>
     </div>
 
+    <script src="assets/js/stats.js"></script>
     <script src="assets/js/1a2b.js"></script>
-
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('1a2b');
+    </script>
 </body>
 
 </html>

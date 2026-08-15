@@ -133,7 +133,11 @@
 
     </div>
 
+    <script src="assets/js/stats.js"></script>
     <script src="assets/js/sic-bo.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('sic-bo');
+    </script>
 </body>
 
 </html>

@@ -338,6 +338,10 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+    <script src="assets/js/stats.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('guess-song');
+    </script>
 </body>
 
 </html>
