@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
-import * as XLSX from 'xlsx'; // 匯入 Excel 套件
+import { useState, useMemo, useDeferredValue } from 'react';
 import './index.css'; // 匯入樣式
+
+// 一次最多渲染幾筆結果：避免匯入上千筆時一口氣產生上萬個 DOM 節點
+const RENDER_LIMIT = 200;
 
 // --- Icons (保持原樣) ---
 const UploadIcon = () => (
@@ -47,7 +49,7 @@ function App() {
     const [error, setError] = useState(null);
 
     const processData = (data) => {
-            return data.map(row => {
+            return data.map((row, rowIndex) => {
             const keys = Object.keys(row);
             const values = Object.values(row);
 
@@ -69,6 +71,8 @@ function App() {
             }
 
             return {
+                // 匯入時就固定的識別碼，讓 React 在篩選前後仍能對應到同一列
+                key: `row-${rowIndex}`,
                 id: id || "N/A",
                 source: source || "-",
                 title: title || "未命名",
@@ -84,11 +88,11 @@ function App() {
         setFileName("Demo_Data.xlsx");
         setTimeout(() => {
             setSongs([
-                { id: "001", source: "Frozen", title: "Let It Go", year: 2013, director: "Jennifer Lee", cast: "Idina Menzel" },
-                { id: "002", source: "Aladdin", title: "A Whole New World", year: 1992, director: "Ron Clements", cast: "Brad Kane" },
-                { id: "003", source: "Coco", title: "Remember Me", year: 2017, director: "Lee Unkrich", cast: "Benjamin Bratt" },
-                { id: "004", source: "The Little Mermaid", title: "Part of Your World", year: 1989, director: "John Musker", cast: "Jodi Benson" },
-                { id: "005", source: "Inception", title: "Time", year: 2010, director: "Christopher Nolan", cast: "Hans Zimmer" },
+                { key: "demo-1", id: "001", source: "Frozen", title: "Let It Go", year: 2013, director: "Jennifer Lee", cast: "Idina Menzel" },
+                { key: "demo-2", id: "002", source: "Aladdin", title: "A Whole New World", year: 1992, director: "Ron Clements", cast: "Brad Kane" },
+                { key: "demo-3", id: "003", source: "Coco", title: "Remember Me", year: 2017, director: "Lee Unkrich", cast: "Benjamin Bratt" },
+                { key: "demo-4", id: "004", source: "The Little Mermaid", title: "Part of Your World", year: 1989, director: "John Musker", cast: "Jodi Benson" },
+                { key: "demo-5", id: "005", source: "Inception", title: "Time", year: 2010, director: "Christopher Nolan", cast: "Hans Zimmer" },
             ]);
             setLoading(false);
         }, 800);
@@ -104,13 +108,14 @@ function App() {
         setSongs([]);
 
         const reader = new FileReader();
-        reader.onload = (evt) => {
+        reader.onload = async (evt) => {
             try {
-                const bstr = evt.target.result;
-                const wb = XLSX.read(bstr, { type: 'binary' });
+                // xlsx 只在真的要解析檔案時才載入，不佔用首屏
+                const XLSX = await import('xlsx');
+                const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
                 const wsname = wb.SheetNames[0];
                 const data = XLSX.utils.sheet_to_json(wb.Sheets[wsname]);
-                
+
                 const normalizedData = processData(data);
 
                 setTimeout(() => {
@@ -124,19 +129,26 @@ function App() {
                 console.error(err);
             }
         };
-        reader.readAsBinaryString(file);
+        reader.readAsArrayBuffer(file);
     };
 
+    // 讓輸入框維持即時回應，較昂貴的清單重繪則以低優先度進行
+    const deferredQuery = useDeferredValue(query);
+
     const filteredSongs = useMemo(() => {
-        if (!query) return songs;
-        const lowerQ = query.toLowerCase();
-        return songs.filter(s => 
-            String(s.title).toLowerCase().includes(lowerQ) || 
+        if (!deferredQuery) return songs;
+        const lowerQ = deferredQuery.toLowerCase();
+        return songs.filter(s =>
+            String(s.title).toLowerCase().includes(lowerQ) ||
             String(s.id).toLowerCase().includes(lowerQ) ||
             String(s.source).toLowerCase().includes(lowerQ) ||
             String(s.director).toLowerCase().includes(lowerQ)
         );
-    }, [query, songs]);
+    }, [deferredQuery, songs]);
+
+    const visibleSongs = filteredSongs.length > RENDER_LIMIT
+        ? filteredSongs.slice(0, RENDER_LIMIT)
+        : filteredSongs;
 
     return (
         <div className="min-h-screen pb-8 bg-slate-50 font-sans relative">
@@ -240,8 +252,8 @@ function App() {
                     </div>
                  ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {filteredSongs.map((song, idx) => (
-                            <div key={idx} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group flex flex-col">
+                        {visibleSongs.map((song) => (
+                            <div key={song.key} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group flex flex-col">
                                 <div className="flex justify-between items-start mb-1.5">
                                     <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-1.5 py-0.5 rounded font-mono">
                                         #{song.id}
@@ -269,6 +281,12 @@ function App() {
                             </div>
                         ))}
                     </div>
+                 )}
+
+                 {!loading && filteredSongs.length > visibleSongs.length && (
+                    <p className="mt-4 text-center text-xs text-slate-400">
+                        已顯示前 {visibleSongs.length} 筆，共 {filteredSongs.length} 筆。輸入關鍵字可縮小範圍。
+                    </p>
                  )}
             </div>
         </div>
