@@ -7,8 +7,14 @@
         {
             "type": "editor-browser",
             "request": "launch",
-            "name": "Open color_nonogram.html",
-            "url": "file:///c%3A/Users/grano/OneDrive/%E6%A1%8C%E9%9D%A2/Frontend/mini-games/color_nonogram.html"
+            "name": "開啟首頁 (index.html)",
+            "file": "${workspaceFolder}/index.html"
+        },
+        {
+            "type": "editor-browser",
+            "request": "launch",
+            "name": "開啟目前開啟中的檔案",
+            "file": "${file}"
         }
     ]
 }

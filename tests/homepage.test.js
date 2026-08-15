@@ -30,6 +30,12 @@ test('每個首頁遊戲連結都指向現有檔案', () => {
   });
 });
 
+test('首頁遊戲連結一律指向 games/ 底下的獨立資料夾', () => {
+  cards.forEach(card => {
+    assert.match(card.href, /^games\/[a-z0-9-]+\//, `${card.title} 的連結未收納於 games/：${card.href}`);
+  });
+});
+
 test('所有首頁 JavaScript 都能通過語法編譯', () => {
   const inlineScripts = [...html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi)].map(match => match[1]);
   inlineScripts.forEach((source, index) => {

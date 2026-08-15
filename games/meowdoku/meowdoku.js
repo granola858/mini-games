@@ -1,12 +1,12 @@
 const catAssetPaths = {
-            1: 'assets/images/meowdoku/1.svg',
-            2: 'assets/images/meowdoku/2.svg',
-            3: 'assets/images/meowdoku/3.svg',
-            4: 'assets/images/meowdoku/4.svg',
-            5: 'assets/images/meowdoku/5.svg',
-            6: 'assets/images/meowdoku/6.svg',
-            7: 'assets/images/meowdoku/7.svg',
-            8: 'assets/images/meowdoku/8.svg'
+            1: 'images/1.svg',
+            2: 'images/2.svg',
+            3: 'images/3.svg',
+            4: 'images/4.svg',
+            5: 'images/5.svg',
+            6: 'images/6.svg',
+            7: 'images/7.svg',
+            8: 'images/8.svg'
         };
         const LEGACY_CAT_STYLE_ID_MAP = {
             3: 1,

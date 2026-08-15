@@ -1,12 +1,9 @@
 {
   "name": "mini-games",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "1.11.0",
+  "description": "波波小遊戲 - 純前端小遊戲合輯，每款遊戲收納於 games/ 底下的獨立資料夾",
   "scripts": {
-    "test": "node --test tests/*.test.js",
-    "dev": "tailwindcss -i ./src.css -o ./output.css --watch",
-    "build": "tailwindcss -i ./src.css -o ./output.css --minify"
+    "test": "node --test tests/*.test.js"
   },
   "repository": {
     "type": "git",
@@ -19,8 +16,5 @@
   "bugs": {
     "url": "https://github.com/granola858/guess-song/issues"
   },
-  "homepage": "https://github.com/granola858/guess-song#readme",
-  "devDependencies": {
-    "tailwindcss": "^3.4.17"
-  }
+  "homepage": "https://github.com/granola858/guess-song#readme"
 }
