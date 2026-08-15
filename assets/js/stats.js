@@ -8,20 +8,37 @@ const Stats = (() => {
   const API_BASE = 'https://countapi.mileshilliard.com/api/v1';
   const NAMESPACE = 'bobo-games-v1';
   const TIMEOUT_MS = 4000;
+  // 快取在此時間內視為新鮮，直接沿用而不再打 API
+  const FRESH_MS = 5 * 60 * 1000;
 
   // 獲取帶前綴的唯一 Key
   const getKey = (name) => `${NAMESPACE}-${name}`;
 
-  // 取得快取的統計數值
-  const getCached = (name, fallback = 0) => {
+  // 讀出完整快取項目（含寫入時間），供新鮮度判斷使用
+  const readCache = (name) => {
     try {
       const raw = localStorage.getItem(`bobo_cache_${getKey(name)}`);
-      if (!raw) return fallback;
+      if (!raw) return null;
       const parsed = JSON.parse(raw);
-      return typeof parsed.value === 'number' ? parsed.value : fallback;
+      if (typeof parsed.value !== 'number') return null;
+      return { value: parsed.value, updatedAt: Number(parsed.updatedAt) || 0 };
     } catch (_) {
-      return fallback;
+      return null;
     }
+  };
+
+  // 快取是否仍在有效期內
+  const isFresh = (entry, maxAge) => {
+    if (!entry || maxAge <= 0) return false;
+    const age = Date.now() - entry.updatedAt;
+    // 時鐘回撥時 age 會是負數，一併視為過期以免永久命中
+    return age >= 0 && age < maxAge;
+  };
+
+  // 取得快取的統計數值
+  const getCached = (name, fallback = 0) => {
+    const entry = readCache(name);
+    return entry ? entry.value : fallback;
   };
 
   // 寫入快取
@@ -32,13 +49,18 @@ const Stats = (() => {
   };
 
   // 帶逾時機制的 fetch 封裝
+  // 拋出的錯誤會帶上 status，讓呼叫端能分辨「計數器不存在」與「連線失敗」
   const fetchWithTimeout = async (url) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timer);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const err = new Error(`HTTP ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
       return await res.json();
     } catch (err) {
       clearTimeout(timer);
@@ -47,7 +69,15 @@ const Stats = (() => {
   };
 
   // 讀取指定項目的統計數值（不增加計數）
-  const get = async (name) => {
+  // 快取若仍新鮮就直接回傳，完全不發出請求；傳入 maxAge = 0 可強制重新讀取
+  const get = async (name, options = {}) => {
+    const { maxAge = FRESH_MS } = options;
+
+    const cached = readCache(name);
+    if (isFresh(cached, maxAge)) {
+      return { key: name, value: cached.value, cached: true };
+    }
+
     const key = getKey(name);
     try {
       const data = await fetchWithTimeout(`${API_BASE}/get/${encodeURIComponent(key)}`);
@@ -55,6 +85,13 @@ const Stats = (() => {
       setCached(name, val);
       return { key: name, value: val };
     } catch (err) {
+      // 404 代表這個計數器還沒被建立（例如尚無人玩過的遊戲）。
+      // 這是明確答案而非失敗，因此快取為 0；否則每次載入都會重問一次，永遠問不到。
+      if (err && err.status === 404) {
+        setCached(name, 0);
+        return { key: name, value: 0 };
+      }
+      // 連線失敗或逾時屬於暫時性問題，不寫入快取，下次仍會重試
       return { key: name, value: getCached(name, 0), error: true };
     }
   };
@@ -139,9 +176,11 @@ const Stats = (() => {
   };
 
   // 批次讀取多個遊戲的遊玩數據
-  const getMultipleGames = async (gameIds = []) => {
+  // countapi 沒有批次端點，因此請求數靠快取新鮮度控制：
+  // 五分鐘內重訪首頁時，這裡一個請求都不會發出
+  const getMultipleGames = async (gameIds = [], options = {}) => {
     const promises = gameIds.map(async (id) => {
-      const res = await get(`game-${id}`);
+      const res = await get(`game-${id}`, options);
       return { id, value: res.value };
     });
     const results = await Promise.allSettled(promises);

@@ -392,7 +392,7 @@
   });
 
   // 載入並渲染統計數據
-  const initStats = async () => {
+  const initStats = () => {
     if (typeof Stats === 'undefined') return;
 
     const homeViewsEl = document.getElementById('stat-home-views');
@@ -419,14 +419,24 @@
       totalPlaysEl.textContent = Stats.formatNumber(initialTotalPlays);
     }
 
-    // 2. 非同步向 API 記錄首頁造訪並獲取最新人次
+    // 2. 其餘工作等瀏覽器閒下來再做：這些數字是輔助資訊，
+    //    不該和首屏的版面與互動搶資源
+    idle(() => syncStatsFromApi(homeViewsEl, totalPlaysEl));
+  };
+
+  // 瀏覽器閒置時執行；不支援 requestIdleCallback 的環境退回 setTimeout
+  const idle = (fn) =>
+    typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 2000 }) : setTimeout(fn, 200);
+
+  const syncStatsFromApi = (homeViewsEl, totalPlaysEl) => {
+    // 向 API 記錄首頁造訪並獲取最新人次
     Stats.recordHomeVisit().then((res) => {
       if (res && typeof res.value === 'number' && homeViewsEl) {
         Stats.animateCount(homeViewsEl, res.value);
       }
     });
 
-    // 3. 非同步向 API 批次讀取各遊戲最新遊玩數
+    // 批次讀取各遊戲最新遊玩數（快取新鮮時不會發出任何請求）
     Stats.getMultipleGames(defaults).then((statsMap) => {
       let totalPlays = 0;
       defaults.forEach((id) => {
