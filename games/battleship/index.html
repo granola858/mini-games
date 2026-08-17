@@ -72,15 +72,16 @@
     <!-- Placement Toolbar -->
     <section class="placement-panel" id="placement-panel" aria-label="艦隊佈置面板">
       <div class="panel-header">
-        <span class="panel-title">
+        <div class="panel-title">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
             <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
           </svg>
-          船塢配置區（點選船隻後放置於下方我方海域，或點擊 R 鍵旋轉）
-        </span>
+          <span>艦隊船塢配置</span>
+          <small class="panel-hint">點選船隻放置於我方海域，按 R 旋轉</small>
+        </div>
         <div class="difficulty-selector">
-          <span class="difficulty-label">敵方難度:</span>
+          <span class="difficulty-label">難度:</span>
           <button class="diff-btn" data-diff="easy" type="button">簡單</button>
           <button class="diff-btn active" data-diff="medium" type="button">普通</button>
           <button class="diff-btn" data-diff="hard" type="button">困難</button>
@@ -116,7 +117,7 @@
               <line x1="12" y1="6" x2="12" y2="2" />
               <line x1="12" y1="22" x2="12" y2="18" />
             </svg>
-            敵方海域 (雷達打擊盤)
+            <span>敵方海域 (雷達)</span>
           </div>
           <span class="fleet-health" id="enemy-fleet-health">存活: 5 / 5</span>
         </div>
@@ -133,7 +134,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
-            我方海域 (艦隊防禦盤)
+            <span>我方海域 (防禦)</span>
           </div>
           <span class="fleet-health" id="player-fleet-health">存活: 5 / 5</span>
         </div>

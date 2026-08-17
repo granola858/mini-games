@@ -223,10 +223,8 @@ h1 {
   border-radius: var(--radius-md);
   padding: 12px 16px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   position: relative;
   overflow: hidden;
@@ -247,6 +245,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .status-dot {
@@ -255,6 +254,7 @@ h1 {
   border-radius: 50%;
   background: var(--color-success);
   box-shadow: 0 0 8px var(--color-success);
+  flex-shrink: 0;
 }
 
 .status-dot.enemy-turn {
@@ -268,12 +268,6 @@ h1 {
   box-shadow: 0 0 8px var(--color-warning);
 }
 
-.status-text {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--text-bright);
-}
-
 .phase-tag {
   font-size: 0.75rem;
   font-family: var(--font-mono);
@@ -283,14 +277,26 @@ h1 {
   border-radius: 4px;
   border: 1px solid rgba(0, 240, 255, 0.3);
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.status-text {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-bright);
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .score-stats {
   display: flex;
   align-items: center;
-  gap: 16px;
-  font-size: 0.9rem;
+  gap: 20px;
+  font-size: 0.85rem;
   font-family: var(--font-mono);
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .stat-item {
@@ -333,7 +339,17 @@ h1 {
   color: var(--color-radar);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.panel-hint {
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .difficulty-selector {
@@ -589,6 +605,7 @@ h1 {
   border: 1px solid rgba(56, 189, 248, 0.15);
   position: relative;
   user-select: none;
+  overflow: hidden; /* 嚴格限制不得超出棋盤邊界 */
 }
 
 /* Radar Scan Line Effect */
@@ -598,12 +615,11 @@ h1 {
   top: 0;
   left: 0;
   right: 0;
-  height: 200%;
-  background: linear-gradient(180deg, transparent 40%, rgba(0, 240, 255, 0.15) 50%, transparent 55%);
+  height: 100%;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 240, 255, 0.18) 50%, transparent 100%);
   pointer-events: none;
-  animation: radar-sweep 4s linear infinite;
+  animation: radar-sweep 3.5s linear infinite;
   border-radius: var(--radius-md);
-  overflow: hidden;
 }
 
 /* Coordinate Headers */
@@ -736,7 +752,7 @@ h1 {
 }
 
 .manifest-item.sunk {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(239, 68, 68, 0.12);
   color: #fca5a5;
   text-decoration: line-through;
 }
@@ -756,6 +772,15 @@ h1 {
 
 .peg.hit {
   background: var(--color-hit);
+}
+
+/* 敵方情報迷霧：未擊沉時為隱藏未知 peg，擊沉時全紅 */
+.peg.fog-peg {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.peg.sunk-peg {
+  background: var(--color-sunk);
 }
 
 .manifest-item.sunk .peg {
@@ -903,8 +928,8 @@ h1 {
 
 /* Animations */
 @keyframes radar-sweep {
-  0% { transform: translateY(-50%); }
-  100% { transform: translateY(50%); }
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
 }
 
 @keyframes pulse-glow {
