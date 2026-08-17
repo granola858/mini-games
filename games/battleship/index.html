@@ -98,15 +98,9 @@
       </div>
     </section>
 
-    <!-- Mobile Switch Tabs -->
-    <div class="mobile-view-tabs">
-      <button class="tab-btn active" data-tab="radar" type="button">🎯 敵方雷達</button>
-      <button class="tab-btn" data-tab="fleet" type="button">🛡️ 我方艦隊</button>
-    </div>
-
-    <!-- Battlefields -->
-    <main class="battlefield mobile-radar" id="battlefield">
-      <!-- Enemy Radar Grid -->
+    <!-- Battlefields (上下排列，同畫面呈現) -->
+    <main class="battlefield" id="battlefield">
+      <!-- Enemy Radar Grid (上方主盤) -->
       <div class="board-wrapper radar-board-wrapper">
         <div class="board-header">
           <div class="board-title radar">
@@ -119,39 +113,45 @@
             </svg>
             <span>敵方海域 (雷達)</span>
           </div>
-          <span class="fleet-health" id="enemy-fleet-health">存活: 5 / 5</span>
+          <div class="fleet-badges" id="enemy-badges" title="敵方艦隊存活狀態"></div>
         </div>
 
         <div class="grid-container enemy-grid radar-active" id="enemy-grid"></div>
 
-        <div class="fleet-manifest" id="enemy-manifest"></div>
+        <!-- 隱藏式/折疊式艦隊狀態明細 -->
+        <details class="fleet-details">
+          <summary class="fleet-details-toggle">
+            <span id="enemy-fleet-health">敵艦存活: 5 / 5</span>
+            <span class="toggle-icon">▾ 艦隊情報</span>
+          </summary>
+          <div class="fleet-manifest" id="enemy-manifest"></div>
+        </details>
       </div>
 
-      <!-- Player Fleet Grid -->
+      <!-- Player Fleet Grid (下方副盤) -->
       <div class="board-wrapper fleet-board-wrapper">
         <div class="board-header">
           <div class="board-title fleet">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
-            <span>我方海域 (防禦)</span>
+            <span>我方海域 (艦隊)</span>
           </div>
-          <span class="fleet-health" id="player-fleet-health">存活: 5 / 5</span>
+          <div class="fleet-badges" id="player-badges" title="我方艦隊存活狀態"></div>
         </div>
 
         <div class="grid-container player-grid" id="player-grid"></div>
 
-        <div class="fleet-manifest" id="player-manifest"></div>
+        <!-- 隱藏式/折疊式艦隊狀態明細 -->
+        <details class="fleet-details">
+          <summary class="fleet-details-toggle">
+            <span id="player-fleet-health">我艦存活: 5 / 5</span>
+            <span class="toggle-icon">▾ 艦損明細</span>
+          </summary>
+          <div class="fleet-manifest" id="player-manifest"></div>
+        </details>
       </div>
     </main>
-
-    <!-- Battle Log -->
-    <section class="log-panel" aria-label="作戰日誌">
-      <div class="log-header">
-        <span>📡 即時作戰通訊</span>
-      </div>
-      <div class="log-content" id="log-content"></div>
-    </section>
   </div>
 
   <!-- Game Over Modal -->

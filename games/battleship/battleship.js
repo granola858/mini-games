@@ -97,13 +97,13 @@ class SoundFX {
       const gain = this.ctx.createGain();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(300, now);
-      osc.frequency.exponentialRampToValueAtTime(900, now + 0.2);
+      osc.frequency.exponentialRampToValueAtTime(900, now + 0.18);
       gain.gain.setValueAtTime(0.12, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.25);
+      osc.stop(now + 0.2);
     } catch (_) {}
   }
 
@@ -113,7 +113,7 @@ class SoundFX {
     if (!this.ctx) return;
     try {
       const now = this.ctx.currentTime;
-      const bufferSize = this.ctx.sampleRate * 0.4;
+      const bufferSize = this.ctx.sampleRate * 0.35;
       const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
@@ -124,12 +124,12 @@ class SoundFX {
 
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(800, now);
-      filter.frequency.exponentialRampToValueAtTime(50, now + 0.4);
+      filter.frequency.setValueAtTime(900, now);
+      filter.frequency.exponentialRampToValueAtTime(50, now + 0.35);
 
       const gain = this.ctx.createGain();
       gain.gain.setValueAtTime(0.4, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
 
       noise.connect(filter);
       filter.connect(gain);
@@ -148,13 +148,13 @@ class SoundFX {
       const gain = this.ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(160, now);
-      osc.frequency.exponentialRampToValueAtTime(90, now + 0.25);
+      osc.frequency.exponentialRampToValueAtTime(90, now + 0.22);
       gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.25);
+      osc.stop(now + 0.22);
     } catch (_) {}
   }
 
@@ -168,15 +168,15 @@ class SoundFX {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sawtooth';
-        const start = now + i * 0.25;
-        osc.frequency.setValueAtTime(500, start);
-        osc.frequency.linearRampToValueAtTime(300, start + 0.2);
-        gain.gain.setValueAtTime(0.15, start);
-        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.2);
+        const start = now + i * 0.22;
+        osc.frequency.setValueAtTime(520, start);
+        osc.frequency.linearRampToValueAtTime(280, start + 0.18);
+        gain.gain.setValueAtTime(0.16, start);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.18);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(start);
-        osc.stop(start + 0.2);
+        osc.stop(start + 0.18);
       }
     } catch (_) {}
   }
@@ -186,7 +186,7 @@ class SoundFX {
     this.init();
     if (!this.ctx) return;
     try {
-      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      const notes = [523.25, 659.25, 783.99, 1046.50];
       notes.forEach((freq, idx) => {
         const now = this.ctx.currentTime + idx * 0.12;
         const osc = this.ctx.createOscillator();
@@ -210,17 +210,17 @@ class SoundFX {
     try {
       const notes = [440, 392, 349.23, 293.66];
       notes.forEach((freq, idx) => {
-        const now = this.ctx.currentTime + idx * 0.18;
+        const now = this.ctx.currentTime + idx * 0.16;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now);
         gain.gain.setValueAtTime(0.25, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.4);
+        osc.stop(now + 0.38);
       });
     } catch (_) {}
   }
@@ -234,9 +234,9 @@ class BattleAI {
   }
 
   reset() {
-    this.targetQueue = []; // 命中後優先排查隊列
-    this.currentHits = []; // 當前連續命中點
-    this.huntDirection = null; // 當前鎖定方向 ('horizontal' | 'vertical' | null)
+    this.targetQueue = [];
+    this.currentHits = [];
+    this.huntDirection = null;
     this.shotsFired = new Set();
   }
 
@@ -271,7 +271,6 @@ class BattleAI {
     } else if (this.difficulty === 'medium') {
       target = this.getHuntAndTargetMove(playerBoard);
     } else {
-      // hard mode
       target = this.getAdvancedMove(playerBoard);
     }
 
@@ -296,7 +295,6 @@ class BattleAI {
   }
 
   getHuntAndTargetMove(playerBoard) {
-    // 優先從 Target 隊列取
     while (this.targetQueue.length > 0) {
       const candidate = this.targetQueue.shift();
       const key = `${candidate.r},${candidate.c}`;
@@ -305,7 +303,6 @@ class BattleAI {
       }
     }
 
-    // 奇偶棋盤搜尋 (Hunt Mode - Parity Checkerboard)
     const parityShots = [];
     const regularShots = [];
     for (let r = 0; r < BOARD_SIZE; r++) {
@@ -597,7 +594,7 @@ class BattleshipGame {
     this.playerBoard = new GameBoard();
     this.enemyBoard = new GameBoard();
 
-    this.gameState = 'placement'; // 'placement' | 'player-turn' | 'enemy-turn' | 'game-over'
+    this.gameState = 'placement';
     this.selectedShipId = null;
     this.isHorizontal = true;
     this.lastActionCoord = null;
@@ -611,8 +608,6 @@ class BattleshipGame {
       elapsedSeconds: 0,
       timerInterval: null
     };
-
-    this.logs = [];
 
     this.cacheDOM();
     this.bindEvents();
@@ -631,18 +626,18 @@ class BattleshipGame {
       resetPlacementBtn: document.getElementById('reset-placement-btn'),
       startBattleBtn: document.getElementById('start-battle-btn'),
       diffBtns: document.querySelectorAll('.diff-btn'),
-      tabBtns: document.querySelectorAll('.tab-btn'),
       battlefield: document.getElementById('battlefield'),
       statusDot: document.getElementById('status-dot'),
       statusText: document.getElementById('status-text'),
       phaseTag: document.getElementById('phase-tag'),
       playerAccuracy: document.getElementById('player-accuracy'),
       battleTime: document.getElementById('battle-time'),
+      playerBadges: document.getElementById('player-badges'),
+      enemyBadges: document.getElementById('enemy-badges'),
       playerManifest: document.getElementById('player-manifest'),
       enemyManifest: document.getElementById('enemy-manifest'),
       playerFleetHealth: document.getElementById('player-fleet-health'),
       enemyFleetHealth: document.getElementById('enemy-fleet-health'),
-      logContent: document.getElementById('log-content'),
       gameOverModal: document.getElementById('game-over-modal'),
       modalCard: document.getElementById('modal-card'),
       modalBadge: document.getElementById('modal-badge'),
@@ -681,7 +676,6 @@ class BattleshipGame {
           enemyHits: this.stats.enemyHits,
           elapsedSeconds: this.stats.elapsedSeconds
         },
-        logs: this.logs.slice(-30),
         timestamp: Date.now()
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -695,32 +689,19 @@ class BattleshipGame {
       const state = JSON.parse(raw);
       if (!state || !state.gameState) return false;
 
-      // 還原 AI 與難度
       this.ai.fromJSON(state.ai);
       this.dom.diffBtns.forEach(b => {
         b.classList.toggle('active', b.dataset.diff === this.ai.difficulty);
       });
 
-      // 還原棋盤
       this.playerBoard.fromJSON(state.playerBoard);
       this.enemyBoard.fromJSON(state.enemyBoard);
 
-      // 還原統計與計時
       this.stats.playerShots = state.stats?.playerShots || 0;
       this.stats.playerHits = state.stats?.playerHits || 0;
       this.stats.enemyShots = state.stats?.enemyShots || 0;
       this.stats.enemyHits = state.stats?.enemyHits || 0;
       this.stats.elapsedSeconds = state.stats?.elapsedSeconds || 0;
-
-      // 還原日誌
-      this.logs = state.logs || [];
-      this.dom.logContent.innerHTML = '';
-      this.logs.forEach(item => {
-        const entry = document.createElement('div');
-        entry.className = `log-entry ${item.className || ''}`;
-        entry.textContent = item.message;
-        this.dom.logContent.appendChild(entry);
-      });
 
       this.gameState = state.gameState;
 
@@ -728,7 +709,7 @@ class BattleshipGame {
         this.dom.placementPanel.classList.remove('hidden');
         this.dom.phaseTag.textContent = '佈陣階段';
         this.dom.statusDot.className = 'status-dot';
-        this.dom.statusText.textContent = '請配置你的艦隊陣型，完成後點擊「開始戰鬥」';
+        this.dom.statusText.textContent = '請配置艦隊陣型，點擊「開始戰鬥」';
         this.renderShipDock();
         this.renderPlayerGrid();
         this.renderEnemyGrid();
@@ -740,7 +721,7 @@ class BattleshipGame {
         this.dom.placementPanel.classList.add('hidden');
         this.dom.phaseTag.textContent = '戰鬥交火';
         this.dom.statusDot.className = 'status-dot';
-        this.dom.statusText.textContent = '輪到你了！請選擇下一個攻擊座標。';
+        this.dom.statusText.textContent = '輪到你了！請點選敵方座標發射飛彈。';
         this.dom.enemyGrid.parentElement.classList.add('active-target');
         this.dom.playerGrid.parentElement.classList.remove('active-target');
 
@@ -752,11 +733,9 @@ class BattleshipGame {
         this.updateTimerDisplay();
 
         if (this.gameState === 'enemy-turn') {
-          // 若中斷在敵方回合，安全切回玩家回合
           this.gameState = 'player-turn';
         }
       } else {
-        // game-over
         return false;
       }
 
@@ -805,27 +784,23 @@ class BattleshipGame {
   }
 
   bindEvents() {
-    // 音效開關
     this.dom.soundToggle.addEventListener('click', () => {
-      const muted = this.sound.toggleMute();
+      this.sound.toggleMute();
       this.updateSoundToggleIcon();
     });
 
-    // 佈陣旋轉按鈕
     this.dom.rotateBtn.addEventListener('click', () => {
       this.isHorizontal = !this.isHorizontal;
       this.dom.rotateBtn.textContent = `🔄 旋轉方向 (${this.isHorizontal ? '水平' : '垂直'})`;
       this.sound.playSonar();
     });
 
-    // 鍵盤 R 鍵旋轉
     window.addEventListener('keydown', (e) => {
       if (this.gameState === 'placement' && (e.key === 'r' || e.key === 'R')) {
         this.dom.rotateBtn.click();
       }
     });
 
-    // 隨機佈陣
     this.dom.randomBtn.addEventListener('click', () => {
       this.playerBoard.randomizeFleet();
       this.renderPlayerGrid();
@@ -835,7 +810,6 @@ class BattleshipGame {
       this.saveGameState();
     });
 
-    // 重置佈陣
     this.dom.resetPlacementBtn.addEventListener('click', () => {
       this.playerBoard.reset();
       this.selectedShipId = null;
@@ -846,14 +820,12 @@ class BattleshipGame {
       this.saveGameState();
     });
 
-    // 開始戰鬥按鈕
     this.dom.startBattleBtn.addEventListener('click', () => {
       if (this.playerBoard.ships.length === SHIP_TYPES.length) {
         this.startCombatPhase();
       }
     });
 
-    // 難度切換
     this.dom.diffBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         this.dom.diffBtns.forEach(b => b.classList.remove('active'));
@@ -865,18 +837,6 @@ class BattleshipGame {
       });
     });
 
-    // 手機頁籤切換
-    this.dom.tabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.dom.tabBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const tab = btn.dataset.tab;
-        this.dom.battlefield.classList.remove('mobile-radar', 'mobile-fleet');
-        this.dom.battlefield.classList.add(tab === 'radar' ? 'mobile-radar' : 'mobile-fleet');
-      });
-    });
-
-    // 玩家棋盤互動（佈陣階段放置與懸停預覽）
     this.dom.playerGrid.addEventListener('mouseover', (e) => {
       if (this.gameState !== 'placement' || !this.selectedShipId) return;
       const cell = e.target.closest('.cell');
@@ -909,7 +869,7 @@ class BattleshipGame {
       }
     });
 
-    // 敵方棋盤互動（點擊發射飛彈）
+    // 點擊敵方棋盤開火（立即判定，零延遲打擊手感）
     this.dom.enemyGrid.addEventListener('click', (e) => {
       if (this.gameState !== 'player-turn') return;
       const cell = e.target.closest('.cell');
@@ -919,7 +879,6 @@ class BattleshipGame {
       this.handlePlayerAttack(r, c);
     });
 
-    // 結算彈窗再來一局按鈕
     this.dom.modalRestartBtn.addEventListener('click', () => {
       this.dom.gameOverModal.classList.remove('show');
       this.clearGameState();
@@ -939,7 +898,6 @@ class BattleshipGame {
     this.ai.reset();
     this.selectedShipId = null;
     this.clearIntervalTimer();
-    this.logs = [];
 
     this.playerBoard.randomizeFleet();
 
@@ -948,10 +906,9 @@ class BattleshipGame {
     this.dom.playerGrid.parentElement.classList.remove('active-target');
     this.dom.phaseTag.textContent = '佈陣階段';
     this.dom.statusDot.className = 'status-dot';
-    this.dom.statusText.textContent = '請配置你的艦隊陣型，完成後點擊「開始戰鬥」';
+    this.dom.statusText.textContent = '請配置艦隊陣型，點擊「開始戰鬥」';
     this.dom.playerAccuracy.textContent = '0%';
     this.dom.battleTime.textContent = '00:00';
-    this.dom.logContent.innerHTML = '';
 
     this.stats = {
       playerShots: 0,
@@ -1065,14 +1022,13 @@ class BattleshipGame {
 
     this.dom.phaseTag.textContent = '戰鬥交火';
     this.dom.statusDot.className = 'status-dot';
-    this.dom.statusText.textContent = '雷達已鎖定！點擊敵方水域座標發動砲擊。';
+    this.dom.statusText.textContent = '輪到你了！請點選敵方座標發射飛彈。';
     this.dom.enemyGrid.parentElement.classList.add('active-target');
     this.dom.playerGrid.parentElement.classList.remove('active-target');
 
     this.renderPlayerGrid();
     this.renderEnemyGrid();
     this.renderManifests();
-    this.addLog('戰鬥開始！雙方艦隊全數就位，請發動第一輪打擊。', 'player-hit');
     this.sound.playLaunch();
     this.saveGameState();
   }
@@ -1101,57 +1057,54 @@ class BattleshipGame {
     }
   }
 
+  // 玩家開火（即時響應、俐落打擊感）
   handlePlayerAttack(r, c) {
     if (this.gameState !== 'player-turn') return;
     const res = this.enemyBoard.receiveAttack(r, c);
     if (res.alreadyShot) return;
 
     this.stats.playerShots++;
-    this.sound.playLaunch();
-
     const coordName = `${ROWS[r]}${c + 1}`;
 
-    setTimeout(() => {
-      if (res.hit) {
-        this.stats.playerHits++;
-        this.sound.playHit();
-        this.triggerCellImpact(this.dom.enemyGrid, r, c);
+    // 立即判定與立即給予視覺/音效反饋
+    if (res.hit) {
+      this.stats.playerHits++;
+      this.triggerCellImpact(this.dom.enemyGrid, r, c);
 
-        if (res.isSunk) {
-          this.sound.playSunk();
-          this.addLog(`🎯 擊沉敵方【${res.ship.name}】(座標 ${coordName})！`, 'player-sunk');
-        } else {
-          // 經典規則：命中時不透露是哪一艘船
-          this.addLog(`💥 砲火命中敵方艦艇 (座標 ${coordName})！`, 'player-hit');
-        }
+      if (res.isSunk) {
+        this.sound.playSunk();
+        this.dom.statusText.textContent = `🎯 擊沉敵方【${res.ship.name}】(${coordName})！`;
       } else {
-        this.sound.playMiss();
-        this.addLog(`⚪ 砲彈落水未命中 (座標 ${coordName})。`, 'log-entry');
+        this.sound.playHit();
+        this.dom.statusText.textContent = `💥 命中敵方艦艇 (${coordName})！`;
       }
+    } else {
+      this.sound.playMiss();
+      this.dom.statusText.textContent = `⚪ 砲彈落水未命中 (${coordName})`;
+    }
 
-      this.updateAccuracy();
-      this.renderEnemyGrid();
-      this.renderManifests();
-      this.saveGameState();
+    this.updateAccuracy();
+    this.renderEnemyGrid();
+    this.renderManifests();
+    this.saveGameState();
 
-      // 檢查是否勝利
-      if (this.enemyBoard.allShipsSunk()) {
-        this.handleGameOver('victory');
-        return;
-      }
+    // 檢查是否勝利
+    if (this.enemyBoard.allShipsSunk()) {
+      this.handleGameOver('victory');
+      return;
+    }
 
-      // 輪到敵方 AI
-      this.gameState = 'enemy-turn';
-      this.dom.phaseTag.textContent = '敵方回合';
-      this.dom.statusDot.className = 'status-dot enemy-turn';
-      this.dom.statusText.textContent = '敵軍指揮官鎖定座標中…';
-      this.dom.enemyGrid.parentElement.classList.remove('active-target');
-      this.dom.playerGrid.parentElement.classList.add('active-target');
+    // 快速交接給 AI 回合（縮短等待時間至 350ms，提升節奏感）
+    this.gameState = 'enemy-turn';
+    this.dom.phaseTag.textContent = '敵方行動';
+    this.dom.statusDot.className = 'status-dot enemy-turn';
+    this.dom.enemyGrid.parentElement.classList.remove('active-target');
+    this.dom.playerGrid.parentElement.classList.add('active-target');
 
-      setTimeout(() => this.executeEnemyTurn(), 700);
-    }, 250);
+    setTimeout(() => this.executeEnemyTurn(), 350);
   }
 
+  // 電腦 AI 回合（緊湊反饋）
   executeEnemyTurn() {
     if (this.gameState !== 'enemy-turn') return;
 
@@ -1163,23 +1116,22 @@ class BattleshipGame {
     this.stats.enemyShots++;
 
     this.ai.recordShotResult(r, c, res.hit, res.isSunk, res.ship);
-
     const coordName = `${ROWS[r]}${c + 1}`;
 
     if (res.hit) {
       this.stats.enemyHits++;
-      this.sound.playHit();
       this.triggerCellImpact(this.dom.playerGrid, r, c);
 
       if (res.isSunk) {
         this.sound.playSunk();
-        this.addLog(`🚨 我方【${res.ship.name}】遭到敵軍擊沉 (座標 ${coordName})！`, 'enemy-sunk');
+        this.dom.statusText.textContent = `🚨 我方【${res.ship.name}】遭到擊沉 (${coordName})！`;
       } else {
-        this.addLog(`🔥 我方艦艇遭受敵火命中 (座標 ${coordName})！`, 'enemy-hit');
+        this.sound.playHit();
+        this.dom.statusText.textContent = `🔥 我方艦艇遭受敵火命中 (${coordName})！`;
       }
     } else {
       this.sound.playMiss();
-      this.addLog(`🛡️ 敵方砲火落水未命中 (座標 ${coordName})。`, 'log-entry');
+      this.dom.statusText.textContent = `🛡️ 敵方砲火落水未命中 (${coordName})`;
     }
 
     this.renderPlayerGrid();
@@ -1192,13 +1144,16 @@ class BattleshipGame {
       return;
     }
 
-    // 切回玩家回合
-    this.gameState = 'player-turn';
-    this.dom.phaseTag.textContent = '戰鬥交火';
-    this.dom.statusDot.className = 'status-dot';
-    this.dom.statusText.textContent = '輪到你了！請選擇下一個攻擊座標。';
-    this.dom.enemyGrid.parentElement.classList.add('active-target');
-    this.dom.playerGrid.parentElement.classList.remove('active-target');
+    // 快速切回玩家回合
+    setTimeout(() => {
+      if (this.gameState === 'enemy-turn') {
+        this.gameState = 'player-turn';
+        this.dom.phaseTag.textContent = '戰鬥交火';
+        this.dom.statusDot.className = 'status-dot';
+        this.dom.enemyGrid.parentElement.classList.add('active-target');
+        this.dom.playerGrid.parentElement.classList.remove('active-target');
+      }
+    }, 200);
   }
 
   updateAccuracy() {
@@ -1213,22 +1168,14 @@ class BattleshipGame {
       cell.classList.add('hit-impact');
       setTimeout(() => {
         cell.classList.remove('hit-impact');
-      }, 350);
+      }, 300);
     }
-  }
-
-  addLog(message, className = '') {
-    const entry = document.createElement('div');
-    entry.className = `log-entry ${className}`;
-    entry.textContent = message;
-    this.dom.logContent.appendChild(entry);
-    this.logs.push({ message, className });
   }
 
   handleGameOver(result) {
     this.gameState = 'game-over';
     this.clearIntervalTimer();
-    this.clearGameState(); // 結束後清空進行中進度
+    this.clearGameState();
     this.dom.statusDot.className = 'status-dot game-over';
 
     const mins = String(Math.floor(this.stats.elapsedSeconds / 60)).padStart(2, '0');
@@ -1258,7 +1205,7 @@ class BattleshipGame {
 
     setTimeout(() => {
       this.dom.gameOverModal.classList.add('show');
-    }, 800);
+    }, 600);
   }
 
   renderPlayerGrid() {
@@ -1312,14 +1259,34 @@ class BattleshipGame {
   }
 
   renderManifests() {
+    this.renderBadges(this.dom.playerBadges, this.playerBoard);
+    this.renderBadges(this.dom.enemyBadges, this.enemyBoard);
+
     this.renderSingleManifest(this.dom.playerManifest, this.playerBoard, false);
     this.renderSingleManifest(this.dom.enemyManifest, this.enemyBoard, true);
 
-    this.dom.playerFleetHealth.textContent = `存活: ${this.playerBoard.getAliveShipsCount()} / 5`;
-    this.dom.enemyFleetHealth.textContent = `存活: ${this.enemyBoard.getAliveShipsCount()} / 5`;
+    this.dom.playerFleetHealth.textContent = `我艦存活: ${this.playerBoard.getAliveShipsCount()} / 5`;
+    this.dom.enemyFleetHealth.textContent = `敵艦存活: ${this.enemyBoard.getAliveShipsCount()} / 5`;
   }
 
+  // 渲染頂部簡潔艦隊徽章
+  renderBadges(container, board) {
+    if (!container) return;
+    container.innerHTML = '';
+    SHIP_TYPES.forEach(shipDef => {
+      const ship = board.ships.find(s => s.id === shipDef.id);
+      const isSunk = ship ? ship.isSunk : false;
+      const badge = document.createElement('span');
+      badge.className = `fleet-badge ${isSunk ? 'sunk' : ''}`;
+      badge.textContent = shipDef.icon;
+      badge.title = `${shipDef.name} (${shipDef.size}格) - ${isSunk ? '已擊沉' : '存活'}`;
+      container.appendChild(badge);
+    });
+  }
+
+  // 渲染折疊式明細
   renderSingleManifest(container, board, isEnemy) {
+    if (!container) return;
     container.innerHTML = '';
     SHIP_TYPES.forEach(shipDef => {
       const ship = board.ships.find(s => s.id === shipDef.id);
@@ -1338,10 +1305,8 @@ class BattleshipGame {
       for (let i = 0; i < shipDef.size; i++) {
         const peg = document.createElement('span');
         if (isEnemy) {
-          // 經典海戰棋規則：敵方未擊沉時隱藏每格受損情況，只在擊沉後全部亮起紅燈
           peg.className = `peg ${isSunk ? 'sunk-peg' : 'fog-peg'}`;
         } else {
-          // 我方艦隊正常顯示受損血量
           peg.className = `peg ${i < hitCount ? 'hit' : ''}`;
         }
         pegs.appendChild(peg);
