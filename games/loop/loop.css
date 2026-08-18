@@ -1,0 +1,593 @@
+/* ==========================================================================
+   1. DESIGN TOKENS (波波小遊戲標準設計規範)
+   ========================================================================== */
+:root {
+  /* 色彩系統 - 淺色模式 (Light) */
+  --bg-main: #FFFFFF;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F1F5F9;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --border-color: #E2E8F0;
+  
+  --accent-primary: #6366F1;
+  --accent-hover: #4F46E5;
+  --accent-light: #EEF2FF;
+  --accent-glow: rgba(99, 102, 241, 0.4);
+  
+  --color-success: #10B981;
+  --color-success-bg: #ECFDF5;
+  --color-success-glow: rgba(16, 185, 129, 0.45);
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+
+  /* 水管與流體顏色 */
+  --pipe-unpowered: #CBD5E1;
+  --pipe-unpowered-hover: #94A3B8;
+  --cell-bg: #FFFFFF;
+  --cell-bg-hover: #F8FAFC;
+
+  /* 圓角規範 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
+
+  /* 陰影規範 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 20px -3px rgba(0, 0, 0, 0.1);
+  
+  /* 動畫速度 */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-rotate: 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-theme="dark"] {
+  /* 色彩系統 - 深色模式 (Dark) */
+  --bg-main: #0F172A;
+  --bg-surface: #1E293B;
+  --bg-elevated: #334155;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --border-color: #334155;
+  
+  --accent-primary: #818CF8;
+  --accent-hover: #6366F1;
+  --accent-light: rgba(99, 102, 241, 0.15);
+  --accent-glow: rgba(129, 140, 248, 0.5);
+  
+  --color-success: #34D399;
+  --color-success-bg: rgba(52, 211, 153, 0.15);
+  --color-success-glow: rgba(52, 211, 153, 0.6);
+
+  --pipe-unpowered: #475569;
+  --pipe-unpowered-hover: #64748B;
+  --cell-bg: #1E293B;
+  --cell-bg-hover: #334155;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+}
+
+/* ==========================================================================
+   2. 全域排版
+   ========================================================================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: max(24px, env(safe-area-inset-top) + 12px) 16px 36px 16px;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* 遊戲主容器 (移除外框卡片，流線簡潔佈局) */
+.container {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+/* ==========================================================================
+   3. 頁首與頂部列 (Header & Nav)
+   ========================================================================== */
+.top-bar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 回首頁按鈕：與全站標準風格一致 */
+.back-btn {
+  text-decoration: none;
+  color: #888;
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  background-color: #f8f9fa;
+  border: 1px solid transparent;
+}
+
+[data-theme="dark"] .back-btn {
+  background-color: #1E293B;
+  color: #94A3B8;
+  border-color: var(--border-color);
+}
+
+.back-btn:hover {
+  color: var(--accent-primary);
+  background-color: var(--accent-light);
+  transform: translateX(-3px);
+}
+
+/* 主標題：與 1A2B、骰寶等遊戲字體大小與位置一致 */
+.main-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--text-primary);
+  margin: 0 0 2px 0;
+  letter-spacing: -0.5px;
+}
+
+.top-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-toggle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 15px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.theme-toggle-btn:hover {
+  background-color: var(--bg-elevated);
+  border-color: var(--accent-primary);
+}
+
+/* Segmented Tab (規格：5×5, 6×6, 7×7) */
+.tab-container {
+  display: flex;
+  background-color: var(--bg-elevated);
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  gap: 4px;
+  width: 100%;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.tab-btn.active {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ==========================================================================
+   4. SCOREBOARD (狀態與計分板)
+   ========================================================================== */
+.scoreboard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+.score-box {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: var(--shadow-sm);
+}
+
+.score-box .label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.score-box .value {
+  font-family: 'Space Mono', monospace, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   5. 網格棋盤核心區域 (Game Grid Canvas)
+   ========================================================================== */
+.board-container {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: var(--shadow-md);
+  width: 100%;
+}
+
+.grid-board {
+  display: grid;
+  width: 100%;
+  max-width: 380px;
+  aspect-ratio: 1;
+  gap: 5px;
+}
+
+/* 單元格樣式 */
+.cell-tile {
+  background-color: var(--cell-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform 0.08s ease;
+}
+
+.cell-tile:hover {
+  background-color: var(--cell-bg-hover);
+  border-color: var(--accent-primary);
+}
+
+.cell-tile:active {
+  transform: scale(0.94);
+}
+
+/* 旋轉動畫容器 */
+.pipe-svg-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-rotate);
+  transform-origin: center center;
+}
+
+.pipe-svg {
+  width: 88%;
+  height: 88%;
+  display: block;
+}
+
+/* 水管底層線條樣式 */
+.pipe-line {
+  stroke: var(--pipe-unpowered);
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  transition: stroke var(--transition-normal), filter var(--transition-normal);
+}
+
+.pipe-core {
+  fill: var(--pipe-unpowered);
+  transition: fill var(--transition-normal), filter var(--transition-normal);
+}
+
+/* 水流動態層樣式 */
+.pipe-liquid {
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.pipe-liquid-core {
+  fill: transparent;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* ==========================================================================
+   通電/通水連通狀態：純色水流流動波
+   ========================================================================== */
+.cell-tile.is-powered .pipe-line {
+  stroke: var(--accent-primary);
+  animation: fluidColorWave 2.5s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+
+.cell-tile.is-powered .pipe-core {
+  fill: var(--accent-primary);
+  animation: fluidCoreWave 2.5s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 5px var(--accent-glow));
+}
+
+.cell-tile.is-powered .pipe-liquid {
+  opacity: 0.9;
+  stroke: #7DD3FC;
+  animation: fluidInnerGlow 2.5s ease-in-out infinite alternate;
+}
+
+.cell-tile.is-powered .pipe-liquid-core {
+  opacity: 1;
+  fill: #BAE6FD;
+  animation: coreGlowPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes fluidColorWave {
+  0% {
+    stroke: #6366F1;
+    filter: drop-shadow(0 0 3px rgba(99, 102, 241, 0.45));
+  }
+  50% {
+    stroke: #0EA5E9;
+    filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.65));
+  }
+  100% {
+    stroke: #06B6D4;
+    filter: drop-shadow(0 0 5px rgba(6, 182, 212, 0.55));
+  }
+}
+
+@keyframes fluidCoreWave {
+  0% { fill: #6366F1; }
+  50% { fill: #0EA5E9; }
+  100% { fill: #06B6D4; }
+}
+
+@keyframes fluidInnerGlow {
+  0% {
+    stroke: #E0E7FF;
+    opacity: 0.65;
+  }
+  50% {
+    stroke: #BAE6FD;
+    opacity: 0.95;
+  }
+  100% {
+    stroke: #7DD3FC;
+    opacity: 0.8;
+  }
+}
+
+@keyframes coreGlowPulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.35); opacity: 1; }
+}
+
+/* 電源/水源核心起始點特別標記 */
+.cell-tile.is-source::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #FFFFFF;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: 0 0 8px var(--accent-primary);
+  animation: pulseSource 1.4s infinite ease-in-out;
+}
+
+@keyframes pulseSource {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 12px var(--accent-primary); }
+}
+
+/* 提示高亮 */
+.cell-tile.is-hinted {
+  border-color: var(--color-warning) !important;
+  animation: hintShake 0.4s ease-in-out 2;
+}
+
+@keyframes hintShake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
+/* 全盤通關勝利樣式 (翡翠綠色彩流動) */
+.grid-board.is-won .cell-tile .pipe-line {
+  stroke: var(--color-success) !important;
+  animation: winFluidWave 1.8s ease-in-out infinite alternate !important;
+  filter: drop-shadow(0 0 6px var(--color-success-glow)) !important;
+}
+
+.grid-board.is-won .cell-tile .pipe-core {
+  fill: var(--color-success) !important;
+  animation: winCoreWave 1.8s ease-in-out infinite alternate !important;
+  filter: drop-shadow(0 0 8px var(--color-success-glow)) !important;
+}
+
+.grid-board.is-won .cell-tile .pipe-liquid {
+  stroke: #A7F3D0 !important;
+  opacity: 0.95 !important;
+}
+
+.grid-board.is-won .cell-tile .pipe-liquid-core {
+  fill: #FFFFFF !important;
+  opacity: 1 !important;
+}
+
+@keyframes winFluidWave {
+  0% { stroke: #10B981; }
+  50% { stroke: #34D399; }
+  100% { stroke: #059669; }
+}
+
+@keyframes winCoreWave {
+  0% { fill: #10B981; }
+  50% { fill: #34D399; }
+  100% { fill: #059669; }
+}
+
+/* ==========================================================================
+   6. 控制按鈕列
+   ========================================================================== */
+.action-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.btn-action {
+  flex: 1;
+  padding: 12px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.btn-action:hover {
+  background-color: var(--bg-elevated);
+  border-color: var(--accent-primary);
+}
+
+.btn-action:active {
+  transform: scale(0.96);
+}
+
+.btn-action.primary {
+  background-color: var(--accent-primary);
+  color: #FFFFFF;
+  border: none;
+  box-shadow: var(--shadow-md);
+}
+
+.btn-action.primary:hover {
+  background-color: var(--accent-hover);
+}
+
+/* ==========================================================================
+   7. 彈窗與全螢幕 Confetti 特效
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  transform: scale(0.92);
+  transition: transform var(--transition-normal);
+}
+
+.modal-overlay.active .modal-card {
+  transform: scale(1);
+}
+
+.modal-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.modal-body {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+#confetti-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 90;
+}
