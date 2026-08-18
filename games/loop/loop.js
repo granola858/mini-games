@@ -166,6 +166,7 @@ class LoopNetGame {
     };
 
     this.gridSize = 5; // 預設 5x5
+    this.gameStates = {}; // 各難度尺寸的獨立進度快取 (5, 6, 7)
     this.grid = [];     // 儲存每個格子的狀態
     this.sourcePos = { r: 0, c: 0 };
     this.moves = 0;
@@ -269,24 +270,19 @@ class LoopNetGame {
     this.dom.tabs.forEach(tab => {
       tab.addEventListener('click', () => {
         const size = parseInt(tab.dataset.size, 10);
-        if (this.gridSize === size) return;
-        this.dom.tabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        this.gridSize = size;
-        this.clearGameState();
-        this.startNewGame();
+        this.switchGridSize(size);
       });
     });
 
     this.dom.btnRestart.addEventListener('click', () => this.restartCurrentBoard());
     this.dom.btnHint.addEventListener('click', () => this.applyHint());
     this.dom.btnNewGame.addEventListener('click', () => {
-      this.clearGameState();
+      this.clearGameState(this.gridSize);
       this.startNewGame();
     });
     this.dom.modalCloseBtn.addEventListener('click', () => {
       this.dom.modalOverlay.classList.remove('active');
-      this.clearGameState();
+      this.clearGameState(this.gridSize);
       this.startNewGame();
     });
 
@@ -296,10 +292,37 @@ class LoopNetGame {
       }
     });
 
-    // 頁面卸載時保存進度
-    window.addEventListener('beforeunload', () => {
-      if (!this.isWon) this.saveGameState();
+    // 頁面卸載/切換時保存進度
+    const persistProgress = () => {
+      if (!this.isWon) this.saveGameState(this.gridSize);
+    };
+    window.addEventListener('beforeunload', persistProgress);
+    window.addEventListener('pagehide', persistProgress);
+  }
+
+  switchGridSize(size) {
+    if (this.gridSize === size) return;
+
+    // 1. 若當前盤面尚未通關，先保存當前尺寸的進度
+    if (!this.isWon) {
+      this.saveGameState(this.gridSize);
+    }
+    this.stopTimer();
+
+    // 2. 切換尺寸與 Tab UI
+    this.gridSize = size;
+    this.dom.tabs.forEach(tab => {
+      tab.classList.toggle('active', parseInt(tab.dataset.size, 10) === size);
     });
+
+    // 3. 嘗試載入目標尺寸既有的未完成進度
+    const restored = this.loadGameStateForSize(size);
+    if (!restored) {
+      this.startNewGame();
+    } else {
+      // 確保 storage 中儲存最新 active currentSize
+      this.saveGameState(size);
+    }
   }
 
   countBits(mask) {
@@ -467,20 +490,26 @@ class LoopNetGame {
   }
 
   /* ------------------------------------------------------------------------
-     進度與統計持久化 (localStorage)
+     進度與統計持久化 (localStorage - 支援各棋盤規格獨立存檔)
      ------------------------------------------------------------------------ */
-  saveGameState() {
-    if (this.isWon) return;
+  saveGameState(size = this.gridSize) {
+    if (this.isWon && size === this.gridSize) return;
     try {
-      const state = {
-        gridSize: this.gridSize,
-        grid: this.grid,
-        sourcePos: this.sourcePos,
-        moves: this.moves,
-        timerSeconds: this.timerSeconds,
-        timestamp: Date.now()
+      if (size === this.gridSize && this.grid && this.grid.length === size) {
+        this.gameStates[size] = {
+          gridSize: this.gridSize,
+          grid: this.grid,
+          sourcePos: this.sourcePos,
+          moves: this.moves,
+          timerSeconds: this.timerSeconds,
+          timestamp: Date.now()
+        };
+      }
+      const payload = {
+        currentSize: this.gridSize,
+        states: this.gameStates
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (_) {}
   }
 
@@ -488,41 +517,80 @@ class LoopNetGame {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return false;
-      const state = JSON.parse(raw);
-      if (!state || !state.grid || !Array.isArray(state.grid) || !state.gridSize) return false;
+      let data = JSON.parse(raw);
+      if (!data) return false;
 
-      this.gridSize = state.gridSize;
-      this.grid = state.grid;
-      this.sourcePos = state.sourcePos || { r: Math.floor(this.gridSize / 2), c: Math.floor(this.gridSize / 2) };
-      this.moves = state.moves || 0;
-      this.timerSeconds = state.timerSeconds || 0;
-      this.isWon = false;
-      this.lastPoweredCount = 0;
-      this.lastPoweredBulbCount = 0;
+      // 向下相容舊版單一盤面存檔格式
+      if (!data.states && data.gridSize && Array.isArray(data.grid)) {
+        const oldSize = data.gridSize;
+        data = {
+          currentSize: oldSize,
+          states: {
+            [oldSize]: data
+          }
+        };
+      }
+
+      this.gameStates = data.states || {};
+      const targetSize = data.currentSize && [5, 6, 7].includes(Number(data.currentSize)) ? Number(data.currentSize) : 5;
+      this.gridSize = targetSize;
 
       // 更新 Tab UI
       this.dom.tabs.forEach(tab => {
         tab.classList.toggle('active', parseInt(tab.dataset.size, 10) === this.gridSize);
       });
 
-      this.dom.movesText.textContent = this.moves.toString();
-      const mins = Math.floor(this.timerSeconds / 60).toString().padStart(2, '0');
-      const secs = (this.timerSeconds % 60).toString().padStart(2, '0');
-      this.dom.timerText.textContent = `${mins}:${secs}`;
-
-      this.renderBoard();
-      this.updatePowerFlow(false);
-      this.startTimer();
-      return true;
+      return this.loadGameStateForSize(targetSize);
     } catch (e) {
       console.warn('載入 Loop 進度失敗:', e);
       return false;
     }
   }
 
-  clearGameState() {
+  loadGameStateForSize(size) {
+    const state = this.gameStates && this.gameStates[size];
+    if (!state || !state.grid || !Array.isArray(state.grid) || state.grid.length !== size) {
+      return false;
+    }
+
+    this.gridSize = size;
+    this.grid = state.grid;
+    this.sourcePos = state.sourcePos || { r: Math.floor(size / 2), c: Math.floor(size / 2) };
+    this.moves = state.moves || 0;
+    this.timerSeconds = state.timerSeconds || 0;
+    this.isWon = false;
+    this.lastPoweredCount = 0;
+    this.lastPoweredBulbCount = 0;
+
+    // 更新 Tab UI
+    this.dom.tabs.forEach(tab => {
+      tab.classList.toggle('active', parseInt(tab.dataset.size, 10) === this.gridSize);
+    });
+
+    this.dom.movesText.textContent = this.moves.toString();
+    const mins = Math.floor(this.timerSeconds / 60).toString().padStart(2, '0');
+    const secs = (this.timerSeconds % 60).toString().padStart(2, '0');
+    this.dom.timerText.textContent = `${mins}:${secs}`;
+    this.dom.gridBoard.classList.remove('is-won');
+
+    this.renderBoard();
+    this.updatePowerFlow(false);
+    this.startTimer();
+    return true;
+  }
+
+  clearGameState(size = this.gridSize) {
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      if (size) {
+        delete this.gameStates[size];
+      } else {
+        this.gameStates = {};
+      }
+      const payload = {
+        currentSize: this.gridSize,
+        states: this.gameStates
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (_) {}
   }
 
@@ -852,7 +920,7 @@ class LoopNetGame {
   handleWin() {
     this.isWon = true;
     this.stopTimer();
-    this.clearGameState();
+    this.clearGameState(this.gridSize);
     this.saveStats(this.gridSize, this.timerSeconds, this.moves);
     this.dom.gridBoard.classList.add('is-won');
 

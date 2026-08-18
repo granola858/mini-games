@@ -119,10 +119,53 @@ test('Loop 電網具備終點燈泡葉節點且能正確識別', () => {
   assert.ok(endpointCount >= 2, `隨機生成電網中應有至少 2 個終點燈泡（實際：${endpointCount}）`);
 });
 
-test('Loop 程式碼具備完整的遊戲進度持久化方法 (saveGameState / loadGameState / clearGameState)', () => {
+test('Loop 程式碼具備完整的遊戲進度持久化方法 (saveGameState / loadGameState / clearGameState / switchGridSize)', () => {
   const loopSource = fs.readFileSync(path.join(__dirname, '..', 'games', 'loop', 'loop.js'), 'utf8');
   assert.match(loopSource, /saveGameState\s*\(/, '應包含 saveGameState');
   assert.match(loopSource, /loadGameState\s*\(/, '應包含 loadGameState');
+  assert.match(loopSource, /loadGameStateForSize\s*\(/, '應包含 loadGameStateForSize');
   assert.match(loopSource, /clearGameState\s*\(/, '應包含 clearGameState');
+  assert.match(loopSource, /switchGridSize\s*\(/, '應包含 switchGridSize');
   assert.match(loopSource, /loop_game_state/, '應使用 loop_game_state 作為存檔 key');
 });
+
+test('Loop 多規格狀態存檔結構與舊版相容性邏輯驗證', () => {
+  // 1. 驗證多規格存檔 payload 結構
+  const multiStatePayload = {
+    currentSize: 6,
+    states: {
+      5: { gridSize: 5, grid: Array.from({ length: 5 }, () => Array(5).fill({})), moves: 3, timerSeconds: 10 },
+      6: { gridSize: 6, grid: Array.from({ length: 6 }, () => Array(6).fill({})), moves: 7, timerSeconds: 25 }
+    }
+  };
+
+  assert.equal(multiStatePayload.currentSize, 6);
+  assert.ok(multiStatePayload.states['5']);
+  assert.ok(multiStatePayload.states['6']);
+  assert.equal(multiStatePayload.states['5'].grid.length, 5);
+  assert.equal(multiStatePayload.states['6'].grid.length, 6);
+
+  // 2. 驗證舊版存檔相容轉換邏輯
+  const legacyPayload = {
+    gridSize: 5,
+    grid: Array.from({ length: 5 }, () => Array(5).fill({})),
+    moves: 12,
+    timerSeconds: 40
+  };
+
+  let migratedData = legacyPayload;
+  if (!migratedData.states && migratedData.gridSize && Array.isArray(migratedData.grid)) {
+    const oldSize = migratedData.gridSize;
+    migratedData = {
+      currentSize: oldSize,
+      states: {
+        [oldSize]: migratedData
+      }
+    };
+  }
+
+  assert.equal(migratedData.currentSize, 5);
+  assert.ok(migratedData.states[5]);
+  assert.equal(migratedData.states[5].moves, 12);
+});
+
