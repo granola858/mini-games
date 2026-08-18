@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>1A2B 猜數字遊戲</title>
+    <link rel="stylesheet" href="1a2b.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <a href="../../index.html" class="back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            回首頁
+        </a>
+
+        <h1>1A2B 猜數字</h1>
+        <div class="stats">
+            目前嘗試次數: <span id="guessCount">0</span>
+        </div>
+
+        <div id="currentResult" class="current-result-display"></div>
+
+        <div class="message" id="msgBox"></div>
+
+        <div class="inputs-wrapper" id="inputContainer">
+            <input type="text" class="digit-input" maxlength="1" inputmode="numeric">
+            <input type="text" class="digit-input" maxlength="1" inputmode="numeric">
+            <input type="text" class="digit-input" maxlength="1" inputmode="numeric">
+            <input type="text" class="digit-input" maxlength="1" inputmode="numeric">
+        </div>
+
+        <button id="submitBtn">確認猜測</button>
+        <button id="restartBtn">再來一局</button>
+
+        <div class="history-container">
+            <div class="history-header">
+                <span>猜測號碼</span>
+                <span>結果</span>
+            </div>
+            <div class="history-list" id="historyList"></div>
+        </div>
+    </div>
+
+    <script src="../../assets/js/stats.js"></script>
+    <script src="1a2b.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('1a2b');
+    </script>
+</body>
+
+</html>

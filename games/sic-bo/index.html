@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="../../assets/favicons/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>骰寶</title>
+    <link rel="stylesheet" href="sic-bo.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <a href="../../index.html" class="back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            回首頁
+        </a>
+
+        <h1>骰寶</h1>
+
+        <div class="section">
+            <div class="dice-container" id="diceContainer">
+                <div class="dice">⚀</div>
+                <div class="dice">⚀</div>
+                <div class="dice">⚀</div>
+            </div>
+
+            <div id="resultMsg" class="result-msg">請選擇籌碼並下注</div>
+
+            <div class="total-bet-display">已押注：<span id="totalBet">0</span></div>
+
+            <button class="btn-roll" id="rollBtn" onclick="rollDice()">PLAY</button>
+        </div>
+
+        <div class="section">
+
+            <div class="balance-display">餘額：<span id="balance">1000</span></div>
+
+            <div class="bet-controls">
+                <div class="chip-container" id="chipContainer">
+                    <div class="chip selected" onclick="selectChip(10, this)">10</div>
+                    <div class="chip" onclick="selectChip(50, this)">50</div>
+                    <div class="chip" onclick="selectChip(100, this)">100</div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn-action" onclick="rebet()">同上局下注</button>
+                    <button class="btn-action" onclick="clearBets()">清除下注</button>
+                </div>
+            </div>
+
+            <div class="bet-table">
+                <div class="bet-row row-big-small">
+                    <button class="bet-btn" onclick="placeBet('bs', 'small', 1, this)">小<span
+                            class="rate">1:1</span></button>
+                    <button class="bet-btn bet-btn-mid" onclick="placeBet('triple_any', 'any', 30, this)">任意圍骰<span
+                            class="rate">1:30</span></button>
+                    <button class="bet-btn" onclick="placeBet('bs', 'big', 1, this)">大<span
+                            class="rate">1:1</span></button>
+                </div>
+
+                <div class="bet-row" style="flex-wrap: wrap;">
+                    <button class="bet-btn" onclick="placeBet('sum', 4, 60, this)">4<span
+                            class="rate">1:60</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 5, 20, this)">5<span
+                            class="rate">1:20</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 6, 18, this)">6<span
+                            class="rate">1:18</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 7, 12, this)">7<span
+                            class="rate">1:12</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 8, 8, this)">8<span
+                            class="rate">1:8</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 9, 6, this)">9<span
+                            class="rate">1:6</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 10, 6, this)">10<span
+                            class="rate">1:6</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 11, 6, this)">11<span
+                            class="rate">1:6</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 12, 6, this)">12<span
+                            class="rate">1:6</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 13, 8, this)">13<span
+                            class="rate">1:8</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 14, 12, this)">14<span
+                            class="rate">1:12</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 15, 18, this)">15<span
+                            class="rate">1:18</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 16, 20, this)">16<span
+                            class="rate">1:20</span></button>
+                    <button class="bet-btn" onclick="placeBet('sum', 17, 60, this)">17<span
+                            class="rate">1:60</span></button>
+                </div>
+
+                <div class="bet-row">
+                    <button class="bet-btn" onclick="placeBet('double', 1, 11, this)"><span
+                            class="dice-icon">⚀⚀</span><span class="rate">1:11</span></button>
+                    <button class="bet-btn" onclick="placeBet('double', 2, 11, this)"><span
+                            class="dice-icon">⚁⚁</span><span class="rate">1:11</span></button>
+                    <button class="bet-btn" onclick="placeBet('double', 3, 11, this)"><span
+                            class="dice-icon">⚂⚂</span><span class="rate">1:11</span></button>
+                    <button class="bet-btn" onclick="placeBet('double', 4, 11, this)"><span
+                            class="dice-icon">⚃⚃</span><span class="rate">1:11</span></button>
+                    <button class="bet-btn" onclick="placeBet('double', 5, 11, this)"><span
+                            class="dice-icon">⚄⚄</span><span class="rate">1:11</span></button>
+                    <button class="bet-btn" onclick="placeBet('double', 6, 11, this)"><span
+                            class="dice-icon">⚅⚅</span><span class="rate">1:11</span></button>
+                </div>
+
+                <div class="bet-row">
+                    <button class="bet-btn" onclick="placeBet('single', 1, 1, this)"><span
+                            class="dice-icon">⚀</span><span class="rate">1:1</span></button>
+                    <button class="bet-btn" onclick="placeBet('single', 2, 1, this)"><span
+                            class="dice-icon">⚁</span><span class="rate">1:1</span></button>
+                    <button class="bet-btn" onclick="placeBet('single', 3, 1, this)"><span
+                            class="dice-icon">⚂</span><span class="rate">1:1</span></button>
+                    <button class="bet-btn" onclick="placeBet('single', 4, 1, this)"><span
+                            class="dice-icon">⚃</span><span class="rate">1:1</span></button>
+                    <button class="bet-btn" onclick="placeBet('single', 5, 1, this)"><span
+                            class="dice-icon">⚄</span><span class="rate">1:1</span></button>
+                    <button class="bet-btn" onclick="placeBet('single', 6, 1, this)"><span
+                            class="dice-icon">⚅</span><span class="rate">1:1</span></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">歷史紀錄</div>
+            <div class="history-list" id="historyBox"></div>
+        </div>
+
+    </div>
+
+    <script src="../../assets/js/stats.js"></script>
+    <script src="sic-bo.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('sic-bo');
+    </script>
+</body>
+
+</html>

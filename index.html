@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#fff8ed">
+  <meta name="description" content="波波小遊戲中心，挑一款遊戲，讓腦袋換個頻道。">
+  <link rel="icon" type="image/svg+xml" href="assets/favicons/favicon.svg">
+  <title>波波小遊戲｜今天玩什麼？</title>
+  <script>
+    (() => { try { const p=JSON.parse(localStorage.getItem('bobo-home-preferences-v2')||'{}'); document.documentElement.dataset.theme=['dark','light'].includes(p.theme)?p.theme:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'); } catch (_) {} })();
+  </script>
+  <link rel="stylesheet" href="assets/css/home.css">
+</head>
+<body>
+  <a class="skip-link" href="#games">跳到遊戲列表</a>
+  <header class="site-header" id="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html" aria-label="波波小遊戲首頁">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M8.5 16.5 12.8 21l10.7-11" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="16" cy="16" r="12" stroke="currentColor" stroke-width="2.2" opacity=".45"/>
+          </svg>
+        </span>
+        <span class="brand-name">波波<span>小遊戲</span></span>
+      </a>
+      <div class="header-actions">
+        <button class="icon-button" id="theme-toggle" type="button" aria-label="切換深色模式">
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>
+          </svg>
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/>
+          </svg>
+        </button>
+        <button class="pill-button" id="edit-toggle" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
+          </svg>
+          <span class="edit-label">編輯首頁</span>
+        </button>
+      </div>
+    </div>
+  </header>
+  <main class="page-shell">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-dot"></span> 隨時開玩 · 不用登入</p>
+        <h1 id="hero-title"><span class="hero-line">今天，想讓腦袋</span><br><span class="hero-highlight">玩哪一局？</span></h1>
+        <p class="hero-lead">從反應力、邏輯到派對熱身，挑一款剛剛好的小遊戲。你也可以把首頁排成最順手的樣子。</p>
+        <div class="hero-stats" id="hero-stats">
+          <div class="stat-chip" title="首頁累積造訪人次">
+            <span class="stat-pulse-wrap"><span class="stat-pulse"></span></span>
+            <span>首頁造訪</span>
+            <strong id="stat-home-views">--</strong>
+          </div>
+          <div class="stat-chip" title="所有遊戲累計遊玩局數">
+            <span class="stat-chip-icon">🎮</span>
+            <span>全站遊玩</span>
+            <strong id="stat-total-plays">--</strong>
+          </div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <span class="orb orb-small one" aria-hidden="true"></span>
+        <span class="orb orb-main" aria-hidden="true">
+          <svg viewBox="0 0 100 100" fill="none">
+            <path d="M25 52c0-19 12-32 25-32s25 13 25 32v15c0 8-6 13-13 13-5 0-9-3-12-8-3 5-7 8-12 8-7 0-13-5-13-13V52Z" fill="currentColor" opacity=".92"/>
+            <circle cx="40" cy="50" r="4" fill="#ffcb68"/>
+            <circle cx="61" cy="50" r="4" fill="#ffcb68"/>
+            <path d="M42 63c5 4 11 4 16 0" stroke="#ffcb68" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <svg class="spark one" aria-hidden="true" viewBox="0 0 48 48">
+          <path d="M24 2c2 14 8 20 22 22-14 2-20 8-22 22-2-14-8-20-22-22C16 22 22 16 24 2Z" fill="currentColor"/>
+        </svg>
+        <svg class="spark two" aria-hidden="true" viewBox="0 0 48 48">
+          <path d="M24 2c2 14 8 20 22 22-14 2-20 8-22 22-2-14-8-20-22-22C16 22 22 16 24 2Z" fill="currentColor"/>
+        </svg>
+        <span class="orb orb-small two" aria-hidden="true"></span>
+        <button class="random-button" id="random-game" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>
+          </svg>
+          幫我選一款
+        </button>
+      </div>
+    </section>
+    <section class="games-section" id="games" aria-labelledby="games-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="games-title">遊戲櫃</h2>
+          <p><span id="visible-count">14</span> 款遊戲，總有一款對味。</p>
+        </div>
+      </div>
+      <div class="toolbar" aria-label="遊戲篩選工具">
+        <label class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="m20 20-4-4"/>
+          </svg>
+          <span hidden>搜尋遊戲</span>
+          <input id="game-search" type="search" placeholder="搜尋遊戲名稱或玩法…" autocomplete="off">
+        </label>
+        <div class="filters" role="group" aria-label="依類型篩選">
+          <button class="filter-button" data-filter="all" aria-pressed="true">全部</button>
+          <button class="filter-button popular-filter" data-filter="popular" aria-pressed="false">🔥 熱門排行</button>
+          <button class="filter-button" data-filter="logic" aria-pressed="false">動動腦</button>
+          <button class="filter-button" data-filter="party" aria-pressed="false">多人同樂</button>
+          <button class="filter-button" data-filter="reaction" aria-pressed="false">反應挑戰</button>
+          <button class="filter-button" data-filter="tool" aria-pressed="false">遊戲工具</button>
+        </div>
+      </div>
+      <div class="edit-notice" role="status">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 9h14M5 15h14"/>
+        </svg>
+        拖曳卡片自由排序（觸控請長按卡片或按住「拖曳」把手），也可使用卡片上的箭頭移動；調整會自動儲存。
+      </div>
+      <div class="game-grid" id="game-grid">
+        <article class="game-card" data-id="guess-song" data-category="tool party" data-search="猜歌資料庫 歌曲 電影 導演 演員 音樂" style="--accent:#7058e8;--soft:#e8e2ff">
+          <a class="card-link" href="games/guess-song/dist/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 18V5l11-2v13"/>
+                  <circle cx="6" cy="18" r="3"/>
+                  <circle cx="17" cy="16" r="3"/>
+                </svg>
+              </span>
+              <span class="card-badge">派對救星</span>
+            </span>
+            <span class="card-content">
+              <h3>猜歌資料庫</h3>
+              <p>快速檢索電影、歌曲、導演與演員，猜歌局的最強輔助。</p>
+              <span class="card-cta">開啟資料庫 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="association" data-category="party" data-search="聯想遊戲 注音 英文 創意 派對 教學" style="--accent:#ed7049;--soft:#ffe3d8">
+          <a class="card-link" href="games/puzzle/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 18h6M10 22h4"/>
+                  <path d="M8.5 14.5A7 7 0 1 1 16 14c-1.2.9-1.7 1.7-1.8 2H9.8c-.1-.4-.5-1-1.3-1.5Z"/>
+                </svg>
+              </span>
+              <span class="card-badge">多人同樂</span>
+            </span>
+            <span class="card-content">
+              <h3>聯想遊戲</h3>
+              <p>用注音與英文激發腦洞，派對破冰或教學都好玩。</p>
+              <span class="card-cta">開始聯想 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="math" data-category="logic" data-search="算術遊戲 數學 加減乘除 教育 腦力" style="--accent:#139d86;--soft:#d9f5ed">
+          <a class="card-link" href="games/math/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 6h6M7 3v6M14 5h6M14 15h6M14 19h6M4 14l6 6M10 14l-6 6"/>
+                </svg>
+              </span>
+              <span class="card-badge">腦力暖身</span>
+            </span>
+            <span class="card-content">
+              <h3>算術遊戲</h3>
+              <p>用一連串算術挑戰喚醒腦袋，輕鬆練速度與準確度。</p>
+              <span class="card-cta">開始計算 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="make24" data-category="logic" data-search="24點 24點大腦算術 數學 算術 撲克牌 益智 邏輯 計算 四則運算" style="--accent:#6366f1;--soft:#eef2ff">
+          <a class="card-link" href="games/make24/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2a5 5 0 0 0-5 5v1a5 5 0 0 0-4 4.9 5 5 0 0 0 2.5 4.3A5 5 0 0 0 10 22h4a5 5 0 0 0 4.5-4.8 5 5 0 0 0 2.5-4.3 5 5 0 0 0-4-4.9V7a5 5 0 0 0-5-5Z"/>
+                  <path d="M12 2v20M7 8h10M5 13h14M7 18h10"/>
+                </svg>
+              </span>
+              <span class="card-badge">極速運算</span>
+            </span>
+            <span class="card-content">
+              <h3>24 點大腦算術</h3>
+              <p>運用加減乘除與括號，將 4 張撲克牌湊出 24 點！</p>
+              <span class="card-cta">開始挑戰 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="loop" data-category="logic" data-search="Loop 水管接接樂 水管 接水管 迴路 益智 邏輯 旋轉 連通" style="--accent:#0284c7;--soft:#e0f2fe">
+          <a class="card-link" href="games/loop/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v8m0 0h8m-8 0H4m8 0v8" stroke-linecap="round"/>
+                  <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="card-badge">迴路解謎</span>
+            </span>
+            <span class="card-content">
+              <h3>Loop 水管接接樂</h3>
+              <p>旋轉水管拼湊完整迴路，點亮整張水網！</p>
+              <span class="card-cta">開始接管 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="1a2b" data-category="logic" data-search="1A2B 猜數字 邏輯 推理 破解" style="--accent:#ee5368;--soft:#ffe0e5">
+          <a class="card-link" href="games/1a2b/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M8 4 5 20M18 4l-3 16M3 9h18M2 15h18"/>
+                </svg>
+              </span>
+              <span class="card-badge">經典必玩</span>
+            </span>
+            <span class="card-content">
+              <h3>1A2B 猜數字</h3>
+              <p>運用線索與刪去法，一步步破解藏起來的神秘數字。</p>
+              <span class="card-cta">開始解謎 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="color-text" data-category="reaction" data-search="顏色文字 反應力 專注力 色彩 文字" style="--accent:#3587dd;--soft:#dceeff">
+          <a class="card-link" href="games/color-text/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 4h14M12 4v16M7 20h10"/>
+                  <path d="m17 9 2-2 2 2-2 2Z"/>
+                </svg>
+              </span>
+              <span class="card-badge">反應挑戰</span>
+            </span>
+            <span class="card-content">
+              <h3>顏色文字遊戲</h3>
+              <p>文字和顏色故意唱反調，看看你的專注力能撐多久。</p>
+              <span class="card-cta">接受挑戰 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="pairs" data-category="reaction logic" data-search="配對遊戲 記憶 翻牌 眼力" style="--accent:#8f54d9;--soft:#ecddff">
+          <a class="card-link" href="games/pair/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="8" height="8" rx="2"/>
+                  <rect x="13" y="13" width="8" height="8" rx="2"/>
+                  <path d="m6 7 1.5 1.5L9 6M16 17l1.5 1.5L19 16"/>
+                </svg>
+              </span>
+              <span class="card-badge">記憶訓練</span>
+            </span>
+            <span class="card-content">
+              <h3>配對遊戲</h3>
+              <p>翻牌找出相同圖案，考驗短期記憶與敏銳眼力。</p>
+              <span class="card-cta">開始配對 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="slap" data-category="reaction party" data-search="拍拍手 反應 速度 多人 派對" style="--accent:#25a765;--soft:#d8f5e5">
+          <a class="card-link" href="games/slap/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m13 2-2 8h7L8 22l2-8H3Z"/>
+                </svg>
+              </span>
+              <span class="card-badge">手速對決</span>
+            </span>
+            <span class="card-content">
+              <h3>拍拍手遊戲</h3>
+              <p>看準時機搶先出手，簡單規則也能炒熱現場氣氛。</p>
+              <span class="card-cta">準備開拍 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="lights-out" data-category="logic" data-search="熄燈遊戲 Lights Out 邏輯 燈泡 益智" style="--accent:#d49315;--soft:#fff0c9">
+          <a class="card-link" href="games/lights-out/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 18h6M10 22h4M8.5 14.5A7 7 0 1 1 16 14c-1.2.9-1.7 1.7-1.8 2H9.8c-.1-.4-.5-1-1.3-1.5Z"/>
+                </svg>
+              </span>
+              <span class="card-badge">益智解謎</span>
+            </span>
+            <span class="card-content">
+              <h3>熄燈遊戲</h3>
+              <p>每一步都會牽動周圍燈光，想辦法讓整個盤面暗下來。</p>
+              <span class="card-cta">關燈挑戰 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="nonogram" data-category="logic" data-search="數織 Nonogram 黑白 拼圖 邏輯 方格" style="--accent:#db5794;--soft:#ffe0ef">
+          <a class="card-link" href="games/nonogram/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
+                </svg>
+              </span>
+              <span class="card-badge">沉浸推理</span>
+            </span>
+            <span class="card-content">
+              <h3>Nonogram 數織</h3>
+              <p>依照數字線索填滿方格，讓藏在盤面裡的圖案現身。</p>
+              <span class="card-cta">開始數織 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="color-nonogram" data-category="logic" data-search="彩色數織 Color Nonogram 顏色 拼圖 邏輯" style="--accent:#bc4ed1;--soft:#f5dcfb">
+          <a class="card-link" href="games/color-nonogram/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
+                </svg>
+              </span>
+              <span class="card-badge">色彩解謎</span>
+            </span>
+            <span class="card-content">
+              <h3>彩色數織</h3>
+              <p>多種顏色讓線索更有層次，拼出一幅幅像素小作品。</p>
+              <span class="card-cta">開始上色 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="meowdoku" data-category="logic" data-search="Meowdoku 貓咪數獨 邏輯 推理 貓" style="--accent:#765bd8;--soft:#e7e0ff">
+          <a class="card-link" href="games/meowdoku/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m4 9 2-5 4 3h4l4-3 2 5v7a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5Z"/>
+                  <path d="M9 14h.01M15 14h.01M10 18c1.3.7 2.7.7 4 0"/>
+                </svg>
+              </span>
+              <span class="card-badge">貓派限定</span>
+            </span>
+            <span class="card-content">
+              <h3>Meowdoku 貓咪數獨</h3>
+              <p>在每行、每列與色塊放對貓咪，療癒外表下藏著硬派邏輯。</p>
+              <span class="card-cta">開始推理 →</span>
+            </span>
+          </a>
+        </article>
+        <article class="game-card" data-id="battleship" data-category="logic reaction party" data-search="海戰棋 Battleship 戰艦 砲擊 雷達 策略 對戰 智謀 經典" style="--accent:#0284c7;--soft:#dbeafe">
+          <a class="card-link" href="games/battleship/index.html">
+            <span class="card-blob"></span>
+            <span class="card-top">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 3v18M3 12h18" stroke-dasharray="2 2" />
+                  <path d="m5 16 3-3h8l3 3-2 2H7z" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </span>
+              <span class="card-badge">策略對決</span>
+            </span>
+            <span class="card-content">
+              <h3>Battleship 海戰棋</h3>
+              <p>調度艦隊陣型、鎖定敵方座標發射砲火，與電腦 AI 展開智謀對決。</p>
+              <span class="card-cta">發動砲擊 →</span>
+            </span>
+          </a>
+        </article>
+        <div class="empty-state" id="empty-state">
+          <span class="face">◌</span>
+          <strong>這裡暫時空空的</strong>
+          <span>換個關鍵字或分類看看。</span>
+        </div>
+      </div>
+      <section class="hidden-panel" id="hidden-panel" hidden>
+        <div class="hidden-panel-header">
+          <div>
+            <h3>已隱藏的遊戲</h3>
+            <p>點一下就能把卡片放回遊戲櫃。</p>
+          </div>
+          <button class="text-button" id="restore-all">全部恢復</button>
+        </div>
+        <div class="hidden-list" id="hidden-list"></div>
+      </section>
+    </section>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <footer>© 2026 波波小遊戲 · v1.11.0</footer>
+  <template id="controls-template">
+    <div class="card-controls">
+      <span class="drag-handle" title="拖曳排序">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01" stroke-linecap="round"/>
+        </svg>
+        拖曳
+      </span>
+      <span class="control-group">
+        <button class="mini-button move-prev" aria-label="向前移動" title="向前移動">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+        </button>
+        <button class="mini-button move-next" aria-label="向後移動" title="向後移動">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </button>
+        <button class="mini-button hide-card" aria-label="隱藏遊戲" title="隱藏遊戲">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3l18 18M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 4.2A10.8 10.8 0 0 1 12 4c5.5 0 9.5 5 9.5 5a16.5 16.5 0 0 1-2.1 2.5M6.6 6.6C4 8.2 2.5 11 2.5 11s4 5 9.5 5a10.8 10.8 0 0 0 3.1-.5"/>
+          </svg>
+        </button>
+      </span>
+    </div>
+  </template>
+  <script src="assets/js/stats.js"></script>
+  <script src="assets/js/home.js"></script>
+</body>
+</html>

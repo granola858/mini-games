@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LightsOut</title>
+  <link rel="stylesheet" href="lights-out.css">
+</head>
+
+<body>
+  <div class="container">
+    <a href="../../index.html" class="back-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5M12 19l-7-7 7-7"></path>
+      </svg>
+      回首頁
+    </a>
+
+    <div class="header-info">
+      <h1 class="main-title">LightsOut</h1>
+      <div class="move-counter">步數：<span id="moveCount">0</span></div>
+    </div>
+
+    <div class="toggle-container">
+      <button class="mode-btn active" data-size="4">４</button>
+      <button class="mode-btn" data-size="5">５</button>
+      <button class="mode-btn" data-size="6">６</button>
+      <button class="mode-btn" data-size="7">７</button>
+    </div>
+
+    <div class="game-board" id="board" style="--grid-size: 4;"></div>
+  </div>
+
+  <div class="popup-overlay" id="winPopup">
+    <div class="popup-content">
+      <h2>過關！</h2>
+      <p>總步數：<span id="finalMoves">0</span></p>
+      <button class="restart-btn" id="restartBtn">再玩一次</button>
+    </div>
+  </div>
+
+  <script src="../../assets/js/stats.js"></script>
+  <script src="lights-out.js"></script>
+  <script>
+    if (typeof Stats !== 'undefined') Stats.recordGamePlay('lights-out');
+  </script>
+</body>
+
+</html>

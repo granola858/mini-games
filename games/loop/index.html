@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Loop 水管接接樂 - 波波小遊戲</title>
+  <meta name="description" content="旋轉水管拼湊完整迴路！將所有管線與中心核心連通，點亮整張電網/水網。">
+  
+  <!-- 字型與圖示庫 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="loop.css">
+</head>
+<body>
+
+  <!-- 全螢幕 Confetti 畫布 -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- 遊戲主容器 (移除外框卡片，維持全頁佈局) -->
+  <div class="container">
+
+    <!-- 1. 頂部導覽列：回首頁與控制鈕 -->
+    <div class="top-bar">
+      <a href="../../index.html" class="back-btn" title="返回遊戲櫃">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        回首頁
+      </a>
+      <div class="top-controls">
+        <button class="theme-toggle-btn" id="sound-btn" type="button" aria-label="切換音效" title="切換音效">
+          <i class="fa-solid fa-volume-high"></i>
+        </button>
+        <button class="theme-toggle-btn" id="theme-btn" type="button" aria-label="切換深淺色模式" title="切換深淺色模式">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. 主標題 (英文在前中文在後) -->
+    <h1 class="main-title">Loop 水管接接樂</h1>
+
+    <!-- 3. 規格切換 (Segmented Tab - 5×5, 6×6, 7×7) -->
+    <div class="tab-container" role="tablist" aria-label="網格難度規格">
+      <button class="tab-btn active" data-size="5" type="button">5 × 5</button>
+      <button class="tab-btn" data-size="6" type="button">6 × 6</button>
+      <button class="tab-btn" data-size="7" type="button">7 × 7</button>
+    </div>
+
+    <!-- 4. 計分與資訊列 -->
+    <section class="scoreboard" aria-label="遊戲狀態與時間">
+      <div class="score-box">
+        <span class="label">時間</span>
+        <span class="value" id="timer-text">00:00</span>
+      </div>
+      <div class="score-box">
+        <span class="label">旋轉步數</span>
+        <span class="value" id="moves-text">0</span>
+      </div>
+      <div class="score-box">
+        <span class="label">連通率</span>
+        <span class="value" id="progress-text">0%</span>
+      </div>
+    </section>
+
+    <!-- 5. 遊戲核心棋盤區域 -->
+    <main class="board-container" aria-label="水管迴路棋盤">
+      <div class="grid-board" id="grid-board">
+        <!-- 由 JS 動態生成水管單元格 -->
+      </div>
+    </main>
+
+    <!-- 6. 控制工具欄 -->
+    <footer class="action-row">
+      <button class="btn-action" id="btn-restart" type="button" title="重置本局旋轉">
+        <i class="fa-solid fa-rotate-left"></i> 重置
+      </button>
+      <button class="btn-action" id="btn-hint" type="button" title="校正一個格子">
+        <i class="fa-solid fa-lightbulb" style="color: var(--color-warning);"></i> 提示
+      </button>
+      <button class="btn-action primary" id="btn-new-game" type="button" title="生成全新地圖">
+        <i class="fa-solid fa-shuffle"></i> 新局
+      </button>
+    </footer>
+
+    <!-- 7. 獲勝結算彈窗 -->
+    <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-card">
+        <h3 class="modal-title" id="modal-title">電力全開！⚡</h3>
+        <div class="modal-body" id="modal-body">
+          <!-- 內文動態替換 -->
+        </div>
+        <button class="btn-action primary" id="modal-close-btn" type="button" style="width: 100%;">再玩一局</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/stats.js"></script>
+  <script src="loop.js"></script>
+  <script>
+    if (typeof Stats !== 'undefined') Stats.recordGamePlay('loop');
+  </script>
+</body>
+</html>

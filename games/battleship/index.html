@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>經典海戰棋 Battleship - 波波小遊戲</title>
+  <meta name="description" content="經典海戰棋單機對戰！調度艦隊陣型、鎖定敵方座標、精準發射砲火，與電腦 AI 展開海上戰術對決。">
+  <link rel="stylesheet" href="battleship.css">
+</head>
+
+<body>
+  <div class="game-container">
+    <!-- Header -->
+    <header class="game-header">
+      <div class="header-left">
+        <a href="../../index.html" class="back-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>回首頁</span>
+        </a>
+        <div class="title-group">
+          <svg class="radar-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a10 10 0 0 1 10 10" />
+            <circle cx="12" cy="12" r="4" />
+            <line x1="12" y1="12" x2="19" y2="5" />
+          </svg>
+          <h1>海戰棋 <span class="title-sub">Battleship</span></h1>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <button id="sound-toggle" class="icon-btn" type="button" aria-label="切換音效" title="音效開啟中 (點擊靜音)">
+          <!-- 音效開啟圖示 -->
+          <svg class="sound-on-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+          <!-- 音效關閉圖示（帶斜線） -->
+          <svg class="sound-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="1" x2="1" y2="23"></line>
+            <path d="M17 14.5a7 7 0 0 0 .5-2.5 7 7 0 0 0-1.5-4.3"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mission & Status Bar -->
+    <section class="mission-bar" aria-label="戰況資訊">
+      <div class="status-indicator">
+        <span class="status-dot" id="status-dot"></span>
+        <span class="phase-tag" id="phase-tag">佈陣階段</span>
+        <span class="status-text" id="status-text">請配置你的艦隊陣型，完成後點擊「開始戰鬥」</span>
+      </div>
+      <div class="score-stats">
+        <div class="stat-item">
+          <span>命中率</span>
+          <strong id="player-accuracy">0%</strong>
+        </div>
+        <div class="stat-item">
+          <span>作戰時間</span>
+          <strong id="battle-time">00:00</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- Placement Toolbar -->
+    <section class="placement-panel" id="placement-panel" aria-label="艦隊佈置面板">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+          <span>艦隊船塢配置</span>
+          <small class="panel-hint">點選船隻放置於我方海域，按 R 旋轉</small>
+        </div>
+        <div class="difficulty-selector">
+          <span class="difficulty-label">難度:</span>
+          <button class="diff-btn" data-diff="easy" type="button">簡單</button>
+          <button class="diff-btn active" data-diff="medium" type="button">普通</button>
+          <button class="diff-btn" data-diff="hard" type="button">困難</button>
+        </div>
+      </div>
+
+      <div class="ship-dock" id="ship-dock"></div>
+
+      <div class="placement-actions">
+        <button id="rotate-btn" class="action-btn" type="button">🔄 旋轉方向 (水平)</button>
+        <button id="random-btn" class="action-btn" type="button">🎲 隨機佈陣</button>
+        <button id="reset-placement-btn" class="action-btn" type="button">🗑️ 全部重置</button>
+        <button id="start-battle-btn" class="action-btn primary" type="button">🚀 開始戰鬥</button>
+      </div>
+    </section>
+
+    <!-- Battlefields (上下排列，同畫面呈現) -->
+    <main class="battlefield" id="battlefield">
+      <!-- Enemy Radar Grid (上方主盤) -->
+      <div class="board-wrapper radar-board-wrapper">
+        <div class="board-header">
+          <div class="board-title radar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="22" y1="12" x2="18" y2="12" />
+              <line x1="6" y1="12" x2="2" y2="12" />
+              <line x1="12" y1="6" x2="12" y2="2" />
+              <line x1="12" y1="22" x2="12" y2="18" />
+            </svg>
+            <span>敵方海域 (雷達)</span>
+          </div>
+          <div class="fleet-badges" id="enemy-badges" title="敵方艦隊存活狀態"></div>
+        </div>
+
+        <div class="grid-container enemy-grid radar-active" id="enemy-grid"></div>
+
+        <!-- 隱藏式/折疊式艦隊狀態明細 -->
+        <details class="fleet-details">
+          <summary class="fleet-details-toggle">
+            <span id="enemy-fleet-health">敵艦存活: 5 / 5</span>
+            <span class="toggle-icon">▾ 艦隊情報</span>
+          </summary>
+          <div class="fleet-manifest" id="enemy-manifest"></div>
+        </details>
+      </div>
+
+      <!-- Player Fleet Grid (下方副盤) -->
+      <div class="board-wrapper fleet-board-wrapper">
+        <div class="board-header">
+          <div class="board-title fleet">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <span>我方海域 (艦隊)</span>
+          </div>
+          <div class="fleet-badges" id="player-badges" title="我方艦隊存活狀態"></div>
+        </div>
+
+        <div class="grid-container player-grid" id="player-grid"></div>
+
+        <!-- 隱藏式/折疊式艦隊狀態明細 -->
+        <details class="fleet-details">
+          <summary class="fleet-details-toggle">
+            <span id="player-fleet-health">我艦存活: 5 / 5</span>
+            <span class="toggle-icon">▾ 艦損明細</span>
+          </summary>
+          <div class="fleet-manifest" id="player-manifest"></div>
+        </details>
+      </div>
+    </main>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div class="modal-overlay" id="game-over-modal">
+    <div class="modal-card" id="modal-card">
+      <div class="modal-badge" id="modal-badge">🏆</div>
+      <h2 class="modal-title" id="modal-title">海上大捷！</h2>
+      <p class="modal-desc" id="modal-desc">你成功全殲敵方海軍艦隊！</p>
+
+      <div class="modal-stats">
+        <div class="modal-stat-box">
+          <span class="modal-stat-label">命中率</span>
+          <span class="modal-stat-val" id="modal-accuracy">0%</span>
+        </div>
+        <div class="modal-stat-box">
+          <span class="modal-stat-label">總消耗彈藥</span>
+          <span class="modal-stat-val" id="modal-shots">0 發</span>
+        </div>
+        <div class="modal-stat-box">
+          <span class="modal-stat-label">作戰耗時</span>
+          <span class="modal-stat-val" id="modal-time">00:00</span>
+        </div>
+      </div>
+
+      <button id="modal-restart-btn" class="action-btn primary" type="button" style="width:100%; justify-content:center; padding:12px;">
+        ⚓ 重新出航（再來一局）
+      </button>
+    </div>
+  </div>
+
+  <script src="../../assets/js/stats.js"></script>
+  <script src="battleship.js"></script>
+  <script>
+    if (typeof Stats !== 'undefined') Stats.recordGamePlay('battleship');
+  </script>
+</body>
+
+</html>

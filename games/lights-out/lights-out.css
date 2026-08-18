@@ -1,0 +1,212 @@
+/* 宣告 CSS 變數 (CSS Variables) */
+    :root {
+      --inactive-btn-text: #666;
+      /* 黃色漸層變數 (Yellow Gradient Variables) */
+      --primary-gradient-start: #FFD700;
+      /* 金黃色 */
+      --primary-gradient-end: #FFA500;
+      /* 橘黃色 */
+    }
+
+    /* 全域設定 (Global Styles) */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      /* 手機優先設計 (Mobile First) */
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 24px 16px;
+      background-color: transparent;
+      font-family: sans-serif;
+    }
+
+    /* 容器 (Container) */
+    .container {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* 回首頁樣式 (Back Button Style) */
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--inactive-btn-text);
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 1rem;
+      align-self: flex-start;
+      transition: opacity 0.2s;
+    }
+
+    .back-btn:hover {
+      opacity: 0.7;
+    }
+
+    /* 標題與資訊區 (Header & Info) */
+    .header-info {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* 標題樣式 (Title Style) */
+    .main-title {
+      margin-bottom: 20px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    /* 步數顯示 (Move Count) */
+    .move-counter {
+      font-size: 1rem;
+      color: #666;
+      font-weight: bold;
+    }
+
+    /* 模式切換容器 (Toggle Container) */
+    .toggle-container {
+      display: flex;
+      width: 100%;
+      gap: 4px;
+      background-color: #f5f5f5;
+      padding: 4px;
+      border-radius: 10px;
+    }
+
+    .mode-btn {
+      background-color: transparent;
+      flex: 1;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      padding: 10px 0;
+      cursor: pointer;
+      transition: 0.2s;
+      color: #999;
+    }
+
+    /* tag樣式 (Level Tag Style) */
+    .mode-btn.active {
+      background-color: #ffffff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      color: var(--inactive-btn-text);
+    }
+
+    /* 遊戲網格 (Grid System) */
+    .game-board {
+      display: grid;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      gap: 8px;
+      grid-template-columns: repeat(var(--grid-size), 1fr);
+      grid-template-rows: repeat(var(--grid-size), 1fr);
+    }
+
+    /* 斷點微調 (Breakpoint Adjustment) */
+    .game-board[style*="--grid-size: 6;"],
+    .game-board[style*="--grid-size: 7;"] {
+      gap: 4px;
+    }
+
+    /* 卡片 (Cards) */
+    .card {
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
+      background-color: #f0f0f0;
+      cursor: pointer;
+      transition: 0.2s;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    /* 卡片亮燈狀態 (Active State) */
+    .card.active {
+      background-color: #FFFACD;
+      box-shadow: inset 0 0 10px rgba(255, 250, 205, 0.8);
+    }
+
+    /* 過關彈出視窗 (Popup Modal) */
+    .popup-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 100;
+    }
+
+    .popup-overlay.show {
+      display: flex;
+      opacity: 1;
+    }
+
+    .popup-content {
+      background: #ffffff;
+      padding: 32px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      transform: translateY(20px);
+      transition: transform 0.2s;
+      width: 80%;
+      max-width: 300px;
+    }
+
+    .popup-overlay.show .popup-content {
+      transform: translateY(0);
+    }
+
+    .popup-content h2 {
+      color: #333;
+      margin-bottom: 12px;
+    }
+
+    .popup-content p {
+      color: #666;
+      margin-bottom: 24px;
+      font-weight: bold;
+    }
+
+    .restart-btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      background-color: #FFFACD;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: 0.2s;
+      width: 100%;
+      font-size: 1rem;
+    }
+
+    .restart-btn:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }

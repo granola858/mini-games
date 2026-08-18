@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>無限心臟病 - 反應測速</title>
+    <link rel="stylesheet" href="slap.css">
+</head>
+
+<body>
+
+    <div class="header">
+        <a href="../../index.html" class="back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            回首頁
+        </a>
+        <h1>HEART ATTACK</h1>
+    </div>
+
+    <div class="game-area">
+        <div class="call-number" id="callNum">準備開始</div>
+
+        <div class="card" id="cardDisplay" onclick="handleCardClick()">
+            <div class="start-msg">點擊開始</div>
+        </div>
+    </div>
+
+    <div class="controls-container">
+        <button class="btn-snap" id="snapBtn" onclick="playerSnap()" disabled>SNAP!</button>
+
+        <div class="history-panel" id="historyPanel">
+        </div>
+
+        <button class="btn-restart" id="restartBtn" onclick="fullReset()">重新開局</button>
+    </div>
+
+    <div class="modal-overlay" id="modal">
+        <div class="modal-content">
+            <div class="result-title" id="modalTitle">標題</div>
+            <div class="result-time" id="modalTime">0.000s</div>
+            <p class="result-msg" id="modalMsg">評語</p>
+            <button class="btn-continue" onclick="continueGame()">繼續下一局</button>
+        </div>
+    </div>
+
+    <script src="../../assets/js/stats.js"></script>
+    <script src="slap.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('slap');
+    </script>
+</body>
+
+</html>

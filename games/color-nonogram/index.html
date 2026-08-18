@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Nonogram</title>
+    <link rel="stylesheet" href="color-nonogram.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <a href="../../index.html" class="back-btn" aria-label="回首頁">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"></path>
+                </svg>
+                回首頁
+            </a>
+        </div>
+
+        <div class="title-wrap">
+            <h1 class="h1 color-title" aria-label="Color Nonogram">
+                <span>C</span>
+                <span>O</span>
+                <span>L</span>
+                <span>O</span>
+                <span>R</span>
+            </h1>
+            <div class="title-sub">NONOGRAM</div>
+        </div>
+
+        <div class="control-stack">
+            <div class="control-group">
+                <div class="control-label">盤面大小</div>
+                <div class="toggle-container" id="size-toggle">
+                    <button class="mode-btn active" type="button" data-size="8">8x8</button>
+                    <button class="mode-btn" type="button" data-size="10">10x10</button>
+                    <button class="mode-btn" type="button" data-size="12">12x12</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">顏色數量</div>
+                <div class="toggle-container" id="palette-count-toggle">
+                    <button class="mode-btn" type="button" data-count="2">2 色</button>
+                    <button class="mode-btn" type="button" data-count="3">3 色</button>
+                    <button class="mode-btn active" type="button" data-count="4">4 色</button>
+                </div>
+            </div>
+
+            <div id="palette-row" class="palette-row"></div>
+        </div>
+
+        <div class="action-msg-container">
+            <div id="top-msg" class="top-msg hidden"></div>
+            <button id="board-lock-btn" class="board-lock-btn" type="button" aria-label="盤面鎖定 (防誤觸)" title="盤面鎖定 (防誤觸)">
+                <svg class="lock-icon unlocked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                </svg>
+                <svg class="lock-icon locked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="game-board-wrapper">
+            <div id="board-container" class="board-container">
+                <div id="board" class="game-board"></div>
+            </div>
+        </div>
+
+        <div class="status-area">
+            <div id="main-actions" class="btn-group">
+                <button id="undo-btn" class="secondary-btn" type="button" aria-label="返回上一步">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <path d="M9 14L4 9l5-5"></path>
+                        <path d="M4 9h10a5 5 0 1 1 0 10h-2"></path>
+                    </svg>
+                </button>
+                <button id="new-game-btn" class="secondary-btn" type="button" aria-label="新的一局">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <path d="M21 12a9 9 0 1 1-3-6.7"></path>
+                        <path d="M21 3v6h-6"></path>
+                    </svg>
+                </button>
+                <button id="clear-board-btn" class="secondary-btn" type="button" aria-label="清空盤面">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <path d="M3 6h18"></path>
+                        <path d="M8 6V4h8v2"></path>
+                        <path d="M19 6l-1 14H6L5 6"></path>
+                        <path d="M10 11v6"></path>
+                        <path d="M14 11v6"></path>
+                    </svg>
+                </button>
+                <button id="check-btn" class="primary-btn" type="button" aria-label="確認答案">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <path d="M20 6L9 17l-5-5"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="confirm-overlay" class="confirm-overlay hidden" aria-hidden="true">
+            <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title"
+                aria-describedby="confirm-message">
+                <div id="confirm-title" class="confirm-title"></div>
+                <p id="confirm-message" class="confirm-message"></p>
+                <div class="confirm-actions">
+                    <button id="confirm-cancel-btn" class="secondary-btn" type="button">取消</button>
+                    <button id="confirm-ok-btn" class="primary-btn" type="button"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../assets/js/stats.js"></script>
+    <script src="color-nonogram.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('color-nonogram');
+    </script>
+</body>
+
+</html>

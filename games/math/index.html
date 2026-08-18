@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Math Lock - 難度選擇版</title>
+    <link rel="stylesheet" href="math.css">
+</head>
+
+<body>
+
+    <div class="message-toast" id="toast">提示訊息</div>
+
+    <div class="game-container">
+
+        <a href="../../index.html" class="back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            回首頁
+        </a>
+
+        <div class="mode-selector">
+            <button class="mode-btn" id="mode-3" onclick="setMode(3)">簡單 (3)</button>
+            <button class="mode-btn active" id="mode-random" onclick="setMode('random')">隨機 🎲</button>
+            <button class="mode-btn" id="mode-5" onclick="setMode(5)">困難 (5)</button>
+        </div>
+
+        <div class="target-section">
+            <div class="target-hint">TARGET NUMBER</div>
+            <div class="target-number" id="targetNum">?</div>
+        </div>
+
+        <div class="slots-container" id="slotsArea"></div>
+
+        <div class="controls">
+            <button class="btn num" data-val="1" onclick="handleInput(1, this)">1</button>
+            <button class="btn num" data-val="2" onclick="handleInput(2, this)">2</button>
+            <button class="btn num" data-val="3" onclick="handleInput(3, this)">3</button>
+            <button class="btn op" data-val="+" onclick="handleInput('+', this)">+</button>
+
+            <button class="btn num" data-val="4" onclick="handleInput(4, this)">4</button>
+            <button class="btn num" data-val="5" onclick="handleInput(5, this)">5</button>
+            <button class="btn num" data-val="6" onclick="handleInput(6, this)">6</button>
+            <button class="btn op" data-val="-" onclick="handleInput('-', this)">-</button>
+
+            <button class="btn num" data-val="7" onclick="handleInput(7, this)">7</button>
+            <button class="btn num" data-val="8" onclick="handleInput(8, this)">8</button>
+            <button class="btn num" data-val="9" onclick="handleInput(9, this)">9</button>
+            <button class="btn op" data-val="*" onclick="handleInput('*', this)">×</button>
+
+            <button class="btn num" data-val="10" onclick="handleInput(10, this)">10</button>
+
+            <button class="btn undo" onclick="undoLast()">↶ 復原</button>
+            <button class="btn op op-div" data-val="/" onclick="handleInput('/', this)">÷</button>
+
+            <button class="btn reset" onclick="initGame()">下一題 ➔</button>
+        </div>
+    </div>
+
+    <script src="../../assets/js/stats.js"></script>
+    <script src="math.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('math');
+    </script>
+</body>
+
+</html>

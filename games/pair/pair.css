@@ -1,0 +1,247 @@
+:root {
+            /* 粉紫色系設定 */
+            --primary-color: #AB47BC;
+            /* 按鈕文字/主要色 */
+            --active-text: #4A148C;
+            /* 選中時的文字色 */
+            --card-back: #CE93D8;
+            /* 卡背顏色 (素色) */
+            --card-front: #FFFFFF;
+            /* 卡面顏色 */
+            --success-color: #8E24AA;
+            /* 配對成功框線 */
+            --grey-text: #9E9E9E;
+            /* 灰色文字 */
+            --bg-control: #F3F3F3;
+            /* 按鈕控制區底色 */
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #FFFFFF;
+            /* 移除背景底色，改為白 */
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* 標題與控制區 */
+        header {
+            width: 100%;
+            max-width: 480px;
+            padding: 20px 15px 10px 15px;
+            /* 增加一點上方留白 */
+            text-align: center;
+            background-color: #fff;
+            /* 移除 header 陰影讓畫面更乾淨 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            /* 原本 1.2rem -> 加大 */
+            font-size: 24px;
+            margin: 0 0 15px 0;
+            letter-spacing: 1px;
+            color: var(--active-text);
+        }
+
+        /* 修改後的按鈕容器 - 模擬 iOS Segmented Control 背景 */
+        .controls {
+            display: flex;
+            justify-content: center;
+            background-color: var(--bg-control);
+            padding: 4px;
+            border-radius: 10px;
+            margin: 0 auto 15px auto;
+            max-width: 320px;
+            /* 控制按鈕區最大寬度 */
+        }
+
+        /* 您提供的按鈕樣式 */
+        .mode-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--grey-text);
+            /* 未選中時為灰色 */
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: white;
+            color: var(--active-text);
+            /* 選中時為深紫色 */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        /* 狀態列調整 */
+        .status-bar {
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            /* 置中對齊 */
+            gap: 25px;
+            color: var(--grey-text);
+            /* 文字改為灰色 */
+        }
+
+        /* 遊戲區域容器 */
+        #game-container {
+            width: 92%;
+            /* 稍微縮小寬度比例 */
+            max-width: 480px;
+            /* 最大寬度縮小，讓卡片變小 */
+            margin: 0 auto;
+            display: grid;
+            gap: 6px;
+            /* 間距縮小 2px (原8px) */
+            padding-bottom: 30px;
+            perspective: 1000px;
+        }
+
+        /* 卡片樣式 */
+        .card {
+            background-color: transparent;
+            aspect-ratio: 1 / 1;
+            cursor: pointer;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.4s;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+            /* 圓角隨卡片縮小稍微調整 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backface-visibility: hidden;
+        }
+
+        /* 卡背 (未翻開) - 移除圖案，改為素色 */
+        .front {
+            background-color: var(--card-back);
+            transform: rotateY(0deg);
+        }
+
+        /* 移除原本的 .front::after (圓圈裝飾) */
+
+        /* 卡面 (圖案面) */
+        .back {
+            background-color: var(--card-front);
+            transform: rotateY(180deg);
+            border: 1px solid #eee;
+            /* 增加極淡邊框增加層次 */
+        }
+
+        .card.matched .back {
+            border-color: var(--success-color);
+            background-color: #F8F1FA;
+        }
+
+        /* SVG 圖形樣式 - 稍微縮小讓留白更多 */
+        .shape-svg {
+            width: 55%;
+            height: 55%;
+        }
+
+        /* 勝利彈窗 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            /* 背景更白一點 */
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .modal.show {
+            display: flex;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal h2 {
+            color: var(--active-text);
+            margin-bottom: 10px;
+        }
+
+        .modal p {
+            color: var(--grey-text);
+            margin-bottom: 25px;
+        }
+
+        .restart-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(171, 71, 188, 0.3);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* 回首頁按鈕 */
+        .back-btn {
+            text-decoration: none;
+            color: #888888;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            background-color: #f8f9fa;
+            border: 1px solid #eef5ff;
+            align-self: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .back-btn:hover {
+            color: var(--primary-color);
+            background-color: #fcf4fc;
+            transform: translateX(-3px);
+        }

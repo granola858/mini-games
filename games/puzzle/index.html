@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聯想遊戲</title>
+    <link rel="stylesheet" href="puzzle.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <a href="../../index.html" class="back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7"></path>
+            </svg>
+            回首頁
+        </a>
+
+        <h1>聯想遊戲</h1>
+
+        <div class="toggle-container">
+            <button id="btn-zh" class="mode-btn active" onclick="setLang('zh')">注音</button>
+            <button id="btn-en" class="mode-btn" onclick="setLang('en')">English</button>
+        </div>
+
+        <div class="switch-container" id="doubleModeContainer">
+            <label class="switch">
+                <input type="checkbox" id="doubleModeToggle" onchange="toggleDoubleMode()">
+                <span class="slider"></span>
+            </label>
+            <span>雙注音挑戰</span>
+        </div>
+
+        <div class="game-container" id="gameContainer">
+            <div class="card-row">
+                <div class="card symbol-card">
+                    <h3 id="symbolTitle">開頭是...</h3>
+                    <div id="symbolDisplay" class="result-text">-</div>
+                </div>
+                <div class="card category-card">
+                    <h3>題目是...</h3>
+                    <div id="categoryDisplay" class="result-text result-category">-</div>
+                </div>
+            </div>
+
+            <button id="rollBtn" class="main-btn" onclick="startRoll()">按我出題</button>
+
+            <div class="hint-section" id="hintSection">
+                <button class="hint-btn" onclick="openHint()">看參考答案</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../assets/js/stats.js"></script>
+    <script src="puzzle.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('association');
+    </script>
+</body>
+
+</html>

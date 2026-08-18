@@ -1,0 +1,313 @@
+:root {
+            --primary-color: #FF9F1C;
+            --primary-gradient-start: #FF9F1C;
+            --primary-gradient-end: #FF355E;
+            --secondary-color: #2EC4B6;
+            --bg-color: #F5F7FA;
+            --text-color: #333;
+            --active-btn-bg: #FF9F1C;
+            --inactive-btn-bg: #E0E0E0;
+            --inactive-btn-text: #888;
+        }
+
+        body {
+            font-family: "jf-openhuninn", "微軟正黑體", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            position: relative;
+            /* 為了讓回首頁按鈕絕對定位 */
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 返回按鈕樣式 */
+        .back-btn {
+            text-decoration: none;
+            color: var(--inactive-btn-text);
+            font-weight: 600;
+            /* 現在這個 600 會跟其他頁面看起來一樣了 */
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            align-self: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .back-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            color: var(--primary-color);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            font-size: 2.5rem;
+
+            background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        /* --- 1. 語言切換區塊 --- */
+        .toggle-container {
+            display: flex;
+            background: #e0e0e0;
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .mode-btn {
+            border: none;
+            padding: 8px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            background: transparent;
+            color: #888;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn.active {
+            background-color: #fff;
+            color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* --- 2. 雙注音開關 (iOS Switch Style) --- */
+        .switch-container {
+            display: flex;
+            /* JS會控制這裡變成 none */
+            align-items: center;
+            margin-bottom: 25px;
+            gap: 10px;
+            font-weight: bold;
+            color: #555;
+            transition: opacity 0.3s;
+            height: 30px;
+            /* 固定高度避免跳動太劇烈 */
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked+.slider {
+            background-color: var(--secondary-color);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(22px);
+        }
+
+        /* --- 3. 卡片區域 --- */
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .card-row {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            transition: all 0.5s ease;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            padding: 25px 20px;
+            flex: 1;
+            /* 預設平分 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 180px;
+            border: 1px solid #f0f0f0;
+            transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow: hidden;
+        }
+
+        /* 雙注音模式下的樣式 */
+        .double-mode-active .card-row .card.category-card {
+            flex: 0;
+            padding: 0;
+            min-height: 0;
+            width: 0;
+            opacity: 0;
+            margin: 0;
+            border: none;
+        }
+
+        .double-mode-active .card-row .card.symbol-card {
+            flex: 100%;
+            /* 佔滿整行 */
+            border-color: var(--secondary-color);
+            background-color: #fff;
+        }
+
+        .card h3 {
+            margin: 0 0 20px 0;
+            color: #999;
+            font-size: 0.9rem;
+            font-weight: normal;
+            white-space: nowrap;
+        }
+
+        .result-text {
+            font-size: 3.5rem;
+            font-weight: bold;
+            line-height: 1.2;
+            color: var(--text-color);
+            text-align: center;
+            word-break: break-all;
+        }
+
+        .result-category {
+            font-size: 2rem;
+            color: var(--secondary-color);
+        }
+
+        button.main-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 18px 30px;
+            font-size: 1.2rem;
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(255, 159, 28, 0.3);
+            transition: transform 0.1s, box-shadow 0.1s;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: bold;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button.main-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* 動畫：搖晃效果 */
+        @keyframes shake {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            20% {
+                transform: rotate(-3deg);
+            }
+
+            40% {
+                transform: rotate(3deg);
+            }
+
+            60% {
+                transform: rotate(-3deg);
+            }
+
+            80% {
+                transform: rotate(3deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+
+        .btn-animating {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .hint-section {
+            margin-top: 20px;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .hint-section.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .hint-btn {
+            background-color: transparent;
+            border: 1px solid #ccc;
+            color: #888;
+            padding: 8px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .hint-btn:hover {
+            border-color: var(--secondary-color);
+            color: var(--secondary-color);
+        }

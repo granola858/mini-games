@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ColorTextGame</title>
+    <link rel="stylesheet" href="color-text.css">
+</head>
+
+<body>
+
+    <header>
+        <a href="../../index.html" class="back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            回首頁
+        </a>
+        <h1>ColorTextGame</h1>
+        <p class="desc">記憶文字與顏色</p>
+    </header>
+
+    <div class="controls-wrapper">
+        <div class="difficulty-bar">
+            <button class="mode-btn active" onclick="setMode('easy', 4, this)">簡單</button>
+            <button class="mode-btn" onclick="setMode('medium', 6, this)">中等</button>
+            <button class="mode-btn" onclick="setMode('hard', 9, this)">困難</button>
+        </div>
+
+        <div class="status-bar">
+            <div class="score-box">
+                連對: <span id="streak-score" class="score-val">0</span>
+            </div>
+
+            <div class="timer-toggle">
+                <span>計時 (8秒)</span>
+                <label class="switch">
+                    <input type="checkbox" id="timer-mode-check">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div id="grid" class="grid"></div>
+
+        <div id="result-overlay" class="result-overlay">
+            <div id="result-icon" class="result-title">🎉</div>
+            <div id="result-text" class="result-sub">答對了！</div>
+            <button class="btn-main" style="width: auto; padding: 12px 30px;" onclick="startGame()">再玩一次</button>
+        </div>
+    </div>
+
+    <div class="action-area">
+        <button id="start-btn" class="btn-main" onclick="startGame()">開始記憶</button>
+
+        <div id="question-box" class="question-box">
+            <div id="timer-bar-container" class="timer-bar-container">
+                <div id="timer-bar-fill" class="timer-bar-fill"></div>
+            </div>
+
+            <div class="question-text">
+                <div>剛剛有幾個...</div>
+                <div id="question-content"></div>
+            </div>
+
+            <div class="numpad-container" id="numpad-container">
+            </div>
+        </div>
+    </div>
+
+    <script src="../../assets/js/stats.js"></script>
+    <script src="color-text.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('color-text');
+    </script>
+</body>
+
+</html>

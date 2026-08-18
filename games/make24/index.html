@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>24 點大腦算術 - 波波小遊戲</title>
+  <meta name="description" content="運用加減乘除與括號，將 4 張撲克牌湊出 24 點！考驗心算速度與邏輯反應。">
+  
+  <!-- 字型與圖示 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="make24.css">
+</head>
+<body>
+
+  <!-- 全螢幕 Confetti 畫布 -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- 遊戲主容器 (移除卡片外框，與其他遊戲一致) -->
+  <div class="container">
+
+    <!-- 1. 頂部列：回首頁按鈕與深淺色切換 -->
+    <div class="top-bar">
+      <a href="../../index.html" class="back-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        回首頁
+      </a>
+      <button class="theme-toggle-btn" id="theme-btn" type="button" aria-label="切換深淺色模式" title="切換深淺色模式">
+        <i class="fa-solid fa-moon"></i>
+      </button>
+    </div>
+
+    <!-- 2. 主標題 (樣式、字體與位置與其他遊戲一致) -->
+    <h1 class="main-title">24 點大腦算術</h1>
+
+    <!-- 3. 分頁切換 (Segmented Tab) -->
+    <div class="tab-container" role="tablist" aria-label="遊戲難度模式">
+      <button class="tab-btn active" data-mode="classic" id="tab-classic" type="button">標準 (1~10)</button>
+      <button class="tab-btn" data-mode="expert" id="tab-expert" type="button">進階 (1~13)</button>
+    </div>
+
+    <!-- 4. 計分與狀態資訊列 -->
+    <section class="scoreboard" aria-label="計分與時間統計">
+      <div class="score-box">
+        <span class="label">時間</span>
+        <span class="value" id="timer-text">0s</span>
+      </div>
+      <div class="score-box">
+        <span class="label">連勝</span>
+        <span class="value" id="streak-text">0</span>
+      </div>
+      <div class="score-box">
+        <span class="label">最高紀錄</span>
+        <span class="value" id="best-text">0</span>
+      </div>
+    </section>
+
+    <!-- 5. 算式輸入與即時顯示區 -->
+    <main class="display-card" id="display-card" aria-live="polite">
+      <div class="equation-text" id="equation-container">
+        <!-- 由 JS 初始化 -->
+      </div>
+      <div class="eval-result" id="eval-result"></div>
+    </main>
+
+    <!-- 6. 撲克牌數字卡網格 (左上/右下花色，正中間大數字) -->
+    <section class="cards-grid" id="cards-grid" aria-label="撲克牌數字選擇區">
+      <!-- 由 JS 動態生成 4 張撲克卡牌 -->
+    </section>
+
+    <!-- 7. 運算符鍵盤 -->
+    <section class="keypad-grid" id="keypad-grid" aria-label="四則運算與括號鍵盤">
+      <button class="btn-key op paren" data-op="(" type="button" title="左括號">(</button>
+      <button class="btn-key op paren" data-op=")" type="button" title="右括號">)</button>
+      <button class="btn-key op" data-op="+" type="button" title="加法">+</button>
+      <button class="btn-key op" data-op="-" type="button" title="減法">-</button>
+      <button class="btn-key op" data-op="×" type="button" title="乘法">×</button>
+      <button class="btn-key op" data-op="÷" type="button" title="除法">÷</button>
+    </section>
+
+    <!-- 8. 輔助與控制按鈕 -->
+    <footer class="action-row">
+      <button class="btn-action util" id="btn-backspace" type="button" title="倒退刪除 (Backspace)">
+        <i class="fa-solid fa-backspace"></i> 倒退
+      </button>
+      <button class="btn-action util" id="btn-clear" type="button" title="清空重組 (Esc)">
+        <i class="fa-solid fa-rotate-left"></i> 清空
+      </button>
+      <button class="btn-action" id="btn-hint" type="button" title="獲取提示解法">
+        <i class="fa-solid fa-lightbulb" style="color: var(--color-warning);"></i> 提示
+      </button>
+      <button class="btn-action primary" id="btn-skip" type="button" title="更換一組卡牌">
+        <i class="fa-solid fa-forward"></i> 換牌
+      </button>
+    </footer>
+
+    <!-- 9. Modal 彈窗 (提示 / 獲勝) -->
+    <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-card">
+        <h3 class="modal-title" id="modal-title">提示</h3>
+        <div class="modal-body" id="modal-body">
+          <!-- 內文動態替換 -->
+        </div>
+        <button class="btn-action primary" id="modal-close-btn" type="button" style="width: 100%;">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/stats.js"></script>
+  <script src="make24.js"></script>
+  <script>
+    if (typeof Stats !== 'undefined') Stats.recordGamePlay('make24');
+  </script>
+</body>
+</html>
