@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Loop 水管接接樂 - 波波小遊戲</title>
-  <meta name="description" content="旋轉水管拼湊完整迴路！將所有管線與中心核心連通，點亮整張電網/水網。">
+  <title>Loop 電流接接樂 - 波波小遊戲</title>
+  <meta name="description" content="旋轉電路拼湊完整迴路！連接電池能量核心，點亮所有終端燈泡與整張電網。">
   
   <!-- 字型與圖示庫 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,7 +42,7 @@
     </div>
 
     <!-- 2. 主標題 (英文在前中文在後) -->
-    <h1 class="main-title">Loop 水管接接樂</h1>
+    <h1 class="main-title">Loop 電流接接樂</h1>
 
     <!-- 3. 規格切換 (Segmented Tab - 5×5, 6×6, 7×7) -->
     <div class="tab-container" role="tablist" aria-label="網格難度規格">
@@ -62,15 +62,15 @@
         <span class="value" id="moves-text">0</span>
       </div>
       <div class="score-box">
-        <span class="label">連通率</span>
+        <span class="label">通電進度</span>
         <span class="value" id="progress-text">0%</span>
       </div>
     </section>
 
     <!-- 5. 遊戲核心棋盤區域 -->
-    <main class="board-container" aria-label="水管迴路棋盤">
+    <main class="board-container" aria-label="電流迴路棋盤">
       <div class="grid-board" id="grid-board">
-        <!-- 由 JS 動態生成水管單元格 -->
+        <!-- 由 JS 動態生成電路單元格 -->
       </div>
     </main>
 

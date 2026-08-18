@@ -1,7 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="8" fill="#e0f2fe"/>
-  <g transform="translate(6,6) scale(0.625)" fill="none" stroke="#0284c7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M16 4v12m0 0h12m-12 0H4m12 0v12"/>
-    <circle cx="16" cy="16" r="3" fill="#0284c7"/>
-  </g>
+  <rect width="32" height="32" rx="8" fill="#1E293B"/>
+  <!-- 電路底線 -->
+  <path d="M16 4v8M28 16h-8M16 28v-8M4 16h8" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+  <!-- 發光燈泡/電池核心 -->
+  <circle cx="16" cy="16" r="6.5" fill="#FBBF24"/>
+  <path d="M16.5 12.5L14 16h3.5l-1 4.5l3.5-5h-3.5z" fill="#1E293B"/>
+  <circle cx="16" cy="16" r="8" fill="none" stroke="#FDE047" stroke-width="1.5" opacity="0.6"/>
 </svg>

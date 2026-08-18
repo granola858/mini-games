@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Loop 水管接接樂 (Loop Net) 核心遊戲邏輯
+   Loop 電流接接樂 (Loop Circuit) 核心遊戲邏輯
    ========================================================================== */
 
 class SoundManager {
@@ -24,6 +24,7 @@ class SoundManager {
     return this.enabled;
   }
 
+  /* 旋轉開關點擊音效 (Relay Switch Click) */
   playRotate() {
     if (!this.enabled) return;
     this.init();
@@ -34,43 +35,70 @@ class SoundManager {
     const gain = this.ctx.createGain();
 
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(420, now);
-    osc.frequency.exponentialRampToValueAtTime(160, now + 0.05);
+    osc.frequency.setValueAtTime(520, now);
+    osc.frequency.exponentialRampToValueAtTime(180, now + 0.04);
 
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(now);
-    osc.stop(now + 0.05);
+    osc.stop(now + 0.04);
   }
 
+  /* 電流導通音效 (Electric Zap / Flow) */
   playFlow() {
     if (!this.enabled) return;
     this.init();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
-    [523.25, 659.25, 783.99].forEach((freq, i) => {
+    [587.33, 739.99, 880.00].forEach((freq, i) => {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + i * 0.025);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now + i * 0.02);
 
-      gain.gain.setValueAtTime(0.06, now + i * 0.025);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.025 + 0.16);
+      gain.gain.setValueAtTime(0.05, now + i * 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.02 + 0.12);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
-      osc.start(now + i * 0.025);
-      osc.stop(now + i * 0.025 + 0.16);
+      osc.start(now + i * 0.02);
+      osc.stop(now + i * 0.02 + 0.12);
     });
   }
 
+  /* 燈泡點亮叮噹音效 (Bulb Light-Up Chime) */
+  playBulbLight() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    [659.25, 987.77, 1318.51].forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + i * 0.035);
+
+      gain.gain.setValueAtTime(0.12, now + i * 0.035);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.035 + 0.25);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + i * 0.035);
+      osc.stop(now + i * 0.035 + 0.25);
+    });
+  }
+
+  /* 提示音效 (Hint Chime) */
   playHint() {
     if (!this.enabled) return;
     this.init();
@@ -95,28 +123,29 @@ class SoundManager {
     });
   }
 
+  /* 勝利電力全開和弦 (Power Victory Fanfare) */
   playWin() {
     if (!this.enabled) return;
     this.init();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
-    const notes = [523.25, 659.25, 783.99, 987.77, 1046.50, 1318.51];
+    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98];
     notes.forEach((freq, i) => {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, now + i * 0.08);
+      osc.frequency.setValueAtTime(freq, now + i * 0.07);
 
-      gain.gain.setValueAtTime(0.2, now + i * 0.08);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.4);
+      gain.gain.setValueAtTime(0.2, now + i * 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.45);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
-      osc.start(now + i * 0.08);
-      osc.stop(now + i * 0.08 + 0.4);
+      osc.start(now + i * 0.07);
+      osc.stop(now + i * 0.07 + 0.45);
     });
   }
 }
@@ -137,6 +166,7 @@ class LoopNetGame {
     this.moves = 0;
     this.isWon = false;
     this.lastPoweredCount = 0;
+    this.lastPoweredBulbCount = 0;
 
     // 音效管理器
     this.sound = new SoundManager();
@@ -255,6 +285,15 @@ class LoopNetGame {
     });
   }
 
+  countBits(mask) {
+    let count = 0;
+    if (mask & this.DIR.UP) count++;
+    if (mask & this.DIR.RIGHT) count++;
+    if (mask & this.DIR.DOWN) count++;
+    if (mask & this.DIR.LEFT) count++;
+    return count;
+  }
+
   /* ------------------------------------------------------------------------
      關卡生成演算法 (Randomized Spanning Tree)
      ------------------------------------------------------------------------ */
@@ -302,7 +341,7 @@ class LoopNetGame {
       }
     }
 
-    // 3. 設定中心為水源/電源核心
+    // 3. 設定中心為電池能量核心
     this.sourcePos = { r: Math.floor(R / 2), c: Math.floor(C / 2) };
 
     // 4. 隨機旋轉洗牌 (隨機打亂 1~3 次 90 度)
@@ -317,13 +356,17 @@ class LoopNetGame {
           currentMask = this.rotateMask(currentMask);
         }
 
+        const isSource = (r === this.sourcePos.r && c === this.sourcePos.c);
+        const isEndpoint = (!isSource && this.countBits(targetMask) === 1);
+
         this.grid[r][c] = {
           targetMask,
           currentMask,
           rotationDeg: rotCount * 90,
           initialDeg: rotCount * 90,
           isPowered: false,
-          isSource: (r === this.sourcePos.r && c === this.sourcePos.c)
+          isSource,
+          isEndpoint
         };
       }
     }
@@ -348,6 +391,7 @@ class LoopNetGame {
     this.isWon = false;
     this.moves = 0;
     this.lastPoweredCount = 0;
+    this.lastPoweredBulbCount = 0;
     this.dom.movesText.textContent = '0';
     this.dom.gridBoard.classList.remove('is-won');
 
@@ -377,6 +421,7 @@ class LoopNetGame {
     }
     this.moves = 0;
     this.lastPoweredCount = 0;
+    this.lastPoweredBulbCount = 0;
     this.dom.movesText.textContent = '0';
     this.renderBoard();
     this.updatePowerFlow(false);
@@ -412,15 +457,19 @@ class LoopNetGame {
       for (let c = 0; c < C; c++) {
         const cell = this.grid[r][c];
         const tile = document.createElement('div');
-        tile.className = `cell-tile ${cell.isSource ? 'is-source' : ''}`;
+        tile.className = `cell-tile ${cell.isSource ? 'is-source' : ''} ${cell.isEndpoint ? 'is-endpoint' : ''}`;
         tile.id = `cell-${r}-${c}`;
-        tile.title = `點擊旋轉水管 (${r + 1}, ${c + 1})`;
+        
+        let tileTitle = `點擊旋轉電路 (${r + 1}, ${c + 1})`;
+        if (cell.isSource) tileTitle = `能量電池核心 (${r + 1}, ${c + 1})`;
+        else if (cell.isEndpoint) tileTitle = `電路終端燈泡 (${r + 1}, ${c + 1})`;
+        tile.title = tileTitle;
 
         const svgWrapper = document.createElement('div');
         svgWrapper.className = 'pipe-svg-wrapper';
         svgWrapper.style.transform = `rotate(${cell.rotationDeg}deg)`;
 
-        svgWrapper.innerHTML = this.generatePipeSVG(cell.targetMask);
+        svgWrapper.innerHTML = this.generatePipeSVG(cell);
         tile.appendChild(svgWrapper);
 
         tile.addEventListener('click', () => this.handleCellClick(r, c));
@@ -429,40 +478,82 @@ class LoopNetGame {
     }
   }
 
-  generatePipeSVG(mask) {
+  generatePipeSVG(cell) {
+    const mask = cell.targetMask;
     let bgLines = '';
-    let liquidLines = '';
+    let sparkLines = '';
 
     if (mask & this.DIR.UP) {
-      bgLines += `<line class="pipe-line" x1="50" y1="50" x2="50" y2="0"/>`;
-      liquidLines += `<line class="pipe-liquid" x1="50" y1="50" x2="50" y2="0"/>`;
+      bgLines += `<line class="wire-line" x1="50" y1="50" x2="50" y2="0"/>`;
+      sparkLines += `<line class="wire-spark" x1="50" y1="50" x2="50" y2="0"/>`;
     }
     if (mask & this.DIR.RIGHT) {
-      bgLines += `<line class="pipe-line" x1="50" y1="50" x2="100" y2="50"/>`;
-      liquidLines += `<line class="pipe-liquid" x1="50" y1="50" x2="100" y2="50"/>`;
+      bgLines += `<line class="wire-line" x1="50" y1="50" x2="100" y2="50"/>`;
+      sparkLines += `<line class="wire-spark" x1="50" y1="50" x2="100" y2="50"/>`;
     }
     if (mask & this.DIR.DOWN) {
-      bgLines += `<line class="pipe-line" x1="50" y1="50" x2="50" y2="100"/>`;
-      liquidLines += `<line class="pipe-liquid" x1="50" y1="50" x2="50" y2="100"/>`;
+      bgLines += `<line class="wire-line" x1="50" y1="50" x2="50" y2="100"/>`;
+      sparkLines += `<line class="wire-spark" x1="50" y1="50" x2="50" y2="100"/>`;
     }
     if (mask & this.DIR.LEFT) {
-      bgLines += `<line class="pipe-line" x1="50" y1="50" x2="0" y2="50"/>`;
-      liquidLines += `<line class="pipe-liquid" x1="50" y1="50" x2="0" y2="50"/>`;
+      bgLines += `<line class="wire-line" x1="50" y1="50" x2="0" y2="50"/>`;
+      sparkLines += `<line class="wire-spark" x1="50" y1="50" x2="0" y2="50"/>`;
     }
 
-    bgLines += `<circle class="pipe-core" cx="50" cy="50" r="9"/>`;
-    liquidLines += `<circle class="pipe-liquid-core" cx="50" cy="50" r="4.5"/>`;
+    let centerComponent = '';
+
+    if (cell.isSource) {
+      // 1. 起點：電池 (Battery Source)
+      centerComponent = `
+        <g class="battery-source">
+          <circle class="battery-glow-ring" cx="50" cy="50" r="22"/>
+          <rect class="battery-cap" x="44" y="27" width="12" height="5" rx="1.5"/>
+          <rect class="battery-body" x="35" y="31" width="30" height="38" rx="5"/>
+          <rect class="battery-charge-bg" x="38" y="34" width="24" height="32" rx="3"/>
+          <rect class="battery-charge-level" x="40" y="44" width="20" height="20" rx="2"/>
+          <path class="battery-bolt" d="M51 36 L44 48 L49 48 L47 62 L57 46 L51 46 Z"/>
+        </g>
+      `;
+    } else if (cell.isEndpoint) {
+      // 2. 終點：燈泡 (Terminal Lightbulb)
+      centerComponent = `
+        <g class="bulb-terminal">
+          <circle class="bulb-glow" cx="50" cy="50" r="22"/>
+          <g class="bulb-rays">
+            <line class="bulb-ray" x1="50" y1="23" x2="50" y2="16"/>
+            <line class="bulb-ray" x1="69" y1="31" x2="74" y2="26"/>
+            <line class="bulb-ray" x1="77" y1="50" x2="84" y2="50"/>
+            <line class="bulb-ray" x1="69" y1="69" x2="74" y2="74"/>
+            <line class="bulb-ray" x1="50" y1="77" x2="50" y2="84"/>
+            <line class="bulb-ray" x1="31" y1="69" x2="26" y2="74"/>
+            <line class="bulb-ray" x1="23" y1="50" x2="16" y2="50"/>
+            <line class="bulb-ray" x1="31" y1="31" x2="26" y2="26"/>
+          </g>
+          <circle class="bulb-socket" cx="50" cy="50" r="16"/>
+          <circle class="bulb-glass" cx="50" cy="50" r="13"/>
+          <path class="bulb-filament" d="M44 54 Q50 40 56 54"/>
+          <circle class="bulb-center-spark" cx="50" cy="48" r="2.5"/>
+        </g>
+      `;
+    } else {
+      // 3. 一般節點：金屬端子連接點 (Circuit Junction Stud)
+      centerComponent = `
+        <circle class="circuit-node" cx="50" cy="50" r="8"/>
+        <circle class="circuit-spark-node" cx="50" cy="50" r="4"/>
+      `;
+    }
 
     return `
       <svg class="pipe-svg" viewBox="0 0 100 100">
         ${bgLines}
-        ${liquidLines}
+        ${sparkLines}
+        ${centerComponent}
       </svg>
     `;
   }
 
   /* ------------------------------------------------------------------------
-     點擊旋轉與連通度檢測 (BFS Flow)
+     點擊旋轉與連通度檢測 (BFS Power Flow)
      ------------------------------------------------------------------------ */
   handleCellClick(r, c) {
     if (this.isWon) return;
@@ -495,14 +586,19 @@ class LoopNetGame {
       }
     }
 
-    // 2. 從電源/水源核心開始做 BFS 遍歷
+    // 2. 從電池核心開始做 BFS 電流遍歷
     const queue = [[this.sourcePos.r, this.sourcePos.c]];
     this.grid[this.sourcePos.r][this.sourcePos.c].isPowered = true;
     let poweredCount = 0;
+    let poweredBulbCount = 0;
 
     while (queue.length > 0) {
       const [r, c] = queue.shift();
       poweredCount++;
+      if (this.grid[r][c].isEndpoint) {
+        poweredBulbCount++;
+      }
+
       const curMask = this.grid[r][c].currentMask;
 
       // UP
@@ -539,13 +635,18 @@ class LoopNetGame {
       }
     }
 
-    // 3. 連通數量增加時播放水流音效
-    if (playSoundEffect && poweredCount > this.lastPoweredCount && poweredCount > 1) {
-      this.sound.playFlow();
+    // 3. 點亮燈泡或導通音效
+    if (playSoundEffect) {
+      if (poweredBulbCount > this.lastPoweredBulbCount) {
+        this.sound.playBulbLight();
+      } else if (poweredCount > this.lastPoweredCount && poweredCount > 1) {
+        this.sound.playFlow();
+      }
     }
     this.lastPoweredCount = poweredCount;
+    this.lastPoweredBulbCount = poweredBulbCount;
 
-    // 4. 更新 DOM 通電/流動樣式
+    // 4. 更新 DOM 通電與燈泡發光樣式
     for (let r = 0; r < R; r++) {
       for (let c = 0; c < C; c++) {
         const tile = document.getElementById(`cell-${r}-${c}`);
@@ -640,7 +741,7 @@ class LoopNetGame {
     setTimeout(() => {
       this.dom.modalTitle.textContent = '電力全開！⚡';
       this.dom.modalBody.innerHTML = `
-        恭喜接通全網迴路！<br>
+        恭喜連接電池並點亮所有終端燈泡！<br>
         關卡規格：<b>${this.gridSize} × ${this.gridSize}</b><br>
         總計耗時：<b>${this.dom.timerText.textContent}</b><br>
         旋轉步數：<b>${this.moves} 步</b>
@@ -661,7 +762,7 @@ class LoopNetGame {
       y: canvas.height / 2,
       vx: (Math.random() - 0.5) * 14,
       vy: (Math.random() - 0.8) * 12,
-      color: ['#6366F1', '#10B981', '#F59E0B', '#38BDF8', '#EC4899'][Math.floor(Math.random() * 5)],
+      color: ['#F59E0B', '#FBBF24', '#10B981', '#38BDF8', '#818CF8'][Math.floor(Math.random() * 5)],
       size: Math.random() * 6 + 4,
       gravity: 0.28,
       alpha: 1

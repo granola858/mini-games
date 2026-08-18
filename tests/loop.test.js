@@ -14,6 +14,15 @@ function rotateMask(mask) {
   return newMask;
 }
 
+function countBits(mask) {
+  let count = 0;
+  if (mask & DIR.UP) count++;
+  if (mask & DIR.RIGHT) count++;
+  if (mask & DIR.DOWN) count++;
+  if (mask & DIR.LEFT) count++;
+  return count;
+}
+
 function generateBoard(size) {
   const R = size;
   const C = size;
@@ -56,7 +65,7 @@ function generateBoard(size) {
   return rawGrid;
 }
 
-test('Loop 水管遮罩旋轉 360 度後應恢復原狀', () => {
+test('Loop 電流遮罩旋轉 360 度後應恢復原狀', () => {
   for (let mask = 1; mask <= 15; mask++) {
     let r = mask;
     for (let i = 0; i < 4; i++) {
@@ -66,14 +75,14 @@ test('Loop 水管遮罩旋轉 360 度後應恢復原狀', () => {
   }
 });
 
-test('Loop 隨機生成樹演算法能生成完全連通且無死角的網格', () => {
+test('Loop 隨機生成樹演算法能生成完全連通且無死角的電網', () => {
   const size = 5;
   const board = generateBoard(size);
 
-  // 驗證每個單元格都有管線
+  // 驗證每個單元格都有導線
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {
-      assert.ok(board[r][c] > 0, `格 (${r},${c}) 應有管線`);
+      assert.ok(board[r][c] > 0, `格 (${r},${c}) 應有導線`);
     }
   }
 
@@ -82,13 +91,30 @@ test('Loop 隨機生成樹演算法能生成完全連通且無死角的網格', 
     for (let c = 0; c < size; c++) {
       const mask = board[r][c];
       if (mask & DIR.UP) {
-        assert.ok(r > 0, '頂部外邊界不應有管線開口');
+        assert.ok(r > 0, '頂部外邊界不應有導線開口');
         assert.ok(board[r - 1][c] & DIR.DOWN, '相鄰上方格應向下接合');
       }
       if (mask & DIR.RIGHT) {
-        assert.ok(c < size - 1, '右側外邊界不應有管線開口');
+        assert.ok(c < size - 1, '右側外邊界不應有導線開口');
         assert.ok(board[r][c + 1] & DIR.LEFT, '相鄰右方格應向左接合');
       }
     }
   }
+});
+
+test('Loop 電網具備終點燈泡葉節點且能正確識別', () => {
+  const size = 5;
+  const board = generateBoard(size);
+  let endpointCount = 0;
+
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (countBits(board[r][c]) === 1) {
+        endpointCount++;
+      }
+    }
+  }
+
+  // 在任意大於 1x1 的樹狀圖中，葉節點數量必 >= 2
+  assert.ok(endpointCount >= 2, `隨機生成電網中應有至少 2 個終點燈泡（實際：${endpointCount}）`);
 });

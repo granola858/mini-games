@@ -1,31 +1,36 @@
 /* ==========================================================================
-   1. DESIGN TOKENS (波波小遊戲標準設計規範)
+   1. DESIGN TOKENS (波波小遊戲標準設計規範 - Loop 電流接接樂)
    ========================================================================== */
 :root {
   /* 色彩系統 - 淺色模式 (Light) */
   --bg-main: #FFFFFF;
   --bg-surface: #FFFFFF;
-  --bg-elevated: #F1F5F9;
+  --bg-elevated: #F8FAFC;
   --text-primary: #0F172A;
   --text-secondary: #64748B;
   --border-color: #E2E8F0;
   
-  --accent-primary: #6366F1;
-  --accent-hover: #4F46E5;
-  --accent-light: #EEF2FF;
-  --accent-glow: rgba(99, 102, 241, 0.4);
+  --accent-primary: #F59E0B;
+  --accent-hover: #D97706;
+  --accent-light: #FEF3C7;
+  --accent-glow: rgba(245, 158, 11, 0.45);
   
   --color-success: #10B981;
   --color-success-bg: #ECFDF5;
-  --color-success-glow: rgba(16, 185, 129, 0.45);
+  --color-success-glow: rgba(16, 185, 129, 0.55);
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
 
-  /* 水管與流體顏色 */
-  --pipe-unpowered: #CBD5E1;
-  --pipe-unpowered-hover: #94A3B8;
+  /* 電路與導線顏色 */
+  --wire-unpowered: #CBD5E1;
+  --wire-unpowered-hover: #94A3B8;
   --cell-bg: #FFFFFF;
   --cell-bg-hover: #F8FAFC;
+
+  --electric-gold: #F59E0B;
+  --electric-bright: #FBBF24;
+  --electric-spark: #38BDF8;
+  --electric-core: #FEF08A;
 
   /* 圓角規範 */
   --radius-sm: 8px;
@@ -45,27 +50,27 @@
 }
 
 [data-theme="dark"] {
-  /* 色彩系統 - 深色模式 (Dark) */
-  --bg-main: #0F172A;
+  /* 色彩系統 - 深色模式 (Dark / Cyberpunk Circuit) */
+  --bg-main: #0B1120;
   --bg-surface: #1E293B;
-  --bg-elevated: #334155;
+  --bg-elevated: #0F172A;
   --text-primary: #F8FAFC;
   --text-secondary: #94A3B8;
   --border-color: #334155;
   
-  --accent-primary: #818CF8;
-  --accent-hover: #6366F1;
-  --accent-light: rgba(99, 102, 241, 0.15);
-  --accent-glow: rgba(129, 140, 248, 0.5);
+  --accent-primary: #FBBF24;
+  --accent-hover: #F59E0B;
+  --accent-light: rgba(245, 158, 11, 0.18);
+  --accent-glow: rgba(251, 191, 36, 0.6);
   
   --color-success: #34D399;
   --color-success-bg: rgba(52, 211, 153, 0.15);
-  --color-success-glow: rgba(52, 211, 153, 0.6);
+  --color-success-glow: rgba(52, 211, 153, 0.65);
 
-  --pipe-unpowered: #475569;
-  --pipe-unpowered-hover: #64748B;
+  --wire-unpowered: #334155;
+  --wire-unpowered-hover: #475569;
   --cell-bg: #1E293B;
-  --cell-bg-hover: #334155;
+  --cell-bg-hover: #293548;
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
@@ -98,7 +103,7 @@ body {
   touch-action: manipulation;
 }
 
-/* 遊戲主容器 (移除外框卡片，流線簡潔佈局) */
+/* 遊戲主容器 */
 .container {
   width: 100%;
   max-width: 440px;
@@ -118,7 +123,7 @@ body {
   align-items: center;
 }
 
-/* 回首頁按鈕：與全站標準風格一致 */
+/* 回首頁按鈕 */
 .back-btn {
   text-decoration: none;
   color: #888;
@@ -130,8 +135,8 @@ body {
   padding: 8px 12px;
   border-radius: 8px;
   transition: all 0.2s ease;
-  background-color: #f8f9fa;
-  border: 1px solid transparent;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-color);
 }
 
 [data-theme="dark"] .back-btn {
@@ -146,7 +151,7 @@ body {
   transform: translateX(-3px);
 }
 
-/* 主標題：與 1A2B、骰寶等遊戲字體大小與位置一致 */
+/* 主標題 */
 .main-title {
   font-size: 1.8rem;
   font-weight: 800;
@@ -183,7 +188,7 @@ body {
   border-color: var(--accent-primary);
 }
 
-/* Segmented Tab (規格：5×5, 6×6, 7×7) */
+/* Segmented Tab (難度規格切換) */
 .tab-container {
   display: flex;
   background-color: var(--bg-elevated);
@@ -251,7 +256,7 @@ body {
 }
 
 /* ==========================================================================
-   5. 網格棋盤核心區域 (Game Grid Canvas)
+   5. 網格棋盤核心區域 (Circuit Grid Canvas)
    ========================================================================== */
 .board-container {
   background-color: var(--bg-elevated);
@@ -271,7 +276,7 @@ body {
   width: 100%;
   max-width: 380px;
   aspect-ratio: 1;
-  gap: 5px;
+  gap: 6px;
 }
 
 /* 單元格樣式 */
@@ -310,14 +315,16 @@ body {
 }
 
 .pipe-svg {
-  width: 88%;
-  height: 88%;
+  width: 90%;
+  height: 90%;
   display: block;
 }
 
-/* 水管底層線條樣式 */
-.pipe-line {
-  stroke: var(--pipe-unpowered);
+/* ==========================================================================
+   導線 (Wires) 基礎與未通電樣式
+   ========================================================================== */
+.wire-line {
+  stroke: var(--wire-unpowered);
   stroke-width: 14;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -325,112 +332,204 @@ body {
   transition: stroke var(--transition-normal), filter var(--transition-normal);
 }
 
-.pipe-core {
-  fill: var(--pipe-unpowered);
-  transition: fill var(--transition-normal), filter var(--transition-normal);
-}
-
-/* 水流動態層樣式 */
-.pipe-liquid {
-  stroke-width: 6;
+.wire-spark {
+  stroke-width: 5;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.25s ease;
 }
 
-.pipe-liquid-core {
+/* 一般線路連接中心點 */
+.circuit-node {
+  fill: var(--wire-unpowered);
+  transition: fill var(--transition-normal), filter var(--transition-normal);
+}
+
+.circuit-spark-node {
   fill: transparent;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.25s ease, fill var(--transition-normal);
 }
 
 /* ==========================================================================
-   通電/通水連通狀態：純色水流流動波
+   起點：電池 (Battery Source) 樣式
    ========================================================================== */
-.cell-tile.is-powered .pipe-line {
+.battery-source {
+  transform-origin: 50px 50px;
+}
+
+.battery-glow-ring {
+  fill: none;
   stroke: var(--accent-primary);
-  animation: fluidColorWave 2.5s ease-in-out infinite alternate;
+  stroke-width: 1.5;
+  opacity: 0.4;
+}
+
+.battery-cap {
+  fill: #94A3B8;
+  stroke: #64748B;
+  stroke-width: 1;
+  transition: all var(--transition-normal);
+}
+
+.battery-body {
+  fill: #1E293B;
+  stroke: #475569;
+  stroke-width: 2;
+  transition: all var(--transition-normal);
+}
+
+.battery-charge-bg {
+  fill: #0F172A;
+}
+
+.battery-charge-level {
+  fill: #F59E0B;
+  transition: fill var(--transition-normal);
+}
+
+.battery-bolt {
+  fill: #FEF08A;
+  filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.6));
+  animation: boltSubtleBreathe 3s ease-in-out infinite alternate;
+}
+
+@keyframes boltSubtleBreathe {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; filter: drop-shadow(0 0 3px rgba(254, 240, 138, 0.8)); }
+}
+
+/* 起點始終發光高亮 */
+.cell-tile.is-source {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.cell-tile.is-source .battery-cap {
+  fill: #FBBF24;
+  stroke: #D97706;
+}
+
+.cell-tile.is-source .battery-body {
+  stroke: #F59E0B;
   filter: drop-shadow(0 0 4px var(--accent-glow));
 }
 
-.cell-tile.is-powered .pipe-core {
-  fill: var(--accent-primary);
-  animation: fluidCoreWave 2.5s ease-in-out infinite alternate;
-  filter: drop-shadow(0 0 5px var(--accent-glow));
+/* ==========================================================================
+   終點：燈泡 (Terminal Lightbulb) 樣式
+   預設熄滅 (Default OFF) -> 接通亮起 (Powered ON)
+   ========================================================================== */
+.bulb-terminal {
+  transform-origin: 50px 50px;
 }
 
-.cell-tile.is-powered .pipe-liquid {
-  opacity: 0.9;
-  stroke: #7DD3FC;
-  animation: fluidInnerGlow 2.5s ease-in-out infinite alternate;
+/* 預設熄滅狀態 */
+.bulb-glow {
+  fill: transparent;
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
-.cell-tile.is-powered .pipe-liquid-core {
+.bulb-rays .bulb-ray {
+  stroke: #94A3B8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 0.25s ease, stroke 0.25s ease;
+}
+
+.bulb-socket {
+  fill: #64748B;
+  stroke: #475569;
+  stroke-width: 2;
+  transition: all var(--transition-normal);
+}
+
+.bulb-glass {
+  fill: #475569;
+  fill-opacity: 0.3;
+  stroke: #94A3B8;
+  stroke-width: 2;
+  transition: all 0.25s ease-out;
+}
+
+.bulb-filament {
+  stroke: #94A3B8;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  fill: none;
+  transition: all var(--transition-normal);
+}
+
+.bulb-center-spark {
+  fill: #64748B;
+  opacity: 0;
+  transition: all var(--transition-normal);
+}
+
+/* ==========================================================================
+   通電狀態 (is-powered)：導線電光 & 燈泡自然發光
+   ========================================================================== */
+.cell-tile.is-powered .wire-line {
+  stroke: var(--electric-gold);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+  transition: stroke var(--transition-normal), filter var(--transition-normal);
+}
+
+.cell-tile.is-powered .wire-spark {
+  opacity: 0.95;
+  stroke: var(--electric-core);
+}
+
+.cell-tile.is-powered .circuit-node {
+  fill: var(--electric-gold);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+
+.cell-tile.is-powered .circuit-spark-node {
   opacity: 1;
-  fill: #BAE6FD;
-  animation: coreGlowPulse 1.8s infinite ease-in-out;
+  fill: var(--electric-core);
 }
 
-@keyframes fluidColorWave {
-  0% {
-    stroke: #6366F1;
-    filter: drop-shadow(0 0 3px rgba(99, 102, 241, 0.45));
-  }
-  50% {
-    stroke: #0EA5E9;
-    filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.65));
-  }
-  100% {
-    stroke: #06B6D4;
-    filter: drop-shadow(0 0 5px rgba(6, 182, 212, 0.55));
-  }
+/* 燈泡接通發光：平穩明亮、自然光暈 */
+.cell-tile.is-powered .bulb-glow {
+  fill: rgba(251, 191, 36, 0.25);
+  opacity: 1;
+  filter: blur(4px);
 }
 
-@keyframes fluidCoreWave {
-  0% { fill: #6366F1; }
-  50% { fill: #0EA5E9; }
-  100% { fill: #06B6D4; }
+.cell-tile.is-powered .bulb-rays .bulb-ray {
+  stroke: #FBBF24;
+  stroke-width: 2.2;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 2px #F59E0B);
 }
 
-@keyframes fluidInnerGlow {
-  0% {
-    stroke: #E0E7FF;
-    opacity: 0.65;
-  }
-  50% {
-    stroke: #BAE6FD;
-    opacity: 0.95;
-  }
-  100% {
-    stroke: #7DD3FC;
-    opacity: 0.8;
-  }
+.cell-tile.is-powered .bulb-socket {
+  fill: #D97706;
+  stroke: #B45309;
 }
 
-@keyframes coreGlowPulse {
-  0%, 100% { transform: scale(1); opacity: 0.85; }
-  50% { transform: scale(1.35); opacity: 1; }
+.cell-tile.is-powered .bulb-glass {
+  fill: #FBBF24;
+  fill-opacity: 0.95;
+  stroke: #FEF08A;
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.85)) drop-shadow(0 0 14px rgba(245, 158, 11, 0.45));
 }
 
-/* 電源/水源核心起始點特別標記 */
-.cell-tile.is-source::after {
-  content: '';
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background-color: #FFFFFF;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 2;
-  box-shadow: 0 0 8px var(--accent-primary);
-  animation: pulseSource 1.4s infinite ease-in-out;
+.cell-tile.is-powered .bulb-filament {
+  stroke: #FFFFFF;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 3px #FFFFFF);
 }
 
-@keyframes pulseSource {
-  0%, 100% { transform: scale(1); opacity: 0.9; }
-  50% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 12px var(--accent-primary); }
+.cell-tile.is-powered .bulb-center-spark {
+  fill: #FFFFFF;
+  opacity: 1;
+  filter: drop-shadow(0 0 4px #FFFFFF);
 }
 
 /* 提示高亮 */
@@ -445,36 +544,48 @@ body {
   75% { transform: rotate(8deg); }
 }
 
-/* 全盤通關勝利樣式 (翡翠綠色彩流動) */
-.grid-board.is-won .cell-tile .pipe-line {
+/* ==========================================================================
+   全盤通關勝利樣式 (超能過載高亮翡翠電光)
+   ========================================================================== */
+.grid-board.is-won .cell-tile .wire-line {
   stroke: var(--color-success) !important;
-  animation: winFluidWave 1.8s ease-in-out infinite alternate !important;
-  filter: drop-shadow(0 0 6px var(--color-success-glow)) !important;
-}
-
-.grid-board.is-won .cell-tile .pipe-core {
-  fill: var(--color-success) !important;
-  animation: winCoreWave 1.8s ease-in-out infinite alternate !important;
+  animation: winElectricWave 1.6s ease-in-out infinite alternate !important;
   filter: drop-shadow(0 0 8px var(--color-success-glow)) !important;
 }
 
-.grid-board.is-won .cell-tile .pipe-liquid {
-  stroke: #A7F3D0 !important;
-  opacity: 0.95 !important;
+.grid-board.is-won .cell-tile .circuit-node {
+  fill: var(--color-success) !important;
+  animation: winElectricCore 1.6s ease-in-out infinite alternate !important;
+  filter: drop-shadow(0 0 10px var(--color-success-glow)) !important;
 }
 
-.grid-board.is-won .cell-tile .pipe-liquid-core {
-  fill: #FFFFFF !important;
+.grid-board.is-won .cell-tile .wire-spark {
+  stroke: #A7F3D0 !important;
   opacity: 1 !important;
 }
 
-@keyframes winFluidWave {
+.grid-board.is-won .cell-tile .bulb-glass {
+  fill: #34D399 !important;
+  stroke: #ECFDF5 !important;
+  filter: drop-shadow(0 0 14px rgba(52, 211, 153, 1)) drop-shadow(0 0 26px rgba(16, 185, 129, 0.7)) !important;
+}
+
+.grid-board.is-won .cell-tile .bulb-glow {
+  fill: rgba(52, 211, 153, 0.55) !important;
+}
+
+.grid-board.is-won .cell-tile .bulb-rays .bulb-ray {
+  stroke: #6EE7B7 !important;
+  filter: drop-shadow(0 0 6px #10B981) !important;
+}
+
+@keyframes winElectricWave {
   0% { stroke: #10B981; }
   50% { stroke: #34D399; }
   100% { stroke: #059669; }
 }
 
-@keyframes winCoreWave {
+@keyframes winElectricCore {
   0% { fill: #10B981; }
   50% { fill: #34D399; }
   100% { fill: #059669; }
