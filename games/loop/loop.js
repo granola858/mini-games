@@ -543,7 +543,7 @@ class LoopNetGame {
   }
 
   /* ------------------------------------------------------------------------
-     SVG 線條渲染與棋盤繪製
+     SVG 線條渲染與棋盤繪製 (分層架構：線路旋轉層 + 頂層固定電池/燈泡層)
      ------------------------------------------------------------------------ */
   renderBoard() {
     const R = this.gridSize;
@@ -563,12 +563,20 @@ class LoopNetGame {
         else if (cell.isEndpoint) tileTitle = `電路終端燈泡 (${r + 1}, ${c + 1})`;
         tile.title = tileTitle;
 
+        // 1. 底層旋轉導線層 (隨點擊旋轉)
         const svgWrapper = document.createElement('div');
         svgWrapper.className = 'pipe-svg-wrapper';
         svgWrapper.style.transform = `rotate(${cell.rotationDeg}deg)`;
-
-        svgWrapper.innerHTML = this.generatePipeSVG(cell);
+        svgWrapper.innerHTML = this.generateWireSVG(cell);
         tile.appendChild(svgWrapper);
+
+        // 2. 頂層固定元件層 (電池與燈泡維持正立不隨導線旋轉)
+        if (cell.isSource || cell.isEndpoint) {
+          const deviceWrapper = document.createElement('div');
+          deviceWrapper.className = 'device-overlay';
+          deviceWrapper.innerHTML = this.generateDeviceSVG(cell);
+          tile.appendChild(deviceWrapper);
+        }
 
         tile.addEventListener('click', () => this.handleCellClick(r, c));
         this.dom.gridBoard.appendChild(tile);
@@ -576,7 +584,7 @@ class LoopNetGame {
     }
   }
 
-  generatePipeSVG(cell) {
+  generateWireSVG(cell) {
     const mask = cell.targetMask;
     let bgLines = '';
     let sparkLines = '';
@@ -598,11 +606,30 @@ class LoopNetGame {
       sparkLines += `<line class="wire-spark" x1="50" y1="50" x2="0" y2="50"/>`;
     }
 
-    let centerComponent = '';
+    let centerStud = '';
+    // 一般 2 向、3 向、4 向電路交叉點渲染金屬端子
+    if (!cell.isSource && !cell.isEndpoint) {
+      centerStud = `
+        <circle class="circuit-node" cx="50" cy="50" r="8"/>
+        <circle class="circuit-spark-node" cx="50" cy="50" r="4"/>
+      `;
+    }
+
+    return `
+      <svg class="pipe-svg" viewBox="0 0 100 100">
+        ${bgLines}
+        ${sparkLines}
+        ${centerStud}
+      </svg>
+    `;
+  }
+
+  generateDeviceSVG(cell) {
+    let content = '';
 
     if (cell.isSource) {
-      // 1. 起點：電池 (Battery Source)
-      centerComponent = `
+      // 1. 起點：固定正立電池 (Upright Battery Source)
+      content = `
         <g class="battery-source">
           <circle class="battery-glow-ring" cx="50" cy="50" r="22"/>
           <rect class="battery-cap" x="44" y="27" width="12" height="5" rx="1.5"/>
@@ -613,8 +640,8 @@ class LoopNetGame {
         </g>
       `;
     } else if (cell.isEndpoint) {
-      // 2. 終點：燈泡 (Terminal Lightbulb)
-      centerComponent = `
+      // 2. 終點：固定正立燈泡 (Upright Terminal Lightbulb)
+      content = `
         <g class="bulb-terminal">
           <circle class="bulb-glow" cx="50" cy="50" r="22"/>
           <g class="bulb-rays">
@@ -633,19 +660,11 @@ class LoopNetGame {
           <circle class="bulb-center-spark" cx="50" cy="48" r="2.5"/>
         </g>
       `;
-    } else {
-      // 3. 一般節點：金屬端子連接點 (Circuit Junction Stud)
-      centerComponent = `
-        <circle class="circuit-node" cx="50" cy="50" r="8"/>
-        <circle class="circuit-spark-node" cx="50" cy="50" r="4"/>
-      `;
     }
 
     return `
-      <svg class="pipe-svg" viewBox="0 0 100 100">
-        ${bgLines}
-        ${sparkLines}
-        ${centerComponent}
+      <svg class="device-svg" viewBox="0 0 100 100">
+        ${content}
       </svg>
     `;
   }
