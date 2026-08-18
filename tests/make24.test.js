@@ -58,3 +58,11 @@ test('24 點求解演算法能正確識別無解題目', () => {
   const sol = solve24([1, 1, 1, 1]);
   assert.equal(sol.length, 0, '1, 1, 1, 1 不應該有解');
 });
+
+test('24 點程式碼具備完整的遊戲進度持久化方法 (saveGameState / loadGameState / clearGameState)', () => {
+  const make24Source = fs.readFileSync(make24JsPath, 'utf8');
+  assert.match(make24Source, /saveGameState\s*\(/, '應包含 saveGameState');
+  assert.match(make24Source, /loadGameState\s*\(/, '應包含 loadGameState');
+  assert.match(make24Source, /clearGameState\s*\(/, '應包含 clearGameState');
+  assert.match(make24Source, /make24_game_state/, '應使用 make24_game_state 作為存檔 key');
+});

@@ -118,3 +118,11 @@ test('Loop 電網具備終點燈泡葉節點且能正確識別', () => {
   // 在任意大於 1x1 的樹狀圖中，葉節點數量必 >= 2
   assert.ok(endpointCount >= 2, `隨機生成電網中應有至少 2 個終點燈泡（實際：${endpointCount}）`);
 });
+
+test('Loop 程式碼具備完整的遊戲進度持久化方法 (saveGameState / loadGameState / clearGameState)', () => {
+  const loopSource = fs.readFileSync(path.join(__dirname, '..', 'games', 'loop', 'loop.js'), 'utf8');
+  assert.match(loopSource, /saveGameState\s*\(/, '應包含 saveGameState');
+  assert.match(loopSource, /loadGameState\s*\(/, '應包含 loadGameState');
+  assert.match(loopSource, /clearGameState\s*\(/, '應包含 clearGameState');
+  assert.match(loopSource, /loop_game_state/, '應使用 loop_game_state 作為存檔 key');
+});

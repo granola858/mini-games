@@ -2,6 +2,9 @@
    24 點大腦算術 (Make 24) 核心遊戲邏輯
    ========================================================================== */
 
+const STORAGE_KEY = 'make24_game_state';
+const BEST_STREAK_KEY = 'make24_best_streak';
+
 const SUITS = [
   { symbol: '♠', type: 'suit-black', name: 'spade' },
   { symbol: '♥', type: 'suit-red', name: 'heart' },
@@ -80,7 +83,7 @@ class Make24Game {
 
     // 計分與統計
     this.streak = 0;
-    this.bestStreak = parseInt(localStorage.getItem('make24_best_streak') || '0', 10);
+    this.bestStreak = parseInt(localStorage.getItem(BEST_STREAK_KEY) || '0', 10);
     this.timerSeconds = 0;
     this.timerInterval = null;
 
@@ -114,7 +117,9 @@ class Make24Game {
     this.setupTheme();
     this.bindEvents();
     this.updateStatsDisplay();
-    this.startNewGame();
+    if (!this.loadGameState()) {
+      this.startNewGame();
+    }
   }
 
   /* ------------------------------------------------------------------------
@@ -140,8 +145,8 @@ class Make24Game {
       const currentTheme = document.documentElement.getAttribute('data-theme');
       const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', nextTheme);
-      localStorage.setItem('make24_theme', nextTheme);
       try {
+        localStorage.setItem('make24_theme', nextTheme);
         const prefs = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
         prefs.theme = nextTheme;
         localStorage.setItem('bobo-home-preferences-v2', JSON.stringify(prefs));
@@ -185,18 +190,32 @@ class Make24Game {
     this.dom.btnSkip.addEventListener('click', () => {
       this.streak = 0; // 換牌重置連勝
       this.updateStatsDisplay();
+      this.clearGameState();
       this.startNewGame();
     });
 
     // Modal 關閉
     this.dom.modalCloseBtn.addEventListener('click', () => {
       this.dom.modalOverlay.classList.remove('active');
+      if (this.isWon) {
+        this.clearGameState();
+        this.startNewGame();
+      }
     });
 
     this.dom.modalOverlay.addEventListener('click', (e) => {
       if (e.target === this.dom.modalOverlay) {
         this.dom.modalOverlay.classList.remove('active');
+        if (this.isWon) {
+          this.clearGameState();
+          this.startNewGame();
+        }
       }
+    });
+
+    // 頁面卸載時保存進度
+    window.addEventListener('beforeunload', () => {
+      if (!this.isWon) this.saveGameState();
     });
 
     // 鍵盤快速鍵支援
@@ -240,6 +259,7 @@ class Make24Game {
     this.dom.tabExpert.classList.toggle('active', mode === 'expert');
     this.streak = 0;
     this.updateStatsDisplay();
+    this.clearGameState();
     this.startNewGame();
   }
 
@@ -260,6 +280,7 @@ class Make24Game {
     this.renderCards();
     this.updateEquationDisplay();
     this.startTimer();
+    this.saveGameState();
   }
 
   startTimer() {
@@ -267,6 +288,9 @@ class Make24Game {
     this.timerInterval = setInterval(() => {
       this.timerSeconds++;
       this.dom.timerText.textContent = `${this.timerSeconds}s`;
+      if (this.timerSeconds % 5 === 0 && !this.isWon) {
+        this.saveGameState();
+      }
     }, 1000);
   }
 
@@ -275,6 +299,62 @@ class Make24Game {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
+  }
+
+  /* ------------------------------------------------------------------------
+     進度持久化 (localStorage)
+     ------------------------------------------------------------------------ */
+  saveGameState() {
+    if (this.isWon) return;
+    try {
+      const state = {
+        currentMode: this.currentMode,
+        cardData: this.cardData,
+        usedCardIndices: Array.from(this.usedCardIndices),
+        tokens: this.tokens,
+        solutions: this.solutions,
+        streak: this.streak,
+        timerSeconds: this.timerSeconds,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (_) {}
+  }
+
+  loadGameState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      const state = JSON.parse(raw);
+      if (!state || !state.cardData || state.cardData.length !== 4) return false;
+
+      this.currentMode = state.currentMode || 'classic';
+      this.cardData = state.cardData;
+      this.usedCardIndices = new Set(state.usedCardIndices || []);
+      this.tokens = state.tokens || [];
+      this.solutions = state.solutions || [];
+      this.streak = state.streak || 0;
+      this.timerSeconds = state.timerSeconds || 0;
+      this.isWon = false;
+
+      this.dom.tabClassic.classList.toggle('active', this.currentMode === 'classic');
+      this.dom.tabExpert.classList.toggle('active', this.currentMode === 'expert');
+
+      this.updateStatsDisplay();
+      this.renderCards();
+      this.updateEquationDisplay();
+      this.startTimer();
+      return true;
+    } catch (e) {
+      console.warn('載入 24 點進度失敗:', e);
+      return false;
+    }
+  }
+
+  clearGameState() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (_) {}
   }
 
   /* ------------------------------------------------------------------------
@@ -379,12 +459,14 @@ class Make24Game {
 
     this.renderCards();
     this.updateEquationDisplay();
+    this.saveGameState();
   }
 
   addOperatorToken(opSymbol) {
     if (this.isWon) return;
     this.tokens.push({ type: 'op', val: opSymbol });
     this.updateEquationDisplay();
+    this.saveGameState();
   }
 
   handleBackspace() {
@@ -395,6 +477,7 @@ class Make24Game {
       this.renderCards();
     }
     this.updateEquationDisplay();
+    this.saveGameState();
   }
 
   handleClear() {
@@ -403,6 +486,7 @@ class Make24Game {
     this.usedCardIndices.clear();
     this.renderCards();
     this.updateEquationDisplay();
+    this.saveGameState();
   }
 
   /* ------------------------------------------------------------------------
@@ -477,10 +561,13 @@ class Make24Game {
   handleWin() {
     this.isWon = true;
     this.stopTimer();
+    this.clearGameState();
     this.streak++;
     if (this.streak > this.bestStreak) {
       this.bestStreak = this.streak;
-      localStorage.setItem('make24_best_streak', this.bestStreak.toString());
+      try {
+        localStorage.setItem(BEST_STREAK_KEY, this.bestStreak.toString());
+      } catch (_) {}
     }
     this.updateStatsDisplay();
     this.sound.playWin();

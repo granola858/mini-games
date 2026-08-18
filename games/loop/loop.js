@@ -2,6 +2,9 @@
    Loop 電流接接樂 (Loop Circuit) 核心遊戲邏輯
    ========================================================================== */
 
+const STORAGE_KEY = 'loop_game_state';
+const STATS_KEY = 'loop_game_stats';
+
 class SoundManager {
   constructor() {
     this.ctx = null;
@@ -20,7 +23,9 @@ class SoundManager {
 
   toggleSound() {
     this.enabled = !this.enabled;
-    localStorage.setItem('loopnet_sound', this.enabled);
+    try {
+      localStorage.setItem('loopnet_sound', this.enabled);
+    } catch (_) {}
     return this.enabled;
   }
 
@@ -201,7 +206,9 @@ class LoopNetGame {
     this.setupTheme();
     this.setupSoundUI();
     this.bindEvents();
-    this.startNewGame();
+    if (!this.loadGameState()) {
+      this.startNewGame();
+    }
   }
 
   /* ------------------------------------------------------------------------
@@ -227,8 +234,8 @@ class LoopNetGame {
       const current = document.documentElement.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('loopnet_theme', next);
       try {
+        localStorage.setItem('loopnet_theme', next);
         const prefs = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
         prefs.theme = next;
         localStorage.setItem('bobo-home-preferences-v2', JSON.stringify(prefs));
@@ -266,15 +273,20 @@ class LoopNetGame {
         this.dom.tabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         this.gridSize = size;
+        this.clearGameState();
         this.startNewGame();
       });
     });
 
     this.dom.btnRestart.addEventListener('click', () => this.restartCurrentBoard());
     this.dom.btnHint.addEventListener('click', () => this.applyHint());
-    this.dom.btnNewGame.addEventListener('click', () => this.startNewGame());
+    this.dom.btnNewGame.addEventListener('click', () => {
+      this.clearGameState();
+      this.startNewGame();
+    });
     this.dom.modalCloseBtn.addEventListener('click', () => {
       this.dom.modalOverlay.classList.remove('active');
+      this.clearGameState();
       this.startNewGame();
     });
 
@@ -282,6 +294,11 @@ class LoopNetGame {
       if (e.target === this.dom.modalOverlay) {
         this.dom.modalOverlay.classList.remove('active');
       }
+    });
+
+    // 頁面卸載時保存進度
+    window.addEventListener('beforeunload', () => {
+      if (!this.isWon) this.saveGameState();
     });
   }
 
@@ -403,6 +420,7 @@ class LoopNetGame {
     this.renderBoard();
     this.updatePowerFlow(false);
     this.startTimer();
+    this.saveGameState();
   }
 
   restartCurrentBoard() {
@@ -425,6 +443,7 @@ class LoopNetGame {
     this.dom.movesText.textContent = '0';
     this.renderBoard();
     this.updatePowerFlow(false);
+    this.saveGameState();
   }
 
   startTimer() {
@@ -434,6 +453,9 @@ class LoopNetGame {
       const mins = Math.floor(this.timerSeconds / 60).toString().padStart(2, '0');
       const secs = (this.timerSeconds % 60).toString().padStart(2, '0');
       this.dom.timerText.textContent = `${mins}:${secs}`;
+      if (this.timerSeconds % 5 === 0 && !this.isWon) {
+        this.saveGameState();
+      }
     }, 1000);
   }
 
@@ -442,6 +464,82 @@ class LoopNetGame {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
+  }
+
+  /* ------------------------------------------------------------------------
+     進度與統計持久化 (localStorage)
+     ------------------------------------------------------------------------ */
+  saveGameState() {
+    if (this.isWon) return;
+    try {
+      const state = {
+        gridSize: this.gridSize,
+        grid: this.grid,
+        sourcePos: this.sourcePos,
+        moves: this.moves,
+        timerSeconds: this.timerSeconds,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (_) {}
+  }
+
+  loadGameState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      const state = JSON.parse(raw);
+      if (!state || !state.grid || !Array.isArray(state.grid) || !state.gridSize) return false;
+
+      this.gridSize = state.gridSize;
+      this.grid = state.grid;
+      this.sourcePos = state.sourcePos || { r: Math.floor(this.gridSize / 2), c: Math.floor(this.gridSize / 2) };
+      this.moves = state.moves || 0;
+      this.timerSeconds = state.timerSeconds || 0;
+      this.isWon = false;
+      this.lastPoweredCount = 0;
+      this.lastPoweredBulbCount = 0;
+
+      // 更新 Tab UI
+      this.dom.tabs.forEach(tab => {
+        tab.classList.toggle('active', parseInt(tab.dataset.size, 10) === this.gridSize);
+      });
+
+      this.dom.movesText.textContent = this.moves.toString();
+      const mins = Math.floor(this.timerSeconds / 60).toString().padStart(2, '0');
+      const secs = (this.timerSeconds % 60).toString().padStart(2, '0');
+      this.dom.timerText.textContent = `${mins}:${secs}`;
+
+      this.renderBoard();
+      this.updatePowerFlow(false);
+      this.startTimer();
+      return true;
+    } catch (e) {
+      console.warn('載入 Loop 進度失敗:', e);
+      return false;
+    }
+  }
+
+  clearGameState() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (_) {}
+  }
+
+  saveStats(size, seconds, moves) {
+    try {
+      const raw = localStorage.getItem(STATS_KEY);
+      const stats = raw ? JSON.parse(raw) : {};
+      const key = `${size}x${size}`;
+      const cur = stats[key] || { bestTime: null, bestMoves: null, clears: 0 };
+
+      cur.clears = (cur.clears || 0) + 1;
+      if (cur.bestTime === null || seconds < cur.bestTime) cur.bestTime = seconds;
+      if (cur.bestMoves === null || moves < cur.bestMoves) cur.bestMoves = moves;
+
+      stats[key] = cur;
+      localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+    } catch (_) {}
   }
 
   /* ------------------------------------------------------------------------
@@ -573,6 +671,7 @@ class LoopNetGame {
     }
 
     this.updatePowerFlow(true);
+    this.saveGameState();
   }
 
   updatePowerFlow(playSoundEffect = true) {
@@ -725,6 +824,7 @@ class LoopNetGame {
       setTimeout(() => tile.classList.remove('is-hinted'), 1000);
     }
     this.updatePowerFlow(true);
+    this.saveGameState();
   }
 
   /* ------------------------------------------------------------------------
@@ -733,6 +833,8 @@ class LoopNetGame {
   handleWin() {
     this.isWon = true;
     this.stopTimer();
+    this.clearGameState();
+    this.saveStats(this.gridSize, this.timerSeconds, this.moves);
     this.dom.gridBoard.classList.add('is-won');
 
     this.sound.playWin();
