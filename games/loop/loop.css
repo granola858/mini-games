@@ -276,14 +276,14 @@ body {
   width: 100%;
   max-width: 380px;
   aspect-ratio: 1;
-  gap: 6px;
+  gap: clamp(3px, 1.2vw, 6px);
 }
 
 /* 單元格樣式 */
 .cell-tile {
   background-color: var(--cell-bg);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border-radius: clamp(4px, 1.5vw, var(--radius-sm));
   position: relative;
   cursor: pointer;
   display: flex;
@@ -564,6 +564,60 @@ body {
 }
 
 /* ==========================================================================
+   鎖定元件 (Locked / Fixed Tiles) 樣式
+   ========================================================================== */
+.cell-tile.is-locked {
+  background-color: var(--bg-elevated);
+  border-color: #94A3B8;
+  position: relative;
+}
+
+[data-theme="dark"] .cell-tile.is-locked {
+  background-color: #0F172A;
+  border-color: #475569;
+}
+
+.cell-tile.is-locked:hover {
+  border-color: #64748B;
+}
+
+/* 鎖定固定鉚釘與鎖頭標記 */
+.lock-overlay-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 14px;
+  height: 14px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(2px);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FBBF24;
+  font-size: 8px;
+  pointer-events: none;
+  z-index: 3;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .lock-overlay-badge {
+  background: rgba(30, 41, 59, 0.85);
+  color: #FDE68A;
+}
+
+/* 點擊鎖定元件時的防禦性抖動 */
+.cell-tile.is-locked.is-shaking {
+  animation: lockShake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes lockShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-3px); }
+  40%, 80% { transform: translateX(3px); }
+}
+
+/* ==========================================================================
    全盤通關勝利樣式 (超能過載高亮翡翠電光)
    ========================================================================== */
 .grid-board.is-won .cell-tile .wire-line {
@@ -710,6 +764,52 @@ body {
   color: var(--text-secondary);
   margin-bottom: 20px;
   line-height: 1.6;
+}
+
+/* 獲勝星級展示 */
+.win-stars-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 14px 0;
+}
+
+.win-star-icon {
+  font-size: 32px;
+  color: var(--border-color);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: scale(0.6);
+  opacity: 0.3;
+}
+
+.win-star-icon.active {
+  color: #F59E0B;
+  opacity: 1;
+  transform: scale(1);
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8));
+  animation: starPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.win-star-icon.active:nth-child(1) { animation-delay: 0.15s; }
+.win-star-icon.active:nth-child(2) { animation-delay: 0.3s; }
+.win-star-icon.active:nth-child(3) { animation-delay: 0.45s; }
+
+@keyframes starPop {
+  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+  70% { transform: scale(1.25) rotate(10deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.win-stars-rating-badge {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-light);
+  color: var(--accent-hover);
+  margin-bottom: 12px;
 }
 
 #confetti-canvas {

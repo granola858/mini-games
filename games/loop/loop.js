@@ -53,6 +53,30 @@ class SoundManager {
     osc.stop(now + 0.04);
   }
 
+  /* 鎖定元件點擊阻擋音效 (Locked Tile Click) */
+  playLocked() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(70, now + 0.06);
+
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.06);
+  }
+
   /* 電流導通音效 (Electric Zap / Flow) */
   playFlow() {
     if (!this.enabled) return;
@@ -166,10 +190,11 @@ class LoopNetGame {
     };
 
     this.gridSize = 5; // 預設 5x5
-    this.gameStates = {}; // 各難度尺寸的獨立進度快取 (5, 6, 7)
+    this.gameStates = {}; // 各難度尺寸的獨立進度快取 (5, 6, 7, 8)
     this.grid = [];     // 儲存每個格子的狀態
     this.sourcePos = { r: 0, c: 0 };
     this.moves = 0;
+    this.parMoves = 0;  // 理論最佳最少旋轉步數
     this.isWon = false;
     this.lastPoweredCount = 0;
     this.lastPoweredBulbCount = 0;
@@ -334,6 +359,16 @@ class LoopNetGame {
     return count;
   }
 
+  /* 計算當前遮罩順時針轉到目標遮罩所需的最少點擊次數 (0~3 次) */
+  getMinClicksToSolve(currentMask, targetMask) {
+    let temp = currentMask;
+    for (let clicks = 0; clicks < 4; clicks++) {
+      if (temp === targetMask) return clicks;
+      temp = this.rotateMask(temp);
+    }
+    return 0;
+  }
+
   /* ------------------------------------------------------------------------
      關卡生成演算法 (Randomized Spanning Tree)
      ------------------------------------------------------------------------ */
@@ -384,20 +419,57 @@ class LoopNetGame {
     // 3. 設定中心為電池能量核心
     this.sourcePos = { r: Math.floor(R / 2), c: Math.floor(C / 2) };
 
-    // 4. 隨機旋轉洗牌 (隨機打亂 1~3 次 90 度)
+    // 4. 挑選鎖定元件 (Locked Tiles) 候選名單：非起點、非終端燈泡的內部普通導線
+    const lockCandidates = [];
+    for (let r = 0; r < R; r++) {
+      for (let c = 0; c < C; c++) {
+        const isSource = (r === this.sourcePos.r && c === this.sourcePos.c);
+        const isEndpoint = (!isSource && this.countBits(rawGrid[r][c]) === 1);
+        if (!isSource && !isEndpoint) {
+          lockCandidates.push({ r, c });
+        }
+      }
+    }
+
+    // 根據棋盤難度決定鎖定格數量：7x7 為 2 格，8x8 為 3~4 格
+    let numLocked = 0;
+    if (R === 7) numLocked = 2;
+    else if (R >= 8) numLocked = Math.random() < 0.5 ? 3 : 4;
+
+    const lockedSet = new Set();
+    // 隨機抽樣鎖定格
+    for (let i = 0; i < numLocked && lockCandidates.length > 0; i++) {
+      const idx = Math.floor(Math.random() * lockCandidates.length);
+      const chosen = lockCandidates.splice(idx, 1)[0];
+      lockedSet.add(`${chosen.r},${chosen.c}`);
+    }
+
+    // 5. 隨機旋轉洗牌 (鎖定格維持正確角度 0 度；其餘格打亂 1~3 次 90 度)
     this.grid = [];
+    let totalParMoves = 0;
+
     for (let r = 0; r < R; r++) {
       this.grid[r] = [];
       for (let c = 0; c < C; c++) {
         const targetMask = rawGrid[r][c];
-        const rotCount = Math.floor(Math.random() * 3) + 1;
-        let currentMask = targetMask;
-        for (let i = 0; i < rotCount; i++) {
-          currentMask = this.rotateMask(currentMask);
-        }
-
         const isSource = (r === this.sourcePos.r && c === this.sourcePos.c);
         const isEndpoint = (!isSource && this.countBits(targetMask) === 1);
+        const isLocked = lockedSet.has(`${r},${c}`);
+
+        let rotCount = 0;
+        let currentMask = targetMask;
+
+        if (isLocked) {
+          // 鎖定格保持在目標解答角度
+          rotCount = 0;
+        } else {
+          rotCount = Math.floor(Math.random() * 3) + 1;
+          for (let i = 0; i < rotCount; i++) {
+            currentMask = this.rotateMask(currentMask);
+          }
+        }
+
+        totalParMoves += this.getMinClicksToSolve(currentMask, targetMask);
 
         this.grid[r][c] = {
           targetMask,
@@ -406,10 +478,13 @@ class LoopNetGame {
           initialDeg: rotCount * 90,
           isPowered: false,
           isSource,
-          isEndpoint
+          isEndpoint,
+          isLocked
         };
       }
     }
+
+    this.parMoves = Math.max(1, totalParMoves);
   }
 
   /* ------------------------------------------------------------------------
@@ -501,6 +576,7 @@ class LoopNetGame {
           grid: this.grid,
           sourcePos: this.sourcePos,
           moves: this.moves,
+          parMoves: this.parMoves,
           timerSeconds: this.timerSeconds,
           timestamp: Date.now()
         };
@@ -532,7 +608,7 @@ class LoopNetGame {
       }
 
       this.gameStates = data.states || {};
-      const targetSize = data.currentSize && [5, 6, 7].includes(Number(data.currentSize)) ? Number(data.currentSize) : 5;
+      const targetSize = data.currentSize && [5, 6, 7, 8].includes(Number(data.currentSize)) ? Number(data.currentSize) : 5;
       this.gridSize = targetSize;
 
       // 更新 Tab UI
@@ -558,6 +634,23 @@ class LoopNetGame {
     this.sourcePos = state.sourcePos || { r: Math.floor(size / 2), c: Math.floor(size / 2) };
     this.moves = state.moves || 0;
     this.timerSeconds = state.timerSeconds || 0;
+    
+    // 若存檔無 parMoves 則根據當前盤面重新計算
+    if (typeof state.parMoves === 'number' && state.parMoves > 0) {
+      this.parMoves = state.parMoves;
+    } else {
+      let calcPar = 0;
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          const cell = this.grid[r][c];
+          if (!cell.isLocked) {
+            calcPar += this.getMinClicksToSolve(cell.currentMask, cell.targetMask);
+          }
+        }
+      }
+      this.parMoves = Math.max(1, calcPar);
+    }
+
     this.isWon = false;
     this.lastPoweredCount = 0;
     this.lastPoweredBulbCount = 0;
@@ -594,16 +687,17 @@ class LoopNetGame {
     } catch (_) {}
   }
 
-  saveStats(size, seconds, moves) {
+  saveStats(size, seconds, moves, stars = 1) {
     try {
       const raw = localStorage.getItem(STATS_KEY);
       const stats = raw ? JSON.parse(raw) : {};
       const key = `${size}x${size}`;
-      const cur = stats[key] || { bestTime: null, bestMoves: null, clears: 0 };
+      const cur = stats[key] || { bestTime: null, bestMoves: null, bestStars: 0, clears: 0 };
 
       cur.clears = (cur.clears || 0) + 1;
       if (cur.bestTime === null || seconds < cur.bestTime) cur.bestTime = seconds;
       if (cur.bestMoves === null || moves < cur.bestMoves) cur.bestMoves = moves;
+      if (!cur.bestStars || stars > cur.bestStars) cur.bestStars = stars;
 
       stats[key] = cur;
       localStorage.setItem(STATS_KEY, JSON.stringify(stats));
@@ -611,7 +705,7 @@ class LoopNetGame {
   }
 
   /* ------------------------------------------------------------------------
-     SVG 線條渲染與棋盤繪製 (分層架構：線路旋轉層 + 頂層固定電池/燈泡層)
+     SVG 線條渲染與棋盤繪製 (分層架構：線路旋轉層 + 頂層固定電池/燈泡/鎖定層)
      ------------------------------------------------------------------------ */
   renderBoard() {
     const R = this.gridSize;
@@ -623,12 +717,13 @@ class LoopNetGame {
       for (let c = 0; c < C; c++) {
         const cell = this.grid[r][c];
         const tile = document.createElement('div');
-        tile.className = `cell-tile ${cell.isSource ? 'is-source' : ''} ${cell.isEndpoint ? 'is-endpoint' : ''}`;
+        tile.className = `cell-tile ${cell.isSource ? 'is-source' : ''} ${cell.isEndpoint ? 'is-endpoint' : ''} ${cell.isLocked ? 'is-locked' : ''}`;
         tile.id = `cell-${r}-${c}`;
         
         let tileTitle = `點擊旋轉電路 (${r + 1}, ${c + 1})`;
         if (cell.isSource) tileTitle = `能量電池核心 (${r + 1}, ${c + 1})`;
         else if (cell.isEndpoint) tileTitle = `電路終端燈泡 (${r + 1}, ${c + 1})`;
+        else if (cell.isLocked) tileTitle = `固定鎖定電路 (${r + 1}, ${c + 1}) - 不可旋轉`;
         tile.title = tileTitle;
 
         // 1. 底層旋轉導線層 (隨點擊旋轉)
@@ -644,6 +739,15 @@ class LoopNetGame {
           deviceWrapper.className = 'device-overlay';
           deviceWrapper.innerHTML = this.generateDeviceSVG(cell);
           tile.appendChild(deviceWrapper);
+        }
+
+        // 3. 鎖定格標記徽章 (金屬鎖頭標記)
+        if (cell.isLocked) {
+          const lockBadge = document.createElement('div');
+          lockBadge.className = 'lock-overlay-badge';
+          lockBadge.title = '固定鎖定元件';
+          lockBadge.innerHTML = '<i class="fa-solid fa-lock"></i>';
+          tile.appendChild(lockBadge);
         }
 
         tile.addEventListener('click', () => this.handleCellClick(r, c));
@@ -743,9 +847,23 @@ class LoopNetGame {
   handleCellClick(r, c) {
     if (this.isWon) return;
 
+    const cell = this.grid[r][c];
+
+    // 若為鎖定元件，拒絕旋轉並播放提示與抖動
+    if (cell.isLocked) {
+      this.sound.playLocked();
+      const tile = document.getElementById(`cell-${r}-${c}`);
+      if (tile) {
+        tile.classList.remove('is-shaking');
+        void tile.offsetWidth;
+        tile.classList.add('is-shaking');
+        setTimeout(() => tile.classList.remove('is-shaking'), 350);
+      }
+      return;
+    }
+
     this.sound.playRotate();
 
-    const cell = this.grid[r][c];
     cell.rotationDeg += 90;
     cell.currentMask = this.rotateMask(cell.currentMask);
     this.moves++;
@@ -885,7 +1003,7 @@ class LoopNetGame {
     for (let r = 0; r < R; r++) {
       for (let c = 0; c < C; c++) {
         const cell = this.grid[r][c];
-        if (cell.currentMask !== cell.targetMask) {
+        if (!cell.isLocked && cell.currentMask !== cell.targetMask) {
           wrongCells.push({ r, c, cell });
         }
       }
@@ -915,25 +1033,51 @@ class LoopNetGame {
   }
 
   /* ------------------------------------------------------------------------
-     通關獎勵與 Confetti 動畫
+     通關獎勵、星級評分與 Confetti 動畫
      ------------------------------------------------------------------------ */
   handleWin() {
     this.isWon = true;
     this.stopTimer();
+
+    // 依據理論最佳步數計算 1~3 星
+    const par = this.parMoves || 1;
+    let stars = 1;
+    let badgeText = '🔋 順利過關';
+
+    if (this.moves <= par) {
+      stars = 3;
+      badgeText = '⚡ 完美導通！';
+    } else if (this.moves <= Math.ceil(par * 1.5)) {
+      stars = 2;
+      badgeText = '✨ 優秀通電！';
+    }
+
     this.clearGameState(this.gridSize);
-    this.saveStats(this.gridSize, this.timerSeconds, this.moves);
+    this.saveStats(this.gridSize, this.timerSeconds, this.moves, stars);
     this.dom.gridBoard.classList.add('is-won');
 
     this.sound.playWin();
     this.triggerConfetti();
 
+    const starsHtml = `
+      <div class="win-stars-row">
+        <i class="fa-solid fa-star win-star-icon ${stars >= 1 ? 'active' : ''}"></i>
+        <i class="fa-solid fa-star win-star-icon ${stars >= 2 ? 'active' : ''}"></i>
+        <i class="fa-solid fa-star win-star-icon ${stars >= 3 ? 'active' : ''}"></i>
+      </div>
+      <div class="win-stars-rating-badge">${badgeText} (${stars} 星評級)</div>
+    `;
+
     setTimeout(() => {
       this.dom.modalTitle.textContent = '電力全開！⚡';
       this.dom.modalBody.innerHTML = `
-        恭喜連接電池並點亮所有終端燈泡！<br>
-        關卡規格：<b>${this.gridSize} × ${this.gridSize}</b><br>
-        總計耗時：<b>${this.dom.timerText.textContent}</b><br>
-        旋轉步數：<b>${this.moves} 步</b>
+        ${starsHtml}
+        <div style="margin-top: 8px;">
+          恭喜連接電池並點亮所有終端燈泡！<br>
+          關卡規格：<b>${this.gridSize} × ${this.gridSize}</b><br>
+          總計耗時：<b>${this.dom.timerText.textContent}</b><br>
+          旋轉步數：<b>${this.moves} 步</b> <span style="font-size: 12px; color: var(--text-secondary);">(標準最少: ${par} 步)</span>
+        </div>
       `;
       this.dom.modalOverlay.classList.add('active');
     }, 600);

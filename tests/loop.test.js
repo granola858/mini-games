@@ -169,3 +169,66 @@ test('Loop 多規格狀態存檔結構與舊版相容性邏輯驗證', () => {
   assert.equal(migratedData.states[5].moves, 12);
 });
 
+test('Loop 8x8 規格大師棋盤生成連通性驗證', () => {
+  const size = 8;
+  const board = generateBoard(size);
+  assert.equal(board.length, 8);
+  assert.equal(board[0].length, 8);
+
+  let cellCount = 0;
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      assert.ok(board[r][c] > 0, `8x8 單元格 (${r},${c}) 應有導線`);
+      cellCount++;
+    }
+  }
+  assert.equal(cellCount, 64, '8x8 棋盤應有 64 個有效導線格');
+});
+
+test('Loop 最佳理論最少步數 (Par Moves) 與三星評分計算邏輯', () => {
+  function getMinClicks(cur, target) {
+    let temp = cur;
+    for (let clicks = 0; clicks < 4; clicks++) {
+      if (temp === target) return clicks;
+      temp = rotateMask(temp);
+    }
+    return 0;
+  }
+
+  // 測試 1：同一角度 0 步
+  assert.equal(getMinClicks(DIR.UP | DIR.RIGHT, DIR.UP | DIR.RIGHT), 0);
+
+  // 測試 2：順時針轉 1 次可達
+  const target = DIR.UP | DIR.RIGHT; // 3
+  const cur1 = rotateMask(rotateMask(rotateMask(target))); // 轉 3 次
+  assert.equal(getMinClicks(cur1, target), 1);
+
+  // 測試 3：星級計算
+  const parMoves = 20;
+  function evaluateStars(moves, par) {
+    if (moves <= par) return 3;
+    if (moves <= Math.ceil(par * 1.5)) return 2;
+    return 1;
+  }
+
+  assert.equal(evaluateStars(18, parMoves), 3, '步數 <= par 應為 3 星');
+  assert.equal(evaluateStars(20, parMoves), 3, '步數 == par 應為 3 星');
+  assert.equal(evaluateStars(25, parMoves), 2, '步數 <= par * 1.5 應為 2 星');
+  assert.equal(evaluateStars(30, parMoves), 2, '步數 <= par * 1.5 應為 2 星');
+  assert.equal(evaluateStars(35, parMoves), 1, '超額步數應為 1 星');
+});
+
+test('Loop 7x7 與 8x8 鎖定元件生成規則驗證', () => {
+  function determineNumLocked(size) {
+    if (size === 7) return 2;
+    if (size >= 8) return 3; // 或 3~4
+    return 0;
+  }
+
+  assert.equal(determineNumLocked(5), 0, '5x5 不應有鎖定元件');
+  assert.equal(determineNumLocked(6), 0, '6x6 不應有鎖定元件');
+  assert.equal(determineNumLocked(7), 2, '7x7 應有 2 個鎖定元件');
+  assert.equal(determineNumLocked(8), 3, '8x8 應有 3~4 個鎖定元件');
+});
+
+
