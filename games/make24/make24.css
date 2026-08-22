@@ -186,7 +186,7 @@ body {
 
 .tab-btn {
   flex: 1;
-  padding: 8px 12px;
+  padding: 7px 4px;
   font-size: 13px;
   font-weight: 700;
   color: var(--text-secondary);
@@ -196,6 +196,7 @@ body {
   cursor: pointer;
   transition: all var(--transition-fast);
   text-align: center;
+  white-space: nowrap;
 }
 
 .tab-btn.active {
@@ -574,6 +575,17 @@ body {
   border-radius: var(--radius-md);
   margin-top: 10px;
   letter-spacing: 1px;
+}
+
+.puzzle-tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background-color: var(--accent-light);
+  color: var(--accent-primary);
+  margin-bottom: 10px;
 }
 
 /* Canvas 特效背景 */

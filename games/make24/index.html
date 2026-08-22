@@ -39,10 +39,12 @@
     <!-- 2. 主標題 (樣式、字體與位置與其他遊戲一致) -->
     <h1 class="main-title">24 點大腦算術</h1>
 
-    <!-- 3. 分頁切換 (Segmented Tab) -->
+    <!-- 3. 分頁切換 (Segmented Tab: 4 檔難度) -->
     <div class="tab-container" role="tablist" aria-label="遊戲難度模式">
-      <button class="tab-btn active" data-mode="classic" id="tab-classic" type="button">標準 (1~10)</button>
-      <button class="tab-btn" data-mode="expert" id="tab-expert" type="button">進階 (1~13)</button>
+      <button class="tab-btn active" data-mode="easy" id="tab-easy" type="button">簡單</button>
+      <button class="tab-btn" data-mode="medium" id="tab-medium" type="button">標準</button>
+      <button class="tab-btn" data-mode="hard" id="tab-hard" type="button">困難</button>
+      <button class="tab-btn" data-mode="master" id="tab-master" type="button">大師</button>
     </div>
 
     <!-- 4. 計分與狀態資訊列 -->
