@@ -53,30 +53,6 @@ class SoundManager {
     osc.stop(now + 0.04);
   }
 
-  /* 鎖定元件點擊阻擋音效 (Locked Tile Click) */
-  playLocked() {
-    if (!this.enabled) return;
-    this.init();
-    if (!this.ctx) return;
-
-    const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(180, now);
-    osc.frequency.exponentialRampToValueAtTime(70, now + 0.06);
-
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.06);
-  }
-
   /* 電流導通音效 (Electric Zap / Flow) */
   playFlow() {
     if (!this.enabled) return;
@@ -370,7 +346,7 @@ class LoopNetGame {
   }
 
   /* ------------------------------------------------------------------------
-     關卡生成演算法 (Randomized Spanning Tree)
+     關卡生成演算法 (Randomized Spanning Tree + Cycle Injection 閉合迴路電網)
      ------------------------------------------------------------------------ */
   generateBoard() {
     const R = this.gridSize;
@@ -380,7 +356,7 @@ class LoopNetGame {
     const rawGrid = Array.from({ length: R }, () => Array(C).fill(0));
     const visited = Array.from({ length: R }, () => Array(C).fill(false));
 
-    // 2. 隨機 DFS 生成生成樹 (確保全圖必能唯一完全連通)
+    // 2. 隨機 DFS 生成基礎生成樹骨架 (確保全圖必能唯一完全連通無孤島)
     const startR = Math.floor(Math.random() * R);
     const startC = Math.floor(Math.random() * C);
     const stack = [[startR, startC]];
@@ -416,35 +392,53 @@ class LoopNetGame {
       }
     }
 
-    // 3. 設定中心為電池能量核心
-    this.sourcePos = { r: Math.floor(R / 2), c: Math.floor(C / 2) };
+    // 3. 注入閉合環路（Cycle Injection）：優先在內部骨幹導線之間建立閉合網眼，打破樹狀結構並保留終端燈泡
+    const internalEdges = [];
+    const otherEdges = [];
 
-    // 4. 挑選鎖定元件 (Locked Tiles) 候選名單：非起點、非終端燈泡的內部普通導線
-    const lockCandidates = [];
     for (let r = 0; r < R; r++) {
       for (let c = 0; c < C; c++) {
-        const isSource = (r === this.sourcePos.r && c === this.sourcePos.c);
-        const isEndpoint = (!isSource && this.countBits(rawGrid[r][c]) === 1);
-        if (!isSource && !isEndpoint) {
-          lockCandidates.push({ r, c });
+        // 檢查右方相鄰是否未連通
+        if (c < C - 1 && !(rawGrid[r][c] & this.DIR.RIGHT)) {
+          const edge = { r1: r, c1: c, r2: r, c2: c + 1, bit1: this.DIR.RIGHT, bit2: this.DIR.LEFT };
+          if (this.countBits(rawGrid[r][c]) >= 2 && this.countBits(rawGrid[r][c + 1]) >= 2) {
+            internalEdges.push(edge);
+          } else {
+            otherEdges.push(edge);
+          }
+        }
+        // 檢查下方相鄰是否未連通
+        if (r < R - 1 && !(rawGrid[r][c] & this.DIR.DOWN)) {
+          const edge = { r1: r, c1: c, r2: r + 1, c2: c, bit1: this.DIR.DOWN, bit2: this.DIR.UP };
+          if (this.countBits(rawGrid[r][c]) >= 2 && this.countBits(rawGrid[r + 1][c]) >= 2) {
+            internalEdges.push(edge);
+          } else {
+            otherEdges.push(edge);
+          }
         }
       }
     }
 
-    // 根據棋盤難度決定鎖定格數量：7x7 為 2 格，8x8 為 3~4 格
-    let numLocked = 0;
-    if (R === 7) numLocked = 2;
-    else if (R >= 8) numLocked = Math.random() < 0.5 ? 3 : 4;
+    // 依據盤面大小計算注入的環路數量
+    let cycleCount = 0;
+    if (R === 5) cycleCount = 2 + Math.floor(Math.random() * 2); // 2~3 條
+    else if (R === 6) cycleCount = 4 + Math.floor(Math.random() * 3); // 4~6 條
+    else if (R === 7) cycleCount = 7 + Math.floor(Math.random() * 4); // 7~10 條
+    else if (R >= 8) cycleCount = 10 + Math.floor(Math.random() * 6); // 10~15 條
 
-    const lockedSet = new Set();
-    // 隨機抽樣鎖定格
-    for (let i = 0; i < numLocked && lockCandidates.length > 0; i++) {
-      const idx = Math.floor(Math.random() * lockCandidates.length);
-      const chosen = lockCandidates.splice(idx, 1)[0];
-      lockedSet.add(`${chosen.r},${chosen.c}`);
+    // 優先注入內部閉合邊
+    const edgePool = internalEdges.length >= cycleCount ? internalEdges : [...internalEdges, ...otherEdges];
+    for (let i = 0; i < cycleCount && edgePool.length > 0; i++) {
+      const idx = Math.floor(Math.random() * edgePool.length);
+      const edge = edgePool.splice(idx, 1)[0];
+      rawGrid[edge.r1][edge.c1] |= edge.bit1;
+      rawGrid[edge.r2][edge.c2] |= edge.bit2;
     }
 
-    // 5. 隨機旋轉洗牌 (鎖定格維持正確角度 0 度；其餘格打亂 1~3 次 90 度)
+    // 4. 設定中心為電池能量核心
+    this.sourcePos = { r: Math.floor(R / 2), c: Math.floor(C / 2) };
+
+    // 5. 隨機旋轉洗牌 (所有格子打亂 1~3 次 90 度)
     this.grid = [];
     let totalParMoves = 0;
 
@@ -454,19 +448,11 @@ class LoopNetGame {
         const targetMask = rawGrid[r][c];
         const isSource = (r === this.sourcePos.r && c === this.sourcePos.c);
         const isEndpoint = (!isSource && this.countBits(targetMask) === 1);
-        const isLocked = lockedSet.has(`${r},${c}`);
 
-        let rotCount = 0;
+        const rotCount = Math.floor(Math.random() * 3) + 1;
         let currentMask = targetMask;
-
-        if (isLocked) {
-          // 鎖定格保持在目標解答角度
-          rotCount = 0;
-        } else {
-          rotCount = Math.floor(Math.random() * 3) + 1;
-          for (let i = 0; i < rotCount; i++) {
-            currentMask = this.rotateMask(currentMask);
-          }
+        for (let i = 0; i < rotCount; i++) {
+          currentMask = this.rotateMask(currentMask);
         }
 
         totalParMoves += this.getMinClicksToSolve(currentMask, targetMask);
@@ -478,8 +464,7 @@ class LoopNetGame {
           initialDeg: rotCount * 90,
           isPowered: false,
           isSource,
-          isEndpoint,
-          isLocked
+          isEndpoint
         };
       }
     }
@@ -643,9 +628,7 @@ class LoopNetGame {
       for (let r = 0; r < size; r++) {
         for (let c = 0; c < size; c++) {
           const cell = this.grid[r][c];
-          if (!cell.isLocked) {
-            calcPar += this.getMinClicksToSolve(cell.currentMask, cell.targetMask);
-          }
+          calcPar += this.getMinClicksToSolve(cell.currentMask, cell.targetMask);
         }
       }
       this.parMoves = Math.max(1, calcPar);
@@ -705,7 +688,7 @@ class LoopNetGame {
   }
 
   /* ------------------------------------------------------------------------
-     SVG 線條渲染與棋盤繪製 (分層架構：線路旋轉層 + 頂層固定電池/燈泡/鎖定層)
+     SVG 線條渲染與棋盤繪製 (分層架構：線路旋轉層 + 頂層固定電池/燈泡層)
      ------------------------------------------------------------------------ */
   renderBoard() {
     const R = this.gridSize;
@@ -717,13 +700,12 @@ class LoopNetGame {
       for (let c = 0; c < C; c++) {
         const cell = this.grid[r][c];
         const tile = document.createElement('div');
-        tile.className = `cell-tile ${cell.isSource ? 'is-source' : ''} ${cell.isEndpoint ? 'is-endpoint' : ''} ${cell.isLocked ? 'is-locked' : ''}`;
+        tile.className = `cell-tile ${cell.isSource ? 'is-source' : ''} ${cell.isEndpoint ? 'is-endpoint' : ''}`;
         tile.id = `cell-${r}-${c}`;
         
         let tileTitle = `點擊旋轉電路 (${r + 1}, ${c + 1})`;
         if (cell.isSource) tileTitle = `能量電池核心 (${r + 1}, ${c + 1})`;
         else if (cell.isEndpoint) tileTitle = `電路終端燈泡 (${r + 1}, ${c + 1})`;
-        else if (cell.isLocked) tileTitle = `固定鎖定電路 (${r + 1}, ${c + 1}) - 不可旋轉`;
         tile.title = tileTitle;
 
         // 1. 底層旋轉導線層 (隨點擊旋轉)
@@ -739,15 +721,6 @@ class LoopNetGame {
           deviceWrapper.className = 'device-overlay';
           deviceWrapper.innerHTML = this.generateDeviceSVG(cell);
           tile.appendChild(deviceWrapper);
-        }
-
-        // 3. 鎖定格標記徽章 (金屬鎖頭標記)
-        if (cell.isLocked) {
-          const lockBadge = document.createElement('div');
-          lockBadge.className = 'lock-overlay-badge';
-          lockBadge.title = '固定鎖定元件';
-          lockBadge.innerHTML = '<i class="fa-solid fa-lock"></i>';
-          tile.appendChild(lockBadge);
         }
 
         tile.addEventListener('click', () => this.handleCellClick(r, c));
@@ -847,23 +820,9 @@ class LoopNetGame {
   handleCellClick(r, c) {
     if (this.isWon) return;
 
-    const cell = this.grid[r][c];
-
-    // 若為鎖定元件，拒絕旋轉並播放提示與抖動
-    if (cell.isLocked) {
-      this.sound.playLocked();
-      const tile = document.getElementById(`cell-${r}-${c}`);
-      if (tile) {
-        tile.classList.remove('is-shaking');
-        void tile.offsetWidth;
-        tile.classList.add('is-shaking');
-        setTimeout(() => tile.classList.remove('is-shaking'), 350);
-      }
-      return;
-    }
-
     this.sound.playRotate();
 
+    const cell = this.grid[r][c];
     cell.rotationDeg += 90;
     cell.currentMask = this.rotateMask(cell.currentMask);
     this.moves++;
@@ -1003,7 +962,7 @@ class LoopNetGame {
     for (let r = 0; r < R; r++) {
       for (let c = 0; c < C; c++) {
         const cell = this.grid[r][c];
-        if (!cell.isLocked && cell.currentMask !== cell.targetMask) {
+        if (cell.currentMask !== cell.targetMask) {
           wrongCells.push({ r, c, cell });
         }
       }

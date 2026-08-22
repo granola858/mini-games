@@ -564,60 +564,6 @@ body {
 }
 
 /* ==========================================================================
-   鎖定元件 (Locked / Fixed Tiles) 樣式
-   ========================================================================== */
-.cell-tile.is-locked {
-  background-color: var(--bg-elevated);
-  border-color: #94A3B8;
-  position: relative;
-}
-
-[data-theme="dark"] .cell-tile.is-locked {
-  background-color: #0F172A;
-  border-color: #475569;
-}
-
-.cell-tile.is-locked:hover {
-  border-color: #64748B;
-}
-
-/* 鎖定固定鉚釘與鎖頭標記 */
-.lock-overlay-badge {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 14px;
-  height: 14px;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(2px);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #FBBF24;
-  font-size: 8px;
-  pointer-events: none;
-  z-index: 3;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme="dark"] .lock-overlay-badge {
-  background: rgba(30, 41, 59, 0.85);
-  color: #FDE68A;
-}
-
-/* 點擊鎖定元件時的防禦性抖動 */
-.cell-tile.is-locked.is-shaking {
-  animation: lockShake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-@keyframes lockShake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-3px); }
-  40%, 80% { transform: translateX(3px); }
-}
-
-/* ==========================================================================
    全盤通關勝利樣式 (超能過載高亮翡翠電光)
    ========================================================================== */
 .grid-board.is-won .cell-tile .wire-line {

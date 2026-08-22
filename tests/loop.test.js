@@ -62,6 +62,45 @@ function generateBoard(size) {
     }
   }
 
+  // 注入閉合環路：優先在內部骨幹導線之間注入
+  const internalEdges = [];
+  const otherEdges = [];
+
+  for (let r = 0; r < R; r++) {
+    for (let c = 0; c < C; c++) {
+      if (c < C - 1 && !(rawGrid[r][c] & DIR.RIGHT)) {
+        const edge = { r1: r, c1: c, r2: r, c2: c + 1, bit1: DIR.RIGHT, bit2: DIR.LEFT };
+        if (countBits(rawGrid[r][c]) >= 2 && countBits(rawGrid[r][c + 1]) >= 2) {
+          internalEdges.push(edge);
+        } else {
+          otherEdges.push(edge);
+        }
+      }
+      if (r < R - 1 && !(rawGrid[r][c] & DIR.DOWN)) {
+        const edge = { r1: r, c1: c, r2: r + 1, c2: c, bit1: DIR.DOWN, bit2: DIR.UP };
+        if (countBits(rawGrid[r][c]) >= 2 && countBits(rawGrid[r + 1][c]) >= 2) {
+          internalEdges.push(edge);
+        } else {
+          otherEdges.push(edge);
+        }
+      }
+    }
+  }
+
+  let cycleCount = 0;
+  if (R === 5) cycleCount = 2;
+  else if (R === 6) cycleCount = 4;
+  else if (R === 7) cycleCount = 7;
+  else if (R >= 8) cycleCount = 10;
+
+  const edgePool = internalEdges.length >= cycleCount ? internalEdges : [...internalEdges, ...otherEdges];
+  for (let i = 0; i < cycleCount && edgePool.length > 0; i++) {
+    const idx = Math.floor(Math.random() * edgePool.length);
+    const edge = edgePool.splice(idx, 1)[0];
+    rawGrid[edge.r1][edge.c1] |= edge.bit1;
+    rawGrid[edge.r2][edge.c2] |= edge.bit2;
+  }
+
   return rawGrid;
 }
 
@@ -218,17 +257,47 @@ test('Loop 最佳理論最少步數 (Par Moves) 與三星評分計算邏輯', ()
   assert.equal(evaluateStars(35, parMoves), 1, '超額步數應為 1 星');
 });
 
-test('Loop 7x7 與 8x8 鎖定元件生成規則驗證', () => {
-  function determineNumLocked(size) {
-    if (size === 7) return 2;
-    if (size >= 8) return 3; // 或 3~4
-    return 0;
+test('Loop 閉合迴路生成演算法拓撲與邊數驗證 (Cycle Injection)', () => {
+  const size = 6;
+  const board = generateBoard(size);
+
+  // 計算全圖總連通端點數（總度數）
+  let totalDegree = 0;
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      totalDegree += countBits(board[r][c]);
+    }
   }
 
-  assert.equal(determineNumLocked(5), 0, '5x5 不應有鎖定元件');
-  assert.equal(determineNumLocked(6), 0, '6x6 不應有鎖定元件');
-  assert.equal(determineNumLocked(7), 2, '7x7 應有 2 個鎖定元件');
-  assert.equal(determineNumLocked(8), 3, '8x8 應有 3~4 個鎖定元件');
+  // 總邊數 E = 總度數 / 2
+  const totalEdges = totalDegree / 2;
+  const treeEdges = size * size - 1; // 6x6 樹狀圖邊數為 35
+
+  // 驗證總邊數大於純樹狀圖邊數（存在閉合環路）
+  assert.ok(totalEdges > treeEdges, `6x6 閉合電網總邊數 (${totalEdges}) 應大於純樹狀圖邊數 (${treeEdges})`);
+
+  // 驗證相鄰接合完全一致，無任何外邊界開口
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const mask = board[r][c];
+      if (mask & DIR.UP) {
+        assert.ok(r > 0, '頂部外邊界不應有導線開口');
+        assert.ok(board[r - 1][c] & DIR.DOWN, '相鄰上方格應向下接合');
+      }
+      if (mask & DIR.RIGHT) {
+        assert.ok(c < size - 1, '右側外邊界不應有導線開口');
+        assert.ok(board[r][c + 1] & DIR.LEFT, '相鄰右方格應向左接合');
+      }
+      if (mask & DIR.DOWN) {
+        assert.ok(r < size - 1, '底部外邊界不應有導線開口');
+        assert.ok(board[r + 1][c] & DIR.UP, '相鄰下方格應向上接合');
+      }
+      if (mask & DIR.LEFT) {
+        assert.ok(c > 0, '左側外邊界不應有導線開口');
+        assert.ok(board[r][c - 1] & DIR.RIGHT, '相鄰左方格應向右接合');
+      }
+    }
+  }
 });
 
 
