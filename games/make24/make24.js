@@ -18,7 +18,7 @@ const MODES = {
     name: '簡單',
     maxNum: 9,
     oddMax: 2,           // 偶數 >= 2
-    minSolutions: 4,
+    minSolutions: 8,
     allowFraction: false
   },
   medium: {
@@ -26,7 +26,8 @@ const MODES = {
     name: '標準',
     maxNum: 10,
     oddMax: 3,
-    minSolutions: 2,
+    minSolutions: 3,
+    maxSolutions: 7,
     allowFraction: false
   },
   hard: {
@@ -65,7 +66,8 @@ const CURATED_MASTER_PUZZLES = [
    -------------------------------------------------------------------------- */
 
 /**
- * 求解 24 點並標記解法中是否出現分數/非整數中繼運算
+ * 求解 24 點並消除交換律等價解，計算獨立思維路徑（Canonical Solutions）
+ * 同時標記解法中是否出現分數/非整數中繼運算
  */
 function solve24Detailed(nums) {
   const results = [];
@@ -74,6 +76,7 @@ function solve24Detailed(nums) {
       if (Math.abs(list[0].val - 24) < 1e-5) {
         results.push({
           expr: list[0].expr,
+          canon: list[0].canon,
           isFraction: !!list[0].isFraction
         });
       }
@@ -85,34 +88,44 @@ function solve24Detailed(nums) {
         const nextList = list.filter((_, idx) => idx !== i && idx !== j);
         const a = list[i], b = list[j];
 
-        // 加法
-        helper([...nextList, {
-          val: a.val + b.val,
-          expr: `(${a.expr} + ${b.expr})`,
-          isFraction: a.isFraction || b.isFraction || !Number.isInteger(Math.round((a.val + b.val) * 1e5) / 1e5)
-        }]);
+        // 加法（具交換律：正規化為 a.canon <= b.canon）
+        if (i < j) {
+          const canon = a.canon < b.canon ? `(${a.canon}+${b.canon})` : `(${b.canon}+${a.canon})`;
+          helper([...nextList, {
+            val: a.val + b.val,
+            expr: `(${a.expr} + ${b.expr})`,
+            canon,
+            isFraction: a.isFraction || b.isFraction || !Number.isInteger(Math.round((a.val + b.val) * 1e5) / 1e5)
+          }]);
+        }
 
-        // 減法
+        // 減法（無交換律）
         helper([...nextList, {
           val: a.val - b.val,
           expr: `(${a.expr} - ${b.expr})`,
+          canon: `(${a.canon}-${b.canon})`,
           isFraction: a.isFraction || b.isFraction || !Number.isInteger(Math.round((a.val - b.val) * 1e5) / 1e5)
         }]);
 
-        // 乘法
-        helper([...nextList, {
-          val: a.val * b.val,
-          expr: `(${a.expr} × ${b.expr})`,
-          isFraction: a.isFraction || b.isFraction || !Number.isInteger(Math.round((a.val * b.val) * 1e5) / 1e5)
-        }]);
+        // 乘法（具交換律：正規化為 a.canon <= b.canon）
+        if (i < j) {
+          const canon = a.canon < b.canon ? `(${a.canon}*${b.canon})` : `(${b.canon}*${a.canon})`;
+          helper([...nextList, {
+            val: a.val * b.val,
+            expr: `(${a.expr} × ${b.expr})`,
+            canon,
+            isFraction: a.isFraction || b.isFraction || !Number.isInteger(Math.round((a.val * b.val) * 1e5) / 1e5)
+          }]);
+        }
 
-        // 除法
+        // 除法（無交換律）
         if (Math.abs(b.val) > 1e-5) {
           const divVal = a.val / b.val;
           const isNonIntegerDivision = Math.abs(divVal - Math.round(divVal)) > 1e-5;
           helper([...nextList, {
             val: divVal,
             expr: `(${a.expr} ÷ ${b.expr})`,
+            canon: `(${a.canon}/${b.canon})`,
             isFraction: a.isFraction || b.isFraction || isNonIntegerDivision
           }]);
         }
@@ -120,24 +133,22 @@ function solve24Detailed(nums) {
     }
   };
 
-  helper(nums.map(n => ({ val: n, expr: n.toString(), isFraction: false })));
+  helper(nums.map(n => ({ val: n, expr: n.toString(), canon: n.toString(), isFraction: false })));
 
-  // 去重並優先保留整數解標記
+  // 依正規化代數表達式去重，優先保留純整數解標記
   const map = new Map();
   results.forEach(item => {
-    if (!map.has(item.expr)) {
-      map.set(item.expr, item.isFraction);
-    } else if (!item.isFraction) {
-      map.set(item.expr, false);
+    if (!map.has(item.canon)) {
+      map.set(item.canon, item);
+    } else if (!item.isFraction && map.get(item.canon).isFraction) {
+      map.set(item.canon, item);
     }
   });
 
-  const uniqueSolutions = [];
-  map.forEach((isFraction, expr) => {
-    uniqueSolutions.push({ expr, isFraction });
-  });
-
-  return uniqueSolutions;
+  return Array.from(map.values()).map(item => ({
+    expr: item.expr,
+    isFraction: item.isFraction
+  }));
 }
 
 /**
@@ -190,28 +201,49 @@ function analyzePuzzle(nums) {
 }
 
 /**
- * 難度符合性檢驗
+ * 難度符合性檢驗（嚴格區間分層與上下限過濾）
  */
 function isPuzzleMatchingDifficulty(puzzleInfo, mode) {
   if (puzzleInfo.solutionCount === 0) return false;
 
   switch (mode) {
     case 'easy':
-      // 偶數 >= 2 (oddCount <= 2), 必須有整數解, 解法數 >= 4
-      return puzzleInfo.evenCount >= 2 && puzzleInfo.hasIntegerSolution && puzzleInfo.solutionCount >= 4;
+      // 簡單模式：
+      // 1. 數字 1~9, 偶數 >= 2
+      // 2. 必須有純整數解
+      // 3. 獨立思維解法數 >= 8 (確保充足解題路徑，絕非死板狹窄題)
+      return puzzleInfo.nums.every(n => n <= 9) &&
+             puzzleInfo.evenCount >= 2 &&
+             puzzleInfo.hasIntegerSolution &&
+             puzzleInfo.solutionCount >= 8;
 
     case 'medium':
-      // 必須有整數解, 解法數 2~12 種, 奇數 <= 3
-      return puzzleInfo.hasIntegerSolution && puzzleInfo.solutionCount >= 2 && puzzleInfo.oddCount <= 3;
+      // 標準模式：
+      // 1. 數字 1~10, 奇數 <= 3
+      // 2. 必須有純整數解
+      // 3. 解法數落在 3 ~ 7 種 (設定明確上限，杜絕標準模式抽到超簡單水題，也不會掉入 1~2 解的死胡同)
+      return puzzleInfo.nums.every(n => n <= 10) &&
+             puzzleInfo.oddCount <= 3 &&
+             puzzleInfo.hasIntegerSolution &&
+             puzzleInfo.solutionCount >= 3 &&
+             puzzleInfo.solutionCount <= 7;
 
     case 'hard':
-      // 必須有解，且 (奇數 >= 3 或 解法數 <= 3)
-      return puzzleInfo.solutionCount >= 1 && (puzzleInfo.oddCount >= 3 || puzzleInfo.solutionCount <= 3);
+      // 困難模式：
+      // 1. 數字 1~12
+      // 2. 必須有解，且解法數極少 (<= 2 種)，或者 奇數 >= 3 且解法數 <= 3
+      return puzzleInfo.nums.every(n => n <= 12) &&
+             puzzleInfo.solutionCount >= 1 &&
+             (puzzleInfo.solutionCount <= 2 || (puzzleInfo.oddCount >= 3 && puzzleInfo.solutionCount <= 3));
 
     case 'master':
-      // 分數唯一解，或 4 奇數少解，或 大牌 (11~13) 少解，或 奇數 >= 3 少解
+      // 大師模式：
+      // 1. 純分數逆算題 (isFractionOnly)
+      // 2. 四奇數極少解 (oddCount === 4 && solutionCount <= 2)
+      // 3. 奇數 >= 3 且極少解 (oddCount >= 3 && solutionCount <= 2)
+      // 4. 含有大牌 (11~13) 且極少解 (solutionCount <= 2)
       return puzzleInfo.isFractionOnly ||
-             (puzzleInfo.oddCount === 4 && puzzleInfo.solutionCount <= 3) ||
+             (puzzleInfo.oddCount === 4 && puzzleInfo.solutionCount <= 2) ||
              (puzzleInfo.oddCount >= 3 && puzzleInfo.solutionCount <= 2) ||
              (puzzleInfo.nums.some(n => n >= 11) && puzzleInfo.solutionCount <= 2);
 
@@ -291,6 +323,10 @@ class Make24Game {
     this.cardData = [];          // 當前局的 4 張卡片資料 [{num, suit, displayRank, subLabel}]
     this.usedCardIndices = new Set(); // 記錄已使用的卡片索引
     this.tokens = [];            // 目前算式 Token 陣列 [{type: 'num'|'op', val: string, cardIdx?: number}]
+    this.cursorIndex = 0;        // 游標插入位置 (0 ~ tokens.length)
+    this.selectionRange = null;  // 選取區間 null 或 { start: number, end: number }
+    this.isSelecting = false;    // 滑鼠/觸控框選中標記
+    this.dragStartIndex = null;  // 框選起始索引
     this.solutions = [];         // 當前數字的可行解
     this.puzzleInfo = null;      // 當前題目特徵資料
     this.sound = new SoundManager();
@@ -302,29 +338,33 @@ class Make24Game {
     this.timerSeconds = 0;
     this.timerInterval = null;
 
-    // DOM 元素引用
+    // DOM 元素引用 (支援 Node.js 測試與 SSR 環境)
+    const isBrowser = typeof document !== 'undefined';
     this.dom = {
-      themeBtn: document.getElementById('theme-btn'),
-      tabButtons: document.querySelectorAll('.tab-btn'),
-      timerText: document.getElementById('timer-text'),
-      streakText: document.getElementById('streak-text'),
-      bestText: document.getElementById('best-text'),
-      displayCard: document.getElementById('display-card'),
-      equationContainer: document.getElementById('equation-container'),
-      evalResult: document.getElementById('eval-result'),
-      cardsGrid: document.getElementById('cards-grid'),
-      btnBackspace: document.getElementById('btn-backspace'),
-      btnClear: document.getElementById('btn-clear'),
-      btnHint: document.getElementById('btn-hint'),
-      btnSkip: document.getElementById('btn-skip'),
-      modalOverlay: document.getElementById('modal-overlay'),
-      modalTitle: document.getElementById('modal-title'),
-      modalBody: document.getElementById('modal-body'),
-      modalCloseBtn: document.getElementById('modal-close-btn'),
-      confettiCanvas: document.getElementById('confetti-canvas')
+      themeBtn: isBrowser ? document.getElementById('theme-btn') : null,
+      tabButtons: isBrowser ? document.querySelectorAll('.tab-btn') : [],
+      timerText: isBrowser ? document.getElementById('timer-text') : null,
+      streakText: isBrowser ? document.getElementById('streak-text') : null,
+      bestText: isBrowser ? document.getElementById('best-text') : null,
+      displayCard: isBrowser ? document.getElementById('display-card') : null,
+      equationContainer: isBrowser ? document.getElementById('equation-container') : null,
+      evalResult: isBrowser ? document.getElementById('eval-result') : null,
+      cardsGrid: isBrowser ? document.getElementById('cards-grid') : null,
+      keypadGrid: isBrowser ? document.getElementById('keypad-grid') : null,
+      btnBackspace: isBrowser ? document.getElementById('btn-backspace') : null,
+      btnClear: isBrowser ? document.getElementById('btn-clear') : null,
+      btnHint: isBrowser ? document.getElementById('btn-hint') : null,
+      btnSkip: isBrowser ? document.getElementById('btn-skip') : null,
+      modalOverlay: isBrowser ? document.getElementById('modal-overlay') : null,
+      modalTitle: isBrowser ? document.getElementById('modal-title') : null,
+      modalBody: isBrowser ? document.getElementById('modal-body') : null,
+      modalCloseBtn: isBrowser ? document.getElementById('modal-close-btn') : null,
+      confettiCanvas: isBrowser ? document.getElementById('confetti-canvas') : null
     };
 
-    this.init();
+    if (isBrowser) {
+      this.init();
+    }
   }
 
   init() {
@@ -441,6 +481,11 @@ class Make24Game {
       });
     }
 
+    // 全域放開滑鼠事件，結束框選
+    window.addEventListener('mouseup', () => {
+      this.isSelecting = false;
+    });
+
     // Modal 關閉
     if (this.dom.modalCloseBtn) {
       this.dom.modalCloseBtn.addEventListener('click', () => {
@@ -491,16 +536,60 @@ class Make24Game {
         this.sound.playOpClick();
         const map = { '*': '×', '/': '÷' };
         this.addOperatorToken(map[e.key] || e.key);
-      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      } else if (e.key === 'Backspace') {
         e.preventDefault();
         this.sound.playBackspace();
         this.handleBackspace();
-      } else if (e.key === 'Escape') {
+      } else if (e.key === 'Delete') {
         e.preventDefault();
         this.sound.playBackspace();
-        this.handleClear();
+        this.handleDelete();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        if (this.selectionRange) {
+          this.clearSelection();
+        } else {
+          this.sound.playBackspace();
+          this.handleClear();
+        }
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        this.handleArrowKey(-1, e.shiftKey);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        this.handleArrowKey(1, e.shiftKey);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        this.setCursorIndex(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        this.setCursorIndex(this.tokens.length);
       }
     });
+  }
+
+  handleArrowKey(direction, isShift) {
+    if (this.tokens.length === 0) return;
+
+    if (isShift) {
+      // Shift + 方向鍵：擴展或收縮選取區間
+      const anchor = this.selectionRange ? this.selectionRange.start : this.cursorIndex;
+      const target = Math.max(0, Math.min(this.tokens.length, this.cursorIndex + direction));
+      if (anchor === target) {
+        this.setCursorIndex(target);
+      } else {
+        this.setSelectionRange(Math.min(anchor, target), Math.max(anchor, target));
+        this.cursorIndex = target;
+        this.updateEquationDisplay();
+      }
+    } else {
+      if (this.selectionRange) {
+        const target = direction < 0 ? this.selectionRange.start : this.selectionRange.end;
+        this.setCursorIndex(target);
+      } else {
+        this.setCursorIndex(this.cursorIndex + direction);
+      }
+    }
   }
 
   switchMode(mode) {
@@ -529,6 +618,8 @@ class Make24Game {
     this.generateSolvableCards();
     this.usedCardIndices.clear();
     this.tokens = [];
+    this.cursorIndex = 0;
+    this.selectionRange = null;
 
     this.renderCards();
     this.updateEquationDisplay();
@@ -565,6 +656,8 @@ class Make24Game {
         cardData: this.cardData,
         usedCardIndices: Array.from(this.usedCardIndices),
         tokens: this.tokens,
+        cursorIndex: this.cursorIndex,
+        selectionRange: this.selectionRange,
         solutions: this.solutions,
         puzzleInfo: this.puzzleInfo,
         streak: this.streak,
@@ -592,6 +685,10 @@ class Make24Game {
       this.cardData = state.cardData;
       this.usedCardIndices = new Set(state.usedCardIndices || []);
       this.tokens = state.tokens || [];
+      this.cursorIndex = typeof state.cursorIndex === 'number'
+        ? Math.max(0, Math.min(this.tokens.length, state.cursorIndex))
+        : this.tokens.length;
+      this.selectionRange = state.selectionRange || null;
       this.solutions = state.solutions || [];
       this.puzzleInfo = state.puzzleInfo || null;
       this.streak = state.streak || 0;
@@ -660,7 +757,7 @@ class Make24Game {
       } else {
         const fallbacks = {
           easy: [2, 4, 6, 8],
-          medium: [3, 4, 6, 7],
+          medium: [1, 5, 6, 8],
           hard: [3, 3, 7, 7]
         };
         const nums = fallbacks[mode] || [1, 2, 3, 4];
@@ -725,11 +822,110 @@ class Make24Game {
     });
   }
 
+  /* ------------------------------------------------------------------------
+     游標定位、選取與智慧括號編輯方法
+     ------------------------------------------------------------------------ */
+  setCursorIndex(idx) {
+    this.cursorIndex = Math.max(0, Math.min(this.tokens.length, idx));
+    this.selectionRange = null;
+    this.updateEquationDisplay();
+    this.saveGameState();
+  }
+
+  setSelectionRange(start, end) {
+    if (start === end) {
+      this.setCursorIndex(start);
+      return;
+    }
+    const s = Math.max(0, Math.min(start, end));
+    const e = Math.min(this.tokens.length, Math.max(start, end));
+    this.selectionRange = { start: s, end: e };
+    this.cursorIndex = e;
+    this.updateEquationDisplay();
+    this.saveGameState();
+  }
+
+  clearSelection() {
+    this.selectionRange = null;
+    this.updateEquationDisplay();
+    this.saveGameState();
+  }
+
+  /**
+   * 檢查選取區間是否剛好被成對的配對括號包裹 (如 ( 3 + 5 ))
+   */
+  isSelectionEnclosedByMatchingParens(start, end) {
+    if (end - start < 2) return false;
+    if (this.tokens[start].val !== '(' || this.tokens[end - 1].val !== ')') return false;
+
+    let depth = 0;
+    for (let i = start; i < end; i++) {
+      if (this.tokens[i].val === '(') depth++;
+      else if (this.tokens[i].val === ')') {
+        depth--;
+        if (depth === 0 && i < end - 1) return false; // 中途就閉合了，例如 (1+2)+(3+4)
+      }
+    }
+    return depth === 0;
+  }
+
+  /**
+   * 智慧括號包裹或解開
+   */
+  wrapOrUnwrapSelection() {
+    if (!this.selectionRange || this.isWon) return;
+    const { start, end } = this.selectionRange;
+
+    if (this.isSelectionEnclosedByMatchingParens(start, end)) {
+      // 解開括號 (Unwrap)
+      this.tokens.splice(end - 1, 1);
+      this.tokens.splice(start, 1);
+      const newEnd = end - 2;
+      if (newEnd > start) {
+        this.selectionRange = { start, end: newEnd };
+        this.cursorIndex = newEnd;
+      } else {
+        this.selectionRange = null;
+        this.cursorIndex = start;
+      }
+    } else {
+      // 包裹括號 (Wrap)
+      this.tokens.splice(end, 0, { type: 'op', val: ')' });
+      this.tokens.splice(start, 0, { type: 'op', val: '(' });
+      this.selectionRange = { start, end: end + 2 };
+      this.cursorIndex = end + 2;
+    }
+
+    this.updateEquationDisplay();
+    this.saveGameState();
+  }
+
+  deleteSelection() {
+    if (!this.selectionRange) return;
+    const { start, end } = this.selectionRange;
+    for (let i = start; i < end; i++) {
+      const t = this.tokens[i];
+      if (t.type === 'num' && t.cardIdx !== undefined) {
+        this.usedCardIndices.delete(t.cardIdx);
+      }
+    }
+    this.tokens.splice(start, end - start);
+    this.cursorIndex = start;
+    this.selectionRange = null;
+    this.renderCards();
+  }
+
   addNumberToken(cardIdx, numValue) {
     if (this.usedCardIndices.has(cardIdx) || this.isWon) return;
 
-    this.tokens.push({ type: 'num', val: numValue.toString(), cardIdx });
+    if (this.selectionRange) {
+      this.deleteSelection();
+    }
+
+    this.tokens.splice(this.cursorIndex, 0, { type: 'num', val: numValue.toString(), cardIdx });
     this.usedCardIndices.add(cardIdx);
+    this.cursorIndex++;
+    this.selectionRange = null;
 
     this.renderCards();
     this.updateEquationDisplay();
@@ -738,26 +934,72 @@ class Make24Game {
 
   addOperatorToken(opSymbol) {
     if (this.isWon) return;
-    this.tokens.push({ type: 'op', val: opSymbol });
+
+    if (this.selectionRange) {
+      if (opSymbol === '(' || opSymbol === ')') {
+        this.wrapOrUnwrapSelection();
+        return;
+      }
+      this.deleteSelection();
+    }
+
+    this.tokens.splice(this.cursorIndex, 0, { type: 'op', val: opSymbol });
+    this.cursorIndex++;
+    this.selectionRange = null;
+
     this.updateEquationDisplay();
     this.saveGameState();
   }
 
   handleBackspace() {
     if (this.tokens.length === 0 || this.isWon) return;
-    const popped = this.tokens.pop();
-    if (popped.type === 'num' && popped.cardIdx !== undefined) {
-      this.usedCardIndices.delete(popped.cardIdx);
-      this.renderCards();
+
+    if (this.selectionRange) {
+      this.deleteSelection();
+      this.updateEquationDisplay();
+      this.saveGameState();
+      return;
     }
-    this.updateEquationDisplay();
-    this.saveGameState();
+
+    if (this.cursorIndex > 0) {
+      const removed = this.tokens.splice(this.cursorIndex - 1, 1)[0];
+      if (removed.type === 'num' && removed.cardIdx !== undefined) {
+        this.usedCardIndices.delete(removed.cardIdx);
+        this.renderCards();
+      }
+      this.cursorIndex--;
+      this.updateEquationDisplay();
+      this.saveGameState();
+    }
+  }
+
+  handleDelete() {
+    if (this.tokens.length === 0 || this.isWon) return;
+
+    if (this.selectionRange) {
+      this.deleteSelection();
+      this.updateEquationDisplay();
+      this.saveGameState();
+      return;
+    }
+
+    if (this.cursorIndex < this.tokens.length) {
+      const removed = this.tokens.splice(this.cursorIndex, 1)[0];
+      if (removed.type === 'num' && removed.cardIdx !== undefined) {
+        this.usedCardIndices.delete(removed.cardIdx);
+        this.renderCards();
+      }
+      this.updateEquationDisplay();
+      this.saveGameState();
+    }
   }
 
   handleClear() {
     if (this.isWon) return;
     this.tokens = [];
     this.usedCardIndices.clear();
+    this.cursorIndex = 0;
+    this.selectionRange = null;
     this.renderCards();
     this.updateEquationDisplay();
     this.saveGameState();
@@ -769,20 +1011,99 @@ class Make24Game {
   updateEquationDisplay() {
     if (!this.dom.equationContainer || !this.dom.evalResult) return;
 
+    // 校驗 cursorIndex 在合法範圍
+    this.cursorIndex = Math.max(0, Math.min(this.tokens.length, this.cursorIndex));
+
+    // 更新括號按鈕高亮狀態與 tooltip
+    this.updateKeypadState();
+
     if (this.tokens.length === 0) {
-      this.dom.equationContainer.innerHTML = `<span style="color: var(--text-secondary); font-size: 13px; font-family: sans-serif;">點選下方撲克牌與符號組合 24 點</span>`;
+      this.dom.equationContainer.innerHTML = `
+        <div class="equation-slot active" data-slot="0">
+          <span class="equation-caret"></span>
+        </div>
+        <span class="equation-placeholder">點選下方撲克牌與符號組合 24 點</span>
+      `;
+      const emptySlot = this.dom.equationContainer.querySelector('.equation-slot');
+      if (emptySlot) {
+        emptySlot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.setCursorIndex(0);
+        });
+      }
       this.dom.evalResult.textContent = '';
       if (this.dom.displayCard) this.dom.displayCard.classList.remove('is-correct');
       return;
     }
 
     this.dom.equationContainer.innerHTML = '';
-    this.tokens.forEach(token => {
-      const span = document.createElement('span');
-      span.className = `equation-token ${token.type === 'num' ? 'num' : 'op'}`;
-      span.textContent = token.val;
-      this.dom.equationContainer.appendChild(span);
-    });
+
+    // 渲染 slots 與 tokens 交錯結構
+    for (let i = 0; i <= this.tokens.length; i++) {
+      // 1. 建立 Slot i (游標放置點)
+      const slot = document.createElement('div');
+      slot.className = 'equation-slot';
+      slot.dataset.slot = i.toString();
+
+      // 當無選取且游標在該處時，顯示 Caret
+      if (!this.selectionRange && this.cursorIndex === i) {
+        slot.classList.add('active');
+        const caret = document.createElement('span');
+        caret.className = 'equation-caret';
+        slot.appendChild(caret);
+      }
+
+      slot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.setCursorIndex(i);
+      });
+
+      this.dom.equationContainer.appendChild(slot);
+
+      // 2. 建立 Token i (若 i < tokens.length)
+      if (i < this.tokens.length) {
+        const token = this.tokens[i];
+        const span = document.createElement('span');
+        span.className = `equation-token ${token.type === 'num' ? 'num' : 'op'}`;
+        if (token.val === '(' || token.val === ')') {
+          span.classList.add('paren');
+        }
+        span.dataset.tokenIndex = i.toString();
+        span.textContent = token.val;
+
+        // 判斷是否被選取
+        if (this.selectionRange && i >= this.selectionRange.start && i < this.selectionRange.end) {
+          span.classList.add('selected');
+        }
+
+        // Token 點擊與拖曳選取事件
+        span.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (this.selectionRange && this.selectionRange.start === i && this.selectionRange.end === i + 1) {
+            // 再次點擊已選中的單一 token：取消選取並把游標移到後方
+            this.setCursorIndex(i + 1);
+          } else {
+            this.setSelectionRange(i, i + 1);
+          }
+        });
+
+        span.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          this.isSelecting = true;
+          this.dragStartIndex = i;
+        });
+
+        span.addEventListener('mouseenter', () => {
+          if (this.isSelecting && this.dragStartIndex !== null) {
+            const s = Math.min(this.dragStartIndex, i);
+            const e = Math.max(this.dragStartIndex, i) + 1;
+            this.setSelectionRange(s, e);
+          }
+        });
+
+        this.dom.equationContainer.appendChild(span);
+      }
+    }
 
     const evalRes = this.evaluateTokens();
     if (evalRes.error) {
@@ -806,6 +1127,31 @@ class Make24Game {
         this.dom.evalResult.className = 'eval-result';
         if (this.dom.displayCard) this.dom.displayCard.classList.remove('is-correct');
       }
+    }
+  }
+
+  updateKeypadState() {
+    if (typeof document === 'undefined') return;
+    const parenBtns = document.querySelectorAll('.btn-key.op.paren');
+    if (!parenBtns) return;
+
+    if (this.selectionRange) {
+      const isEnclosed = this.isSelectionEnclosedByMatchingParens(this.selectionRange.start, this.selectionRange.end);
+      parenBtns.forEach(btn => {
+        btn.classList.add('wrap-active');
+        if (isEnclosed) {
+          btn.classList.add('unwrap-mode');
+          btn.title = '解除外層括號 (Unwrap)';
+        } else {
+          btn.classList.remove('unwrap-mode');
+          btn.title = '為選取算式加上括號 (Wrap)';
+        }
+      });
+    } else {
+      parenBtns.forEach(btn => {
+        btn.classList.remove('wrap-active', 'unwrap-mode');
+        btn.title = btn.dataset.op === '(' ? '左括號' : '右括號';
+      });
     }
   }
 
@@ -851,13 +1197,63 @@ class Make24Game {
 
     this.triggerConfetti();
 
+    // 取得玩家過關時拼出的完整算式
+    const finalEquation = this.tokens.map(t => t.val).join(' ');
     const modeName = MODES[this.currentMode]?.name || '當前';
+    const tagHtml = this.puzzleInfo && this.puzzleInfo.tag
+      ? `<div class="puzzle-tag">${this.puzzleInfo.tag}</div>`
+      : '';
+
+    const contentHtml = `
+      ${tagHtml}
+      <div class="win-equation-card">
+        <div class="win-equation-label">通關算式</div>
+        <div class="win-equation-text">${finalEquation} = 24</div>
+      </div>
+      <div class="win-stats-grid">
+        <div class="win-stat-item">
+          <span class="stat-label">難度模式</span>
+          <span class="stat-val">${modeName}</span>
+        </div>
+        <div class="win-stat-item">
+          <span class="stat-label">通關耗時</span>
+          <span class="stat-val">${this.timerSeconds}s</span>
+        </div>
+        <div class="win-stat-item">
+          <span class="stat-label">目前連勝</span>
+          <span class="stat-val highlight">${this.streak} 局</span>
+        </div>
+        <div class="win-stat-item">
+          <span class="stat-label">模式最佳</span>
+          <span class="stat-val">${this.bestStreak} 局</span>
+        </div>
+      </div>
+      <div class="win-modal-actions">
+        <button class="btn-action secondary" id="modal-view-board-btn" type="button">
+          <i class="fa-solid fa-eye"></i> 檢視盤面
+        </button>
+        <button class="btn-action primary" id="modal-next-game-btn" type="button">
+          <i class="fa-solid fa-arrow-right"></i> 下一局
+        </button>
+      </div>
+    `;
+
     setTimeout(() => {
-      this.showModal('解謎成功！🎉', `難度：<b>${modeName} 模式</b><br>耗時：<b>${this.timerSeconds} 秒</b><br>當前連勝：<b>${this.streak} 局</b><br>該模式最佳：<b>${this.bestStreak} 局</b>`);
-      if (this.dom.modalCloseBtn) {
-        this.dom.modalCloseBtn.onclick = () => {
+      this.showModal('解謎成功！🎉', contentHtml, true);
+
+      const nextBtn = document.getElementById('modal-next-game-btn');
+      if (nextBtn) {
+        nextBtn.onclick = () => {
           this.dom.modalOverlay.classList.remove('active');
           this.startNewGame();
+        };
+      }
+
+      const viewBoardBtn = document.getElementById('modal-view-board-btn');
+      if (viewBoardBtn) {
+        viewBoardBtn.onclick = () => {
+          // 暫時關閉彈窗以檢視盤面與算式
+          this.dom.modalOverlay.classList.remove('active');
         };
       }
     }, 450);
@@ -886,10 +1282,13 @@ class Make24Game {
     }
   }
 
-  showModal(title, htmlContent) {
+  showModal(title, htmlContent, hideDefaultCloseBtn = false) {
     if (!this.dom.modalTitle || !this.dom.modalBody || !this.dom.modalOverlay) return;
     this.dom.modalTitle.textContent = title;
     this.dom.modalBody.innerHTML = htmlContent;
+    if (this.dom.modalCloseBtn) {
+      this.dom.modalCloseBtn.style.display = hideDefaultCloseBtn ? 'none' : 'block';
+    }
     this.dom.modalOverlay.classList.add('active');
   }
 

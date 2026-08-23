@@ -272,19 +272,89 @@ body {
   min-height: 36px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 1px;
   flex-wrap: wrap;
   justify-content: center;
   word-break: break-all;
+  user-select: none;
+  cursor: text;
 }
 
+.equation-placeholder {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  pointer-events: none;
+}
+
+/* 游標插槽 (Slot) 與可點擊熱區 */
+.equation-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 6px;
+  min-height: 34px;
+  position: relative;
+  cursor: text;
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast);
+  border-radius: 2px;
+}
+
+.equation-slot::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: -8px;
+  right: -8px;
+  z-index: 1;
+}
+
+.equation-slot:hover {
+  background-color: var(--accent-light);
+}
+
+/* 閃爍光標 (Caret) */
+.equation-caret {
+  display: inline-block;
+  width: 2.5px;
+  height: 26px;
+  background-color: var(--accent-primary);
+  border-radius: 2px;
+  animation: caret-blink 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.6);
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes caret-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* 算式 Token */
 .equation-token {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 8px;
+  padding: 3px 7px;
   border-radius: var(--radius-sm);
   line-height: 1.2;
+  position: relative;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all var(--transition-fast);
+  z-index: 2;
+}
+
+.equation-token:hover {
+  border-color: var(--border-color);
+  background-color: var(--bg-surface);
 }
 
 .equation-token.num {
@@ -296,6 +366,21 @@ body {
 .equation-token.op {
   color: var(--text-primary);
   font-weight: 700;
+}
+
+.equation-token.paren {
+  color: var(--accent-primary);
+  font-weight: 800;
+  background-color: rgba(99, 102, 241, 0.08);
+}
+
+/* Token 被選取高亮狀態 */
+.equation-token.selected {
+  background-color: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 2px var(--accent-light), 0 4px 10px rgba(99, 102, 241, 0.35);
+  transform: translateY(-2px) scale(1.04);
 }
 
 .eval-result {
@@ -470,6 +555,37 @@ body {
   color: var(--accent-primary);
 }
 
+/* 智慧括號包裹模式按鈕高亮 (Wrap Active) */
+.btn-key.paren.wrap-active {
+  background-color: var(--accent-primary);
+  color: #FFFFFF;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-light), 0 4px 12px rgba(99, 102, 241, 0.35);
+  transform: translateY(-2px);
+  animation: key-pulse-glow 1.5s ease-in-out infinite alternate;
+}
+
+.btn-key.paren.wrap-active:hover {
+  background-color: var(--accent-hover);
+}
+
+/* 解開括號模式 (Unwrap Mode) */
+.btn-key.paren.unwrap-mode {
+  background-color: var(--color-danger);
+  color: #FFFFFF;
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2), 0 4px 12px rgba(239, 68, 68, 0.35);
+}
+
+@keyframes key-pulse-glow {
+  0% {
+    box-shadow: 0 0 0 2px var(--accent-light), 0 2px 6px rgba(99, 102, 241, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 0 5px var(--accent-light), 0 6px 14px rgba(99, 102, 241, 0.45);
+  }
+}
+
 /* 功能按鈕列 */
 .action-row {
   display: flex;
@@ -541,7 +657,7 @@ body {
   border-radius: var(--radius-lg);
   padding: 24px;
   width: 100%;
-  max-width: 320px;
+  max-width: 360px;
   text-align: center;
   box-shadow: var(--shadow-lg);
   transform: scale(0.9);
@@ -561,8 +677,92 @@ body {
 .modal-body {
   font-size: 14px;
   color: var(--text-secondary);
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   line-height: 1.5;
+}
+
+/* 獲勝通關算式卡片 */
+.win-equation-card {
+  background-color: var(--color-success-bg);
+  border: 1.5px solid var(--color-success);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin: 10px 0 14px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);
+}
+
+.win-equation-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-success);
+}
+
+.win-equation-text {
+  font-family: 'Space Mono', monospace, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  word-break: break-word;
+}
+
+/* 獲勝統計數據 2x2 網格 */
+.win-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.win-stat-item {
+  background-color: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.win-stat-item .stat-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.win-stat-item .stat-val {
+  font-family: 'Space Mono', monospace, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.win-stat-item .stat-val.highlight {
+  color: var(--accent-primary);
+  font-weight: 800;
+}
+
+/* 獲勝彈窗雙按鈕佈局 */
+.win-modal-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.btn-action.secondary {
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-action.secondary:hover {
+  background-color: var(--border-color);
 }
 
 .hint-solution {
@@ -585,7 +785,7 @@ body {
   border-radius: var(--radius-pill);
   background-color: var(--accent-light);
   color: var(--accent-primary);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 /* Canvas 特效背景 */
