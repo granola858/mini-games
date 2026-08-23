@@ -481,10 +481,8 @@ class Make24Game {
       });
     }
 
-    // 全域放開滑鼠事件，結束框選
-    window.addEventListener('mouseup', () => {
-      this.isSelecting = false;
-    });
+    // 綁定算式容器之 Pointer Events (相容滑鼠與手機觸控按住拖曳選取)
+    this.setupEquationContainerInteractions();
 
     // Modal 關閉
     if (this.dom.modalCloseBtn) {
@@ -566,6 +564,128 @@ class Make24Game {
         this.setCursorIndex(this.tokens.length);
       }
     });
+  }
+
+  /* ------------------------------------------------------------------------
+     算式容器 Pointer Events 觸控與滑鼠拖曳選取引擎
+     ------------------------------------------------------------------------ */
+  setupEquationContainerInteractions() {
+    const container = this.dom.equationContainer;
+    if (!container) return;
+
+    let isPointerDown = false;
+    let pointerStartX = 0;
+    let pointerStartY = 0;
+    let hasMoved = false;
+    let activePointerId = null;
+
+    const getTokenIndexFromElement = (el) => {
+      if (!el) return null;
+      const tokenEl = el.closest('.equation-token');
+      if (tokenEl && tokenEl.dataset.tokenIndex !== undefined) {
+        return parseInt(tokenEl.dataset.tokenIndex, 10);
+      }
+      return null;
+    };
+
+    const getSlotIndexFromElement = (el) => {
+      if (!el) return null;
+      const slotEl = el.closest('.equation-slot');
+      if (slotEl && slotEl.dataset.slot !== undefined) {
+        return parseInt(slotEl.dataset.slot, 10);
+      }
+      return null;
+    };
+
+    container.addEventListener('pointerdown', (e) => {
+      if (this.isWon) return;
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+      isPointerDown = true;
+      hasMoved = false;
+      pointerStartX = e.clientX;
+      pointerStartY = e.clientY;
+      activePointerId = e.pointerId;
+
+      const tokenIdx = getTokenIndexFromElement(e.target);
+      const slotIdx = getSlotIndexFromElement(e.target);
+
+      if (tokenIdx !== null) {
+        this.isSelecting = true;
+        this.dragStartIndex = tokenIdx;
+        e.preventDefault();
+      } else if (slotIdx !== null) {
+        this.isSelecting = false;
+        this.dragStartIndex = null;
+        this.setCursorIndex(slotIdx);
+      } else {
+        this.isSelecting = false;
+        this.dragStartIndex = null;
+      }
+
+      try {
+        container.setPointerCapture(e.pointerId);
+      } catch (_) {}
+    });
+
+    container.addEventListener('pointermove', (e) => {
+      if (!isPointerDown || !this.isSelecting || this.dragStartIndex === null) return;
+
+      const dx = Math.abs(e.clientX - pointerStartX);
+      const dy = Math.abs(e.clientY - pointerStartY);
+      if (dx > 4 || dy > 4) {
+        hasMoved = true;
+      }
+
+      // 手機觸控模式下利用 document.elementFromPoint 取得手指即時碰觸的元素
+      const targetEl = document.elementFromPoint(e.clientX, e.clientY);
+      const currentTokenIdx = getTokenIndexFromElement(targetEl);
+
+      if (currentTokenIdx !== null) {
+        const start = Math.min(this.dragStartIndex, currentTokenIdx);
+        const end = Math.max(this.dragStartIndex, currentTokenIdx) + 1;
+        if (!this.selectionRange || this.selectionRange.start !== start || this.selectionRange.end !== end) {
+          this.setSelectionRange(start, end);
+        }
+      }
+    });
+
+    const handlePointerEnd = (e) => {
+      if (!isPointerDown) return;
+      isPointerDown = false;
+      this.isSelecting = false;
+
+      if (activePointerId !== null) {
+        try {
+          container.releasePointerCapture(activePointerId);
+        } catch (_) {}
+        activePointerId = null;
+      }
+
+      // 若為純點擊 (無明顯拖曳)
+      if (!hasMoved && this.dragStartIndex !== null) {
+        const clickedIdx = this.dragStartIndex;
+        if (this.selectionRange && this.selectionRange.start === clickedIdx && this.selectionRange.end === clickedIdx + 1) {
+          // 再次點擊已選中的單一 Token：取消選取並把游標移到後方
+          this.setCursorIndex(clickedIdx + 1);
+        } else {
+          this.setSelectionRange(clickedIdx, clickedIdx + 1);
+        }
+      }
+      this.dragStartIndex = null;
+    };
+
+    container.addEventListener('pointerup', handlePointerEnd);
+    container.addEventListener('pointercancel', handlePointerEnd);
+
+    // 點擊空白處移至最末尾
+    if (this.dom.displayCard) {
+      this.dom.displayCard.addEventListener('pointerdown', (e) => {
+        if (e.target === this.dom.displayCard) {
+          this.setCursorIndex(this.tokens.length);
+        }
+      });
+    }
   }
 
   handleArrowKey(direction, isShift) {
@@ -1053,11 +1173,6 @@ class Make24Game {
         slot.appendChild(caret);
       }
 
-      slot.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.setCursorIndex(i);
-      });
-
       this.dom.equationContainer.appendChild(slot);
 
       // 2. 建立 Token i (若 i < tokens.length)
@@ -1075,31 +1190,6 @@ class Make24Game {
         if (this.selectionRange && i >= this.selectionRange.start && i < this.selectionRange.end) {
           span.classList.add('selected');
         }
-
-        // Token 點擊與拖曳選取事件
-        span.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (this.selectionRange && this.selectionRange.start === i && this.selectionRange.end === i + 1) {
-            // 再次點擊已選中的單一 token：取消選取並把游標移到後方
-            this.setCursorIndex(i + 1);
-          } else {
-            this.setSelectionRange(i, i + 1);
-          }
-        });
-
-        span.addEventListener('mousedown', (e) => {
-          e.stopPropagation();
-          this.isSelecting = true;
-          this.dragStartIndex = i;
-        });
-
-        span.addEventListener('mouseenter', () => {
-          if (this.isSelecting && this.dragStartIndex !== null) {
-            const s = Math.min(this.dragStartIndex, i);
-            const e = Math.max(this.dragStartIndex, i) + 1;
-            this.setSelectionRange(s, e);
-          }
-        });
 
         this.dom.equationContainer.appendChild(span);
       }
