@@ -578,6 +578,7 @@ class Make24Game {
     let pointerStartY = 0;
     let hasMoved = false;
     let activePointerId = null;
+    let pendingSelectionRange = null;
 
     const getTokenIndexFromElement = (el) => {
       if (!el) return null;
@@ -597,23 +598,36 @@ class Make24Game {
       return null;
     };
 
-    container.addEventListener('pointerdown', (e) => {
+    const getTokenIndexAtPoint = (clientX, clientY) => {
+      const targetEl = document.elementFromPoint(clientX, clientY);
+      const directIndex = getTokenIndexFromElement(targetEl);
+      if (directIndex !== null) return directIndex;
+
+      const tokenElements = Array.from(container.querySelectorAll('.equation-token'));
+      const nearbyToken = tokenElements.find(tokenEl => {
+        const rect = tokenEl.getBoundingClientRect();
+        return clientX >= rect.left - 6 && clientX <= rect.right + 6 &&
+               clientY >= rect.top - 6 && clientY <= rect.bottom + 6;
+      });
+      return getTokenIndexFromElement(nearbyToken);
+    };
+
+    const startInteraction = (clientX, clientY, target, pointerId = null) => {
       if (this.isWon) return;
-      if (e.button !== 0 && e.pointerType === 'mouse') return;
 
       isPointerDown = true;
       hasMoved = false;
-      pointerStartX = e.clientX;
-      pointerStartY = e.clientY;
-      activePointerId = e.pointerId;
+      pendingSelectionRange = null;
+      pointerStartX = clientX;
+      pointerStartY = clientY;
+      activePointerId = pointerId;
 
-      const tokenIdx = getTokenIndexFromElement(e.target);
-      const slotIdx = getSlotIndexFromElement(e.target);
+      const tokenIdx = getTokenIndexFromElement(target);
+      const slotIdx = getSlotIndexFromElement(target);
 
       if (tokenIdx !== null) {
         this.isSelecting = true;
         this.dragStartIndex = tokenIdx;
-        e.preventDefault();
       } else if (slotIdx !== null) {
         this.isSelecting = false;
         this.dragStartIndex = null;
@@ -622,45 +636,38 @@ class Make24Game {
         this.isSelecting = false;
         this.dragStartIndex = null;
       }
+    };
 
-      try {
-        container.setPointerCapture(e.pointerId);
-      } catch (_) {}
-    });
-
-    container.addEventListener('pointermove', (e) => {
+    const moveInteraction = (clientX, clientY) => {
       if (!isPointerDown || !this.isSelecting || this.dragStartIndex === null) return;
 
-      const dx = Math.abs(e.clientX - pointerStartX);
-      const dy = Math.abs(e.clientY - pointerStartY);
+      const dx = Math.abs(clientX - pointerStartX);
+      const dy = Math.abs(clientY - pointerStartY);
       if (dx > 4 || dy > 4) {
         hasMoved = true;
       }
 
-      // 手機觸控模式下利用 document.elementFromPoint 取得手指即時碰觸的元素
-      const targetEl = document.elementFromPoint(e.clientX, e.clientY);
-      const currentTokenIdx = getTokenIndexFromElement(targetEl);
+      const currentTokenIdx = getTokenIndexAtPoint(clientX, clientY);
 
       if (currentTokenIdx !== null) {
         const start = Math.min(this.dragStartIndex, currentTokenIdx);
         const end = Math.max(this.dragStartIndex, currentTokenIdx) + 1;
-        if (!this.selectionRange || this.selectionRange.start !== start || this.selectionRange.end !== end) {
-          this.setSelectionRange(start, end);
+        if (!pendingSelectionRange || pendingSelectionRange.start !== start || pendingSelectionRange.end !== end) {
+          pendingSelectionRange = { start, end };
+          this.selectionRange = pendingSelectionRange;
+          this.cursorIndex = end;
+          container.querySelectorAll('.equation-token').forEach(tokenEl => {
+            const tokenIndex = parseInt(tokenEl.dataset.tokenIndex, 10);
+            tokenEl.classList.toggle('selected', tokenIndex >= start && tokenIndex < end);
+          });
         }
       }
-    });
+    };
 
-    const handlePointerEnd = (e) => {
+    const endInteraction = () => {
       if (!isPointerDown) return;
       isPointerDown = false;
       this.isSelecting = false;
-
-      if (activePointerId !== null) {
-        try {
-          container.releasePointerCapture(activePointerId);
-        } catch (_) {}
-        activePointerId = null;
-      }
 
       // 若為純點擊 (無明顯拖曳)
       if (!hasMoved && this.dragStartIndex !== null) {
@@ -671,12 +678,63 @@ class Make24Game {
         } else {
           this.setSelectionRange(clickedIdx, clickedIdx + 1);
         }
+      } else if (pendingSelectionRange) {
+        this.setSelectionRange(pendingSelectionRange.start, pendingSelectionRange.end);
       }
       this.dragStartIndex = null;
+      pendingSelectionRange = null;
+    };
+
+    container.addEventListener('pointerdown', (e) => {
+      if (!e.isPrimary || (e.button !== 0 && e.pointerType === 'mouse')) return;
+      startInteraction(e.clientX, e.clientY, e.target, e.pointerId);
+      if (this.isSelecting) e.preventDefault();
+
+      try {
+        container.setPointerCapture(e.pointerId);
+      } catch (_) {}
+    });
+
+    container.addEventListener('pointermove', (e) => {
+      if (activePointerId !== null && e.pointerId !== activePointerId) return;
+      moveInteraction(e.clientX, e.clientY);
+      if (this.isSelecting) e.preventDefault();
+    });
+
+    const handlePointerEnd = (e) => {
+      if (activePointerId !== null && e.pointerId !== activePointerId) return;
+      endInteraction();
+
+      if (activePointerId !== null) {
+        try {
+          container.releasePointerCapture(activePointerId);
+        } catch (_) {}
+        activePointerId = null;
+      }
     };
 
     container.addEventListener('pointerup', handlePointerEnd);
     container.addEventListener('pointercancel', handlePointerEnd);
+
+    // 舊版 iOS Safari 與部分 WebView 不支援 Pointer Events，改用 Touch Events。
+    if (!window.PointerEvent) {
+      container.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        const touch = e.touches[0];
+        startInteraction(touch.clientX, touch.clientY, e.target);
+        if (this.isSelecting) e.preventDefault();
+      }, { passive: false });
+
+      window.addEventListener('touchmove', (e) => {
+        if (e.touches.length !== 1) return;
+        const touch = e.touches[0];
+        moveInteraction(touch.clientX, touch.clientY);
+        if (this.isSelecting) e.preventDefault();
+      }, { passive: false });
+
+      window.addEventListener('touchend', endInteraction);
+      window.addEventListener('touchcancel', endInteraction);
+    }
 
     // 點擊空白處移至最末尾
     if (this.dom.displayCard) {
