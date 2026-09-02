@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="zh-TW" data-theme="light" data-skin="tactical">
+<html lang="zh-TW" data-theme="light" data-skin="classic">
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>波波特工：戰術排雷 - 波波小遊戲</title>
-  <meta name="description" content="創新戰術踩地雷與地宮掃雷冒險！具備護盾、聲納掃描、血量Roguelite闖關與極致觸控操作。">
+  <title>波波掃雷：純粹經典 - 波波小遊戲</title>
+  <meta name="description" content="Windows 95 復古配色的純粹經典踩地雷，左右切換分頁還有戰術道具與地宮 Roguelite 兩種進階模式，支援極致觸控操作。">
 
   <!-- 字型引入 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,8 +19,13 @@
         const homePref = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
         const theme = ['dark', 'light'].includes(homePref.theme) ? homePref.theme : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.documentElement.dataset.theme = theme;
-        const gamePref = JSON.parse(localStorage.getItem('minesweeper_pref_v1') || '{}');
-        if (gamePref.skin) document.documentElement.dataset.skin = gamePref.skin;
+        // 預設進經典模式；有未完成戰局時才依存檔模式套用對應皮膚，避免風格閃爍
+        const saved = JSON.parse(localStorage.getItem('minesweeper_save_state_v1') || '{}');
+        const savedMode = saved && saved.grid ? saved.mode : 'classic';
+        const skin = savedMode === 'tactical' || savedMode === 'dungeon'
+          ? (['tactical', 'dungeon'].includes(saved.skin) ? saved.skin : savedMode)
+          : 'classic';
+        document.documentElement.dataset.skin = skin;
       } catch (_) {}
     })();
   </script>
@@ -48,7 +53,7 @@
       </a>
 
       <div class="top-actions">
-        <button class="skin-toggle-btn" id="skin-toggle-btn" type="button" aria-label="切換視覺風格" title="切換特工/地宮風格">
+        <button class="skin-toggle-btn" id="skin-toggle-btn" type="button" aria-label="切換視覺風格" title="切換特工/地宮風格 (經典模式固定復古風)" style="display: none;">
           <span>🤖 戰術特工</span>
         </button>
         <button class="icon-btn" id="theme-btn" type="button" aria-label="切換深淺色模式" title="切換深淺色">
@@ -71,21 +76,21 @@
     <!-- 2. 主標題 -->
     <section class="game-header">
       <h1 class="main-title">
-        <span id="title-text">波波特工：戰術排雷</span>
-        <span class="main-title-badge" id="title-badge">Tactical Ops</span>
+        <span id="title-text">波波掃雷：純粹經典</span>
+        <span class="main-title-badge" id="title-badge">Minesweeper</span>
       </h1>
     </section>
 
     <!-- 3. 三大模式分頁標籤 -->
     <nav class="mode-tabs" role="tablist" aria-label="遊戲模式選擇">
-      <button class="mode-tab-btn active" data-mode="tactical" role="tab" aria-selected="true" type="button">
+      <button class="mode-tab-btn" data-mode="tactical" role="tab" aria-selected="false" type="button">
         <span>🧰 戰術特工</span>
+      </button>
+      <button class="mode-tab-btn active" data-mode="classic" role="tab" aria-selected="true" type="button">
+        <span>⏱️ 純粹經典</span>
       </button>
       <button class="mode-tab-btn" data-mode="dungeon" role="tab" aria-selected="false" type="button">
         <span>🏰 地宮探險</span>
-      </button>
-      <button class="mode-tab-btn" data-mode="classic" role="tab" aria-selected="false" type="button">
-        <span>⏱️ 純粹經典</span>
       </button>
     </nav>
 
@@ -121,7 +126,7 @@
       </div>
 
       <!-- 戰術能量條 (Tactical AP) -->
-      <div class="energy-bar-container" id="energy-bar-container">
+      <div class="energy-bar-container" id="energy-bar-container" style="display: none;">
         <span class="energy-label">⚡ 戰術能量 AP</span>
         <div class="energy-track">
           <div class="energy-fill" id="energy-fill"></div>
@@ -130,7 +135,7 @@
     </section>
 
     <!-- 6. 戰術道具快捷欄 -->
-    <section class="item-bar" id="item-bar" aria-label="戰術道具">
+    <section class="item-bar" id="item-bar" aria-label="戰術道具" style="display: none;">
       <button class="item-btn" id="shield-btn" type="button" title="防爆護盾：抵消 1 次爆炸並自動插旗">
         <span class="item-icon">🛡️</span>
         <span class="item-name">護盾</span>
@@ -319,6 +324,9 @@
       <div class="modal-body">
         <h3 style="font-size:1.05rem; font-weight:700;">🎯 遊戲基本規則</h3>
         <p>點擊方塊展開區域。數字代表周圍 8 格鄰近地雷的總數。第一下點擊保證 100% 安全且展開一片空白！</p>
+
+        <h3 style="font-size:1.05rem; font-weight:700;">🖥️ 純粹經典 (預設模式)</h3>
+        <p>復刻 Windows 95 灰階配色的原汁原味踩地雷：沒有道具、沒有補血，只有你、數字與計時器。往分頁左右切換即可進入【🧰 戰術特工】與【🏰 地宮探險】兩種進階玩法。</p>
 
         <h3 style="font-size:1.05rem; font-weight:700;">🧰 4 大戰術道具 (特工模式)</h3>
         <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">

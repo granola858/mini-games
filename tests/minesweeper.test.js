@@ -329,3 +329,135 @@ test('頁面只記錄一次遊玩，關閉彈窗不留在鍵盤導覽樹', () =>
   assert.match(js, /document\.createElement\('button'\)/);
   assert.doesNotMatch(js, /bindCellEvents\(/);
 });
+
+test('純粹經典模式會套用 Windows 95 復古皮膚並同步標題', () => {
+  const { MinesweeperApp, SKINS, SKIN_TITLES } = require('../games/minesweeper/minesweeper.js');
+  const app = Object.create(MinesweeperApp.prototype);
+  const skinBtn = { innerHTML: '', style: {} };
+  const titleText = { textContent: '' };
+  const titleBadge = { textContent: '' };
+
+  Object.assign(app, {
+    el: { modeTabs: [], diffBtns: [], actionBtns: [], skinToggleBtn: skinBtn, titleText, titleBadge },
+    mode: MODES.TACTICAL,
+    skin: SKINS.TACTICAL,
+    difficulty: 'medium',
+    action: ACTION_MODES.DIG,
+    timerInterval: null,
+    shopTimer: null,
+    renderBoard: () => {},
+    updateHUD: () => {},
+    showToast: () => {},
+    clearGameState: () => {},
+    updateActiveItemUI: () => {},
+    closeShopModal: () => {}
+  });
+
+  app.switchMode(MODES.CLASSIC);
+  assert.equal(app.skin, SKINS.CLASSIC, '切到經典模式必須換成經典皮膚');
+  assert.equal(titleText.textContent, SKIN_TITLES[SKINS.CLASSIC].text, '標題不得停留在上一個風格');
+  assert.equal(titleBadge.textContent, SKIN_TITLES[SKINS.CLASSIC].badge);
+  assert.equal(skinBtn.style.display, 'none', '經典模式應隱藏風格切換鈕');
+
+  // 經典模式下風格切換鈕無效，避免混入特工/地宮配色
+  app.toggleSkin();
+  assert.equal(app.skin, SKINS.CLASSIC);
+
+  app.switchMode(MODES.TACTICAL);
+  assert.equal(app.skin, SKINS.TACTICAL, '切回戰術模式須復原皮膚');
+  assert.equal(titleText.textContent, SKIN_TITLES[SKINS.TACTICAL].text);
+  assert.equal(skinBtn.style.display, '', '非經典模式應重新顯示風格切換鈕');
+});
+
+test('經典皮膚不寫入偏好，載入經典存檔時強制套用經典皮膚', () => {
+  const { MinesweeperApp, SKINS } = require('../games/minesweeper/minesweeper.js');
+  const originalStorage = global.localStorage;
+  const written = {};
+  global.localStorage = {
+    getItem: (key) => (key === 'minesweeper_save_state_v1'
+      ? JSON.stringify({
+        mode: MODES.CLASSIC,
+        difficulty: 'easy',
+        rows: 2,
+        cols: 2,
+        totalMines: 1,
+        skin: SKINS.DUNGEON,
+        grid: createEmptyBoard(2, 2)
+      })
+      : '{}'),
+    setItem: (key, value) => { written[key] = value; }
+  };
+
+  try {
+    const app = Object.create(MinesweeperApp.prototype);
+    app.el = { modeTabs: [], diffBtns: [], actionBtns: [] };
+    app.timerInterval = null;
+    app.action = ACTION_MODES.DIG;
+    app.skin = SKINS.TACTICAL;
+    app.renderBoard = () => {};
+    app.updateHUD = () => {};
+    app.showToast = () => {};
+
+    assert.equal(app.loadGameState(), true);
+    assert.equal(app.skin, SKINS.CLASSIC, '經典存檔須忽略舊皮膚欄位');
+    assert.equal(written.minesweeper_pref_v1, undefined, '經典皮膚不應污染使用者偏好');
+  } finally {
+    global.localStorage = originalStorage;
+  }
+});
+
+test('經典皮膚具備 Windows 95 灰階配色與立體邊框', () => {
+  const css = fs.readFileSync(
+    path.join(__dirname, '..', 'games', 'minesweeper', 'minesweeper.css'),
+    'utf8'
+  );
+
+  assert.match(css, /\[data-skin="classic"\]\[data-theme="light"\]/);
+  assert.match(css, /\[data-skin="classic"\]\[data-theme="dark"\]/);
+
+  const lightBlock = css.slice(
+    css.indexOf('[data-skin="classic"][data-theme="light"]'),
+    css.indexOf('[data-skin="classic"][data-theme="dark"]')
+  );
+  assert.match(lightBlock, /--bg-primary:\s*#c0c0c0/i, '底圖須為 Win95 灰');
+  assert.match(lightBlock, /--w95-hilite:\s*#ffffff/i);
+  assert.match(lightBlock, /--w95-shadow:\s*#808080/i);
+  assert.match(lightBlock, /--radius-md:\s*0px/, '經典風格須為方角');
+  assert.match(lightBlock, /--num-1:\s*#0000ff/i, '數字須採用原版配色');
+
+  // 棋盤磚塊採無間隙的立體浮凸樣式
+  assert.match(css, /\[data-skin="classic"\] \.minesweeper-grid \{[^}]*gap:\s*0/);
+  assert.match(css, /\[data-skin="classic"\] \.cell \{[^}]*border-radius:\s*0/);
+});
+
+test('掃雷預設進入純粹經典模式，分頁置中且左右為進階模式', () => {
+  const gameDir = path.join(__dirname, '..', 'games', 'minesweeper');
+  const html = fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8');
+  const js = fs.readFileSync(path.join(gameDir, 'minesweeper.js'), 'utf8');
+
+  assert.match(html, /<html[^>]*data-skin="classic"/, '首次載入即套用經典皮膚');
+
+  const tabs = [...html.matchAll(
+    /<button class="mode-tab-btn( active)?" data-mode="([a-z]+)" role="tab" aria-selected="(true|false)"/g
+  )].map(([, active, mode, selected]) => ({ mode, active: Boolean(active), selected: selected === 'true' }));
+
+  assert.deepEqual(tabs.map(t => t.mode), [MODES.TACTICAL, MODES.CLASSIC, MODES.DUNGEON], '經典分頁須置中，左右才是進階模式');
+  assert.deepEqual(tabs.filter(t => t.active).map(t => t.mode), [MODES.CLASSIC]);
+  assert.deepEqual(tabs.filter(t => t.selected).map(t => t.mode), [MODES.CLASSIC]);
+
+  // 建構子與存檔回復的預設值同步指向經典模式
+  assert.match(js, /this\.mode = MODES\.CLASSIC;/);
+  assert.match(js, /this\.skin = SKINS\.CLASSIC;/);
+  assert.match(js, /this\.mode = state\.mode \|\| MODES\.CLASSIC;/);
+});
+
+test('預設經典模式下不會閃現戰術道具列與風格切換鈕', () => {
+  const html = fs.readFileSync(
+    path.join(__dirname, '..', 'games', 'minesweeper', 'index.html'),
+    'utf8'
+  );
+
+  assert.match(html, /id="item-bar"[^>]*style="display: none;"/, '道具列初始須隱藏');
+  assert.match(html, /id="energy-bar-container"[^>]*style="display: none;"/, '能量條初始須隱藏');
+  assert.match(html, /id="skin-toggle-btn"[^>]*style="display: none;"/, '經典模式不提供風格切換');
+});

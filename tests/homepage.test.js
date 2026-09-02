@@ -110,3 +110,20 @@ test('Stats 模組具備完整的數字格式化與核心方法', () => {
   assert.equal(typeof Stats.getMultipleGames, 'function');
 });
 
+
+test('首頁掃雷卡片文案與遊戲頁預設模式同步', () => {
+  const card = html.match(/<article class="game-card" data-id="minesweeper"[\s\S]*?<\/article>/)[0];
+  const gameHtml = fs.readFileSync(
+    path.join(projectRoot, 'games', 'minesweeper', 'index.html'),
+    'utf8'
+  );
+  const defaultTitle = gameHtml.match(/<span id="title-text">([^<]+)<\/span>/)[1];
+
+  assert.match(
+    card,
+    new RegExp(`<h3>${defaultTitle}</h3>`),
+    `卡片標題須與遊戲頁預設模式標題一致：${defaultTitle}`
+  );
+  assert.match(card, /data-search="[^"]*純粹經典[^"]*"/, '搜尋關鍵字須涵蓋經典玩法');
+  assert.match(card, /<p>[^<]*經典[^<]*<\/p>/, '卡片敘述須說明預設的經典玩法');
+});

@@ -20,7 +20,21 @@ const MODES = {
 
 const SKINS = {
   TACTICAL: 'tactical',
-  DUNGEON: 'dungeon'
+  DUNGEON: 'dungeon',
+  CLASSIC: 'classic'
+};
+
+// 各模式綁定的預設外觀，經典模式固定使用 Windows 95 灰階風格
+const MODE_SKIN_MAP = {
+  [MODES.TACTICAL]: SKINS.TACTICAL,
+  [MODES.DUNGEON]: SKINS.DUNGEON,
+  [MODES.CLASSIC]: SKINS.CLASSIC
+};
+
+const SKIN_TITLES = {
+  [SKINS.TACTICAL]: { text: '波波特工：戰術排雷', badge: 'Tactical Ops', label: '<span>🤖 戰術特工</span>' },
+  [SKINS.DUNGEON]: { text: '波波地宮：掃雷冒險', badge: 'Dungeon Sweeper', label: '<span>🗺️ 地宮探險</span>' },
+  [SKINS.CLASSIC]: { text: '波波掃雷：純粹經典', badge: 'Minesweeper', label: '<span>🖥️ 復古經典</span>' }
 };
 
 const ACTION_MODES = {
@@ -102,7 +116,10 @@ class SweeperSoundManager {
   }
 
   playDig(skin = SKINS.TACTICAL) {
-    if (skin === SKINS.TACTICAL) {
+    if (skin === SKINS.CLASSIC) {
+      // 復古 PC 蜂鳴器音色
+      this.playTone(520, 'square', 0.04, 0.07);
+    } else if (skin === SKINS.TACTICAL) {
       this.playTone(680, 'sine', 0.05, 0.12);
     } else {
       this.playTone(320, 'triangle', 0.07, 0.18);
@@ -470,9 +487,10 @@ function checkWinCondition(grid, mode = MODES.TACTICAL) {
 class MinesweeperApp {
   constructor() {
     this.sound = new SweeperSoundManager();
-    this.mode = MODES.TACTICAL;
+    // 預設進入純粹經典模式 (Windows 95 復古風格)
+    this.mode = MODES.CLASSIC;
     this.difficulty = 'medium';
-    this.skin = SKINS.TACTICAL;
+    this.skin = SKINS.CLASSIC;
     this.action = ACTION_MODES.DIG;
 
     this.grid = [];
@@ -610,30 +628,32 @@ class MinesweeperApp {
     // 2. Sync Skin
     try {
       const pref = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
-      if (pref.skin && Object.values(SKINS).includes(pref.skin)) {
+      if (this.mode !== MODES.CLASSIC && pref.skin && pref.skin !== SKINS.CLASSIC
+        && Object.values(SKINS).includes(pref.skin)) {
         this.skin = pref.skin;
       }
     } catch (_) {}
 
-    this.applySkin(this.skin);
+    this.applySkin(this.mode === MODES.CLASSIC ? SKINS.CLASSIC : this.skin);
     this.updateSoundIcon();
   }
 
   applySkin(skin) {
+    const info = SKIN_TITLES[skin] || SKIN_TITLES[SKINS.TACTICAL];
     this.skin = skin;
-    document.documentElement.dataset.skin = skin;
+    if (typeof document !== 'undefined') document.documentElement.dataset.skin = skin;
+
     if (this.el.skinToggleBtn) {
-      this.el.skinToggleBtn.innerHTML = skin === SKINS.TACTICAL
-        ? '<span>🤖 戰術特工</span>'
-        : '<span>🗺️ 地宮探險</span>';
+      this.el.skinToggleBtn.innerHTML = info.label;
+      // 經典風格由模式鎖定，不提供手動切換
+      this.el.skinToggleBtn.style.display = skin === SKINS.CLASSIC ? 'none' : '';
     }
 
-    if (this.el.titleText) {
-      this.el.titleText.textContent = skin === SKINS.TACTICAL ? '波波特工：戰術排雷' : '波波地宮：掃雷冒險';
-    }
-    if (this.el.titleBadge) {
-      this.el.titleBadge.textContent = skin === SKINS.TACTICAL ? 'Tactical Ops' : 'Dungeon Sweeper';
-    }
+    if (this.el.titleText) this.el.titleText.textContent = info.text;
+    if (this.el.titleBadge) this.el.titleBadge.textContent = info.badge;
+
+    // 僅保存使用者可自由切換的風格，避免經典風格外溢到其他模式
+    if (skin === SKINS.CLASSIC) return;
 
     try {
       const pref = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
@@ -643,6 +663,7 @@ class MinesweeperApp {
   }
 
   toggleSkin() {
+    if (this.mode === MODES.CLASSIC) return;
     const nextSkin = this.skin === SKINS.TACTICAL ? SKINS.DUNGEON : SKINS.TACTICAL;
     this.applySkin(nextSkin);
     this.showToast(nextSkin === SKINS.TACTICAL ? '🤖 已切換至「戰術特工」風格' : '🗺️ 已切換至「地宮探險」風格');
@@ -887,11 +908,10 @@ class MinesweeperApp {
     this.mode = newMode;
     this.syncControlState();
 
-    // Auto sync skin preference when switching mode
-    if (newMode === MODES.DUNGEON && this.skin !== SKINS.DUNGEON) {
-      this.applySkin(SKINS.DUNGEON);
-    } else if (newMode === MODES.TACTICAL && this.skin !== SKINS.TACTICAL) {
-      this.applySkin(SKINS.TACTICAL);
+    // Auto sync skin when switching mode (經典模式強制套用 Windows 95 復古風格)
+    const targetSkin = MODE_SKIN_MAP[newMode] || SKINS.TACTICAL;
+    if (this.skin !== targetSkin) {
+      this.applySkin(targetSkin);
     }
 
     this.startNewGame();
@@ -1663,7 +1683,7 @@ class MinesweeperApp {
       const state = JSON.parse(raw);
       if (!state || !state.grid || !Array.isArray(state.grid)) return false;
 
-      this.mode = state.mode || MODES.TACTICAL;
+      this.mode = state.mode || MODES.CLASSIC;
       this.difficulty = state.difficulty || 'medium';
       this.rows = state.rows;
       this.cols = state.cols;
@@ -1695,9 +1715,9 @@ class MinesweeperApp {
       this.gameOver = false;
       this.gameWon = false;
       this.activeItem = null;
-      if (state.skin && Object.values(SKINS).includes(state.skin)) {
-        this.applySkin(state.skin);
-      }
+      // 經典模式一律鎖定復古風格，其餘模式沿用存檔中的使用者選擇
+      const savedSkin = Object.values(SKINS).includes(state.skin) ? state.skin : this.skin;
+      this.applySkin(this.mode === MODES.CLASSIC ? SKINS.CLASSIC : (savedSkin === SKINS.CLASSIC ? SKINS.TACTICAL : savedSkin));
       this.syncControlState();
       this.renderBoard();
       this.updateHUD();
@@ -2019,6 +2039,8 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     MODES,
     SKINS,
+    MODE_SKIN_MAP,
+    SKIN_TITLES,
     ACTION_MODES,
     DIFFICULTY_PRESETS,
     DUNGEON_FLOORS,

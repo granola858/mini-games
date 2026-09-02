@@ -167,6 +167,127 @@
   --num-8: #fdba74;
 }
 
+/* --- E. Classic Skin: Light Theme (Windows 95 灰階復古) --- */
+[data-skin="classic"][data-theme="light"],
+[data-skin="classic"]:root:not([data-theme="dark"]) {
+  --font-sans: Tahoma, Verdana, 'MS Sans Serif', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+  --font-mono: Tahoma, Verdana, 'MS Sans Serif', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+
+  /* 方角、無陰影：復刻 95 年代的平面 UI */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 2px 2px 0 rgba(0, 0, 0, 0.35);
+
+  /* Win95 立體邊框色階 */
+  --w95-face: #c0c0c0;
+  --w95-light: #dfdfdf;
+  --w95-hilite: #ffffff;
+  --w95-shadow: #808080;
+  --w95-dark: #000000;
+  --w95-titlebar: #000080;
+  --w95-titlebar-2: #1084d0;
+  --w95-titlebar-text: #ffffff;
+  --w95-led-bg: #000000;
+  --w95-led-text: #ff0000;
+
+  --bg-primary: #c0c0c0;
+  --bg-secondary: #c0c0c0;
+  --bg-tertiary: #b4b4b4;
+  --bg-glass: #c0c0c0;
+  --border-color: #808080;
+  --border-focus: #000000;
+  --text-main: #000000;
+  --text-muted: #404040;
+  --accent-primary: #000080;
+  --accent-secondary: #1084d0;
+  --accent-glow: transparent;
+  --danger: #a80000;
+  --warning: #808000;
+  --success: #008000;
+
+  /* Cell states */
+  --cell-bg: #c0c0c0;
+  --cell-bg-hover: #cacaca;
+  --cell-shadow: #808080;
+  --cell-highlight: #ffffff;
+  --cell-revealed-bg: #c0c0c0;
+  --cell-revealed-border: #808080;
+  --cell-mine-bg: #c0c0c0;
+  --cell-flag-color: #ff0000;
+
+  /* 原版踩地雷數字配色 */
+  --num-1: #0000ff;
+  --num-2: #008000;
+  --num-3: #ff0000;
+  --num-4: #000080;
+  --num-5: #800000;
+  --num-6: #008080;
+  --num-7: #000000;
+  --num-8: #808080;
+}
+
+/* --- F. Classic Skin: Dark Theme (深灰復古) --- */
+[data-skin="classic"][data-theme="dark"] {
+  --font-sans: Tahoma, Verdana, 'MS Sans Serif', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+  --font-mono: Tahoma, Verdana, 'MS Sans Serif', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 2px 2px 0 rgba(0, 0, 0, 0.6);
+
+  --w95-face: #4a4a4a;
+  --w95-light: #6a6a6a;
+  --w95-hilite: #8c8c8c;
+  --w95-shadow: #2a2a2a;
+  --w95-dark: #101010;
+  --w95-titlebar: #202060;
+  --w95-titlebar-2: #3a5f8f;
+  --w95-titlebar-text: #ffffff;
+  --w95-led-bg: #100000;
+  --w95-led-text: #ff4d4d;
+
+  --bg-primary: #3d3d3d;
+  --bg-secondary: #4a4a4a;
+  --bg-tertiary: #565656;
+  --bg-glass: #4a4a4a;
+  --border-color: #2a2a2a;
+  --border-focus: #ffffff;
+  --text-main: #ececec;
+  --text-muted: #b5b5b5;
+  --accent-primary: #9db8ff;
+  --accent-secondary: #7fa6f0;
+  --accent-glow: transparent;
+  --danger: #ff6b6b;
+  --warning: #d8c85a;
+  --success: #5fd06a;
+
+  --cell-bg: #4a4a4a;
+  --cell-bg-hover: #545454;
+  --cell-shadow: #2a2a2a;
+  --cell-highlight: #8c8c8c;
+  --cell-revealed-bg: #4a4a4a;
+  --cell-revealed-border: #2a2a2a;
+  --cell-mine-bg: #4a4a4a;
+  --cell-flag-color: #ff5555;
+
+  --num-1: #7ab8ff;
+  --num-2: #5fd06a;
+  --num-3: #ff7676;
+  --num-4: #b3bdff;
+  --num-5: #e59a9a;
+  --num-6: #6fd6d6;
+  --num-7: #f0f0f0;
+  --num-8: #b8b8b8;
+}
+
 /* ==========================================================================
    2. Base & Reset
    ========================================================================== */
@@ -1249,4 +1370,335 @@ body::before {
 @keyframes bounce {
   0% { transform: translateY(0); }
   100% { transform: translateY(-4px); }
+}
+
+/* ==========================================================================
+   12. Classic Skin — Windows 95 Chrome Overrides
+   復刻 95 年代的灰色面板與立體浮凸/凹陷邊框
+   ========================================================================== */
+
+/* 拿掉現代感的氛圍光暈與毛玻璃 */
+[data-skin="classic"] body::before {
+  display: none;
+}
+
+[data-skin="classic"] .hud-panel,
+[data-skin="classic"] .board-viewport,
+[data-skin="classic"] .thumb-action-bar {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+[data-skin="classic"] .modal-overlay {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* --- 浮凸容器 (Raised Panel) --- */
+[data-skin="classic"] .hud-panel,
+[data-skin="classic"] .mode-tabs,
+[data-skin="classic"] .thumb-action-bar,
+[data-skin="classic"] .toast-msg,
+[data-skin="classic"] .modal-box {
+  background: var(--w95-face);
+  border: 2px solid;
+  border-color: var(--w95-hilite) var(--w95-dark) var(--w95-dark) var(--w95-hilite);
+  box-shadow: inset 1px 1px 0 var(--w95-light), inset -1px -1px 0 var(--w95-shadow);
+}
+
+/* --- 凹陷容器 (Sunken Well) --- */
+[data-skin="classic"] .board-viewport,
+[data-skin="classic"] .hud-metric,
+[data-skin="classic"] .stat-item,
+[data-skin="classic"] .shop-card,
+[data-skin="classic"] .input-field input,
+[data-skin="classic"] .gold-counter,
+[data-skin="classic"] .floor-badge {
+  background: var(--w95-face);
+  border: 2px solid;
+  border-color: var(--w95-shadow) var(--w95-hilite) var(--w95-hilite) var(--w95-shadow);
+  box-shadow: inset 1px 1px 0 var(--w95-dark), inset -1px -1px 0 var(--w95-light);
+}
+
+/* --- Win95 按鈕 --- */
+[data-skin="classic"] .back-btn,
+[data-skin="classic"] .icon-btn,
+[data-skin="classic"] .skin-toggle-btn,
+[data-skin="classic"] .diff-btn,
+[data-skin="classic"] .restart-btn,
+[data-skin="classic"] .action-mode-btn,
+[data-skin="classic"] .zoom-btn,
+[data-skin="classic"] .btn-primary,
+[data-skin="classic"] .btn-secondary,
+[data-skin="classic"] .shop-buy-btn,
+[data-skin="classic"] .item-btn,
+[data-skin="classic"] .mode-tab-btn {
+  background: var(--w95-face);
+  color: var(--text-main);
+  border: 2px solid;
+  border-color: var(--w95-hilite) var(--w95-dark) var(--w95-dark) var(--w95-hilite);
+  box-shadow: inset 1px 1px 0 var(--w95-light), inset -1px -1px 0 var(--w95-shadow);
+  border-radius: 0;
+  transition: none;
+  font-family: var(--font-sans);
+}
+
+[data-skin="classic"] .back-btn:hover,
+[data-skin="classic"] .icon-btn:hover,
+[data-skin="classic"] .skin-toggle-btn:hover,
+[data-skin="classic"] .diff-btn:hover,
+[data-skin="classic"] .restart-btn:hover,
+[data-skin="classic"] .action-mode-btn:hover,
+[data-skin="classic"] .zoom-btn:hover,
+[data-skin="classic"] .btn-primary:hover,
+[data-skin="classic"] .item-btn:not(:disabled):hover {
+  background: var(--w95-face);
+  color: var(--text-main);
+  transform: none;
+  filter: none;
+  box-shadow: inset 1px 1px 0 var(--w95-light), inset -1px -1px 0 var(--w95-shadow);
+}
+
+/* 按下與選取狀態：邊框翻轉成凹陷 */
+[data-skin="classic"] .back-btn:active,
+[data-skin="classic"] .icon-btn:active,
+[data-skin="classic"] .skin-toggle-btn:active,
+[data-skin="classic"] .diff-btn:active,
+[data-skin="classic"] .restart-btn:active,
+[data-skin="classic"] .action-mode-btn:active,
+[data-skin="classic"] .zoom-btn:active,
+[data-skin="classic"] .btn-primary:active,
+[data-skin="classic"] .btn-secondary:active,
+[data-skin="classic"] .shop-buy-btn:active,
+[data-skin="classic"] .item-btn:not(:disabled):active,
+[data-skin="classic"] .mode-tab-btn.active,
+[data-skin="classic"] .diff-btn.active,
+[data-skin="classic"] .action-mode-btn.active,
+[data-skin="classic"] .icon-btn.active,
+[data-skin="classic"] .item-btn.active {
+  background: var(--w95-face);
+  color: var(--text-main);
+  border-color: var(--w95-dark) var(--w95-hilite) var(--w95-hilite) var(--w95-dark);
+  box-shadow: inset 1px 1px 0 var(--w95-shadow), inset -1px -1px 0 var(--w95-light);
+  transform: none;
+}
+
+[data-skin="classic"] .mode-tab-btn.active,
+[data-skin="classic"] .diff-btn.active,
+[data-skin="classic"] .action-mode-btn.active,
+[data-skin="classic"] .item-btn.active {
+  font-weight: 800;
+}
+
+[data-skin="classic"] .restart-btn {
+  border-radius: 0;
+  width: 42px;
+  height: 42px;
+}
+
+[data-skin="classic"] .zoom-btn {
+  border-radius: 0;
+}
+
+[data-skin="classic"] .mode-tabs {
+  padding: 3px;
+  gap: 3px;
+}
+
+/* 立體邊框與間距佔去寬度，縮減內距避免窄螢幕溢出 */
+[data-skin="classic"] .mode-tab-btn {
+  padding: 8px 6px;
+}
+
+[data-skin="classic"] .item-count {
+  border-radius: 0;
+  background: var(--w95-titlebar);
+  color: var(--w95-titlebar-text);
+  border: 1px solid var(--w95-dark);
+  top: -7px;
+  right: -5px;
+}
+
+[data-skin="classic"] .item-btn.active .item-count {
+  background: var(--w95-titlebar);
+  color: var(--w95-titlebar-text);
+}
+
+/* --- 標題：拿掉漸層字，改成 95 年代的視窗標題列 --- */
+[data-skin="classic"] .main-title {
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  -webkit-text-fill-color: var(--text-main);
+  color: var(--text-main);
+  letter-spacing: 0;
+}
+
+[data-skin="classic"] .main-title-badge {
+  border-radius: 0;
+  background: linear-gradient(90deg, var(--w95-titlebar), var(--w95-titlebar-2));
+  color: var(--w95-titlebar-text);
+  -webkit-text-fill-color: var(--w95-titlebar-text);
+  border: 1px solid var(--w95-dark);
+}
+
+/* --- HUD：黑底紅字的 LED 計數器 --- */
+[data-skin="classic"] .hud-metric .metric-value {
+  background: var(--w95-led-bg);
+  color: var(--w95-led-text);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 2px 8px;
+  border: 1px solid var(--w95-dark);
+  min-width: 56px;
+}
+
+/* --- 棋盤：無間隙的浮凸磚塊 --- */
+[data-skin="classic"] .minesweeper-grid {
+  gap: 0;
+  border: 3px solid;
+  border-color: var(--w95-shadow) var(--w95-hilite) var(--w95-hilite) var(--w95-shadow);
+  background: var(--w95-face);
+}
+
+[data-skin="classic"] .cell {
+  border-radius: 0;
+  border: 2px solid;
+  border-color: var(--w95-hilite) var(--w95-dark) var(--w95-dark) var(--w95-hilite);
+  box-shadow: inset 1px 1px 0 var(--w95-light), inset -1px -1px 0 var(--w95-shadow);
+  background: var(--w95-face);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  transition: none;
+}
+
+[data-skin="classic"] .cell:hover:not(.revealed):not(.flagged) {
+  background: var(--cell-bg-hover);
+}
+
+[data-skin="classic"] .cell:not(.revealed):not(.flagged):active {
+  transform: none;
+  border: 1px solid var(--w95-shadow);
+  box-shadow: none;
+}
+
+[data-skin="classic"] .cell.revealed {
+  background: var(--w95-face);
+  border: 1px solid var(--w95-shadow);
+  box-shadow: none;
+}
+
+[data-skin="classic"] .cell.mine,
+[data-skin="classic"] .cell.double-mine {
+  background: var(--w95-face);
+  border: 1px solid var(--w95-shadow);
+  color: var(--text-main);
+  box-shadow: none;
+}
+
+[data-skin="classic"] .cell.exploded {
+  background: #ff0000 !important;
+  color: #000000 !important;
+  border: 1px solid var(--w95-shadow);
+  box-shadow: none;
+}
+
+[data-skin="classic"] .cell.wrong-flag {
+  background: var(--w95-face);
+  color: #ff0000;
+}
+
+[data-skin="classic"] .cell.chord-glow {
+  filter: none;
+  transform: none;
+  border: 1px solid var(--w95-shadow);
+  box-shadow: none;
+}
+
+[data-skin="classic"] .cell.radar-highlight {
+  outline: 2px dotted var(--text-main);
+  background: var(--w95-light) !important;
+  animation: none;
+}
+
+[data-skin="classic"] .cell.flagged {
+  animation: none;
+}
+
+/* --- 對話框：標題列 + 方角 --- */
+[data-skin="classic"] .modal-box {
+  padding: 3px 3px 14px;
+}
+
+[data-skin="classic"] .modal-header {
+  background: linear-gradient(90deg, var(--w95-titlebar), var(--w95-titlebar-2));
+  color: var(--w95-titlebar-text);
+  padding: 4px 4px 4px 8px;
+  margin: 0 0 14px;
+}
+
+[data-skin="classic"] .modal-title {
+  color: var(--w95-titlebar-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+[data-skin="classic"] .modal-close-btn {
+  background: var(--w95-face);
+  color: var(--text-main);
+  border: 2px solid;
+  border-color: var(--w95-hilite) var(--w95-dark) var(--w95-dark) var(--w95-hilite);
+  box-shadow: inset 1px 1px 0 var(--w95-light), inset -1px -1px 0 var(--w95-shadow);
+  width: 22px;
+  height: 22px;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-skin="classic"] .modal-body,
+[data-skin="classic"] .modal-footer {
+  padding-inline: 14px;
+}
+
+[data-skin="classic"] .modal-box,
+[data-skin="classic"] .modal-overlay.open .modal-box {
+  transform: none;
+  transition: none;
+}
+
+[data-skin="classic"] .stat-item .stat-val,
+[data-skin="classic"] .shop-card .price,
+[data-skin="classic"] .gold-counter {
+  color: var(--text-main);
+}
+
+/* --- 其他細節 --- */
+[data-skin="classic"] .toast-msg {
+  border-radius: 0;
+}
+
+[data-skin="classic"] .energy-track,
+[data-skin="classic"] .energy-fill {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+[data-skin="classic"] .energy-fill {
+  background: var(--w95-titlebar);
+}
+
+[data-skin="classic"] .board-viewport::-webkit-scrollbar-thumb {
+  border-radius: 0;
+  background: var(--w95-face);
+  border: 1px solid var(--w95-shadow);
+}
+
+[data-skin="classic"] .cell:focus-visible {
+  outline: 2px dotted var(--text-main);
+  outline-offset: -4px;
 }
