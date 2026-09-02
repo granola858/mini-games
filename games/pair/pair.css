@@ -65,18 +65,24 @@
             padding: 4px;
             border-radius: 10px;
             margin: 0 auto 15px auto;
+            width: 100%;
             max-width: 320px;
             /* 控制按鈕區最大寬度 */
+            gap: 4px;
         }
 
         /* 您提供的按鈕樣式 */
         .mode-btn {
-            flex: 1;
+            flex: 1 1 0;
+            min-width: 0;
             border: none;
             background: transparent;
-            padding: 8px 0;
+            padding: 8px 12px;
             font-size: 0.9rem;
             font-weight: bold;
+            font-family: inherit;
+            letter-spacing: 1px;
+            white-space: nowrap;
             color: var(--grey-text);
             /* 未選中時為灰色 */
             border-radius: 8px;

@@ -117,7 +117,7 @@ test('首頁掃雷卡片文案與遊戲頁預設模式同步', () => {
     path.join(projectRoot, 'games', 'minesweeper', 'index.html'),
     'utf8'
   );
-  const defaultTitle = gameHtml.match(/<span id="title-text">([^<]+)<\/span>/)[1];
+  const defaultTitle = gameHtml.match(/<span[^>]*id="title-text"[^>]*>([^<]+)<\/span>/)[1];
 
   assert.match(
     card,

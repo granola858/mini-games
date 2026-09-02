@@ -459,10 +459,16 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
   background: linear-gradient(135deg, var(--text-main) 30%, var(--accent-primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* 標題不從中文字中間斷行，窄螢幕時整塊徽章換行到下一列 */
+.main-title-text {
+  white-space: nowrap;
 }
 
 .main-title-badge {
@@ -475,6 +481,25 @@ body::before {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   -webkit-text-fill-color: #ffffff;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .main-title {
+    font-size: 1.3rem;
+    gap: 6px;
+  }
+
+  .main-title-badge {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+}
+
+@media (max-width: 360px) {
+  .main-title {
+    font-size: 1.15rem;
+  }
 }
 
 /* 3 Main Modes Segmented Control */
