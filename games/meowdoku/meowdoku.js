@@ -67,6 +67,20 @@ let gameStates = {};
    - 4~7Hz 顫音、氣息噪音層，以及每次播放 ±3% 的隨機抖動，避免重複感
    ========================================================================== */
 
+const SOUND_FILES = {
+    meow0: 'sounds/meow-1.mp3',
+    meow1: 'sounds/meow-2.mp3',
+    meow2: 'sounds/meow-3.mp3',
+    meow3: 'sounds/meow-4.mp3',
+    meow4: 'sounds/meow-5.mp3',
+    meow5: 'sounds/meow-6.mp3',
+    meow6: 'sounds/meow-7.mp3',
+    meow7: 'sounds/meow-8.mp3',
+    hiss: 'sounds/hiss.mp3',
+    purr: 'sounds/purr.mp3',
+    gameover: 'sounds/gameover.mp3'
+};
+
 const CAT_VOICES = [
     { f0: [520, 660, 400], dur: 0.52, peakAt: 0.22, f1: [780, 950, 620], f1q: [7, 9.1], f2: [2000, 2100, 1050], f2q: 9, vib: 5.5, cents: 22, breath: 0.05, tilt: 5200, peak: 0.50 },
     { f0: [330, 420, 260], dur: 0.72, peakAt: 0.26, f1: [620, 760, 500], f1q: [5.5, 7], f2: [1500, 1620, 820], f2q: 8, vib: 4.2, cents: 30, breath: 0.07, tilt: 4200, peak: 0.55, detune2: -9 },
@@ -86,11 +100,72 @@ class MeowSoundEngine {
         this.activeVoices = 0;
         this.unlocked = false;
         this.enabled = true;
+        this.samples = {};      // 解碼後的 AudioBuffer
+        this.rawSamples = {};   // 尚未解碼的 ArrayBuffer
+        this.samplesReady = false;
         try {
             this.enabled = localStorage.getItem(SOUND_KEY) !== 'false';
         } catch (error) {
             this.enabled = true;
         }
+        this.prefetchSamples();
+    }
+
+    // 音檔可以在使用者手勢之前就抓（只有播放需要手勢），解碼則等 AudioContext 建立後再做
+    prefetchSamples() {
+        if (typeof fetch !== 'function') return;
+        for (const [key, url] of Object.entries(SOUND_FILES)) {
+            fetch(url)
+                .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(res.status))))
+                .then((buf) => {
+                    this.rawSamples[key] = buf;
+                    if (this.ctx) this.decodeSamples();
+                })
+                .catch(() => {
+                    // 抓不到就維持合成音，不影響遊戲
+                });
+        }
+    }
+
+    decodeSamples() {
+        const ctx = this.ctx;
+        if (!ctx) return;
+        for (const [key, raw] of Object.entries(this.rawSamples)) {
+            delete this.rawSamples[key];
+            try {
+                const done = ctx.decodeAudioData(raw.slice(0));
+                if (done && typeof done.then === 'function') {
+                    done.then((buf) => { this.samples[key] = buf; this.samplesReady = true; }).catch(() => { });
+                } else {
+                    // 舊版 Safari 的 callback 形式
+                    ctx.decodeAudioData(raw.slice(0), (buf) => { this.samples[key] = buf; this.samplesReady = true; }, () => { });
+                }
+            } catch (error) {
+                /* 解碼失敗就用合成音 */
+            }
+        }
+    }
+
+    // 播放真實錄音；沒有可用的樣本時回傳 false，交給合成音接手
+    playSample(key, options) {
+        const opt = options || {};
+        const buffer = this.samples[key];
+        if (!buffer) return false;
+        const ctx = this._ready(opt.force);
+        if (!ctx) return false;
+
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.playbackRate.value = opt.rate || 1;
+        const gain = ctx.createGain();
+        gain.gain.value = opt.gain == null ? 1 : opt.gain;
+        source.connect(gain);
+        gain.connect(this.master);
+        const t0 = ctx.currentTime + 0.005;
+        source.start(t0);
+        const endTime = t0 + buffer.duration / (opt.rate || 1) + 0.05;
+        this._reap([source, gain], source, endTime);
+        return true;
     }
 
     ensureContext() {
@@ -113,6 +188,7 @@ class MeowSoundEngine {
         limiter.release.value = 0.18;
         this.master.connect(limiter);
         limiter.connect(this.ctx.destination);
+        this.decodeSamples();
         return this.ctx;
     }
 
@@ -344,8 +420,33 @@ class MeowSoundEngine {
         return tEnd;
     }
 
-    /* 放對貓咪：8 個品種各有自己的嗓音，再加上每次的隨機抖動 */
+    /* 以下 4 個對外方法一律先試真實錄音，取不到才退回合成音 */
+
     playMeow(voice) {
+        const v = Math.max(0, Math.min(7, voice | 0));
+        // 同一隻貓每次的音高些微不同，避免重複聽起來像罐頭
+        if (this.playSample('meow' + v, { rate: 0.94 + Math.random() * 0.12, gain: 0.9 })) return;
+        this.synthMeow(v);
+    }
+
+    playHiss() {
+        if (this.playSample('hiss', { rate: 0.97 + Math.random() * 0.08, gain: 0.85, force: true })) return;
+        this.synthHiss();
+    }
+
+    playPurr() {
+        // 原始呼嚕聲較安靜，補一點增益
+        if (this.playSample('purr', { gain: 1.5, force: true })) return;
+        this.synthPurr();
+    }
+
+    playGameOver() {
+        if (this.playSample('gameover', { gain: 1.15, force: true })) return;
+        this.synthGameOver();
+    }
+
+    /* 放對貓咪：8 個品種各有自己的嗓音，再加上每次的隨機抖動 */
+    synthMeow(voice) {
         const base = CAT_VOICES[Math.max(0, Math.min(CAT_VOICES.length - 1, voice | 0))];
         const jitter = (spread) => 1 + (Math.random() - 0.5) * 2 * spread;
         const p = {
@@ -369,7 +470,7 @@ class MeowSoundEngine {
     }
 
     /* 放錯扣心：60% 嘶氣、40% 生氣的下滑 mrrow */
-    playHiss() {
+    synthHiss() {
         if (Math.random() < 0.4) {
             this._voicedCall({
                 f0: [430, 400, 190], dur: 0.45, peakAt: 0.05,
@@ -458,7 +559,7 @@ class MeowSoundEngine {
     }
 
     /* 通關：25Hz AM 低頻呼嚕 + 疊一聲滿足的輕叫 */
-    playPurr() {
+    synthPurr() {
         const ctx = this._ready(true);
         if (!ctx) return;
         const t0 = ctx.currentTime + 0.01;
@@ -544,7 +645,7 @@ class MeowSoundEngine {
     }
 
     /* 扣完 3 顆心：大幅下滑的哀鳴，顫音深度隨尾音遞增 */
-    playGameOver() {
+    synthGameOver() {
         const ctx = this._ready(true);
         if (!ctx) return;
         const t0 = ctx.currentTime + 0.01;
