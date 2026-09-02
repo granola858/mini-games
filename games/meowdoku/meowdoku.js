@@ -39,9 +39,7 @@ const catAssetPaths = {
         const SAVE_KEY = 'meowdoku-game-states-v1';
         const SAVE_VERSION = 1;
         const DARK_MODE_KEY = 'meowdoku-dark-mode-v1';
-        const HOME_PREFERENCES_KEY = 'bobo-home-preferences-v2';
         const VALID_SIZES = [6, 7, 8];
-        const REGION_TONE_IDS = [1, 2, 3, 4, 5, 6, 7, 8];
         const CAT_STYLE_KEYS = Object.keys(catAssetPaths).map(Number).sort((a, b) => a - b);
         const savedGameData = loadSavedGameData();
 
@@ -50,8 +48,14 @@ const catAssetPaths = {
         let pawDrawValue = false;
         let darkMode = loadDarkModePreference();
         let toastTimer = null;
-        let saveTimer = null;
         let gameStates = savedGameData.states;
+
+        const palette = [
+            '#F6C6D5', '#A8D8EA', '#A6D8A8', '#FFD6A5', '#CDB4DB',
+            '#BDE0FE', '#F7D6E0', '#D8F3DC', '#FFE5D9', '#B8E0D2',
+            '#F9E2AE', '#CFA8FF', '#8EC5FC', '#F4C2C2', '#D4A373', '#B8C0FF'
+        ];
+        const softPurple = '#E9D7F8';
 
         preloadCatAssets();
 
@@ -84,15 +88,7 @@ const catAssetPaths = {
         }
 
         function createPawSvg() {
-            return `<div class="paw-mark" aria-hidden="true">
-                <svg viewBox="0 0 32 32" focusable="false">
-                    <ellipse cx="16" cy="21" rx="7.5" ry="6.5"></ellipse>
-                    <ellipse cx="7.5" cy="15" rx="3.2" ry="4" transform="rotate(-24 7.5 15)"></ellipse>
-                    <ellipse cx="13" cy="9.5" rx="3.2" ry="4"></ellipse>
-                    <ellipse cx="19" cy="9.5" rx="3.2" ry="4"></ellipse>
-                    <ellipse cx="24.5" cy="15" rx="3.2" ry="4" transform="rotate(24 24.5 15)"></ellipse>
-                </svg>
-            </div>`;
+            return `<div class="paw-mark">🐾</div>`;
         }
 
         function createEmptyCellState() {
@@ -126,10 +122,6 @@ const catAssetPaths = {
         }
 
         function saveGameStates() {
-            if (saveTimer) {
-                clearTimeout(saveTimer);
-                saveTimer = null;
-            }
             try {
                 const states = {};
                 for (const size of VALID_SIZES) {
@@ -143,14 +135,6 @@ const catAssetPaths = {
             } catch (error) {
                 console.warn('Meowdoku saved state could not be written:', error);
             }
-        }
-
-        function scheduleSaveGameStates() {
-            if (saveTimer) return;
-            saveTimer = setTimeout(() => {
-                saveTimer = null;
-                saveGameStates();
-            }, 90);
         }
 
         function serializeState(state) {
@@ -171,8 +155,10 @@ const catAssetPaths = {
             if (!saved || saved.size !== size) return null;
             if (!isNumberMatrix(saved.solution, size, (value) => value === 0 || value === 1)) return null;
             if (!isNumberMatrix(saved.regions, size, (value) => Number.isInteger(value) && value >= 1 && value <= size)) return null;
-            const regionColors = normalizeRegionColors(saved.regionColors, size);
-            if (!regionColors) return null;
+            if (!saved.regionColors || typeof saved.regionColors !== 'object') return null;
+            for (let id = 1; id <= size; id++) {
+                if (typeof saved.regionColors[id] !== 'string') return null;
+            }
             const regionCatStyles = normalizeRegionCatStyles(saved.regionCatStyles, size);
             if (!regionCatStyles) return null;
             if (!Array.isArray(saved.cellStates) || saved.cellStates.length !== size) return null;
@@ -198,7 +184,7 @@ const catAssetPaths = {
                 size,
                 solution: saved.solution,
                 regions: saved.regions,
-                regionColors,
+                regionColors: saved.regionColors,
                 regionCatStyles,
                 lives: clampLives(saved.lives),
                 status,
@@ -252,36 +238,6 @@ const catAssetPaths = {
             return regionCatStyles;
         }
 
-        function normalizeRegionColors(regionColors, size) {
-            if (!regionColors || typeof regionColors !== 'object') return null;
-            const normalized = {};
-            const usedTones = new Set();
-
-            for (let id = 1; id <= size; id++) {
-                const value = regionColors[id];
-                const match = typeof value === 'string' && value.match(/^region-tone-([1-8])$/);
-                let tone = match ? Number(match[1]) : 0;
-
-                if (!REGION_TONE_IDS.includes(tone) || usedTones.has(tone)) {
-                    tone = REGION_TONE_IDS.find((candidate) => !usedTones.has(candidate)) || id;
-                }
-
-                usedTones.add(tone);
-                normalized[id] = `region-tone-${tone}`;
-            }
-
-            return normalized;
-        }
-
-        function buildRegionColors(size) {
-            const tones = shuffle(REGION_TONE_IDS).slice(0, size);
-            const regionColors = {};
-            for (let id = 1; id <= size; id++) {
-                regionColors[id] = `region-tone-${tones[id - 1]}`;
-            }
-            return regionColors;
-        }
-
         function getState(size) {
             if (!gameStates[size]) {
                 gameStates[size] = createFreshState(size);
@@ -307,17 +263,9 @@ const catAssetPaths = {
 
         function loadDarkModePreference() {
             try {
-                const localTheme = localStorage.getItem(DARK_MODE_KEY);
-                const homePreferences = JSON.parse(localStorage.getItem(HOME_PREFERENCES_KEY) || '{}');
-                if (homePreferences.theme === 'dark' || homePreferences.theme === 'light') {
-                    return homePreferences.theme === 'dark';
-                }
-
-                if (localTheme !== null) return localTheme === 'true';
-
-                return window.matchMedia('(prefers-color-scheme: dark)').matches;
+                return localStorage.getItem(DARK_MODE_KEY) === 'true';
             } catch (error) {
-                return document.documentElement.dataset.theme === 'dark';
+                return false;
             }
         }
 
@@ -330,13 +278,8 @@ const catAssetPaths = {
             const toggleLabel = darkMode ? '切換為淺色模式' : '切換為深色模式';
             darkModeToggle.setAttribute('aria-label', toggleLabel);
             darkModeToggle.title = toggleLabel;
-            const themeColor = document.getElementById('themeColor');
-            if (themeColor) themeColor.content = darkMode ? '#151219' : '#fbf8f5';
             try {
                 localStorage.setItem(DARK_MODE_KEY, String(darkMode));
-                const homePreferences = JSON.parse(localStorage.getItem(HOME_PREFERENCES_KEY) || '{}');
-                homePreferences.theme = darkMode ? 'dark' : 'light';
-                localStorage.setItem(HOME_PREFERENCES_KEY, JSON.stringify(homePreferences));
             } catch (error) {
                 console.warn('Meowdoku dark mode preference could not be saved:', error);
             }
@@ -371,9 +314,7 @@ const catAssetPaths = {
 
         function updateModeButtons() {
             modeBtns.forEach((btn) => {
-                const active = Number(btn.dataset.size) === currentSize;
-                btn.classList.toggle('active', active);
-                btn.setAttribute('aria-pressed', String(active));
+                btn.classList.toggle('active', Number(btn.dataset.size) === currentSize);
             });
         }
 
@@ -386,7 +327,6 @@ const catAssetPaths = {
 
             boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
             boardEl.style.gridTemplateRows = `repeat(${size}, 1fr)`;
-            boardEl.setAttribute('aria-label', `${size} × ${size} 貓咪數獨棋盤`);
             boardEl.innerHTML = '';
 
             renderBoard(state);
@@ -426,8 +366,7 @@ const catAssetPaths = {
 
         function updateLives(lives) {
             const safeLives = clampLives(lives);
-            livesEl.textContent = '♥'.repeat(safeLives) + '♡'.repeat(3 - safeLives);
-            livesEl.setAttribute('aria-label', `剩餘 ${safeLives} 顆心`);
+            livesEl.textContent = '❤️'.repeat(safeLives) + '🖤'.repeat(3 - safeLives);
         }
 
         function showToast(message, type = 'info') {
@@ -514,10 +453,17 @@ const catAssetPaths = {
                 }
             }
 
+            const regionColors = {};
+            const colors = shuffle(palette).filter((color) => color !== softPurple).slice(0, size - 1);
+            regionColors[1] = softPurple;
+            for (let i = 2; i <= size; i++) {
+                regionColors[i] = colors[i - 2];
+            }
+
             return {
                 solution,
                 regions,
-                regionColors: buildRegionColors(size),
+                regionColors,
                 regionCatStyles: buildUniqueRegionCatStyles(size)
             };
         }
@@ -554,15 +500,10 @@ const catAssetPaths = {
                 for (let c = 0; c < state.size; c++) {
                     const cell = document.createElement('div');
                     const cellState = state.cellStates[r][c];
-                    const regionId = state.regions[r][c];
                     cell.className = 'cell';
-                    cell.classList.add(state.regionColors[regionId] || `region-tone-${regionId}`);
-                    if (r > 0 && state.regions[r - 1][c] !== regionId) cell.classList.add('region-edge-top');
-                    if (c > 0 && state.regions[r][c - 1] !== regionId) cell.classList.add('region-edge-left');
-                    cell.setAttribute('role', 'gridcell');
+                    cell.style.backgroundColor = state.regionColors[state.regions[r][c]];
                     cell.dataset.r = r;
                     cell.dataset.c = c;
-                    cell.dataset.region = regionId;
                     updateCellData(cell, cellState);
 
                     cell.addEventListener('pointerdown', (event) => {
@@ -632,11 +573,6 @@ const catAssetPaths = {
             cell.dataset.cat = String(Boolean(cellState.cat));
             cell.dataset.paw = String(Boolean(cellState.paw));
             cell.dataset.catStyle = String(cellState.catStyle || 0);
-            const cellContent = cellState.cat ? '貓咪' : (cellState.paw ? '已排除' : '空白');
-            cell.setAttribute(
-                'aria-label',
-                `第 ${Number(cell.dataset.r) + 1} 列，第 ${Number(cell.dataset.c) + 1} 欄，區域 ${cell.dataset.region}，${cellContent}`
-            );
         }
 
         function applyPawState(state, r, c, cell, paw) {
@@ -645,7 +581,7 @@ const catAssetPaths = {
             updateCellData(cell, state.cellStates[r][c]);
             updateCellView(cell);
             updateClearButtonState(state);
-            scheduleSaveGameStates();
+            saveGameStates();
         }
 
         function updateCellView(cell) {
