@@ -1,11 +1,27 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meowdoku</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" id="themeColor" content="#fbf8f5">
+    <meta name="description" content="在每行、每列與每個色塊中各放一隻貓咪的療癒邏輯遊戲。">
+    <title>Meowdoku 貓咪數獨</title>
+    <script>
+        (() => {
+            try {
+                const localTheme = localStorage.getItem('meowdoku-dark-mode-v1');
+                const homePreferences = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
+                const preferredTheme = ['dark', 'light'].includes(homePreferences.theme)
+                    ? homePreferences.theme
+                    : (localTheme === null ? null : (localTheme === 'true' ? 'dark' : 'light'));
+                document.documentElement.dataset.theme = ['dark', 'light'].includes(preferredTheme)
+                    ? preferredTheme
+                    : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            } catch (_) { }
+        })();
+    </script>
     <link rel="stylesheet" href="meowdoku.css">
 </head>
 
@@ -45,17 +61,21 @@
         </div>
 
         <div class="header-row">
-            <div class="h1">Meowdoku</div>
-            <div class="lives" id="livesDisplay">♥️♥️♥️</div>
+            <div class="brand-heading">
+                <p class="eyebrow">CAT LOGIC</p>
+                <h1>Meowdoku</h1>
+                <p class="subtitle">貓咪數獨・每區一隻貓</p>
+            </div>
+            <div class="lives" id="livesDisplay" role="status" aria-live="polite" aria-label="剩餘 3 顆心">♥♥♥</div>
         </div>
 
-        <div class="toggle-container">
-            <button class="mode-btn active" data-size="6">6x6</button>
-            <button class="mode-btn" data-size="7">7x7</button>
-            <button class="mode-btn" data-size="8">8x8</button>
+        <div class="toggle-container" aria-label="棋盤尺寸">
+            <button class="mode-btn active" data-size="6" type="button">6×6</button>
+            <button class="mode-btn" data-size="7" type="button">7×7</button>
+            <button class="mode-btn" data-size="8" type="button">8×8</button>
         </div>
 
-        <div class="board-container" id="board"></div>
+        <div class="board-container" id="board" role="grid" aria-label="貓咪數獨棋盤"></div>
 
         <div class="controls-row">
             <button id="resetBtn" class="action-btn" type="button" aria-label="重置盤面" title="重置盤面">
