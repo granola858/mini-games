@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light" data-skin="tactical">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>波波特工：戰術排雷 - 波波小遊戲</title>
+  <meta name="description" content="創新戰術踩地雷與地宮掃雷冒險！具備護盾、聲納掃描、血量Roguelite闖關與極致觸控操作。">
+
+  <!-- 字型引入 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+
+  <!-- 防止深色模式閃爍與皮膚預載 -->
+  <script>
+    (() => {
+      try {
+        const homePref = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
+        const theme = ['dark', 'light'].includes(homePref.theme) ? homePref.theme : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+        const gamePref = JSON.parse(localStorage.getItem('minesweeper_pref_v1') || '{}');
+        if (gamePref.skin) document.documentElement.dataset.skin = gamePref.skin;
+      } catch (_) {}
+    })();
+  </script>
+
+  <link rel="stylesheet" href="minesweeper.css">
+</head>
+<body>
+
+  <!-- 全螢幕慶祝彩帶畫布 -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- 浮動通知容器 -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <!-- 主要遊戲容器 -->
+  <div class="page-container">
+
+    <!-- 1. 頂部導航列 -->
+    <header class="top-bar">
+      <a href="../../index.html" class="back-btn" aria-label="返回首頁">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        <span>回首頁</span>
+      </a>
+
+      <div class="top-actions">
+        <button class="skin-toggle-btn" id="skin-toggle-btn" type="button" aria-label="切換視覺風格" title="切換特工/地宮風格">
+          <span>🤖 戰術特工</span>
+        </button>
+        <button class="icon-btn" id="theme-btn" type="button" aria-label="切換深淺色模式" title="切換深淺色">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="sound-btn" type="button" aria-label="音效開關" title="音效開關">
+          <span>🔊</span>
+        </button>
+        <button class="icon-btn" id="stats-btn" type="button" aria-label="戰績紀錄" title="戰績統計">
+          <span>📊</span>
+        </button>
+        <button class="icon-btn" id="help-btn" type="button" aria-label="玩法教學" title="規則說明">
+          <span>❓</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. 主標題 -->
+    <section class="game-header">
+      <h1 class="main-title">
+        <span id="title-text">波波特工：戰術排雷</span>
+        <span class="main-title-badge" id="title-badge">Tactical Ops</span>
+      </h1>
+    </section>
+
+    <!-- 3. 三大模式分頁標籤 -->
+    <nav class="mode-tabs" role="tablist" aria-label="遊戲模式選擇">
+      <button class="mode-tab-btn active" data-mode="tactical" role="tab" aria-selected="true" type="button">
+        <span>🧰 戰術特工</span>
+      </button>
+      <button class="mode-tab-btn" data-mode="dungeon" role="tab" aria-selected="false" type="button">
+        <span>🏰 地宮探險</span>
+      </button>
+      <button class="mode-tab-btn" data-mode="classic" role="tab" aria-selected="false" type="button">
+        <span>⏱️ 純粹經典</span>
+      </button>
+    </nav>
+
+    <!-- 4. 難度切換列 (戰術與經典模式專用) -->
+    <div class="difficulty-bar" id="difficulty-bar" role="group" aria-label="難度等級">
+      <button class="diff-btn" data-diff="easy" type="button">簡單 9×9</button>
+      <button class="diff-btn active" data-diff="medium" type="button">標準 16×16</button>
+      <button class="diff-btn" data-diff="hard" type="button">困難 30×16</button>
+      <button class="diff-btn" data-diff="inferno" type="button">🔥 地獄 (雙重雷)</button>
+      <button class="diff-btn" data-diff="custom" type="button">⚙️ 自訂</button>
+    </div>
+
+    <!-- 5. 狀態 HUD 面板 -->
+    <section class="hud-panel" aria-label="遊戲即時狀態">
+      <!-- 戰術與經典 HUD 列 -->
+      <div class="hud-row" id="tactical-hud-row">
+        <div class="hud-metric" title="剩餘地雷數">
+          <span class="icon">💣</span>
+          <span class="metric-value" id="mine-counter">40</span>
+        </div>
+        <button class="restart-btn" id="restart-btn" type="button" aria-label="重新開始" title="開新局">🙂</button>
+        <div class="hud-metric" title="已用秒數">
+          <span class="icon">⏱️</span>
+          <span class="metric-value" id="timer-display">0</span>
+        </div>
+      </div>
+
+      <!-- 地宮探險 HUD 列 -->
+      <div class="hud-row" id="dungeon-hud-row" style="display: none;">
+        <div class="floor-badge" id="floor-badge">🏰 B1F</div>
+        <div class="hp-bar" id="hp-bar" title="當前生命值">❤️❤️❤️</div>
+        <div class="gold-counter" id="gold-counter" title="冒險金幣">🪙 0</div>
+      </div>
+
+      <!-- 戰術能量條 (Tactical AP) -->
+      <div class="energy-bar-container" id="energy-bar-container">
+        <span class="energy-label">⚡ 戰術能量 AP</span>
+        <div class="energy-track">
+          <div class="energy-fill" id="energy-fill"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. 戰術道具快捷欄 -->
+    <section class="item-bar" id="item-bar" aria-label="戰術道具">
+      <button class="item-btn" id="shield-btn" type="button" title="防爆護盾：抵消 1 次爆炸並自動插旗">
+        <span class="item-icon">🛡️</span>
+        <span class="item-name">護盾</span>
+        <span class="item-count" id="shield-count">1</span>
+      </button>
+      <button class="item-btn" id="radar-btn" type="button" title="聲納雷達：掃描 3×3 區域內的地雷">
+        <span class="item-icon">📡</span>
+        <span class="item-name">聲納</span>
+        <span class="item-count" id="radar-count">1</span>
+      </button>
+      <button class="item-btn" id="detector-btn" type="button" title="金屬探測：探測點選十字行與列的總雷數">
+        <span class="item-icon">🧲</span>
+        <span class="item-name">探測</span>
+        <span class="item-count" id="detector-count">1</span>
+      </button>
+      <button class="item-btn" id="defuser-btn" type="button" title="拆彈無人機：安全拆除指定的 1 格地雷">
+        <span class="item-icon">🤖</span>
+        <span class="item-name">拆彈</span>
+        <span class="item-count" id="defuser-count">1</span>
+      </button>
+    </section>
+
+    <!-- 7. 踩地雷主棋盤與縮放視窗 -->
+    <main class="board-viewport" id="board-viewport">
+      <div class="board-canvas-container" id="board-container">
+        <div class="minesweeper-grid" id="minesweeper-grid" role="grid" aria-label="踩地雷棋盤"></div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- 8. 底部懸浮觸控控制列 (Mobile Thumb Bar) -->
+  <nav class="thumb-action-bar" aria-label="觸控模式切換">
+    <button class="action-mode-btn active" data-action="dig" type="button" aria-label="挖掘模式" aria-pressed="true">
+      <span class="btn-icon">⛏️</span>
+      <span>挖掘</span>
+    </button>
+    <button class="action-mode-btn" data-action="flag" type="button" aria-label="插旗模式" aria-pressed="false">
+      <span class="btn-icon">🚩</span>
+      <span>插旗</span>
+    </button>
+    <button class="action-mode-btn" data-action="question" type="button" aria-label="疑問標記模式" aria-pressed="false">
+      <span class="btn-icon">❓</span>
+      <span>標記</span>
+    </button>
+    <button class="action-mode-btn" data-action="chord" type="button" aria-label="連開模式" aria-pressed="false">
+      <span class="btn-icon">⚡</span>
+      <span>連開</span>
+    </button>
+
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoom-in-btn" type="button" title="放大" aria-label="放大棋盤">➕</button>
+      <button class="zoom-btn" id="zoom-out-btn" type="button" title="縮小" aria-label="縮小棋盤">➖</button>
+      <button class="zoom-btn" id="zoom-reset-btn" type="button" title="重設縮放" aria-label="重設棋盤縮放">🔍</button>
+    </div>
+  </nav>
+
+  <!-- ======================================================================
+       彈出視窗：地宮商人商店 (Dungeon Shop Modal)
+       ====================================================================== -->
+  <div class="modal-overlay" id="shop-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="shop-title" hidden>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 class="modal-title" id="shop-title">🧙‍♂️ 地宮神秘補給站</h2>
+        <button class="modal-close-btn" id="shop-close-btn" type="button" aria-label="關閉商店">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>通往深處的階梯已開啟！你擁有 <strong id="shop-player-gold" style="color:#eab308">0</strong> 金幣，可採購裝備強化自己：</p>
+        <div class="shop-items-grid">
+          <div class="shop-card">
+            <span class="icon">🧪</span>
+            <span class="title">生命藥水</span>
+            <span class="price">🪙 25 金幣</span>
+            <button class="shop-buy-btn" data-buy="heal" data-price="25" type="button">購買 (+1❤️)</button>
+          </div>
+          <div class="shop-card">
+            <span class="icon">🛡️</span>
+            <span class="title">防爆聖盾</span>
+            <span class="price">🪙 35 金幣</span>
+            <button class="shop-buy-btn" data-buy="shield" data-price="35" type="button">購買 (+1🛡️)</button>
+          </div>
+          <div class="shop-card">
+            <span class="icon">📡</span>
+            <span class="title">透視水晶</span>
+            <span class="price">🪙 20 金幣</span>
+            <button class="shop-buy-btn" data-buy="radar" data-price="20" type="button">購買 (+1📡)</button>
+          </div>
+          <div class="shop-card">
+            <span class="icon">💖</span>
+            <span class="title">體力上限</span>
+            <span class="price">🪙 50 金幣</span>
+            <button class="shop-buy-btn" data-buy="maxhp" data-price="50" type="button">上限 (+1❤️)</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="shop-next-floor-btn" type="button">邁向下一層地宮 🪜</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       彈出視窗：自訂盤面規格 (Custom Board Modal)
+       ====================================================================== -->
+  <div class="modal-overlay" id="custom-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="custom-title" hidden>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 class="modal-title" id="custom-title">⚙️ 自訂地雷盤面</h2>
+        <button class="modal-close-btn" id="custom-close-btn" type="button" aria-label="關閉">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="custom-inputs-row">
+          <div class="input-field">
+            <label for="custom-rows">高度 (行數)</label>
+            <input type="number" id="custom-rows" min="8" max="30" value="12">
+          </div>
+          <div class="input-field">
+            <label for="custom-cols">寬度 (列數)</label>
+            <input type="number" id="custom-cols" min="8" max="30" value="12">
+          </div>
+          <div class="input-field">
+            <label for="custom-mines">地雷總數</label>
+            <input type="number" id="custom-mines" min="5" max="150" value="20">
+          </div>
+        </div>
+        <label style="display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer;">
+          <input type="checkbox" id="custom-double">
+          <span>開啟「雙重地雷」高難度機制 (單格貢獻 +2 數字)</span>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="custom-cancel-btn" type="button">取消</button>
+        <button class="btn-primary" id="custom-start-btn" type="button">生成自訂盤面</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       彈出視窗：戰績統計 (Stats Modal)
+       ====================================================================== -->
+  <div class="modal-overlay" id="stats-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="stats-title" hidden>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 class="modal-title" id="stats-title">📊 探員戰績報告</h2>
+        <button class="modal-close-btn" id="stats-close-btn" type="button" aria-label="關閉">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-label">總遊玩場次</div>
+            <div class="stat-val" id="stat-plays">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">成功通關場次</div>
+            <div class="stat-val" id="stat-wins">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">總勝率</div>
+            <div class="stat-val" id="stat-winrate">0%</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">最佳通關時間</div>
+            <div class="stat-val" id="stat-besttime">--</div>
+          </div>
+          <div class="stat-item" style="grid-column: span 2;">
+            <div class="stat-label">歷史最高連勝紀錄</div>
+            <div class="stat-val" id="stat-streak">0</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="stats-ok-btn" type="button">關閉報告</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       彈出視窗：規則與玩法說明 (Help Modal)
+       ====================================================================== -->
+  <div class="modal-overlay" id="help-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="help-title" hidden>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 class="modal-title" id="help-title">📖 玩法與道具指南</h2>
+        <button class="modal-close-btn" id="help-close-btn" type="button" aria-label="關閉">&times;</button>
+      </div>
+      <div class="modal-body">
+        <h3 style="font-size:1.05rem; font-weight:700;">🎯 遊戲基本規則</h3>
+        <p>點擊方塊展開區域。數字代表周圍 8 格鄰近地雷的總數。第一下點擊保證 100% 安全且展開一片空白！</p>
+
+        <h3 style="font-size:1.05rem; font-weight:700;">🧰 4 大戰術道具 (特工模式)</h3>
+        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+          <li><strong>🛡️ 防爆護盾</strong>：踩雷時自動抵消一次爆炸並標上安全旗。</li>
+          <li><strong>📡 聲納雷達</strong>：掃描 3×3 區域，自動標記區域內所有地雷。</li>
+          <li><strong>🧲 金屬探測</strong>：點擊方塊探測該行與列的總地雷數。</li>
+          <li><strong>🤖 拆彈無人機</strong>：安全拆除指定的單一方塊。</li>
+        </ul>
+
+        <h3 style="font-size:1.05rem; font-weight:700;">🏰 地宮探險 Roguelite 模式</h3>
+        <p>擁有 3 顆生命值 ❤️，踩雷不會立即死亡，而是扣除 1 點生命。挖開寶箱 📦 與金幣 🪙 收集資源，在層間商店購買補給，一路挑戰通關 5 層地宮！</p>
+
+        <h3 style="font-size:1.05rem; font-weight:700;">📱 極致觸控操作</h3>
+        <p>使用底部懸浮列切換【挖掘 ⛏️】、【插旗 🚩】或【連開 ⚡】；手機長按方塊 280ms 可直接快速插旗，支援雙指縮放與平移畫面！</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="help-ok-btn" type="button">了解，開始挑戰！</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 統計與遊戲模組 -->
+  <script src="../../assets/js/stats.js"></script>
+  <script src="minesweeper.js"></script>
+  <script>
+    if (typeof Stats !== 'undefined') Stats.recordGamePlay('minesweeper');
+  </script>
+</body>
+</html>

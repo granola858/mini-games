@@ -807,6 +807,9 @@ class Make24Game {
 
   startTimer() {
     this.stopTimer();
+    // Controller instances created by Node.js tests/SSR must not keep the
+    // process alive with a browser-only timer.
+    if (typeof window === 'undefined') return;
     this.timerInterval = setInterval(() => {
       this.timerSeconds++;
       if (this.dom.timerText) this.dom.timerText.textContent = `${this.timerSeconds}s`;
@@ -1385,6 +1388,8 @@ class Make24Game {
         </button>
       </div>
     `;
+
+    if (typeof document === 'undefined') return;
 
     setTimeout(() => {
       this.showModal('解謎成功！🎉', contentHtml, true);
