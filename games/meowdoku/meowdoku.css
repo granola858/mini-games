@@ -28,30 +28,30 @@
     --board-border: #b79ccb;
     --board-shadow: rgba(120, 72, 155, 0.18);
     --grid-line: rgba(58, 40, 70, 0.14);
-    --region-boundary: #3d2f47;
+    --region-boundary: #4a4048;
     --cell-error-bg: #ff9f9f;
     --frozen-veil: rgba(253, 251, 255, 0.18);
     --cat-filter: none;
     --paw-filter: none;
     --paw-disc: transparent;
 
-    /* 糖果亮彩：交錯亮度 OKLCH L=0.80/0.90 C≤0.16；任兩色最小 dE_OK = 0.095 */
-    --region-1: #FFA09A;
-    /* 珊瑚粉 h=24 */
-    --region-2: #FFD6AA;
-    /* 蜜桃杏 h=68 */
-    --region-3: #B5CB42;
-    /* 萊姆綠 h=118 */
-    --region-4: #78FDB1;
-    /* 薄荷綠 h=156 */
-    --region-5: #00D8DD;
-    /* 水藍 h=198 */
-    --region-6: #C1E3FF;
-    /* 天空藍 h=244 */
-    --region-7: #BFB1FF;
-    /* 薰衣草 h=292 */
-    --region-8: #FFCBF4;
-    /* 櫻花粉 h=334 */
+    /* 莫蘭迪霧面調：8 個大地色相＋交錯亮度 L=0.71~0.91 C≤0.075；最小 dE_OK = 0.111 */
+    --region-1: #FFD5DB;
+    /* 灰玫瑰 */
+    --region-2: #EBB09E;
+    /* 陶土 */
+    --region-3: #BA9B6F;
+    /* 赭黃 */
+    --region-4: #C3DBA6;
+    /* 鼠尾草 */
+    --region-5: #82C0AF;
+    /* 灰綠松 */
+    --region-6: #ACE7FF;
+    /* 霧藍 */
+    --region-7: #BCBBF1;
+    /* 灰紫 */
+    --region-8: #BE92B9;
+    /* 藕紫 */
 
     /* 狀態 */
     --toast-error-bg: #b33a45;
@@ -86,7 +86,7 @@
     --board-border: #6b5a7a;
     --board-shadow: rgba(0, 0, 0, 0.46);
     --grid-line: rgba(240, 230, 250, 0.16);
-    --region-boundary: #e0d4ea;
+    --region-boundary: #ded5d0;
     --cell-error-bg: #a83a48;
     --frozen-veil: rgba(12, 8, 18, 0.3);
     /* 8 隻貓咪 SVG 都是 fill:#000，深色模式反轉成米白才看得見（對比 ≥7.8:1） */
@@ -94,24 +94,24 @@
     --paw-filter: grayscale(1) invert(1) brightness(0.96);
     --paw-disc: transparent;
 
-    /* 夜間珠寶：冷色相＋交錯亮度 OKLCH L=0.37/0.47 C≤0.14；最小 dE_OK = 0.106
-       避開 60-130° 暖黃帶，那個色相壓暗後必然變成褐色／橄欖色 */
-    --region-1: #770A31;
-    /* 酒紅 h=8 */
-    --region-2: #8B3473;
-    /* 洋紅 h=340 */
-    --region-3: #582174;
-    /* 紫羅蘭 h=312 */
-    --region-4: #554BA5;
-    /* 紫水晶 h=285 */
-    --region-5: #003B87;
-    /* 靛藍 h=258 */
-    --region-6: #006387;
-    /* 海藍 h=232 */
-    --region-7: #004A4B;
-    /* 孔雀藍 h=196 */
-    --region-8: #006C4E;
-    /* 翡翠綠 h=166 */
+    /* 莫蘭迪深色：同色相族壓暗，交錯亮度 L=0.26~0.46 C≤0.075；最小 dE_OK = 0.114
+       低彩度靠亮度錯開拉出辨識度，而不是靠提高彩度 */
+    --region-1: #794851;
+    /* 灰玫瑰 */
+    --region-2: #411305;
+    /* 陶土 */
+    --region-3: #543809;
+    /* 赭黃 */
+    --region-4: #4C6031;
+    /* 鼠尾草 */
+    --region-5: #00382D;
+    /* 灰綠松 */
+    --region-6: #165B72;
+    /* 霧藍 */
+    --region-7: #211D44;
+    /* 灰紫 */
+    --region-8: #522D4F;
+    /* 藕紫 */
 
     --toast-error-bg: #ff8f9a;
     --toast-error-fg: #2a1015;
