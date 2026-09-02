@@ -1,11 +1,30 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meowdoku</title>
+    <meta name="theme-color" id="themeColor" content="#fdfbff">
+    <meta name="description" content="在每一色塊、每行、每列各放一隻貓咪的療癒邏輯遊戲。">
+    <title>Meowdoku 貓咪數獨</title>
+    <script>
+        // 在樣式表之前就定好主題，避免深色使用者進頁面閃一下白畫面
+        (() => {
+            try {
+                const prefs = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
+                const local = localStorage.getItem('meowdoku-dark-mode-v1');
+                const preferred = ['dark', 'light'].includes(prefs.theme)
+                    ? prefs.theme
+                    : (local === null ? null : (local === 'true' ? 'dark' : 'light'));
+                document.documentElement.dataset.theme = preferred
+                    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            } catch (_) { }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap">
     <link rel="stylesheet" href="meowdoku.css">
 </head>
 
@@ -21,32 +40,52 @@
                 回首頁
             </a>
 
-            <button id="darkModeToggle" class="theme-toggle-btn" type="button" role="switch" aria-checked="false"
-                aria-label="切換為深色模式" title="切換為深色模式">
-                <svg class="theme-icon sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    aria-hidden="true">
-                    <circle cx="12" cy="12" r="4"></circle>
-                    <path d="M12 2v2"></path>
-                    <path d="M12 20v2"></path>
-                    <path d="m4.93 4.93 1.41 1.41"></path>
-                    <path d="m17.66 17.66 1.41 1.41"></path>
-                    <path d="M2 12h2"></path>
-                    <path d="M20 12h2"></path>
-                    <path d="m6.34 17.66-1.41 1.41"></path>
-                    <path d="m19.07 4.93-1.41 1.41"></path>
-                </svg>
-                <svg class="theme-icon moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    aria-hidden="true">
-                    <path d="M12 3a6 6 0 1 0 9 9 9 9 0 1 1-9-9z"></path>
-                </svg>
-            </button>
+            <div class="top-bar-actions">
+                <button id="soundBtn" class="theme-toggle-btn" type="button" role="switch" aria-checked="true"
+                    aria-label="關閉音效" title="關閉音效">
+                    <svg class="theme-icon sound-on-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 5 6 9H2v6h4l5 4z"></path>
+                        <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+                        <path d="M18.5 5.5a9 9 0 0 1 0 13"></path>
+                    </svg>
+                    <svg class="theme-icon sound-off-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 5 6 9H2v6h4l5 4z"></path>
+                        <line x1="22" y1="9" x2="16" y2="15"></line>
+                        <line x1="16" y1="9" x2="22" y2="15"></line>
+                    </svg>
+                </button>
+
+                <button id="darkModeToggle" class="theme-toggle-btn" type="button" role="switch" aria-checked="false"
+                    aria-label="切換為深色模式" title="切換為深色模式">
+                    <svg class="theme-icon sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <circle cx="12" cy="12" r="4"></circle>
+                        <path d="M12 2v2"></path>
+                        <path d="M12 20v2"></path>
+                        <path d="m4.93 4.93 1.41 1.41"></path>
+                        <path d="m17.66 17.66 1.41 1.41"></path>
+                        <path d="M2 12h2"></path>
+                        <path d="M20 12h2"></path>
+                        <path d="m6.34 17.66-1.41 1.41"></path>
+                        <path d="m19.07 4.93-1.41 1.41"></path>
+                    </svg>
+                    <svg class="theme-icon moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <path d="M12 3a6 6 0 1 0 9 9 9 9 0 1 1-9-9z"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
 
         <div class="header-row">
             <div class="h1">Meowdoku</div>
-            <div class="lives" id="livesDisplay">♥️♥️♥️</div>
+            <div class="lives" id="livesDisplay" role="status" aria-live="polite"></div>
         </div>
 
         <div class="toggle-container">
@@ -55,7 +94,7 @@
             <button class="mode-btn" data-size="8">8x8</button>
         </div>
 
-        <div class="board-container" id="board"></div>
+        <div class="board-container" id="board" role="grid" aria-label="貓咪數獨棋盤"></div>
 
         <div class="controls-row">
             <button id="resetBtn" class="action-btn" type="button" aria-label="重置盤面" title="重置盤面">
