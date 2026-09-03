@@ -57,29 +57,24 @@ let toastTimer = null;
 let gameStates = {};
 
 /* ==========================================================================
-   1. 音效：WebAudio 合成貓叫（本專案慣例，不使用任何音檔）
+   1. 音效
    --------------------------------------------------------------------------
-   為什麼合成得出「貓」而不是電子音：
-   - 鋸齒波音源 + 兩個「並聯」帶通共振峰，模擬貓的聲道（並聯而非串聯才有共振峰感）
-   - F2 由 ~2000Hz 下滑到 ~1050Hz，就是那個「ow」的滑音，是最關鍵的辨識線索
-   - 起音 60ms 內用 lowpass 壓在 900Hz 再打開，做出鼻音 [m]
-   - 音高走倒 U 形（先升後降），平的音高聽起來就只是合成器
-   - 4~7Hz 顫音、氣息噪音層，以及每次播放 ±3% 的隨機抖動，避免重複感
+   - 放置貓咪：16 個真實錄音（cat-1 ~ cat-16），每次隨機挑一個播放
+   - 放錯：error-buzz.mp3（低頻蜂鳴，非貓叫）
+   - 通關：win-chime.mp3（上行和弦，非貓叫）
+   - 遊戲結束：fail-descend.mp3（下行音階，非貓叫）
+   - 合成音（synthMeow / synthHiss / synthPurr / synthGameOver）保留作備援
    ========================================================================== */
 
-const SOUND_FILES = {
-    meow0: 'sounds/meow-1.mp3',
-    meow1: 'sounds/meow-2.mp3',
-    meow2: 'sounds/meow-3.mp3',
-    meow3: 'sounds/meow-4.mp3',
-    meow4: 'sounds/meow-5.mp3',
-    meow5: 'sounds/meow-6.mp3',
-    meow6: 'sounds/meow-7.mp3',
-    meow7: 'sounds/meow-8.mp3',
-    hiss: 'sounds/hiss.mp3',
-    purr: 'sounds/purr.mp3',
-    gameover: 'sounds/gameover.mp3'
-};
+const CAT_SOUND_COUNT = 16;
+const SOUND_FILES = (() => {
+    const files = {};
+    for (let i = 1; i <= CAT_SOUND_COUNT; i++) files['cat' + i] = 'sounds/cat-' + i + '.mp3';
+    files.errorBuzz = 'sounds/error-buzz.mp3';
+    files.winChime = 'sounds/win-chime.mp3';
+    files.failDescend = 'sounds/fail-descend.mp3';
+    return files;
+})();
 
 const CAT_VOICES = [
     { f0: [520, 660, 400], dur: 0.52, peakAt: 0.22, f1: [780, 950, 620], f1q: [7, 9.1], f2: [2000, 2100, 1050], f2q: 9, vib: 5.5, cents: 22, breath: 0.05, tilt: 5200, peak: 0.50 },
@@ -429,25 +424,26 @@ class MeowSoundEngine {
     /* 以下 4 個對外方法一律先試真實錄音，取不到才退回合成音 */
 
     playMeow(voice) {
+        // 從 16 個貓叫錄音中隨機挑一個，每次音高微調避免重複感
+        const idx = Math.floor(Math.random() * CAT_SOUND_COUNT) + 1;
+        if (this.playSample('cat' + idx, { rate: 0.94 + Math.random() * 0.12, gain: 0.9 })) return;
+        // 備援：用合成音，voice 仍決定音色
         const v = Math.max(0, Math.min(7, voice | 0));
-        // 同一隻貓每次的音高些微不同，避免重複聽起來像罐頭
-        if (this.playSample('meow' + v, { rate: 0.94 + Math.random() * 0.12, gain: 0.9 })) return;
         this.synthMeow(v);
     }
 
     playHiss() {
-        if (this.playSample('hiss', { rate: 0.97 + Math.random() * 0.08, gain: 0.85, force: true })) return;
+        if (this.playSample('errorBuzz', { rate: 0.97 + Math.random() * 0.06, gain: 0.85, force: true })) return;
         this.synthHiss();
     }
 
     playPurr() {
-        // 原始呼嚕聲較安靜，補一點增益
-        if (this.playSample('purr', { gain: 1.5, force: true })) return;
+        if (this.playSample('winChime', { gain: 1.2, force: true })) return;
         this.synthPurr();
     }
 
     playGameOver() {
-        if (this.playSample('gameover', { gain: 1.15, force: true })) return;
+        if (this.playSample('failDescend', { gain: 1.15, force: true })) return;
         this.synthGameOver();
     }
 
