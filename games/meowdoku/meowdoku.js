@@ -224,6 +224,12 @@ class MeowSoundEngine {
         if (this.enabled && this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
     }
 
+    suspendIfNeeded() {
+        if (this.ctx && this.ctx.state === 'running') {
+            this.ctx.suspend().catch(() => {});
+        }
+    }
+
     _ready(force) {
         if (!this.enabled) return null;
         const ctx = this.ensureContext();
@@ -1738,8 +1744,12 @@ window.addEventListener('blur', () => {
 });
 window.addEventListener('pagehide', flushSave);
 document.addEventListener('visibilitychange', () => {
-    if (document.hidden) flushSave();
-    else sound.resumeIfNeeded();
+    if (document.hidden) {
+        flushSave();
+        sound.suspendIfNeeded();
+    } else {
+        sound.resumeIfNeeded();
+    }
 });
 
 const invalidateGeometry = () => {

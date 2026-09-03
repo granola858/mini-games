@@ -1,6 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap');
-
-        :root {
+:root {
             --primary-color: #1f1f1f;
             --primary-shadow: rgba(0, 0, 0, 0.2);
             --error-color: #FF6B81;
@@ -24,9 +22,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px 18px 16px;
-            min-height: 100dvh;
+            padding: max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
             min-height: 100vh;
+            min-height: 100dvh;
         }
 
         .container {
@@ -48,8 +46,10 @@
         }
 
         .back-btn {
-            display: flex;
+            display: inline-flex;
             align-items: center;
+            justify-content: center;
+            min-height: 40px;
             gap: 6px;
             color: var(--inactive-btn-text);
             background-color: #fff;

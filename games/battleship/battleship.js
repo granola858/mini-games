@@ -28,10 +28,14 @@ class SoundFX {
       this.ensureRunning();
     };
 
-    // 當手機接到電話、切換 App、螢幕休眠後返回，自動喚醒 AudioContext
+    // 當切換分頁或手機螢幕休眠時暫停音訊，返回時自動喚醒
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         this.ensureRunning();
+      } else if (document.visibilityState === 'hidden') {
+        if (this.ctx && this.ctx.state === 'running') {
+          this.ctx.suspend().catch(() => {});
+        }
       }
     });
 

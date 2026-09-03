@@ -369,6 +369,8 @@ body::before {
 .back-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-height: 40px;
   gap: 6px;
   padding: 8px 14px;
   font-size: 0.9rem;

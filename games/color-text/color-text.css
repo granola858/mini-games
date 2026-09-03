@@ -18,13 +18,19 @@
 
         body {
             margin: 0;
-            padding: 20px 10px;
+            padding: max(20px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
             background-color: var(--bg-color);
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            min-height: 100dvh;
             color: #333;
+            touch-action: manipulation;
+        }
+
+        button, .card, .mode-btn {
+            touch-action: manipulation;
         }
 
         /* --- 標題與說明 --- */
@@ -411,6 +417,8 @@
             font-size: 0.95rem;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
+            min-height: 40px;
             gap: 6px;
             padding: 8px 12px;
             border-radius: 8px;
@@ -425,4 +433,83 @@
             color: var(--primary-blue);
             background-color: #f0f8ff;
             transform: translateX(-3px);
+        }
+
+        /* 響應式微調 */
+        @media (max-width: 480px) {
+            header {
+                margin-bottom: 12px;
+            }
+
+            h1 {
+                font-size: 26px;
+                margin-bottom: 4px;
+            }
+
+            p.desc {
+                font-size: 16px;
+            }
+
+            .controls-wrapper {
+                margin-bottom: 14px;
+                gap: 8px;
+            }
+
+            .mode-btn {
+                padding: 8px 0;
+                font-size: 0.85rem;
+            }
+
+            .grid {
+                gap: 8px;
+                margin-bottom: 14px;
+            }
+
+            .card {
+                font-size: clamp(2rem, 7vw, 2.6rem);
+                border-radius: 10px;
+            }
+
+            .btn-main {
+                padding: 12px 24px;
+                font-size: 1.1rem;
+            }
+
+            .num-btn {
+                width: 48px;
+                height: 48px;
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-height: 650px) {
+            header {
+                margin-bottom: 8px;
+            }
+
+            h1 {
+                font-size: 22px;
+                margin-bottom: 2px;
+            }
+
+            p.desc {
+                font-size: 14px;
+            }
+
+            .controls-wrapper {
+                margin-bottom: 10px;
+                gap: 6px;
+            }
+
+            .grid {
+                margin-bottom: 10px;
+            }
+
+            .card {
+                font-size: clamp(1.8rem, 6vw, 2.2rem);
+            }
+
+            .action-area {
+                min-height: 120px;
+            }
         }

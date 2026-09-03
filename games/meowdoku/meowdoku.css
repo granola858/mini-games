@@ -185,8 +185,10 @@ a:focus-visible {
 }
 
 .back-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
+    min-height: 40px;
     gap: 6px;
     color: var(--inactive-btn-text);
     background-color: var(--surface-color);

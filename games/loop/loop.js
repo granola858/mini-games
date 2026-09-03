@@ -9,6 +9,21 @@ class SoundManager {
   constructor() {
     this.ctx = null;
     this.enabled = localStorage.getItem('loopnet_sound') !== 'false';
+    this.bindLifecycle();
+  }
+
+  bindLifecycle() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (this.ctx && this.ctx.state === 'running') {
+          this.ctx.suspend().catch(() => {});
+        }
+      } else {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      }
+    });
   }
 
   init() {
@@ -248,8 +263,8 @@ class LoopNetGame {
 
   updateThemeIcon(theme) {
     this.dom.themeBtn.innerHTML = theme === 'dark'
-      ? '<i class="fa-solid fa-sun" style="color: #FBBF24;"></i>'
-      : '<i class="fa-solid fa-moon"></i>';
+      ? '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #FBBF24;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
+      : '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
   }
 
   setupSoundUI() {
@@ -262,8 +277,8 @@ class LoopNetGame {
 
   updateSoundIcon(enabled) {
     this.dom.soundBtn.innerHTML = enabled
-      ? '<i class="fa-solid fa-volume-high"></i>'
-      : '<i class="fa-solid fa-volume-xmark" style="color: var(--text-secondary);"></i>';
+      ? '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
+      : '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary);"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
   }
 
   bindEvents() {
@@ -1018,11 +1033,17 @@ class LoopNetGame {
     this.sound.playWin();
     this.triggerConfetti();
 
+    const starSvg = (active) => `
+      <svg class="win-star-icon ${active ? 'active' : ''}" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+    `;
+
     const starsHtml = `
       <div class="win-stars-row">
-        <i class="fa-solid fa-star win-star-icon ${stars >= 1 ? 'active' : ''}"></i>
-        <i class="fa-solid fa-star win-star-icon ${stars >= 2 ? 'active' : ''}"></i>
-        <i class="fa-solid fa-star win-star-icon ${stars >= 3 ? 'active' : ''}"></i>
+        ${starSvg(stars >= 1)}
+        ${starSvg(stars >= 2)}
+        ${starSvg(stars >= 3)}
       </div>
       <div class="win-stars-rating-badge">${badgeText} (${stars} 星評級)</div>
     `;

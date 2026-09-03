@@ -24,7 +24,7 @@
 
         body {
             margin: 0;
-            padding: 0;
+            padding: max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
             font-family: 'Helvetica Neue', Arial, sans-serif;
             background-color: #FFFFFF;
             /* 移除背景底色，改為白 */
@@ -33,6 +33,12 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            min-height: 100dvh;
+            touch-action: manipulation;
+        }
+
+        button, .card, .mode-btn {
+            touch-action: manipulation;
         }
 
         /* 標題與控制區 */
@@ -236,6 +242,8 @@
             font-size: 0.95rem;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
+            min-height: 40px;
             gap: 6px;
             padding: 8px 12px;
             border-radius: 8px;
@@ -250,4 +258,67 @@
             color: var(--primary-color);
             background-color: #fcf4fc;
             transform: translateX(-3px);
+        }
+
+        /* 響應式微調 */
+        @media (max-width: 480px) {
+            header {
+                padding: 12px 10px 6px 10px;
+            }
+
+            h1 {
+                font-size: 20px;
+                margin-bottom: 10px;
+            }
+
+            .controls {
+                margin-bottom: 10px;
+                max-width: 280px;
+            }
+
+            .mode-btn {
+                padding: 6px 8px;
+                font-size: 0.82rem;
+            }
+
+            .status-bar {
+                margin-bottom: 10px;
+                gap: 16px;
+                font-size: 0.85rem;
+            }
+
+            #game-container {
+                gap: 5px;
+                padding-bottom: 16px;
+            }
+        }
+
+        @media (max-height: 650px) {
+            header {
+                padding: 8px 10px 4px 10px;
+            }
+
+            h1 {
+                font-size: 18px;
+                margin-bottom: 6px;
+            }
+
+            .controls {
+                margin-bottom: 6px;
+            }
+
+            .status-bar {
+                margin-bottom: 6px;
+            }
+
+            #game-container {
+                max-height: 56vh;
+                gap: 4px;
+                padding-bottom: 10px;
+            }
+
+            .shape-svg {
+                width: 60%;
+                height: 60%;
+            }
         }

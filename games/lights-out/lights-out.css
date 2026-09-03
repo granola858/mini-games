@@ -21,9 +21,17 @@
       justify-content: center;
       align-items: flex-start;
       min-height: 100vh;
-      padding: 24px 16px;
+      min-height: 100dvh;
+      padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
       background-color: transparent;
       font-family: sans-serif;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button, .card, .mode-btn {
+      touch-action: manipulation;
     }
 
     /* 容器 (Container) */
@@ -37,8 +45,10 @@
 
     /* 回首頁樣式 (Back Button Style) */
     .back-btn {
-      display: flex;
+      display: inline-flex;
       align-items: center;
+      justify-content: center;
+      min-height: 40px;
       gap: 6px;
       color: var(--inactive-btn-text);
       background-color: #fff;
@@ -209,4 +219,41 @@
 
     .restart-btn:hover {
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 響應式微調 */
+    @media (max-width: 380px) {
+      .main-title {
+        font-size: 2rem;
+        margin-bottom: 12px;
+      }
+
+      .container {
+        gap: 14px;
+      }
+
+      .mode-btn {
+        font-size: 0.95rem;
+        padding: 8px 0;
+      }
+    }
+
+    @media (max-height: 650px) {
+      body {
+        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      }
+
+      .container {
+        gap: 10px;
+        max-width: min(360px, 85vh);
+      }
+
+      .main-title {
+        font-size: 1.8rem;
+        margin-bottom: 8px;
+      }
+
+      .game-board {
+        max-height: 52vh;
+      }
     }

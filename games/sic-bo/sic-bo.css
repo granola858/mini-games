@@ -16,10 +16,19 @@
             background-color: var(--bg-white);
             color: var(--text-dark);
             margin: 0;
-            padding: 16px;
+            padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
+            min-height: 100dvh;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        button, .bet-btn, .chip, .btn-action, .btn-roll {
+            touch-action: manipulation;
         }
 
         h1 {
@@ -341,6 +350,8 @@
             font-size: 0.95rem;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
+            min-height: 40px;
             gap: 6px;
             padding: 8px 12px;
             border-radius: 8px;
@@ -355,4 +366,156 @@
             color: var(--primary-red);
             background-color: #fff5f5;
             transform: translateX(-3px);
+        }
+
+        /* 響應式佈局微調 */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 26px;
+                margin: 6px 0 14px 0;
+            }
+
+            .container {
+                gap: 14px;
+            }
+
+            .section {
+                padding: 12px;
+                border-radius: 14px;
+            }
+
+            .dice-container {
+                margin: 6px 0 14px 0;
+            }
+
+            .dice {
+                font-size: clamp(60px, 16vw, 90px);
+            }
+
+            .total-bet-display {
+                font-size: 17px;
+                margin-bottom: 8px;
+            }
+
+            .result-msg {
+                font-size: 16px;
+                margin-bottom: 12px;
+            }
+
+            .btn-roll {
+                padding: 12px;
+                font-size: 20px;
+                border-radius: 10px;
+            }
+
+            .bet-controls {
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+
+            .chip {
+                width: 40px;
+                height: 40px;
+                font-size: 14px;
+            }
+
+            .btn-action {
+                padding: 6px 10px;
+                font-size: 12px;
+                min-height: 36px;
+            }
+
+            .bet-table {
+                gap: 10px;
+            }
+
+            .bet-row {
+                gap: 6px;
+            }
+
+            .bet-btn {
+                padding: 8px 2px;
+                font-size: 20px;
+                border-radius: 10px;
+            }
+
+            .row-big-small .bet-btn {
+                font-size: 22px;
+            }
+
+            .row-big-small .bet-btn-mid {
+                font-size: 18px;
+            }
+
+            .dice-icon {
+                font-size: 22px;
+            }
+
+            .bet-btn .rate {
+                font-size: 11px;
+                margin-top: 2px;
+            }
+
+            .bet-badge {
+                width: 24px;
+                height: 24px;
+                font-size: 10px;
+                top: -8px;
+                right: -4px;
+                box-shadow:
+                    0 2px 0 -1px var(--bg-white), 0 2px 0 1px var(--primary-red),
+                    0 4px 0 -1px var(--bg-white), 0 4px 0 1px #b71c1c;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .bet-row {
+                gap: 4px;
+            }
+
+            .bet-btn {
+                padding: 6px 1px;
+                font-size: 18px;
+            }
+
+            .dice-icon {
+                font-size: 19px;
+            }
+
+            .bet-btn .rate {
+                font-size: 10px;
+            }
+
+            .chip {
+                width: 36px;
+                height: 36px;
+                font-size: 13px;
+            }
+        }
+
+        @media (max-height: 650px) {
+            h1 {
+                font-size: 22px;
+                margin: 4px 0 8px 0;
+            }
+
+            .section {
+                padding: 10px;
+            }
+
+            .dice-container {
+                margin: 4px 0 10px 0;
+            }
+
+            .dice {
+                font-size: 55px;
+            }
+
+            .bet-table {
+                gap: 8px;
+            }
+
+            .bet-btn {
+                padding: 6px 2px;
+            }
         }

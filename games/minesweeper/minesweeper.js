@@ -70,6 +70,22 @@ class SweeperSoundManager {
       const pref = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
       if (pref.sound !== undefined) this.enabled = !!pref.sound;
     } catch (_) {}
+    this.bindLifecycle();
+  }
+
+  bindLifecycle() {
+    if (typeof document === 'undefined') return;
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (this.ctx && this.ctx.state === 'running') {
+          this.ctx.suspend().catch(() => {});
+        }
+      } else {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      }
+    });
   }
 
   init() {

@@ -19,11 +19,14 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            min-height: 100vh;
             min-height: 100dvh;
             margin: 0;
-            padding: 20px;
+            padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
             color: var(--dark-green);
             touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
             position: relative;
             /* 為了定位返回按鈕 */
         }
@@ -36,6 +39,8 @@
             font-size: 0.95rem;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
+            min-height: 40px;
             gap: 6px;
             padding: 8px 12px;
             border-radius: 8px;
@@ -286,7 +291,8 @@
             .back-btn {
                 top: 10px;
                 left: 10px;
-                padding: 6px 10px;
+                padding: 6px 12px;
+                min-height: 40px;
                 font-size: 0.85rem;
             }
 

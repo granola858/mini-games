@@ -1,4 +1,4 @@
-import { useState, useMemo, useDeferredValue } from 'react';
+import { useState, useMemo, useDeferredValue, useEffect } from 'react';
 import './index.css'; // 匯入樣式
 
 // 一次最多渲染幾筆結果：避免匯入上千筆時一口氣產生上萬個 DOM 節點
@@ -47,6 +47,18 @@ function App() {
     const [fileName, setFileName] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    useEffect(() => {
+        // 串接全站 stats.js 紀錄遊玩次數
+        const script = document.createElement('script');
+        script.src = '../../../assets/js/stats.js';
+        script.onload = () => {
+            if (window.Stats && typeof window.Stats.recordGamePlay === 'function') {
+                window.Stats.recordGamePlay('guess-song');
+            }
+        };
+        document.head.appendChild(script);
+    }, []);
 
     const processData = (data) => {
             return data.map((row, rowIndex) => {
@@ -154,7 +166,7 @@ function App() {
         <div className="min-h-screen pb-8 bg-slate-50 font-sans relative">
             <header className="bg-indigo-600 text-white pb-12 pt-6 px-4 shadow-lg">
                 <div className="max-w-4xl mx-auto flex flex-col items-center">
-                    <a href="../../index.html" className="self-start mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition-all duration-200 backdrop-blur-sm shadow-sm">
+                    <a href="../../../index.html" className="self-start mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition-all duration-200 backdrop-blur-sm shadow-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M19 12H5M12 19l-7-7 7-7" />
                         </svg>

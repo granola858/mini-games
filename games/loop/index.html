@@ -3,15 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Loop 電流接接樂 - 波波小遊戲</title>
   <meta name="description" content="旋轉電路拼湊完整迴路！連接電池能量核心，點亮所有終端燈泡與整張電網。">
   
-  <!-- 字型與圖示庫 -->
+  <!-- 字型 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="loop.css">
 </head>
 <body>
@@ -33,10 +32,10 @@
       </a>
       <div class="top-controls">
         <button class="theme-toggle-btn" id="sound-btn" type="button" aria-label="切換音效" title="切換音效">
-          <i class="fa-solid fa-volume-high"></i>
+          <svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
         </button>
         <button class="theme-toggle-btn" id="theme-btn" type="button" aria-label="切換深淺色模式" title="切換深淺色模式">
-          <i class="fa-solid fa-moon"></i>
+          <svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
         </button>
       </div>
     </div>
@@ -78,13 +77,13 @@
     <!-- 6. 控制工具欄 -->
     <footer class="action-row">
       <button class="btn-action" id="btn-restart" type="button" title="重置本局旋轉">
-        <i class="fa-solid fa-rotate-left"></i> 重置
+        <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> 重置
       </button>
       <button class="btn-action" id="btn-hint" type="button" title="校正一個格子">
-        <i class="fa-solid fa-lightbulb" style="color: var(--color-warning);"></i> 提示
+        <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-warning);"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/></svg> 提示
       </button>
       <button class="btn-action primary" id="btn-new-game" type="button" title="生成全新地圖">
-        <i class="fa-solid fa-shuffle"></i> 新局
+        <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> 新局
       </button>
     </footer>
 

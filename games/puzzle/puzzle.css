@@ -19,11 +19,18 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            min-height: 100dvh;
             margin: 0;
-            padding: 20px;
+            padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
             box-sizing: border-box;
             position: relative;
-            /* 為了讓回首頁按鈕絕對定位 */
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        button, .card, .mode-btn {
+            touch-action: manipulation;
         }
 
         .container {
@@ -43,6 +50,8 @@
             font-size: 0.95rem;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
+            min-height: 40px;
             gap: 6px;
             padding: 8px 12px;
             border-radius: 8px;
@@ -310,4 +319,80 @@
         .hint-btn:hover {
             border-color: var(--secondary-color);
             color: var(--secondary-color);
+        }
+
+        /* 響應式微調 */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+                margin-bottom: 12px;
+            }
+
+            .toggle-container {
+                margin-bottom: 10px;
+            }
+
+            .mode-btn {
+                padding: 6px 18px;
+                font-size: 0.9rem;
+            }
+
+            .switch-container {
+                margin-bottom: 16px;
+            }
+
+            .game-container {
+                gap: 12px;
+            }
+
+            .card-row {
+                gap: 10px;
+            }
+
+            .card {
+                padding: 16px 12px;
+                min-height: 130px;
+                border-radius: 12px;
+            }
+
+            .input-box {
+                padding: 12px 14px;
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-height: 650px) {
+            body {
+                padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+            }
+
+            .back-btn {
+                margin-bottom: 8px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+                margin-bottom: 6px;
+            }
+
+            .toggle-container {
+                margin-bottom: 6px;
+            }
+
+            .switch-container {
+                margin-bottom: 8px;
+            }
+
+            .game-container {
+                gap: 8px;
+            }
+
+            .card {
+                padding: 10px 8px;
+                min-height: 100px;
+            }
+
+            .hint-section {
+                margin-top: 8px;
+            }
         }

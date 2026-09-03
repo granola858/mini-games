@@ -258,6 +258,22 @@ function isPuzzleMatchingDifficulty(puzzleInfo, mode) {
 class SoundManager {
   constructor() {
     this.ctx = null;
+    this.bindLifecycle();
+  }
+
+  bindLifecycle() {
+    if (typeof document === 'undefined') return;
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (this.ctx && this.ctx.state === 'running') {
+          this.ctx.suspend().catch(() => {});
+        }
+      } else {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      }
+    });
   }
 
   init() {
@@ -429,8 +445,8 @@ class Make24Game {
   updateThemeIcon(theme) {
     if (this.dom.themeBtn) {
       this.dom.themeBtn.innerHTML = theme === 'dark'
-        ? '<i class="fa-solid fa-sun" style="color: #FBBF24;"></i>'
-        : '<i class="fa-solid fa-moon"></i>';
+        ? '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #FBBF24;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
+        : '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
     }
   }
 
@@ -1381,10 +1397,10 @@ class Make24Game {
       </div>
       <div class="win-modal-actions">
         <button class="btn-action secondary" id="modal-view-board-btn" type="button">
-          <i class="fa-solid fa-eye"></i> 檢視盤面
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 檢視盤面
         </button>
         <button class="btn-action primary" id="modal-next-game-btn" type="button">
-          <i class="fa-solid fa-arrow-right"></i> 下一局
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> 下一局
         </button>
       </div>
     `;
