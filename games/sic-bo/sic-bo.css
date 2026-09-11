@@ -1,521 +1,2190 @@
+/* ==========================================================================
+   骰寶（Sic Bo）
+   自足式設計系統：松綠絨布賭桌 + 象牙骰 + 金色高光 + 雙主題（淺色 / 深色）
+   本檔不依賴任何共用樣式表，所有元件樣式皆內含
+   --------------------------------------------------------------------------
+   本檔五條鐵律（違反其中任何一條都會出現難以察覺的視覺 bug）：
+
+   1. transform 的所有權切成兩層：`.die` 只做位移與縮放（落桌彈跳），
+      `.die__cube` 只做旋轉（翻滾與停在某一面）。翻滾 / 停面的 keyframes 與
+      transition 一律只掛在 `.die__cube`，落桌彈跳只掛在 `.die`。
+      兩層若共用同一個 transform，落桌彈跳的 translateY/scale 會「整份覆寫」
+      掉已經轉好的 rotateX/rotateY，骰子會在最後一刻轉去別的點數。
+
+   2. 寬度一律「百分比 + 上限」，**絕不用視窗寬單位**。視窗寬單位含捲軸寬度、
+      也不扣自身左右 padding，桌機一旦出現傳統捲軸就會橫向溢出。
+      骰子尺寸同理，改用固定三階的 `--die-size`（見 §1.4）。
+
+   3. 所有注格格線一律 `repeat(N, minmax(0, 1fr))`。
+      少了 `minmax(0, …)`，1fr 的最小值是 auto，格子裡的迷你骰與賠率文字
+      會把欄寬撐爆 → 整張桌子橫向溢出（這是舊版 360px 機型上最明顯的破圖）。
+
+   4. 所有 animation / transition 的時長一律走 var()，不在使用點硬寫數字。
+      唯一真相是 `sic-bo.js` 的 SHAKE_MS / LAND_MS / COUNT_MS / PULSE_MS，
+      由 init() 寫進 documentElement；本檔的宣告只是「JS 還沒接手」時的同值預設。
+
+   5. 斷點只用 900（版面切換）/ 480 / 420 / 360（尺寸微調）四個**寬度**斷點，
+      **不用 max-height 斷點**。舊版的 `max-height: 650px` 與寬度斷點特異度相同、
+      只靠檔案順序決勝，在「窄又矮」的橫向手機上兩邊互相蓋（既有 bug #6.4）。
+      矮螢幕靠「sticky 舞台 + fixed 控制台」的版面自然解決，不需要高度斷點。
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. 設計 token
+   ========================================================================== */
+
 :root {
-            --primary-red: #D32F2F;
-            --text-dark: #333333;
-            --bg-white: #FFFFFF;
-            --border-gray: #CCCCCC;
-            --light-red: #ffebee;
-            --gold: #FFB300;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: "Nunito", "Varela Round", ui-rounded, "Microsoft JhengHei", sans-serif;
-            background-color: var(--bg-white);
-            color: var(--text-dark);
-            margin: 0;
-            padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            min-height: 100dvh;
-            touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        button, .bet-btn, .chip, .btn-action, .btn-roll {
-            touch-action: manipulation;
-        }
-
-        h1 {
-            color: var(--primary-red);
-            font-size: 32px;
-            margin: 10px 0 20px 0;
-            text-align: center;
-            font-weight: bold;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 800px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .section {
-            border: 2px solid var(--primary-red);
-            border-radius: 16px;
-            padding: 16px;
-            background-color: #fffafb;
-        }
-
-        /* 骰子顯示區 */
-        .dice-container {
-            display: flex;
-            justify-content: center;
-            gap: 4vw;
-            margin: 10px 0 20px 0;
-        }
-
-        .dice {
-            font-size: clamp(80px, 20vw, 120px);
-            color: var(--primary-red);
-            line-height: 1;
-            text-shadow: 3px 5px 0px rgba(211, 47, 47, 0.15);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        @keyframes roll {
-            0% {
-                transform: rotate(0deg) scale(1);
-            }
-
-            25% {
-                transform: rotate(15deg) scale(1.1);
-            }
-
-            50% {
-                transform: rotate(-15deg) scale(0.9);
-            }
-
-            75% {
-                transform: rotate(10deg) scale(1.1);
-            }
-
-            100% {
-                transform: rotate(0deg) scale(1);
-            }
-        }
-
-        .rolling {
-            animation: roll 0.4s infinite;
-            color: var(--border-gray);
-        }
-
-        /* 已押注 (置中、無底色) */
-        .total-bet-display {
-            text-align: center;
-            font-size: 20px;
-            font-weight: bold;
-            color: var(--primary-red);
-            margin-bottom: 12px;
-        }
-
-        /* 遊戲訊息 */
-        .result-msg {
-            text-align: center;
-            font-weight: bold;
-            height: 24px;
-            margin-bottom: 16px;
-            font-size: 18px;
-            color: var(--text-dark);
-        }
-
-        .win-text {
-            color: #d32f2f;
-        }
-
-        .lose-text {
-            color: #666666;
-        }
-
-        /* PLAY 按鈕 */
-        .btn-roll {
-            background-color: var(--primary-red);
-            color: var(--bg-white);
-            border: none;
-            padding: 16px;
-            font-size: 24px;
-            border-radius: 12px;
-            cursor: pointer;
-            width: 100%;
-            font-weight: bold;
-            box-shadow: 0 6px 0 #b71c1c;
-            transition: all 0.1s;
-        }
-
-        .btn-roll:active {
-            transform: translateY(4px);
-            box-shadow: 0 2px 0 #b71c1c;
-        }
-
-        .btn-roll:disabled {
-            background-color: var(--border-gray);
-            box-shadow: 0 6px 0 #999;
-            cursor: not-allowed;
-        }
-
-        /* 餘額顯示 (縮小並移至籌碼上方) */
-        .balance-display {
-            font-size: 14px;
-            font-weight: bold;
-            color: var(--text-dark);
-            margin-bottom: 8px;
-        }
-
-        /* 下注控制區 */
-        .bet-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .chip-container {
-            display: flex;
-            gap: 12px;
-        }
-
-        .chip {
-            width: 46px;
-            height: 46px;
-            border-radius: 50%;
-            border: 2px dashed var(--primary-red);
-            background-color: var(--bg-white);
-            color: var(--primary-red);
-            font-weight: bold;
-            font-size: 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .chip.selected {
-            background-color: var(--primary-red);
-            color: var(--bg-white);
-            border: 2px solid #b71c1c;
-            transform: scale(1.15);
-            box-shadow: 0 4px 8px rgba(211, 47, 47, 0.3);
-        }
-
-        /* 功能按鈕區 (縮小) */
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-        }
-
-        .btn-action {
-            background-color: var(--border-gray);
-            color: var(--text-dark);
-            border: none;
-            padding: 6px 12px;
-            font-size: 13px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: bold;
-            box-shadow: 0 3px 0 #aaa;
-        }
-
-        .btn-action:active {
-            transform: translateY(2px);
-            box-shadow: 0 1px 0 #aaa;
-        }
-
-        /* 押分區 */
-        .bet-table {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-
-        .bet-row {
-            display: flex;
-            gap: 10px;
-            width: 100%;
-        }
-
-        .bet-btn {
-            position: relative;
-            background-color: var(--bg-white);
-            border: 2px solid var(--primary-red);
-            color: var(--primary-red);
-            border-radius: 14px;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 4px;
-            flex: 1;
-            font-weight: bold;
-            font-size: 26px;
-            transition: all 0.1s;
-            box-shadow: 0 4px 0 var(--light-red);
-        }
-
-        .bet-btn.active {
-            background-color: var(--light-red);
-            box-shadow: 0 4px 0 #b71c1c;
-        }
-
-        .bet-btn:active {
-            transform: translateY(3px);
-            box-shadow: 0 1px 0 var(--light-red);
-        }
-
-        .bet-btn .rate {
-            font-size: 13px;
-            font-weight: normal;
-            margin-top: 4px;
-            opacity: 0.85;
-        }
-
-        .dice-icon {
-            font-size: 28px;
-            line-height: 1;
-        }
-
-        /* 堆疊籌碼樣式 (Stacked Chips) */
-        .bet-badge {
-            position: absolute;
-            top: -12px;
-            right: -8px;
-            background: var(--bg-white);
-            color: var(--primary-red);
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            border: 2px dashed var(--primary-red);
-            box-shadow:
-                0 3px 0 -1px var(--bg-white), 0 3px 0 1px var(--primary-red),
-                0 6px 0 -1px var(--bg-white), 0 6px 0 1px #b71c1c;
-            z-index: 10;
-        }
-
-        .row-big-small .bet-btn {
-            flex: 2;
-            font-size: 28px;
-        }
-
-        .row-big-small .bet-btn-mid {
-            flex: 3;
-            font-size: 22px;
-        }
-
-        .history-list {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            max-height: 120px;
-            overflow-y: auto;
-            font-size: 14px;
-        }
-
-        .history-item {
-            border: 1px solid var(--border-gray);
-            padding: 6px 10px;
-            border-radius: 6px;
-            background: #f9f9f9;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .history-item.win {
-            border-left: 4px solid #d32f2f;
-        }
-
-        .history-item.lose {
-            border-left: 4px solid #999;
-        }
-
-        .section-title {
-            color: var(--primary-red);
-            font-weight: bold;
-            margin-bottom: 12px;
-            border-bottom: 1px solid var(--light-red);
-            padding-bottom: 8px;
-        }
-
-        /* 回首頁按鈕 */
-        .back-btn {
-            text-decoration: none;
-            color: #888888;
-            font-weight: 600;
-            font-size: 0.95rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 40px;
-            gap: 6px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            background-color: #f8f9fa;
-            border: 1px solid #eef5ff;
-            align-self: flex-start;
-            margin-bottom: 8px;
-        }
-
-        .back-btn:hover {
-            color: var(--primary-red);
-            background-color: #fff5f5;
-            transform: translateX(-3px);
-        }
-
-        /* 響應式佈局微調 */
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 26px;
-                margin: 6px 0 14px 0;
-            }
-
-            .container {
-                gap: 14px;
-            }
-
-            .section {
-                padding: 12px;
-                border-radius: 14px;
-            }
-
-            .dice-container {
-                margin: 6px 0 14px 0;
-            }
-
-            .dice {
-                font-size: clamp(60px, 16vw, 90px);
-            }
-
-            .total-bet-display {
-                font-size: 17px;
-                margin-bottom: 8px;
-            }
-
-            .result-msg {
-                font-size: 16px;
-                margin-bottom: 12px;
-            }
-
-            .btn-roll {
-                padding: 12px;
-                font-size: 20px;
-                border-radius: 10px;
-            }
-
-            .bet-controls {
-                gap: 8px;
-                margin-bottom: 12px;
-            }
-
-            .chip {
-                width: 40px;
-                height: 40px;
-                font-size: 14px;
-            }
-
-            .btn-action {
-                padding: 6px 10px;
-                font-size: 12px;
-                min-height: 36px;
-            }
-
-            .bet-table {
-                gap: 10px;
-            }
-
-            .bet-row {
-                gap: 6px;
-            }
-
-            .bet-btn {
-                padding: 8px 2px;
-                font-size: 20px;
-                border-radius: 10px;
-            }
-
-            .row-big-small .bet-btn {
-                font-size: 22px;
-            }
-
-            .row-big-small .bet-btn-mid {
-                font-size: 18px;
-            }
-
-            .dice-icon {
-                font-size: 22px;
-            }
-
-            .bet-btn .rate {
-                font-size: 11px;
-                margin-top: 2px;
-            }
-
-            .bet-badge {
-                width: 24px;
-                height: 24px;
-                font-size: 10px;
-                top: -8px;
-                right: -4px;
-                box-shadow:
-                    0 2px 0 -1px var(--bg-white), 0 2px 0 1px var(--primary-red),
-                    0 4px 0 -1px var(--bg-white), 0 4px 0 1px #b71c1c;
-            }
-        }
-
-        @media (max-width: 360px) {
-            .bet-row {
-                gap: 4px;
-            }
-
-            .bet-btn {
-                padding: 6px 1px;
-                font-size: 18px;
-            }
-
-            .dice-icon {
-                font-size: 19px;
-            }
-
-            .bet-btn .rate {
-                font-size: 10px;
-            }
-
-            .chip {
-                width: 36px;
-                height: 36px;
-                font-size: 13px;
-            }
-        }
-
-        @media (max-height: 650px) {
-            h1 {
-                font-size: 22px;
-                margin: 4px 0 8px 0;
-            }
-
-            .section {
-                padding: 10px;
-            }
-
-            .dice-container {
-                margin: 4px 0 10px 0;
-            }
-
-            .dice {
-                font-size: 55px;
-            }
-
-            .bet-table {
-                gap: 8px;
-            }
-
-            .bet-btn {
-                padding: 6px 2px;
-            }
-        }
+  /* --- 1.1 字體（與 index.html 的 Google Fonts 引入一致） --- */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+  --font-mono: 'Space Mono', 'Consolas', 'Courier New', monospace;
+
+  /* --- 1.2 圓角 --- */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  /* --- 1.3 動畫時長與緩動 ---------------------------------------------------
+     時長與緩動曲線刻意拆成兩組變數，變數名一律 --dur-* / --ease-*，
+     不用 --transition-* / --animation-*：契約的掃描會找「animation / transition
+     後面接裸的時長數字」，變數名一旦含那兩個字，光是宣告就可能被正則誤判。 */
+  --dur-fast: 0.15s;
+  --dur-normal: 0.25s;
+  --dur-slow: 0.4s;
+  --dur-toast: 0.3s;
+  --dur-modal: 0.25s;
+  --dur-gain: 0.9s;        /* 浮動贏分往上飄 */
+  --dur-suspense: 0.9s;    /* 懸念期間舞台的金色呼吸 */
+  --dur-none: 0.01ms;      /* prefers-reduced-motion 的歸零時長 */
+  --delay-none: 0ms;       /* prefers-reduced-motion 的歸零延遲 */
+
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-settle: cubic-bezier(0.16, 0.84, 0.44, 1);
+
+  /* 演出時序：預設 fallback。唯一真相是 sic-bo.js 的常數，
+     由 init() 寫進 documentElement.style。這裡宣告同值預設，
+     讓 JS 還沒跑起來（或截圖 / 測試環境）時動畫時長也是對的。 */
+  --shake-ms: 520ms;       /* 搖盅（骰盤整體微震一次） */
+  --land-ms: 420ms;        /* 落桌（cube 轉到定位 + die 彈一下） */
+  --count-ms: 400ms;       /* 餘額補間 */
+  --pulse-ms: 620ms;       /* 中獎注格高亮 */
+  --tumble-ms: 620ms;      /* 翻滾一圈的週期（純視覺，JS 不需要知道） */
+
+  /* --- 1.4 版面尺寸 -------------------------------------------------------
+     --gutter 是 .page-container 的左右留白，同時也是 sticky 舞台「出血」
+     用的負邊界值。兩者共用一個 token，斷點只要改這一個數字就同時對齊，
+     不會出現「容器縮了、舞台出血沒跟著縮」的縫隙。 */
+  --gutter: 16px;
+  /* 手機版底部要讓位給 fixed 的控制台，否則歷史紀錄最後一列會被蓋住（舊版問題）。
+     高度由 sic-bo.js 的 ResizeObserver 量 .control-dock 寫進 --dock-h ——
+     dock 會隨階段長高（翻倍面板掀開、settling 時籌碼列回來），
+     任何寫死的值都只能對某一種組合，820×1180 就是這樣漏掉一列的。
+     fallback 150px 只在 JS 還沒接手的第一幀用到。 */
+  --dock-reserve: calc(var(--dock-h, 150px) + 16px);
+
+  /* 骰子尺寸：固定三階，不用視窗寬單位（鐵律 2）。
+     900px+ 96 / 480px+ 84 / 360px+ 72 / else 62。
+     基準值放 84（即 481–899px 這一段），其餘三階在 §14、§15 覆寫。 */
+  --die-size: 84px;
+  /* 注格內迷你骰的基準邊長，各組再用 --pip-die 依比例縮放（見 §8.1） */
+  --mini-die: 18px;
+  --meter-h: 8px;          /* 連勝計量條高度 */
+
+  /* 舞台陰影抽成 token，是因為 .is-suspense 的 keyframes 必須把 box-shadow
+     整份重寫（box-shadow 無法只疊加一層），版面 B 換成卡片陰影時只改這裡。 */
+  --stage-shadow: 0 10px 16px -14px var(--die-shadow);
+}
+
+/* --- A. 淺色主題（預設）：象牙桌布 + 松綠絨 + 金 --- */
+:root,
+:root[data-theme="light"],
+html[data-theme="light"] {
+  --bg-primary: #f4f1ea;
+  --bg-secondary: #fffdf7;
+  --bg-tertiary: #e8e2d4;
+  --bg-glass: rgba(255, 253, 247, 0.88);
+  --border-color: #d8d0bd;  --border-focus: #1f6b47;
+  --text-main: #23281f;
+  /* 缺陷 Q：原本是 #7b8073，在象牙底（#fffdf7）上只有 3.99:1，
+     而它撐起的是「沒中，輸了 N 分」主訊息與全部 50 格的賠率文字（9.9px/700）。
+     壓深到 #5d6356 之後：on #fffdf7 6.10:1、on 桌布 #e3ddcd 4.58:1、
+     on #e8e2d4 4.80:1，最差的使用情境也過 4.5。深色主題的 #96a38f 實測
+     最低 5.42:1，本來就過關，所以只動淺色這一個值。 */
+  --text-muted: #5d6356;
+
+  --accent-primary: #1f6b47;          /* 松綠：主色 */
+  --accent-secondary: #2e8f60;
+  --accent-soft: #dcece3;
+  --accent-glow: rgba(31, 107, 71, 0.22);
+
+  --gold: #b8860b;                    /* 中獎金：只給「裝飾」用（邊框、光暈、徽章底） */
+  /* 缺陷 Q：金色當「文字」用時 #b8860b on #fffdf7 只有 3.20:1。
+     裝飾用途（邊框、光暈、籌碼徽章底）的金必須維持原色才看得出是金色，
+     所以另開一個只給文字的深金：on #fffdf7 5.23:1、on 舞台底 #f4f1ea 4.72:1、
+     on 翻倍面板的 --gold-soft #f7ecd0 4.53:1。深色主題的金字本來就夠亮，
+     那邊的 --gold-text 直接等於 --gold。 */
+  --gold-text: #8a6508;
+  --gold-soft: #f7ecd0;
+  --gold-glow: rgba(184, 134, 11, 0.30);
+
+  /* 缺陷 P：PLAY 鍵的文字色抽成 token（見 §7.3）。
+     --roll-tint 是漸層的亮端；原本直接用 --accent-secondary（#2e8f60），
+     白字對比只有 4.03:1（hover 的 brightness(1.08) 更掉到 3.52:1）。
+     壓深到 #26794f 之後：基態 5.34:1、hover 後 4.70:1，兩者都過 4.5。 */
+  --roll-fg: #ffffff;
+  --roll-tint: #26794f;
+
+  --danger: #c0392b;
+  --warning: #c77700;
+  --success: #1f6b47;
+
+  --felt-bg: #e3ddcd;                 /* 下注桌底 */
+  --felt-line: #cdc5b0;
+  --die-face: #fffdf7;                /* 骰身 */
+  --die-edge: #ded7c4;
+  --die-pip: #23281f;
+  --die-shadow: rgba(35, 40, 31, 0.22);
+
+  --shadow-sm: 0 2px 8px rgba(35, 40, 31, 0.10);
+  --shadow-md: 0 8px 24px rgba(35, 40, 31, 0.16);
+  --shadow-lg: 0 16px 40px rgba(35, 40, 31, 0.24);
+}
+
+/* --- B. 深色主題：夜場綠絨 --- */
+:root[data-theme="dark"],
+html[data-theme="dark"] {
+  --bg-primary: #101410;
+  --bg-secondary: #182018;
+  --bg-tertiary: #222c22;
+  --bg-glass: rgba(24, 32, 24, 0.88);
+  --border-color: #34402f;
+  --border-focus: #6cc295;
+  --text-main: #e9efe4;
+  --text-muted: #96a38f;
+
+  --accent-primary: #52b184;
+  --accent-secondary: #3d9169;
+  --accent-soft: #1e3129;
+  --accent-glow: rgba(82, 177, 132, 0.26);
+
+  --gold: #e2b74a;
+  /* 深色底上的金字實測 7.58–9.83:1，不需要另一個更深的版本，
+     但變數必須存在（淺色那邊靠它避開 3.20:1），否則深色會退回 fallback。 */
+  --gold-text: var(--gold);
+  --gold-soft: #33290f;
+  --gold-glow: rgba(226, 183, 74, 0.32);
+
+  --danger: #ef7a6b;
+  --warning: #f0b04b;
+  --success: #52b184;
+
+  --felt-bg: #16211a;
+  --felt-line: #26332a;
+  --die-face: #f2efe3;
+  --die-edge: #cdc7b6;
+  --die-pip: #1a1f18;
+  --die-shadow: rgba(0, 0, 0, 0.55);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.42);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.52);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.62);
+
+  /* 缺陷 P 的根治點：深色主題的松綠亮度高，PLAY 鍵要改深色字（#0d140f
+     on #3d9169 4.85:1 / on #52b184 7.10:1）。
+     以前這件事寫成 `:root[data-theme="dark"] .roll-btn { color: #0d140f }`，
+     特異度 (0,3,0) 壓過 `body[data-phase="rolling"] .roll-btn` 的 (0,2,1)，
+     於是 rolling 期間「跳過」兩個字變成深色字配深灰綠底 —— 實測 1.29:1，
+     而那是 rolling 階段唯一還能按的控制項。
+     改成只改 token 的值：主題在 :root 宣告、狀態在元素自己身上宣告，
+     自訂屬性的解析是「元素自己的宣告贏過繼承來的值」，與特異度無關，
+     兩邊永遠不會再為同一個 color 屬性打架。 */
+  --roll-fg: #0d140f;
+  --roll-tint: var(--accent-secondary);
+}
+
+
+/* ==========================================================================
+   2. 基礎重置
+   ========================================================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  /* 瀏海機上緣讓位；無 env() 的瀏覽器整條失效，由上一行的 0 接手。
+     safe-area 只出現在三處：body 上緣、.control-dock 底部、.modal-overlay 四邊。 */
+  padding-top: 0;
+  padding-top: max(0px, env(safe-area-inset-top));
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  /* clip 與 hidden 的差別是關鍵：overflow-x: hidden 會讓 body 變成捲動容器，
+     裡面 position: sticky 的舞台就改成對 body 的捲動盒定位而不是視窗，
+     手機版的 sticky 會失效。clip 不建立捲動容器，sticky 照常對視窗定位。
+     先寫 hidden 當舊瀏覽器 fallback，再用 clip 覆寫。 */
+  overflow-x: hidden;
+  overflow-x: clip;
+  transition: background-color var(--dur-normal) var(--ease-out),
+              color var(--dur-normal) var(--ease-out);
+}
+
+/* 捲動落點讓位：鍵盤 Tab 到注格時瀏覽器會把它捲進視野，
+   若不留這兩段內距，被捲到的注格會正好躲在 sticky 舞台下或 fixed 控制台後。
+
+   缺陷 S：上緣原本寫死 200px，但舞台實高是 208–258px（訊息行數與連勝條
+   都會讓它長高），連勝兩局以上時 Shift+Tab 走到 combo 那幾列，注格連同
+   3px 焦點環整格藏在舞台底下（實測 fullyHidden: true）。
+   常數表達不了會變動的高度，所以改吃 --stage-h —— 由 sic-bo.js 的
+   ResizeObserver 量 .stage 實高後寫進 documentElement（ResizeObserver
+   缺席時退回 init 與 resize 各量一次）。fallback 240px 是舞台的典型高度，
+   JS 還沒接手前也不會讓注格藏起來。+8px 是焦點環的呼吸空間。 */
+html {
+  scroll-padding-top: calc(var(--stage-h, 240px) + 8px);
+  scroll-padding-bottom: calc(var(--dock-reserve) + 8px);
+}
+
+/* 氛圍光暈：綠絨賭桌的兩團柔光 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.7;
+  background-image:
+    radial-gradient(circle at 14% 8%, var(--accent-glow) 0%, transparent 42%),
+    radial-gradient(circle at 86% 92%, var(--gold-glow) 0%, transparent 46%);
+  transition: opacity var(--dur-normal) var(--ease-out);
+}
+
+#confetti-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* 焦點環：全站統一（契約 §5.3.9） */
+.back-btn:focus-visible,
+.icon-btn:focus-visible,
+.bet-cell:focus-visible,
+.chip:focus-visible,
+.dock-btn:focus-visible,
+.roll-btn:focus-visible,
+.modal-close-btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+  outline: 3px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+
+/* ==========================================================================
+   3. 頁面容器與頂欄
+   ========================================================================== */
+
+.page-container {
+  position: relative;
+  z-index: 1;
+  /* 寬度一律百分比 + 上限，絕不用視窗寬單位（鐵律 2） */
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding-block: 12px var(--dock-reserve);
+  padding-inline: var(--gutter);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.top-bar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: var(--dur-fast) var(--ease-out);
+  box-shadow: var(--shadow-sm);
+}
+
+.back-btn:hover {
+  background: var(--bg-tertiary);
+  transform: translateY(-1px);
+}
+
+.back-btn svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+  transition: var(--dur-fast) var(--ease-out);
+  box-shadow: var(--shadow-sm);
+}
+
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.icon-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+/* 兩態開關一律用 aria-pressed 表達，不保留沒人加的 .icon-btn.active 死規則 */
+.icon-btn[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+:root[data-theme="dark"] .icon-btn[aria-pressed="true"],
+html[data-theme="dark"] .icon-btn[aria-pressed="true"] {
+  color: var(--accent-primary);
+  background: var(--bg-tertiary);
+}
+
+
+/* ==========================================================================
+   4. 版面骨架 —— 版面 A（手機與直立平板，本檔的基準版面）
+   --------------------------------------------------------------------------
+   版面 A 是「無 media query 的基準」，版面 B（≥900px）在 §14 整組覆寫。
+   刻意不另開一個 898.98px 上限的查詢來包版面 A：這樣全檔的版面斷點值
+   只有 900 一個數字，不會出現「上限 899 / 下限 900」兩邊各自維護的漂移。
+
+   垂直順序：top-bar（正常捲動）→ .stage（sticky top: 0）→ #bet-table（捲動）
+   → .history-panel，外加脫離文件流、fixed 貼底的 .control-dock。
+   於是不論捲到哪裡，骰子與結果（上）與籌碼、PLAY（下）都同時在畫面上，
+   玩家不必像舊版那樣每一局都在下注區與 PLAY 鍵之間來回捲動。
+   ========================================================================== */
+
+.table-layout {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+
+/* ==========================================================================
+   5. 舞台（骰子 + 結果訊息 + 連勝條 + 餘額）
+   ========================================================================== */
+
+.stage {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  /* 為什麼是 row wrap 而不是單純的 column ---------------------------------
+     舞台是 sticky 的，它有多高就等於從下注桌身上扣掉多少可視空間。直排時
+     骰盤 + 訊息 + 餘額合計 242px，加上貼底 dock 的 125px = 367px，
+     在橫放的手機（例如 844×390、740×360）上比整個視窗還高 —— 下注桌
+     一格都看不到。
+     解法刻意不是 max-height 斷點（契約明文禁止，舊版就是在這裡翻車），
+     而是讓三塊在「寬度夠」時自動併成一列：
+       · 橫放手機 / 平板（可用寬 ≥ 骰盤 282 + 訊息 200 + 餘額 190）
+         → 一列，舞台只有 131px 高，下注桌拿回 100px 以上的可視空間。
+       · 直立手機（寬度放不下）→ flex 自己換行，退回三排，與原本一致。
+     寬度不夠就換行是 flex 的本性，不需要任何 media query，也就沒有
+     「高度斷點和寬度斷點互相蓋」的問題。 */
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 14px;
+  /* sticky 釘住時背景必須完全不透明，否則捲動中的注格會從底下透出來 */
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--stage-shadow);
+  padding-block: 10px 8px;
+  /* 出血到 .page-container 的左右留白之外：sticky 釘住時若左右各留 16px，
+     捲動的注格會從兩側縫隙穿出去，看起來像破圖。負邊界用同一個 --gutter，
+     斷點改 --gutter 時兩邊自動對齊。 */
+  margin-inline: calc(var(--gutter) * -1);
+  padding-inline: var(--gutter);
+  transition: box-shadow var(--dur-normal) var(--ease-out);
+}
+
+/* 懸念期間（第三顆還沒落）的金色呼吸。只動 box-shadow，
+   不動 transform —— sticky 元素一旦有 transform 就會變成包含塊，
+   裡面的 .float-gain 定位基準會在動畫期間跳動。 */
+.stage.is-suspense {
+  animation: suspensePulse var(--dur-suspense) var(--ease-out) infinite;
+}
+
+/* --- 5.1 骰盤 --- */
+.stage-dice {
+  /* flex: 0 0 auto ——骰盤寬度由三顆骰決定（3 × die + 2 × gap = 3.36 × die），
+     絕不壓縮：裡面的骰子是固定 px，一壓縮就會從骰盤裡漫出來。
+     各斷點都驗算過放得下（最窄 320px：可用 304 > 3.36 × 62 = 208）。 */
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* 三顆骰的間距比骰子小一號，讓「三顆一組」讀起來是一組而不是三個獨立物件 */
+  gap: calc(var(--die-size) * 0.18);
+  /* 預留落桌彈跳向上跑的 10% 與底下投影的高度，避免演出時舞台高度跳動
+     （sticky 元素高度一變，底下所有內容都會抖一下） */
+  min-height: calc(var(--die-size) * 1.28);
+  padding-bottom: calc(var(--die-size) * 0.1);
+}
+
+/* 搖盅：整個骰盤震一次。震的是骰盤（不是 .die，也不是 .die__cube），
+   所以不會侵犯任何一層骰子的 transform 所有權。 */
+body[data-phase="rolling"] .stage-dice {
+  animation: trayShake var(--shake-ms) var(--ease-out);
+}
+
+/* --- 5.2 結果訊息 --- */
+.stage-readout {
+  /* 200px 是「願意跟骰盤併成一列」的門檻寬度：夠放得下
+     「中獎！贏了 1,200 分」這種最長的主訊息。放不下就換行。 */
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+#result-msg {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.35;
+  /* 兩行訊息都保留固定最小高度：文字長度一變（「請先下注」→「中獎！贈了 1,200 分」）
+     舞台高度就會變，sticky 釘住時整頁內容會跟著上下抽動。 */
+  min-height: 1.35em;
+}
+
+/* 缺陷 Q：贏的主訊息是 15.2px/700 的一般文字（不到 18.66px 的粗體放寬線），
+   必須 4.5:1。用文字專用的 --gold-text（淺色 4.72:1 on 舞台底 #f4f1ea、
+   5.23:1 on 桌機舞台卡片 #fffdf7；深色 9.83 / 8.82:1）。 */
+#result-msg.is-win {
+  color: var(--gold-text);
+}
+
+#result-msg.is-lose {
+  color: var(--text-muted);
+}
+
+#result-sub {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.3;
+  min-height: 1.3em;
+}
+
+/* --- 5.3 連勝計量條 ------------------------------------------------------
+   DOM 是 #streak-meter > (#streak-fill + #streak-label)，沒有獨立的軌道元素，
+   所以軌道用 #streak-meter::before 畫，並和 #streak-fill 指派到同一個
+   grid 區域疊在一起（偽元素排在前面，填色自然蓋在軌道上）。
+   JS 只寫 #streak-fill 的 --pct（帶 % 單位），不得直接寫 width，
+   否則會和這裡的 width transition 打架。 */
+#streak-meter {
+  width: 100%;
+  max-width: 320px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "label"
+    "bar";
+  gap: 4px;
+  /* 讓 #streak-fill 的漸層能用 100cqi 對齊「整條軌道」而不是「已填滿的部分」 */
+  container-type: inline-size;
+}
+
+/* 設了 display 就必須自己補 hidden 的規則：作者樣式（0,1,0）會贏過
+   瀏覽器預設樣式的 [hidden]{display:none}（作者層永遠壓過 UA 層），
+   少了這條，JS 的 meter.hidden = true 會完全失效。 */
+#streak-meter[hidden] {
+  display: none;
+}
+
+#streak-meter::before {
+  content: '';
+  grid-area: bar;
+  height: var(--meter-h);
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+}
+
+#streak-fill,
+.streak-fill {
+  grid-area: bar;
+  justify-self: start;
+  height: var(--meter-h);
+  width: var(--pct, 0%);
+  max-width: 100%;
+  border-radius: 999px;
+  /* 漸層固定鋪滿整條軌道（100cqi），所以填到 20% 只看得到松綠，
+     一路連勝填到 100% 才露出金色 —— 顏色本身就是等級。
+     第一行是不支援容器查詢單位時的 fallback（漸層隨填色一起被壓縮）。 */
+  background-image: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary) 46%, var(--gold));
+  background-size: 100% 100%;
+  background-size: 100cqi 100%;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 8px var(--gold-glow);
+  transition: width var(--dur-normal) var(--ease-out);
+}
+
+#streak-label {
+  grid-area: label;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  /* 11.8px 的小字，離放寬線很遠，一律吃文字專用金（缺陷 Q） */
+  color: var(--gold-text);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* --- 5.4 餘額與本局押注 ------------------------------------------------
+   兩個數字刻意併在同一塊：舊版拆到不同區塊，玩家每次下注都要在兩處對帳。 */
+.stage-figures {
+  /* 兩個數字合計至少要 190px 才不會把「本局押注」擠成兩行 */
+  flex: 1 1 190px;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.figure {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.figure-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.figure-value {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  /* 補間期間顏色要跟著跳，所以時長走 --count-ms（= JS 的 COUNT_MS） */
+  transition: color var(--count-ms) var(--ease-out);
+}
+
+.figure-value.is-up {
+  color: var(--success);
+}
+
+.figure-value.is-down {
+  color: var(--danger);
+}
+
+/* --- 5.5 浮動贏分（JS 建立後附加到 .stage，動畫結束自行移除） ----------
+   定位 hook 就是這兩行的 --gx / --gy，**由 sic-bo.js 負責寫入實際值**
+   （依該筆贏分在本局中獎注裡的序號與總數換算成左右錯開＋上下錯開）。
+   本檔刻意不去讀 --i / --n 自己算：同一組座標若兩邊都想算，一邊改了另一邊
+   就會靜靜失效 —— 之前 JS 寫 --i/--n、CSS 讀 --gx/--gy，同一局的多筆贏分
+   全部疊在同一點，贏 300 只看得到一個 +100。介面釘死在 --gx/--gy 一組。
+
+   --gy 的 fallback 從 6px 下移到骰子高度的 0.85 倍（JS 缺席時的起點）：
+   6px 在骰盤上緣，舞台被 sticky 釘住時往上飄會直接飄出視窗；
+   改從骰盤下緣起飛，整段 40px 的上升都留在舞台內。
+   keyframes 裡必須把 translateX(-50%) 一起寫進去，
+   因為 transform 是整份覆寫，漏掉就會往右偏半個字寬。 */
+.float-gain {
+  position: absolute;
+  top: var(--gy, calc(var(--die-size) * 0.85));
+  left: var(--gx, 50%);
+  z-index: 45;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  /* 16.8px/700 仍在放寬線（18.66px 粗體）之下，用文字專用金（缺陷 Q） */
+  color: var(--gold-text);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  animation: floatGain var(--dur-gain) var(--ease-out) forwards;
+}
+
+
+/* ==========================================================================
+   6. 3D 骰子
+   --------------------------------------------------------------------------
+   兩層分工（鐵律 1）：
+     .die       只做位移與縮放（落桌彈跳），並提供 perspective 與投影
+     .die__cube 只做旋轉（翻滾中的 keyframes、落定後轉到指定面）
+   六面貼法對面相加為 7；JS 停面時寫入的 --rx / --ry 見契約 §5.4 的表，
+   本檔的 face transform 與那張表必須成套，改一邊就會開出錯的點數。
+   ========================================================================== */
+
+.die {
+  position: relative;
+  width: var(--die-size);
+  height: var(--die-size);
+  flex: 0 0 auto;
+  perspective: 700px;
+  /* 供六面 translateZ 用；寫在 .die 而不是 :root，
+     是為了讓 #gamble-die 這種局部改小 --die-size 的元素自動算對半徑。 */
+  --die-half: calc(var(--die-size) / 2);
+}
+
+/* 落桌彈跳只掛在 .die（位移與縮放層） */
+.die.is-landing {
+  animation: dieLand var(--land-ms) var(--ease-spring);
+}
+
+/* 底下的橢圓投影：骰子落桌時同步縮放，讓「重量感」對得上 */
+.die::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -8%;
+  width: 76%;
+  height: 14%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, var(--die-shadow) 0%, transparent 72%);
+  pointer-events: none;
+}
+
+.die.is-landing::after {
+  animation: dieLandShadow var(--land-ms) var(--ease-spring);
+}
+
+.die__cube {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx, -20deg)) rotateY(var(--ry, 20deg));
+  transition: transform var(--land-ms) var(--ease-settle);
+}
+
+/* 翻滾：只掛在 cube。三顆用 animation-delay 錯開，
+   否則三顆同步翻滾看起來像一個剛體在轉。 */
+.die__cube.is-rolling {
+  animation: dieTumble var(--tumble-ms) linear infinite;
+}
+
+.stage-dice .die:nth-child(2) .die__cube {
+  animation-delay: -0.2s;
+}
+
+.stage-dice .die:nth-child(3) .die__cube {
+  animation-delay: -0.4s;
+}
+
+.die__face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  padding: 11%;
+  border-radius: 18%;
+  background: linear-gradient(145deg, var(--die-face), var(--die-edge));
+  box-shadow: inset 0 0 0 1px var(--die-edge);
+  /* 背面不畫，避免透視角度下從骰身「內部」看到反面的點數 */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* 柔和高光：每一面都有，所以不論哪一面轉到正面都看得到。
+   絕對定位的子元素不參與 grid 自動排版，不會佔掉點數的格子。
+   inset: 5% 是刻意的：骰子停在正面時，左右兩面會剛好與視線垂直，
+   在那個角度瀏覽器仍會把它們光柵化成 1px 的細線貼在骰身邊緣。
+   高光若畫到最外緣，那條線會是純白的（深色主題下特別刺眼）；
+   縮進 5% 之後那 1px 只剩 --die-edge 的骰邊色，看起來就是骰子的側邊。 */
+.die__face::after {
+  content: '';
+  position: absolute;
+  inset: 5%;
+  border-radius: 14%;
+  background: radial-gradient(120% 96% at 26% 16%, #ffffff 0%, rgba(255, 255, 255, 0) 58%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 六面貼法（對面相加為 7） */
+.die__face--1 { transform: translateZ(var(--die-half)); }
+.die__face--6 { transform: rotateY(180deg) translateZ(var(--die-half)); }
+.die__face--2 { transform: rotateX(90deg) translateZ(var(--die-half)); }
+.die__face--5 { transform: rotateX(-90deg) translateZ(var(--die-half)); }
+.die__face--3 { transform: rotateY(90deg) translateZ(var(--die-half)); }
+.die__face--4 { transform: rotateY(-90deg) translateZ(var(--die-half)); }
+
+.pip {
+  place-self: center;
+  width: 54%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #5b6355 0%, var(--die-pip) 68%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22);
+}
+
+/* 點數排布：3×3 格線 + grid-area（列 / 欄）。
+   一律用 nth-child 指派，HTML 端只要放對顆數就不會排錯。 */
+.die__face--1 .pip:nth-child(1) { grid-area: 2 / 2; }
+
+.die__face--2 .pip:nth-child(1) { grid-area: 1 / 1; }
+.die__face--2 .pip:nth-child(2) { grid-area: 3 / 3; }
+
+.die__face--3 .pip:nth-child(1) { grid-area: 1 / 1; }
+.die__face--3 .pip:nth-child(2) { grid-area: 2 / 2; }
+.die__face--3 .pip:nth-child(3) { grid-area: 3 / 3; }
+
+.die__face--4 .pip:nth-child(1) { grid-area: 1 / 1; }
+.die__face--4 .pip:nth-child(2) { grid-area: 1 / 3; }
+.die__face--4 .pip:nth-child(3) { grid-area: 3 / 1; }
+.die__face--4 .pip:nth-child(4) { grid-area: 3 / 3; }
+
+.die__face--5 .pip:nth-child(1) { grid-area: 1 / 1; }
+.die__face--5 .pip:nth-child(2) { grid-area: 1 / 3; }
+.die__face--5 .pip:nth-child(3) { grid-area: 2 / 2; }
+.die__face--5 .pip:nth-child(4) { grid-area: 3 / 1; }
+.die__face--5 .pip:nth-child(5) { grid-area: 3 / 3; }
+
+.die__face--6 .pip:nth-child(1) { grid-area: 1 / 1; }
+.die__face--6 .pip:nth-child(2) { grid-area: 1 / 3; }
+.die__face--6 .pip:nth-child(3) { grid-area: 2 / 1; }
+.die__face--6 .pip:nth-child(4) { grid-area: 2 / 3; }
+.die__face--6 .pip:nth-child(5) { grid-area: 3 / 1; }
+.die__face--6 .pip:nth-child(6) { grid-area: 3 / 3; }
+
+
+/* ==========================================================================
+   7. 控制台（籌碼列 + 同上局 / 清除 + PLAY + 翻倍挑戰）
+   --------------------------------------------------------------------------
+   手機版 fixed 貼底，永遠在拇指旁；桌機版在 §14 改成左欄的 sticky 元素。
+   ========================================================================== */
+
+.control-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "chips  chips"
+    "acts   play"
+    "gamble gamble";
+  gap: 8px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  padding-block: 10px;
+  /* 左右留白：背景滿版（貼底的列只有中間一段有底色會很怪），但內容必須跟
+     .page-container 的內容框「同一條軸線」—— 否則 560px 上限生效之後
+     （平板直立 768、手機橫向 844 這一段），上方注格只有 528px 寬、
+     底下籌碼卻攤了 660px，兩者左右各差 60 幾 px，看起來像兩層不同的東西。
+     560px + --gutter 與 .page-container 完全對齊；max() 裡的 calc
+     在窄螢幕是負值，會被 --gutter 接手。 */
+  padding-inline: max(var(--gutter), calc((100% - 560px) / 2 + var(--gutter)));
+  /* 底部安全區：無 env() 的瀏覽器整條失效，由上一行的 10px 接手 */
+  padding-bottom: 10px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+
+/* --- 7.1 籌碼列 --- */
+.chip-rail {
+  grid-area: chips;
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+  background: var(--bg-secondary);
+  /* 虛線外框模擬籌碼邊緣的刻痕；每個面額一個色，讓玩家用顏色記面額 */
+  border: 2px dashed var(--chip-tint, var(--border-color));
+  border-radius: 999px;
+  cursor: pointer;
+  transition: var(--dur-fast) var(--ease-out);
+}
+
+.chip[data-chip="10"]  { --chip-tint: #8a9aa8; }
+.chip[data-chip="50"]  { --chip-tint: var(--danger); }
+.chip[data-chip="100"] { --chip-tint: var(--accent-primary); }
+.chip[data-chip="500"] { --chip-tint: var(--gold); }
+
+.chip:hover {
+  background: var(--bg-tertiary);
+}
+
+.chip:active {
+  transform: scale(0.94);
+}
+
+/* 選中態用「實線外框 + 內環 + 抬起」三重訊號，不靠反白填色：
+   面額色有金色與紅色，反白後白字的對比會掉到 3:1 以下。 */
+.chip[aria-pressed="true"] {
+  border-style: solid;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--chip-tint, var(--accent-primary)), var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+/* --- 7.2 次要動作 --- */
+.dock-actions {
+  grid-area: acts;
+  display: flex;
+  gap: 6px;
+}
+
+.dock-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 10px;
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-main);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--dur-fast) var(--ease-out);
+}
+
+.dock-btn:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+}
+
+.dock-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.dock-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* --- 7.3 主動作鍵 -------------------------------------------------------
+   缺陷 P：文字色一律走 --roll-fg，**本規則之外沒有任何地方直接寫 color**。
+   主題（:root[data-theme=...]）與狀態（body[data-phase=...] .roll-btn）
+   各自只改 --roll-fg 的「值」，不再對同一個 color 屬性比特異度。
+   以前深色主題那條 (0,3,0) 壓過 rolling 的 (0,2,1)，「跳過」變成 1.29:1。
+
+   五個狀態 × 兩個主題的實測對比（漸層兩端都算，取最差的一端）：
+     預設 / broke   淺 白字 on #26794f→#1f6b47      5.34 / 6.46
+                    深 #0d140f on #3d9169→#52b184   4.85 / 7.10
+     rolling        淺 #23281f on #e8e2d4→#d8d0bd  11.66 / 9.81
+                    深 #e9efe4 on #222c22→#34402f  12.35 / 9.34
+     settling       淺 #2a1f04 on #e3c165→#b8860b   9.32 / 4.98
+                    深 #2a1f04 on #e3c165→#e2b74a   9.32 / 8.57
+     disabled       淺 #5d6356 on #e8e2d4           4.80
+                    深 #96a38f on #222c22           5.47
+   hover 的 brightness(1.08) 也一併算過，最差是淺色預設態的 4.70:1。 */
+.roll-btn {
+  grid-area: play;
+  min-height: 48px;
+  padding: 0 24px;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--roll-fg);
+  background: linear-gradient(135deg, var(--roll-tint), var(--accent-primary));
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  box-shadow: 0 6px 16px var(--accent-glow);
+  transition: var(--dur-fast) var(--ease-out);
+}
+
+.roll-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.roll-btn:active {
+  transform: scale(0.96);
+}
+
+/* 停用態：背景改成單色（不是漸層），文字降成 muted。
+   刻意不用 opacity 表達「停用」—— opacity 會同時壓暗文字與背景，
+   量出來的對比會低於 4.5，而這顆是全頁最主要的動作鍵。
+   單色底 + muted 字在兩個主題下分別是 4.80:1 與 5.47:1。 */
+.roll-btn:disabled {
+  --roll-fg: var(--text-muted);
+  background: var(--bg-tertiary);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.roll-btn:disabled:hover {
+  filter: none;
+  transform: none;
+}
+
+/* --- 7.4 翻倍挑戰面板 ---------------------------------------------------
+   面板刻意住在 dock 裡，才能和 PLAY 共用「永遠看得到」這件事。
+   內部排成「骰子在左、兩行字在右、按鈕橫跨底部」，是為了把 dock 長高的幅度
+   壓在 --dock-reserve 的預算內 —— 直排會多出 60px 以上，歷史紀錄就會被蓋住。 */
+.gamble-panel {
+  grid-area: gamble;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "die hint"
+    "die amount"
+    "acts acts";
+  align-items: center;
+  gap: 6px 10px;
+  padding: 8px 10px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-md);
+}
+
+.gamble-panel[hidden] {
+  display: none;
+}
+
+.gamble-panel .die {
+  grid-area: die;
+  --die-size: 54px;
+}
+
+.gamble-panel > p:first-of-type {
+  grid-area: hint;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.gamble-panel > p:last-of-type {
+  grid-area: amount;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+#gamble-amount {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  /* 15.2px/700，底色是面板的 --gold-soft；文字專用金 4.53:1（深色 7.58:1），
+     原本的 --gold 在這個底上只有 2.89:1（缺陷 Q）。 */
+  color: var(--gold-text);
+}
+
+.gamble-actions {
+  grid-area: acts;
+  display: flex;
+  gap: 6px;
+}
+
+:root[data-theme="dark"] .gamble-panel > p:first-of-type,
+html[data-theme="dark"] .gamble-panel > p:first-of-type {
+  color: var(--gold-text);
+}
+
+
+/* ==========================================================================
+   8. 下注桌
+   ========================================================================== */
+
+.bet-table {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bet-group {
+  background: var(--felt-bg);
+  border: 1px solid var(--felt-line);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), var(--shadow-sm);
+}
+
+.bet-group-title {
+  /* h2 的預設字級要壓掉；組標題是導覽而非標題階層的視覺重點 */
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  padding-left: 7px;
+  border-left: 3px solid var(--accent-primary);
+}
+
+/* --- 8.1 格線（鐵律 3：一律 minmax(0, 1fr)） -----------------------------
+   欄數對照（契約 §5.2）：
+     bs 3 / sum 7（兩列，上排 4–10 是小、下排 11–17 是大，是有意義的結構）
+     combo 手機 5（三列）、桌機 8 / double 6 / triple 6 / single 6 */
+.bet-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.bet-grid--bs  { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.bet-grid--sum { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+
+/* --pip-die 是各組迷你骰的邊長：一律寫成 --mini-die 的倍數，
+   斷點只要改 --mini-die 一個數字，六組就一起等比縮放。
+   圍骰一格塞三顆、單骰只塞一顆，所以比例差很多。 */
+.bet-grid--combo {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  --pip-die: var(--mini-die);
+}
+
+.bet-grid--double {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  --pip-die: var(--mini-die);
+}
+
+.bet-grid--triple {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  --pip-die: calc(var(--mini-die) * 0.72);
+}
+
+.bet-grid--single {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  --pip-die: calc(var(--mini-die) * 1.3);
+}
+
+/* --- 8.2 注格 ------------------------------------------------------------
+   min-height: 48px 是觸控目標下限；實際高度由內距撐到 ~56px。
+   底部 16px 是永久保留給籌碼徽章的位置（見 8.4），下注前後高度不變，
+   才不會一押注就讓整列格子長高、整頁內容往下跳。 */
+.bet-cell {
+  position: relative;
+  min-height: 48px;
+  padding: 7px 2px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-family: var(--font-sans);
+  line-height: 1;
+  color: var(--text-main);
+  background: var(--bg-secondary);
+  border: 1px solid var(--felt-line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  /* 任何內容都不准漫出按鈕邊界（籌碼徽章、迷你骰、長標籤都被裁在格內），
+     這是舊版徽章蓋到鄰格的根治辦法 */
+  overflow: hidden;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out),
+              opacity var(--dur-fast) var(--ease-out);
+}
+
+.bet-cell:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+.bet-cell:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* 有下注：用松綠（主色）標「這格我押了」；金色留給中獎，兩者不搶同一個顏色 */
+.bet-cell.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent-primary);
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+}
+
+.bet-cell:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}
+
+/* 中獎：金色脈動，時長 = JS 的 PULSE_MS。
+   z-index 2 讓發光的外框壓在鄰格之上（契約的 z 階層） */
+.bet-cell.is-win {
+  z-index: 2;
+  animation: cellWin var(--pulse-ms) var(--ease-out);
+}
+
+/* 沒中：短暫淡掉再回復。刻意不用 forwards ——
+   萬一 JS 沒能在 PULSE_MS 後移除 class（例如中途拋錯），
+   格子也會自己回到正常亮度，不會整桌永久灰掉。 */
+.bet-cell.is-lose {
+  animation: cellLose var(--pulse-ms) var(--ease-out);
+}
+
+.bet-cell__face {
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 大小那三格是純文字，字級大一點；點數格用等寬數字 */
+.bet-grid--bs .bet-cell__face {
+  font-size: 0.9rem;
+}
+
+.bet-grid--sum .bet-cell__face {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bet-cell__rate {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bet-cell.is-active .bet-cell__rate {
+  color: var(--accent-primary);
+}
+
+/* --- 8.3 注格內的迷你骰 ------------------------------------------------- */
+.bet-pips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.bet-pips__die {
+  width: var(--pip-die, var(--mini-die));
+  height: var(--pip-die, var(--mini-die));
+  flex: 0 0 auto;
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  padding: 11%;
+  border-radius: 22%;
+  background: linear-gradient(145deg, var(--die-face), var(--die-edge));
+  box-shadow: inset 0 0 0 1px var(--die-edge);
+}
+
+.bet-pips__dot {
+  place-self: center;
+  width: 62%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--die-pip);
+}
+
+/* 迷你骰的點數排布：與 3D 骰子同一套 3×3 grid-area 規則 */
+.bet-pips__die[data-pips="1"] .bet-pips__dot:nth-child(1) { grid-area: 2 / 2; }
+
+.bet-pips__die[data-pips="2"] .bet-pips__dot:nth-child(1) { grid-area: 1 / 1; }
+.bet-pips__die[data-pips="2"] .bet-pips__dot:nth-child(2) { grid-area: 3 / 3; }
+
+.bet-pips__die[data-pips="3"] .bet-pips__dot:nth-child(1) { grid-area: 1 / 1; }
+.bet-pips__die[data-pips="3"] .bet-pips__dot:nth-child(2) { grid-area: 2 / 2; }
+.bet-pips__die[data-pips="3"] .bet-pips__dot:nth-child(3) { grid-area: 3 / 3; }
+
+.bet-pips__die[data-pips="4"] .bet-pips__dot:nth-child(1) { grid-area: 1 / 1; }
+.bet-pips__die[data-pips="4"] .bet-pips__dot:nth-child(2) { grid-area: 1 / 3; }
+.bet-pips__die[data-pips="4"] .bet-pips__dot:nth-child(3) { grid-area: 3 / 1; }
+.bet-pips__die[data-pips="4"] .bet-pips__dot:nth-child(4) { grid-area: 3 / 3; }
+
+.bet-pips__die[data-pips="5"] .bet-pips__dot:nth-child(1) { grid-area: 1 / 1; }
+.bet-pips__die[data-pips="5"] .bet-pips__dot:nth-child(2) { grid-area: 1 / 3; }
+.bet-pips__die[data-pips="5"] .bet-pips__dot:nth-child(3) { grid-area: 2 / 2; }
+.bet-pips__die[data-pips="5"] .bet-pips__dot:nth-child(4) { grid-area: 3 / 1; }
+.bet-pips__die[data-pips="5"] .bet-pips__dot:nth-child(5) { grid-area: 3 / 3; }
+
+.bet-pips__die[data-pips="6"] .bet-pips__dot:nth-child(1) { grid-area: 1 / 1; }
+.bet-pips__die[data-pips="6"] .bet-pips__dot:nth-child(2) { grid-area: 1 / 3; }
+.bet-pips__die[data-pips="6"] .bet-pips__dot:nth-child(3) { grid-area: 2 / 1; }
+.bet-pips__die[data-pips="6"] .bet-pips__dot:nth-child(4) { grid-area: 2 / 3; }
+.bet-pips__die[data-pips="6"] .bet-pips__dot:nth-child(5) { grid-area: 3 / 1; }
+.bet-pips__die[data-pips="6"] .bet-pips__dot:nth-child(6) { grid-area: 3 / 3; }
+
+/* --- 8.4 籌碼徽章 -------------------------------------------------------
+   舊版把徽章放在 top: -12px; right: -8px，會越過按鈕、蓋掉鄰格，最右一欄
+   還會壓到區塊外框。這裡改成「按鈕內部下緣的一條籌碼槽」：
+     · 用 left/right 定位（不是 translateX），寬度天生等於按鈕內寬，
+       所以沒有任何「內容太寬把徽章推出去」的路徑；
+     · 父層 .bet-cell 有 overflow: hidden 當第二道保險；
+     · .bet-cell 的 padding-bottom 永久保留 16px，徽章不會壓到賠率文字。 */
+.bet-cell__stack {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  min-height: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  color: #3d2c05;
+  /* 缺陷 Q（同一類）：徽章文字只有 9.6px/700，漸層下端原本是 --gold
+     (#b8860b)，深棕字在那一端只有 4.13:1。下端收亮到 #cc9a1f 之後
+     兩端分別是 9.74:1 與 5.26:1，看起來仍是同一顆金籌碼。 */
+  background: linear-gradient(180deg, #f6d98a, #cc9a1f);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px var(--die-shadow);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+:root[data-theme="dark"] .bet-cell__stack,
+html[data-theme="dark"] .bet-cell__stack {
+  color: #201703;
+  background: linear-gradient(180deg, var(--gold), #b98f26);
+}
+
+
+/* ==========================================================================
+   9. 歷史紀錄
+   --------------------------------------------------------------------------
+   舊版把清單塞進 max-height: 120px 的捲動框，一次只看到 4 筆、其餘 46 筆
+   要在小框裡捲。這裡讓它跟著頁面捲，並在寬一點的螢幕排成兩欄。
+   ========================================================================== */
+
+.history-panel {
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px;
+}
+
+#history-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
+  font-size: 0.8rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.history-dice {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-net {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* 正負著色吃兩種掛法：class 掛在整列（.is-win / .is-lose）
+   或只掛在數字上（.is-up / .is-down），JS 用哪一種都有樣式。
+   贏的那一列是 12.8px/700 的金字，底色是 --bg-primary：
+   文字專用金 4.72:1（深色 9.83:1），原本的 --gold 只有 2.89:1（缺陷 Q）。 */
+.history-item.is-win .history-net,
+.history-net.is-up {
+  color: var(--gold-text);
+}
+
+.history-item.is-lose .history-net,
+.history-net.is-down {
+  color: var(--danger);
+}
+
+#history-empty {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 4px;
+}
+
+#history-empty[hidden] {
+  display: none;
+}
+
+
+/* ==========================================================================
+   10. 彈窗
+   ========================================================================== */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(12, 18, 12, 0.66);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 瀏海／圓角機的安全區：不支援 env() 的瀏覽器會讓整條宣告失效，
+     由上一行的 padding: 16px 接手。 */
+  padding: 16px;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-modal) var(--ease-out);
+}
+
+/* 雙軌制：hidden 屬性管可及性（整個移出可及性樹），.open 管進場動畫 */
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(20px) scale(0.95);
+  transition: transform var(--dur-modal) var(--ease-spring);
+  max-height: 88vh;
+  max-height: 88dvh;
+  overflow-y: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.modal-overlay.open .modal-box {
+  transform: translateY(0) scale(1);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+}
+
+.modal-close-btn:hover {
+  color: var(--text-main);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.modal-body h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+  margin-top: 4px;
+}
+
+.modal-body ul,
+.modal-body ol {
+  padding-left: 1.25em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-body code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+}
+
+.modal-body strong {
+  color: var(--accent-primary);
+  font-weight: 800;
+}
+
+.modal-footer {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  background: var(--accent-primary);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: var(--dur-fast) var(--ease-out);
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  padding: 10px 18px;
+  background: var(--bg-tertiary);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: var(--dur-fast) var(--ease-out);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-primary);
+  border-color: var(--accent-primary);
+}
+
+.btn-secondary[hidden] {
+  display: none;
+}
+
+:root[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .btn-primary {
+  color: #0d140f;
+}
+
+/* --- 10.1 戰績 / 破產結算的內容格線（由 JS 填入，沿用全站 class） --- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stat-item {
+  background: var(--bg-primary);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.stat-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-primary);
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+/* 累計押注 / 回收率那一行，以及破產彈窗的說明句（renderStatsBody 與
+   renderBrokeBody 都會建）。缺陷 R：這個選擇器原本在本檔完全不存在，
+   那一行就繼承 .modal-body 的 0.95rem 主文字色，和上面的數字卡搶份量。 */
+.stats-note {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* --- 10.1b 里程碑徽章牆 -------------------------------------------------
+   缺陷 R：renderStatsBody 會建出 .milestone-wall + 12 個 .milestone-badge
+   （已達成再加 .is-hit），但本檔原本這三個選擇器一個都沒有（grep 計數 0）。
+   結果 12 個 <span> 是純 inline 元素、只靠字間空白分隔，在彈窗裡黏成一串，
+   而且「已達成」與「未達成」的唯一差別只有 JS 塞的 🏅 / 🔒 emoji。
+
+   達成 / 未達成刻意用「三重訊號」區分，不只靠顏色：
+     達成   → 金色漸層底 + 深棕字 + 實線金框（JS 另外給 🏅）
+     未達成 → 灰底 + muted 字 + 虛線框（JS 另外給 🔒）
+   未達成刻意**不用 opacity** 壓低：12.5px 的小字一乘上 0.6 透明度，
+   對比就從 4.80:1 掉到 3:1 以下，那正是缺陷 Q 在修的同一件事。
+   低調感改由「灰底 + 虛線框」表達，對比維持在 4.5 以上。 */
+.milestone-wall {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.milestone-badge {
+  /* inline 元素吃不到 padding 的垂直值，也無法對齊，必須自己升成 flex 盒 */
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 5px 9px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  border-radius: 999px;
+  /* 未達成：灰底 + muted 字 + 虛線框。
+     淺色 #5d6356 on #e8e2d4 = 4.80:1；深色 #96a38f on #222c22 = 5.47:1 */
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border-color);
+  /* 標籤最長是「餘額破 10,000」，窄螢幕上讓它整串留在一行、整排自己換行 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 已達成：與注格上的籌碼徽章同一套金（同樣的漸層與字色），
+   讓「這格我押了的金」與「我拿到的里程碑」讀起來是同一種金。
+   淺色 #3d2c05 on #f6d98a→#cc9a1f = 9.74 / 5.26:1。 */
+.milestone-badge.is-hit {
+  color: #3d2c05;
+  background: linear-gradient(180deg, #f6d98a, #cc9a1f);
+  border: 1px solid var(--gold);
+  box-shadow: 0 1px 4px var(--gold-glow);
+}
+
+/* 深色主題的金要暗一階才不會在夜場底色上炸開；字色跟著更深。
+   #201703 on var(--gold) #e2b74a→#b98f26 = 9.37 / 5.92:1。 */
+:root[data-theme="dark"] .milestone-badge.is-hit,
+html[data-theme="dark"] .milestone-badge.is-hit {
+  color: #201703;
+  background: linear-gradient(180deg, var(--gold), #b98f26);
+}
+
+/* --- 10.2 說明文字裡的賠率表 -------------------------------------------
+   .help-table 只服務說明面板。窄螢幕上靠 table-layout: fixed + 換行控制
+   把表格夾在彈窗內寬裡，不讓它把 .modal-box 撐出橫向捲軸。 */
+.help-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.help-table th,
+.help-table td {
+  border: 1px solid var(--border-color);
+  padding: 5px 7px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.help-table th {
+  background: var(--bg-tertiary);
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+
+.help-table code {
+  padding: 0 3px;
+}
+
+
+/* ==========================================================================
+   11. Toast 訊息
+   ========================================================================== */
+
+.toast-container {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 2000;
+  pointer-events: none;
+  width: max-content;
+  /* 用百分比而不是視窗寬單位：後者含捲軸寬，桌機會溢出 */
+  max-width: calc(100% - 32px);
+}
+
+.toast-msg {
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--accent-primary);
+  color: var(--text-main);
+  padding: 8px 18px;
+  border-radius: var(--radius-xl);
+  font-size: 0.9rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+  animation: toastIn var(--dur-toast) var(--ease-spring);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+
+/* ==========================================================================
+   12. 階段狀態（body[data-phase] 是全域狀態的唯一出口）
+   ========================================================================== */
+
+/* 開骰中：整張桌子停止互動並視覺弱化。
+   刻意把 opacity 下在每一格而不是 #bet-table 本身 ——
+   父層 opacity 會連 .is-win 的金色脈動一起壓暗，而結算高亮正是這一刻
+   最該看清楚的東西；`:not(.is-win)` 讓中獎格維持全亮。 */
+body[data-phase="rolling"] #bet-table,
+body[data-phase="broke"] #bet-table,
+.bet-table.is-disabled {
+  pointer-events: none;
+}
+
+body[data-phase="rolling"] #bet-table .bet-cell,
+body[data-phase="broke"] #bet-table .bet-cell,
+.bet-table.is-disabled .bet-cell:not(.is-win) {
+  opacity: 0.58;
+  filter: saturate(0.7);
+}
+
+/* 開骰中籌碼與次要動作一起停用，只留 PLAY（此時是「跳過」）可按 */
+body[data-phase="rolling"] .chip-rail,
+body[data-phase="rolling"] .dock-actions {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* rolling 的「跳過」：改 --roll-fg 而不是 color（缺陷 P）。
+   直接寫 color 會輸給 :root[data-theme="dark"] .roll-btn 的特異度，
+   深色主題下就變成深色字配深灰綠底（實測 1.29:1）。
+   改成寫 token：這條宣告落在 .roll-btn 元素自己身上，
+   一定贏過任何從 :root 繼承下來的值，與兩邊的特異度無關。
+   淺色 #23281f on #e8e2d4→#d8d0bd = 11.66 / 9.81:1；
+   深色 #e9efe4 on #222c22→#34402f = 12.35 / 9.34:1。 */
+body[data-phase="rolling"] .roll-btn {
+  background: linear-gradient(135deg, var(--bg-tertiary), var(--border-color));
+  --roll-fg: var(--text-main);
+  box-shadow: none;
+}
+
+/* 結算後（可翻倍）：PLAY 變金色，暗示「按了就進下一局」。
+   金底配深棕字，兩個主題共用同一個值（淺 9.32 / 4.98:1、深 9.32 / 8.57:1），
+   同樣只改 token，不直接寫 color。 */
+body[data-phase="settling"] .roll-btn {
+  background: linear-gradient(135deg, #e3c165, var(--gold));
+  --roll-fg: #2a1f04;
+  box-shadow: 0 6px 16px var(--gold-glow);
+}
+
+/* 籌碼列被 JS 停用時（chip-rail 加 .is-disabled）的樣子。
+   rebet / clear 是原生 disabled，走 .dock-btn:disabled 那條。 */
+.chip-rail.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 只有「已經押下翻倍」的 gamble 階段才收掉籌碼列與次要動作 —— 那時桌面真的鎖住，
+   留著是三排按不動的死控制項，卻讓 dock 在手機上多長 116px。
+
+   settling 不收（契約 §6.5 第 12 步）：那個階段玩家還能改注，
+   而「改注」至少要能換籌碼面額與清桌。上一版連 settling 一起收起來，
+   結果是贏一局之後只剩「再來一局」一顆鍵，等於被迫用同一筆錢再賭一次；
+   餘額低的時候那就是自動 all-in。 */
+body[data-phase="gamble"] .chip-rail,
+body[data-phase="gamble"] .dock-actions {
+  display: none;
+}
+
+/* 即使收掉了那兩塊，掀開挑戰面板的 dock 還是會從 116px 長到 197px。
+   底部讓位跟著加大，否則歷史紀錄最後一列會在挑戰期間被蓋住。
+   改的是 --dock-reserve 而不是直接寫 padding-bottom：這個變數本來就是
+   .page-container 底部內距的唯一來源，一起走同一條路才不會有兩份真相。
+   內容在 padding 之上，所以加大只是讓可捲範圍變長，畫面不會跳動。 */
+/* 階段覆寫已移除：--dock-h 是量出來的，翻倍面板掀開時它自己就變大了。
+   留著一個寫死的 212px 只會在兩者不一致時多一個錯誤來源。 */
+
+
+/* ==========================================================================
+   13. 動畫關鍵影格
+   --------------------------------------------------------------------------
+   dieTumble / dieLand 分屬兩層，不會互相覆寫（鐵律 1）：
+     dieTumble → .die__cube（旋轉層，base transform 只有 rotate）
+     dieLand   → .die（位移縮放層，base 沒有 transform）
+   ========================================================================== */
+
+/* 翻滾：連續的大角度 rotateX / rotateY，看起來像在盅裡亂轉 */
+@keyframes dieTumble {
+  0%   { transform: rotateX(0deg) rotateY(0deg); }
+  25%  { transform: rotateX(180deg) rotateY(90deg); }
+  50%  { transform: rotateX(360deg) rotateY(180deg); }
+  75%  { transform: rotateX(540deg) rotateY(270deg); }
+  100% { transform: rotateX(720deg) rotateY(360deg); }
+}
+
+@keyframes dieLand {
+  0%   { transform: translateY(-10%) scale(1.08); }
+  60%  { transform: translateY(3%) scale(0.96); }
+  100% { transform: none; }
+}
+
+/* 投影跟著落桌縮放。translateX(-50%) 每一格都要重寫，
+   因為 transform 是整份覆寫而不是疊加。 */
+@keyframes dieLandShadow {
+  0%   { transform: translateX(-50%) scale(0.72); opacity: 0.35; }
+  60%  { transform: translateX(-50%) scale(1.12); opacity: 0.9; }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+/* 搖盅：骰盤整體左右微震一次 */
+@keyframes trayShake {
+  0%, 100% { transform: translateX(0); }
+  15%      { transform: translateX(-6px); }
+  35%      { transform: translateX(5px); }
+  55%      { transform: translateX(-4px); }
+  75%      { transform: translateX(3px); }
+  90%      { transform: translateX(-2px); }
+}
+
+/* 中獎注格：金色脈動（外框光暈 + 背景轉金），時長 = PULSE_MS */
+@keyframes cellWin {
+  0% {
+    background-color: var(--gold-soft);
+    box-shadow: 0 0 0 0 var(--gold-glow);
+  }
+  45% {
+    background-color: var(--gold-soft);
+    box-shadow: 0 0 16px 5px var(--gold-glow);
+  }
+  100% {
+    background-color: var(--gold-soft);
+    box-shadow: 0 0 0 0 var(--gold-glow);
+  }
+}
+
+@keyframes cellLose {
+  0%   { opacity: 1; filter: saturate(1); }
+  35%  { opacity: 0.3; filter: saturate(0.2); }
+  100% { opacity: 1; filter: saturate(1); }
+}
+
+@keyframes suspensePulse {
+  0%, 100% { box-shadow: var(--stage-shadow), 0 0 0 0 var(--gold-glow); }
+  50%      { box-shadow: var(--stage-shadow), 0 0 24px 5px var(--gold-glow); }
+}
+
+@keyframes floatGain {
+  0%   { transform: translate(-50%, 8px); opacity: 0; }
+  20%  { transform: translate(-50%, 0); opacity: 1; }
+  70%  { transform: translate(-50%, -22px); opacity: 1; }
+  100% { transform: translate(-50%, -40px); opacity: 0; }
+}
+
+@keyframes toastIn {
+  0%   { transform: translateY(-16px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+
+/* ==========================================================================
+   14. 響應式：版面 B（≥900px，桌機）
+   --------------------------------------------------------------------------
+   .table-layout 切成兩欄：左欄是舞台與控制台，右欄是注格與歷史。
+   DOM 順序（stage → dock → bets → history）不動，用明確的 grid 座標指派。
+
+   左欄「整欄都釘住」的做法：舞台 sticky top、控制台 sticky bottom。
+   為什麼不是兩個都 sticky top —— 兩個相鄰的 sticky top 元素會在捲動時
+   疊在同一個位置（後者要等前者離開才輪到它），第二個元素得知道第一個的
+   實際高度才能算出 top 值，而舞台高度會隨結果訊息與連勝條增減，
+   沒有任何 CSS 常數能表達它。改成「一個貼上緣、一個貼下緣」就完全免量測。
+
+   控制台的 grid-row 刻意跨到最後一列（1 / 3）：sticky 只能在自己的
+   grid 區域內滑動，若只佔第 2 列，一旦歷史紀錄很短就沒有滑動空間，
+   dock 會卡在注格底下不動。跨滿整欄後它的可滑動範圍就是整頁高度。
+   ========================================================================== */
+
+@media (min-width: 900px) {
+  :root {
+    --die-size: 96px;
+    --mini-die: 22px;
+    --gutter: 24px;
+    /* 桌機的 dock 不再 fixed，底部不必再為它讓位 */
+    --dock-reserve: 32px;
+    --stage-shadow: var(--shadow-md);
+  }
+
+  /* 桌機的 dock 在左欄、不覆蓋任何內容，所以 §12 那條為了翻倍面板加大的
+     底部讓位要收回來（變數設在 body 上，比 :root 更靠近 .page-container，
+     不在這裡覆寫的話桌機會多出 212px 的空白）。 */
+  body[data-phase="settling"],
+  body[data-phase="gamble"] {
+    --dock-reserve: 32px;
+  }
+
+  /* 缺陷 S 的桌機側：這個版面的舞台是左欄的一張卡片（sticky top: 16px），
+     注格在右欄，舞台不會蓋到任何一格，所以不能拿 --stage-h 當讓位值 ——
+     那會讓 Tab 到右欄注格時整頁多捲 250px，焦點格反而被推到畫面中央以下。
+     固定 24px 只是替焦點環留一點呼吸空間。 */
+  html {
+    scroll-padding-top: 24px;
+  }
+
+  .page-container {
+    max-width: 1040px;
+  }
+
+  .table-layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    /* 三列：舞台 / 歷史紀錄 / 控制台。
+       第三列刻意是 minmax(0, 1fr) —— 整個格線的高度由右欄的下注桌（跨 1/4）撐開，
+       剩下的高度全部給第三列，控制台才有「往上被 sticky 拉起」的滑動空間。
+       若第三列寫 auto，軌道就只有控制台自己的高度，sticky 等於沒作用。 */
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .stage {
+    grid-column: 1;
+    grid-row: 1;
+    top: 16px;
+    /* 桌機不需要出血：舞台是左欄的一張卡片，不再橫跨整個視窗寬 */
+    margin-inline: 0;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+  }
+
+  /* 桌機的舞台是 360px 寬的左欄卡片，三塊一律直排（不走 §5 的併列）：
+     96px 骰子的骰盤本身就要 3.36 × 96 = 322px，和欄內寬 328px 只差 6px，
+     再讓訊息去搶同一列必然擠爆。flex-basis: 100% 直接把骰盤釘成獨立一列，
+     間距同時收窄成 0.14 倍，把餘裕從 6px 拉到 14px。 */
+  .stage-dice {
+    flex-basis: 100%;
+    gap: calc(var(--die-size) * 0.14);
+  }
+
+  .control-dock {
+    grid-column: 1;
+    grid-row: 3;
+    position: sticky;
+    bottom: 16px;
+    /* 靜態位置放在左欄底部，往上被 sticky 拉到視窗下緣；
+       捲到頁尾時它自然停在左欄最底，不會擋住歷史紀錄。 */
+    align-self: end;
+    left: auto;
+    right: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 12px;
+    /* 覆寫手機版的安全區內距：桌機沒有瀏海，也沒有貼著視窗底邊 */
+    padding-bottom: 12px;
+  }
+
+  /* 下注桌跨滿三列：它是最高的那一欄，整個格線的高度由它決定 */
+  .bet-table {
+    grid-column: 2;
+    grid-row: 1 / 4;
+  }
+
+  /* 歷史紀錄放進左欄舞台底下，而不是右欄下注桌底下。兩個理由：
+     一是左欄原本在舞台與控制台之間空著一大片（1280×900 下約 420px），
+     二是放這裡等於「下注時最近幾局一直看得著」，那正是玩家決定下一注的依據。 */
+  .history-panel {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* 桌機橫向空間夠，組合 15 格排成 8 欄（最後一列 7 格） */
+  .bet-grid--combo {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .bet-grid {
+    gap: 7px;
+  }
+
+  .bet-cell {
+    min-height: 54px;
+    padding: 8px 4px 17px;
+  }
+
+  .gamble-panel .die {
+    --die-size: 64px;
+  }
+
+  /* 歷史紀錄現在在 360px 寬的左欄裡，排兩欄會把「4 6 3　13 點」擠成兩行，
+     維持單欄。捲動上限交給左欄剩餘高度，太長時自己捲。 */
+  #history-list {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+}
+
+
+/* ==========================================================================
+   15. 響應式：480 / 420 / 360（只縮尺寸，不換版面）
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  :root {
+    --die-size: 72px;
+    --mini-die: 16px;
+  }
+
+  .bet-grid {
+    gap: 5px;
+  }
+
+  .bet-group {
+    padding: 7px;
+  }
+
+  .bet-group-title {
+    font-size: 0.72rem;
+  }
+
+  .figure-value {
+    font-size: 1rem;
+  }
+
+  .modal-box {
+    padding: 18px 16px;
+  }
+
+  .help-table {
+    font-size: 0.76rem;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --gutter: 10px;
+  }
+
+  .chip {
+    min-height: 36px;
+    font-size: 0.82rem;
+  }
+
+  .dock-btn {
+    min-height: 38px;
+    font-size: 0.8rem;
+    padding: 0 8px;
+  }
+
+  .roll-btn {
+    min-height: 44px;
+    padding: 0 16px;
+    font-size: 0.94rem;
+  }
+
+  .bet-grid {
+    gap: 4px;
+  }
+
+  .toast-container {
+    top: 52px;
+  }
+}
+
+@media (max-width: 360px) {
+  :root {
+    --die-size: 62px;
+    --mini-die: 14px;
+    --gutter: 8px;
+  }
+
+  .top-actions {
+    gap: 4px;
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 0.98rem;
+  }
+
+  .back-btn {
+    padding: 8px 10px;
+    font-size: 0.84rem;
+  }
+
+  /* 360px 上點數格約 44px 寬 × 56px 高，gap 收到 3px 才排得下 7 欄 */
+  .bet-grid {
+    gap: 3px;
+  }
+
+  .bet-cell {
+    padding: 6px 1px 15px;
+  }
+
+  .bet-grid--sum .bet-cell__face {
+    font-size: 0.92rem;
+  }
+
+  .bet-grid--bs .bet-cell__face {
+    font-size: 0.84rem;
+  }
+
+  .bet-cell__rate {
+    font-size: 0.58rem;
+  }
+}
+
+
+/* ==========================================================================
+   16. 降低動態效果
+   --------------------------------------------------------------------------
+   時長歸零用 var(--dur-none)，不在此處硬寫數字，
+   以免被「animation: / transition: 後面不得接裸數字」的掃描誤判。
+   注意：JS 的演出仍然靠 setTimeout 收尾（reduced-motion 時整段壓成
+   REDUCED_TOTAL_MS），動畫歸零不影響邏輯正確性，只是視覺上瞬間到位。
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: var(--dur-none) !important;
+    animation-delay: var(--delay-none) !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: var(--dur-none) !important;
+    transition-delay: var(--delay-none) !important;
+  }
+
+  body::before {
+    opacity: 0.35;
+  }
+}
