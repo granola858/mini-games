@@ -13,15 +13,38 @@ const combinedSource = html + '\n' + homeJs;
 const cards = [...html.matchAll(/<article class="game-card"\s+data-id="([^"]+)"\s+data-category="([^"]+)"\s+data-search="([^"]+)"[^>]*>[\s\S]*?<a class="card-link" href="([^"]+)"[^>]*>[\s\S]*?<h3>([^<]+)<\/h3>[\s\S]*?<\/article>/g)]
   .map(([, id, category, search, href, title]) => ({ id, category, search, href, title }));
 
-test('首頁列出 17 個具有唯一 ID 的完整遊戲入口', () => {
-  // 猜歌資料庫已下架（資料來源不再提供），整個 games/guess-song 連同卡片一起移除。
-  assert.equal(cards.length, 17);
+// 首頁有幾款遊戲不寫死在測試裡：以 games/ 底下實際有幾個資料夾為準。
+// 新增或下架遊戲時不必回來改數字，只有「資料夾沒卡片」或「卡片沒資料夾」才會紅。
+const gameDirs = fs.readdirSync(path.join(projectRoot, 'games'), { withFileTypes: true })
+  .filter(entry => entry.isDirectory())
+  .map(entry => entry.name)
+  .sort();
+
+test('首頁遊戲入口與 games/ 底下的資料夾一一對應', () => {
+  const linked = cards.map(card => card.href.split('/')[1]);
+  const noCard = gameDirs.filter(dir => !linked.includes(dir));
+  const noFolder = linked.filter(dir => !gameDirs.includes(dir));
+  assert.deepEqual(noCard, [], `games/ 底下有資料夾沒被首頁列出：${noCard.join('、')}`);
+  assert.deepEqual(noFolder, [], `首頁卡片指向不存在的遊戲資料夾：${noFolder.join('、')}`);
+  assert.equal(new Set(linked).size, linked.length, '同一款遊戲出現了不只一張卡片');
+});
+
+test('每張首頁卡片都有唯一 ID 與完整的標題／分類／搜尋文字', () => {
   assert.equal(new Set(cards.map(card => card.id)).size, cards.length);
   cards.forEach(card => {
     assert.ok(card.title.trim(), `${card.id} 缺少標題`);
     assert.ok(card.category.trim(), `${card.id} 缺少分類`);
     assert.ok(card.search.trim(), `${card.id} 缺少搜尋文字`);
   });
+});
+
+test('遊戲數量由 home.js 依現有卡片算出，HTML 不寫死', () => {
+  assert.match(
+    html,
+    /<span id="visible-count"><\/span>/,
+    '#visible-count 不該在 HTML 裡預先填數字，否則每次增減遊戲都要回來改'
+  );
+  assert.match(homeJs, /getElementById\('visible-count'\)/);
 });
 
 test('每個首頁遊戲連結都指向現有檔案', () => {

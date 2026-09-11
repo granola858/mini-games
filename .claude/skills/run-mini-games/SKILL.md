@@ -5,7 +5,7 @@ description: 啟動、操作、截圖波波小遊戲（mini-games）這個純前
 
 # 跑波波小遊戲
 
-純靜態站，**沒有 build 步驟**：17 款遊戲各自一個 `games/<slug>/` 資料夾，配上根目錄的 `index.html` 首頁。
+純靜態站，**沒有 build 步驟**：每款遊戲各自一個 `games/<slug>/` 資料夾，配上根目錄的 `index.html` 首頁。
 驅動方式是 `.claude/skills/run-mini-games/driver.mjs` —— 一支零依賴的 Chrome DevTools Protocol 驅動器，
 用你機器上現成的 Chrome 加上 Node 內建的 `WebSocket`，**不需要 playwright / puppeteer，也不需要 npm install**。
 
@@ -31,7 +31,7 @@ description: 啟動、操作、截圖波波小遊戲（mini-games）這個純前
 npm run smoke
 ```
 
-把首頁 + 全部 17 款遊戲逐一開起來，點盤面第一格、按四個方向鍵，檢查有沒有 console 錯誤、
+把首頁 + `games/` 底下每一款遊戲逐一開起來，點盤面第一格、按四個方向鍵，檢查有沒有 console 錯誤、
 未捕捉例外、或本站資源 404，並把每一頁的截圖存到 `.claude/skills/run-mini-games/_shots/<slug>.png`。
 **任一款掛掉就 exit 1**，錯誤訊息會帶 `檔名:行號`。
 
@@ -184,7 +184,9 @@ localStorage 讀寫有沒有包在 try/catch 裡。**不會開瀏覽器**，所�
 - **猜歌資料庫（`guess-song`）已下架**，整個資料夾連同首頁卡片一起移除。
   它是全站唯一的 React/Vite 子專案，拿掉之後這裡全部都是原生靜態頁，
   `npm install` 也不再是任何一款遊戲的前置條件。
-- **首頁 17 張卡、`games/` 17 個資料夾，兩邊數量一致**。
+- **首頁卡片與 `games/` 資料夾是一一對應的**，`tests/homepage.test.js` 會把兩邊對起來比，
+  所以新增或下架遊戲時不必去改任何數字，漏了卡片或漏了資料夾才會紅。
+  首頁那句「N 款遊戲」也是 `home.js` 依現有卡片即時算的（篩選時顯示當下看得到的張數）。
   smoke.mjs 除了讀首頁連結還會補掃 `games/` 目錄，所以無論卡片在不在首頁都會測到。
 - **reversi 的 `.board-row` 是 `display: contents`**，`getBoundingClientRect()` 回 0×0。
   用座標點它會失敗（driver 會報「元素沒有尺寸」）。要點 `#board .cell`。
@@ -196,6 +198,9 @@ localStorage 讀寫有沒有包在 try/catch 裡。**不會開瀏覽器**，所�
   記得先 `sleep 300` 再 `eval`，否則會讀到動畫中間狀態。
 - **Windows 上 ESM 絕對路徑要用 `file:///`**，直接寫 `D:/...` 會噴
   `ERR_UNSUPPORTED_ESM_URL_SCHEME`。
+- **CI 上 Chrome 冷啟動會比本機慢很多**。driver 等 DevToolsActivePort 的上限是
+  30 秒（`START_TIMEOUT_MS`）：原本 10 秒，在 runner 同時跑部署工作流時不夠，
+  會變成跟程式碼無關的假紅燈。Chrome 自己提早死掉則會立刻失敗，不必等滿。
 
 ## Troubleshooting
 
@@ -203,7 +208,8 @@ localStorage 讀寫有沒有包在 try/catch 裡。**不會開瀏覽器**，所�
 |---|---|
 | `等不到元素：#board .cell` | selector 猜錯了。先跑 `probe` 看那一頁真正的結構，不要沿用別款遊戲的慣例（每款都不一樣） |
 | `元素沒有尺寸（可能被隱藏）：...` | 元素是 `display:contents` 或還沒渲染。reversi 的 `.board-row` 就是前者；其餘情況前面加 `wait` |
-| `Chrome 沒有寫出 DevToolsActivePort，啟動失敗` | 上一次的 Chrome 卡在背景，見下方「清掉殘留的 Chrome」 |
+| `Chrome 啟動失敗：等了 30 秒仍沒有 DevToolsActivePort` | 上一次的 Chrome 卡在背景，見下方「清掉殘留的 Chrome」 |
+| `Chrome 啟動失敗：Chrome 提早結束（…）` | 訊息後面會附上 Chrome 自己的 stderr，照著看。CI 容器裡少了 `--no-sandbox` 最常見 |
 | `找不到 Chrome/Edge` | 設 `CHROME_PATH` 指到 chrome.exe |
 | `ERR_UNSUPPORTED_ESM_URL_SCHEME` | import 用了 `D:/...`，改成 `file:///D:/...` |
 | 截圖整片深色，以為主題爛掉 | 先 `theme light`。headless 預設就是 dark |

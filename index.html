@@ -93,7 +93,10 @@
       <div class="section-heading">
         <div>
           <h2 id="games-title">遊戲櫃</h2>
-          <p><span id="visible-count">17</span> 款遊戲，總有一款對味。</p>
+          <!-- 數量不寫死：home.js 的 render() 會依現有卡片算出來填進去
+               （篩選／搜尋時填的是當下看得到的張數）。先 hidden 起來，
+               JS 沒跑起來時才不會看到「 款遊戲，總有一款對味。」這種缺字的句子。 -->
+          <p hidden><span id="visible-count"></span> 款遊戲，總有一款對味。</p>
         </div>
       </div>
       <div class="toolbar" aria-label="遊戲篩選工具">
@@ -482,7 +485,7 @@
     </section>
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <footer>© 2026 波波小遊戲 · v1.16.1</footer>
+  <footer>© 2026 波波小遊戲 · v1.17.0</footer>
   <template id="controls-template">
     <div class="card-controls">
       <span class="drag-handle" title="拖曳排序">
