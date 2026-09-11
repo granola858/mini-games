@@ -94,7 +94,11 @@
       if (!c.hidden) shown++;
     });
 
-    document.getElementById('visible-count').textContent = shown;
+    // 數量一律由現有卡片算出來，HTML 不寫死：新增或下架遊戲時不必回來改數字
+    const countEl = document.getElementById('visible-count');
+    countEl.textContent = shown;
+    const countLine = countEl.closest('p');
+    if (countLine) countLine.hidden = false;
     document.getElementById('empty-state').classList.toggle('show', !shown);
 
     const list = document.getElementById('hidden-list');

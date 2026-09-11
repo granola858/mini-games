@@ -5,7 +5,7 @@ description: 啟動、操作、截圖波波小遊戲（mini-games）這個純前
 
 # 跑波波小遊戲
 
-純靜態站，**沒有 build 步驟**：17 款遊戲各自一個 `games/<slug>/` 資料夾，配上根目錄的 `index.html` 首頁。
+純靜態站，**沒有 build 步驟**：每款遊戲各自一個 `games/<slug>/` 資料夾，配上根目錄的 `index.html` 首頁。
 驅動方式是 `.claude/skills/run-mini-games/driver.mjs` —— 一支零依賴的 Chrome DevTools Protocol 驅動器，
 用你機器上現成的 Chrome 加上 Node 內建的 `WebSocket`，**不需要 playwright / puppeteer，也不需要 npm install**。
 
@@ -31,7 +31,7 @@ description: 啟動、操作、截圖波波小遊戲（mini-games）這個純前
 npm run smoke
 ```
 
-把首頁 + 全部 17 款遊戲逐一開起來，點盤面第一格、按四個方向鍵，檢查有沒有 console 錯誤、
+把首頁 + `games/` 底下每一款遊戲逐一開起來，點盤面第一格、按四個方向鍵，檢查有沒有 console 錯誤、
 未捕捉例外、或本站資源 404，並把每一頁的截圖存到 `.claude/skills/run-mini-games/_shots/<slug>.png`。
 **任一款掛掉就 exit 1**，錯誤訊息會帶 `檔名:行號`。
 
@@ -184,7 +184,9 @@ localStorage 讀寫有沒有包在 try/catch 裡。**不會開瀏覽器**，所�
 - **猜歌資料庫（`guess-song`）已下架**，整個資料夾連同首頁卡片一起移除。
   它是全站唯一的 React/Vite 子專案，拿掉之後這裡全部都是原生靜態頁，
   `npm install` 也不再是任何一款遊戲的前置條件。
-- **首頁 17 張卡、`games/` 17 個資料夾，兩邊數量一致**。
+- **首頁卡片與 `games/` 資料夾是一一對應的**，`tests/homepage.test.js` 會把兩邊對起來比，
+  所以新增或下架遊戲時不必去改任何數字，漏了卡片或漏了資料夾才會紅。
+  首頁那句「N 款遊戲」也是 `home.js` 依現有卡片即時算的（篩選時顯示當下看得到的張數）。
   smoke.mjs 除了讀首頁連結還會補掃 `games/` 目錄，所以無論卡片在不在首頁都會測到。
 - **reversi 的 `.board-row` 是 `display: contents`**，`getBoundingClientRect()` 回 0×0。
   用座標點它會失敗（driver 會報「元素沒有尺寸」）。要點 `#board .cell`。
