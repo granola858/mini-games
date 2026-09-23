@@ -31,7 +31,9 @@ test('nonogram-core.js 可被 Node 載入並導出必要 API', () => {
     'classifyDifficulty',
     'ratePuzzle',
     'generatePuzzle',
-    'countSolutions'
+    'countSolutions',
+    'normalizeDifficultyChoice',
+    'resolveDifficulty'
   ].forEach(name => {
     assert.equal(typeof core[name], 'function', `缺少導出函式: ${name}`);
   });
@@ -160,11 +162,52 @@ test('index.html 在 nonogram.js 之前載入核心檔，並提供難度切換 U
   assert.ok(mainIndex !== -1, 'index.html 未載入 nonogram.js');
   assert.ok(coreIndex < mainIndex, 'nonogram-core.js 必須在 nonogram.js 之前載入');
 
-  assert.match(html, /id="difficulty-toggle"/, '缺少難度切換容器');
-  ['easy', 'medium', 'hard'].forEach(level => {
-    assert.ok(html.includes(`data-difficulty="${level}"`), `缺少難度按鈕: ${level}`);
+  // 難度改成下拉選單，四個選項塞進分段按鈕會把手機版面擠爆
+  assert.match(html, /<select id="difficulty-select"/, '缺少難度下拉選單');
+  ['easy', 'medium', 'hard', 'random'].forEach(level => {
+    assert.ok(html.includes(`<option value="${level}"`), `缺少難度選項: ${level}`);
   });
   assert.match(html, /id="level-toggle"/, '盤面大小切換容器不應被移除');
+});
+
+test('隨機難度只是選項，不是題目的等級', () => {
+  assert.equal(core.RANDOM_DIFFICULTY, 'random');
+  assert.deepEqual(core.DIFFICULTY_CHOICES, ['easy', 'medium', 'hard', 'random']);
+  assert.ok(!core.DIFFICULTY_LEVELS.includes('random'), '評分等級不應包含 random');
+
+  assert.equal(core.normalizeDifficultyChoice('random'), 'random');
+  assert.equal(core.normalizeDifficultyChoice('hard'), 'hard');
+  assert.equal(core.normalizeDifficultyChoice('bogus'), core.DEFAULT_DIFFICULTY);
+  // 評分用的正規化仍然不接受 random
+  assert.equal(core.normalizeDifficulty('random'), core.DEFAULT_DIFFICULTY);
+});
+
+test('resolveDifficulty 把隨機均分到三個等級，其餘原樣通過', () => {
+  assert.equal(core.resolveDifficulty('random', () => 0), 'easy');
+  assert.equal(core.resolveDifficulty('random', () => 0.34), 'medium');
+  assert.equal(core.resolveDifficulty('random', () => 0.67), 'hard');
+  assert.equal(core.resolveDifficulty('random', () => 0.9999999), 'hard');
+  // 防呆：亂數來源回傳 1 也不能抽出 undefined
+  assert.equal(core.resolveDifficulty('random', () => 1), 'hard');
+
+  core.DIFFICULTY_LEVELS.forEach(level => {
+    assert.equal(core.resolveDifficulty(level, () => 0), level, `${level} 不應被重抽`);
+  });
+  assert.equal(core.resolveDifficulty('bogus'), core.DEFAULT_DIFFICULTY);
+});
+
+test('generatePuzzle 接受 random，並回報實際抽到的難度', () => {
+  SIZES.forEach(size => {
+    for (let i = 0; i < 5; i++) {
+      const puzzle = core.generatePuzzle(size, 'random');
+      const label = `${size}x${size} random #${i}`;
+
+      assert.ok(core.DIFFICULTY_LEVELS.includes(puzzle.difficulty), `${label} 回報的難度不合法: ${puzzle.difficulty}`);
+      assert.equal(puzzle.rating.solved, true, `${label} 必須純靠推理解完`);
+      assert.equal(core.ratePuzzle(puzzle.rowClues, puzzle.colClues).difficulty, puzzle.difficulty,
+        `${label} 回報的難度與重新評分不符`);
+    }
+  });
 });
 
 test('nonogram.js 改用核心模組並以「尺寸 x 難度」槽位保存進度', () => {

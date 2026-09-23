@@ -134,11 +134,14 @@
       </div>
 
       <div class="control-group">
-        <div class="control-label">難度</div>
-        <div class="toggle-container" id="difficulty-toggle">
-          <button class="mode-btn" type="button" data-difficulty="easy">簡單</button>
-          <button class="mode-btn active" type="button" data-difficulty="medium">中等</button>
-          <button class="mode-btn" type="button" data-difficulty="hard">困難</button>
+        <label class="control-label" for="difficulty-select">難度</label>
+        <div class="toggle-container select-container">
+          <select id="difficulty-select" class="mode-select">
+            <option value="easy">簡單</option>
+            <option value="medium" selected>中等</option>
+            <option value="hard">困難</option>
+            <option value="random">隨機</option>
+          </select>
         </div>
       </div>
     </div>

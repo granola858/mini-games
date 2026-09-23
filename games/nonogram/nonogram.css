@@ -408,7 +408,7 @@
       max-width: 420px;
       display: flex;
       flex-direction: row;
-      align-items: flex-start;
+      align-items: stretch;
       justify-content: center;
       gap: 10px;
     }
@@ -457,6 +457,62 @@
       background-color: var(--surface-color);
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
       color: var(--text-color);
+    }
+
+    /* 兩組控制的高度拉齊：分段按鈕與下拉選單的字型、行高不同，
+       各自撐開會一高一低，改成一起撐到較高的那一組。 */
+    .control-group > .toggle-container {
+      flex: 1 1 auto;
+    }
+
+    /* 難度用下拉選單：四個選項塞進分段按鈕太擠，換行又會讓手機無法一頁看完盤面。
+       外框沿用 .toggle-container，選單本體仿照選中的 .mode-btn，兩組控制才看起來一致。
+       用原生 select 是為了讓手機跳出系統自己的選取器。 */
+    .select-container {
+      position: relative;
+    }
+
+    .mode-select {
+      flex: 1 1 0;
+      min-width: 0;
+      appearance: none;
+      -webkit-appearance: none;
+      border: none;
+      border-radius: 6px;
+      background-color: var(--surface-color);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      color: var(--text-color);
+      font-weight: bold;
+      /* 低於 16px 時 iOS Safari 點選單會自動放大整頁，所以手機版也不縮字 */
+      font-size: 16px;
+      padding: 6px 28px;
+      text-align: center;
+      text-align-last: center;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .mode-select:focus-visible {
+      box-shadow: 0 0 0 2px var(--primary-display);
+    }
+
+    .mode-select option {
+      background-color: var(--surface-color);
+      color: var(--text-color);
+    }
+
+    /* select 不能掛偽元素，箭頭畫在外框上，並讓點擊穿透到選單 */
+    .select-container::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: 16px;
+      width: 6px;
+      height: 6px;
+      border-right: 2px solid var(--text-muted);
+      border-bottom: 2px solid var(--text-muted);
+      transform: translateY(-70%) rotate(45deg);
+      pointer-events: none;
     }
 
     /* 操作區 (Action Bar) */
