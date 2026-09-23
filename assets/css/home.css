@@ -123,35 +123,18 @@ a {
 }
 
 .brand-mark {
-  position: relative;
   display: grid;
   width: 43px;
   height: 43px;
   place-items: center;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  border-radius: 15px 15px 18px 12px;
-  background: linear-gradient(145deg, #8a70ff, #6949ef);
-  box-shadow: 0 9px 20px rgba(105, 73, 239, 0.28);
-  color: #fff;
-  transform: rotate(-4deg);
-}
-
-.brand-mark:after {
-  content: "";
-  position: absolute;
-  top: 7px;
-  left: 9px;
-  width: 14px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.45);
-  transform: rotate(-22deg);
+  flex: none;
+  filter: drop-shadow(0 7px 10px rgba(105, 73, 239, 0.22));
 }
 
 .brand-mark svg {
-  width: 25px;
-  height: 25px;
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .brand-name {
@@ -393,78 +376,23 @@ h1 {
 
 .hero-visual {
   position: relative;
-  min-height: 310px;
-}
-
-.orb {
-  position: absolute;
-  border-radius: 50%;
-  animation: float 6s ease-in-out infinite;
-}
-
-.orb-main {
-  top: 16px;
-  right: 8%;
   display: grid;
-  width: 224px;
-  height: 224px;
+  min-height: 340px;
   place-items: center;
-  background: linear-gradient(145deg, #ffcb68, #ff805f);
-  box-shadow: 0 28px 55px rgba(255, 128, 95, 0.25), inset 14px 14px 30px rgba(255, 255, 255, 0.28);
-  color: #4f2540;
 }
 
-.orb-main svg {
-  width: 96px;
-  height: 96px;
-  filter: drop-shadow(0 10px 12px rgba(102, 45, 50, 0.18));
-}
-
-.orb-small {
-  width: 72px;
-  height: 72px;
-  background: #79d6c2;
-  animation-delay: -2s;
-}
-
-.orb-small.one {
-  top: 18px;
-  left: 9%;
-}
-
-.orb-small.two {
-  right: 2%;
-  bottom: 0;
-  width: 54px;
-  height: 54px;
-  background: #9b82ff;
-  animation-delay: -4s;
-}
-
-.spark {
-  position: absolute;
-  color: var(--brand);
-  animation: spin-slow 10s linear infinite;
-}
-
-.spark.one {
-  bottom: 22px;
-  left: 17%;
-  width: 44px;
-}
-
-.spark.two {
-  top: 0;
-  right: 0;
-  width: 28px;
-  color: #ff748c;
-  animation-direction: reverse;
+.hero-illustration {
+  display: block;
+  width: min(100%, 440px);
+  height: auto;
+  filter: drop-shadow(0 22px 32px rgba(45, 32, 100, 0.13));
+  animation: float 6s ease-in-out infinite;
 }
 
 .random-button {
   position: absolute;
-  right: 27%;
-  bottom: 9px;
+  right: 17%;
+  bottom: -9px;
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
@@ -1049,12 +977,6 @@ footer {
   }
 }
 
-@keyframes spin-slow {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @keyframes card-in {
   from {
     opacity: 0;
@@ -1068,15 +990,10 @@ footer {
     padding-top: 4.5rem;
   }
   .hero-visual {
-    min-height: 245px;
-  }
-  .orb-main {
-    right: 16%;
-    width: 190px;
-    height: 190px;
+    min-height: 290px;
   }
   .random-button {
-    right: 32%;
+    right: 28%;
   }
   .game-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1113,22 +1030,10 @@ footer {
     font-size: 0.98rem;
   }
   .hero-visual {
-    min-height: 220px;
-  }
-  .orb-main {
-    right: 10%;
-    width: 165px;
-    height: 165px;
-  }
-  .orb-main svg {
-    width: 74px;
-    height: 74px;
-  }
-  .orb-small.one {
-    left: 12%;
+    min-height: 255px;
   }
   .random-button {
-    right: 22%;
+    right: 12%;
     bottom: 0;
   }
   .section-heading {
