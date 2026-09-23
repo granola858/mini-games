@@ -46,9 +46,10 @@ let size = 8;
       areClueLinesEqual,
       isValidMatrix,
       isValidClueSet,
-      normalizeDifficulty,
-      DIFFICULTY_LEVELS,
-      DEFAULT_DIFFICULTY
+      normalizeDifficultyChoice,
+      DIFFICULTY_CHOICES,
+      DEFAULT_DIFFICULTY,
+      RANDOM_DIFFICULTY
     } = NonogramCore;
 
     difficulty = DEFAULT_DIFFICULTY;
@@ -56,12 +57,14 @@ let size = 8;
     const DIFFICULTY_LABELS = {
       easy: '簡單',
       medium: '中等',
-      hard: '困難'
+      hard: '困難',
+      random: '隨機'
     };
 
     // 每個「盤面尺寸 × 難度」是一個獨立槽位，各自保存一局進度。
+    // 「隨機」也是一個槽位：否則抽到的難度會蓋掉該難度槽位裡進行中的那一局。
     const ALLOWED_SLOTS = ALLOWED_SIZES.flatMap(allowedSize =>
-      DIFFICULTY_LEVELS.map(allowedDifficulty => ({
+      DIFFICULTY_CHOICES.map(allowedDifficulty => ({
         size: allowedSize,
         difficulty: allowedDifficulty,
         key: getSlotKey(allowedSize, allowedDifficulty)
@@ -69,7 +72,7 @@ let size = 8;
     );
 
     const levelBtns = document.querySelectorAll('#level-toggle .mode-btn');
-    const difficultyBtns = document.querySelectorAll('#difficulty-toggle .mode-btn');
+    const difficultySelect = document.getElementById('difficulty-select');
     const actionBtns = document.querySelectorAll('#action-toggle .action-btn');
     const actionToggle = document.getElementById('action-toggle');
     const topMsg = document.getElementById('top-msg');
@@ -350,9 +353,7 @@ let size = 8;
       levelBtns.forEach(b => {
         b.classList.toggle('active', parseInt(b.dataset.size, 10) === size);
       });
-      difficultyBtns.forEach(b => {
-        b.classList.toggle('active', b.dataset.difficulty === difficulty);
-      });
+      difficultySelect.value = difficulty;
     }
 
     function showGenerationFailure() {
@@ -502,8 +503,8 @@ let size = 8;
       const availableKeys = Object.keys(mergedStates);
       if (!availableKeys.length) return null;
 
-      const liveKey = getSlotKey(Number(liveData?.size), normalizeDifficulty(liveData?.difficulty));
-      const staleKey = getSlotKey(Number(staleData?.size), normalizeDifficulty(staleData?.difficulty));
+      const liveKey = getSlotKey(Number(liveData?.size), normalizeDifficultyChoice(liveData?.difficulty));
+      const staleKey = getSlotKey(Number(staleData?.size), normalizeDifficultyChoice(staleData?.difficulty));
       const mergedKey = mergedStates[liveKey]
         ? liveKey
         : (mergedStates[staleKey] ? staleKey : availableKeys[0]);
@@ -691,10 +692,8 @@ let size = 8;
       });
     });
 
-    difficultyBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        switchSlot(size, e.currentTarget.dataset.difficulty);
-      });
+    difficultySelect.addEventListener('change', (e) => {
+      switchSlot(size, e.target.value);
     });
 
     actionBtns.forEach(btn => {
@@ -906,7 +905,7 @@ let size = 8;
       const availableKeys = Object.keys(validatedStates);
       if (!availableKeys.length) return null;
 
-      const candidateKey = getSlotKey(parsed.size, normalizeDifficulty(parsed.difficulty));
+      const candidateKey = getSlotKey(parsed.size, normalizeDifficultyChoice(parsed.difficulty));
       const validatedKey = validatedStates[candidateKey] ? candidateKey : availableKeys[0];
       const validatedSlot = parseSlotKey(validatedKey);
       const validatedSize = validatedSlot.size;
@@ -931,6 +930,7 @@ let size = 8;
     }
 
     function initGameData(targetSize, targetDifficulty) {
+      // 隨機槽位每開一局都由核心重新抽一次難度，題目仍存回隨機槽位本身。
       const { solution, rowClues, colClues } = NonogramCore.generatePuzzle(targetSize, targetDifficulty);
       const slotKey = getSlotKey(targetSize, targetDifficulty);
 
@@ -953,7 +953,7 @@ let size = 8;
       const previousKey = getCurrentSlotKey();
 
       size = nextSize;
-      difficulty = normalizeDifficulty(nextDifficulty);
+      difficulty = normalizeDifficultyChoice(nextDifficulty);
 
       if (!getCurrentState()) {
         try {
@@ -992,6 +992,14 @@ let size = 8;
       return ngBtn;
     }
 
+    // 隨機槽位作答期間不透露抽到哪個難度，結算時才揭曉。
+    // 難度是盤面的純函式，直接從線索重算，存檔就不必多存一個欄位。
+    function getDifficultyRevealText(state) {
+      if (difficulty !== RANDOM_DIFFICULTY) return '';
+      const revealed = NonogramCore.ratePuzzle(state.globalRowClues, state.globalColClues).difficulty;
+      return revealed ? `本題難度：${DIFFICULTY_LABELS[revealed]}` : '';
+    }
+
     function renderFinishedUI(state) {
       actionToggle.classList.add('hidden');
       topMsg.classList.remove('hidden');
@@ -1000,14 +1008,17 @@ let size = 8;
       resultBtns.innerHTML = '';
       resultBtns.appendChild(createNewGameButton());
 
+      const revealText = getDifficultyRevealText(state);
+
       if (state.resultState === RESULT_STATE.WIN) {
         topMsg.style.color = 'var(--primary-display)';
-        topMsg.innerText = '答對了！';
+        topMsg.innerText = `答對了！${revealText}`;
         return;
       }
 
       topMsg.style.color = 'var(--text-secondary)';
-      topMsg.innerText = state.resultState === RESULT_STATE.REVEALED ? '答案已顯示' : '本局已結束';
+      const baseText = state.resultState === RESULT_STATE.REVEALED ? '答案已顯示' : '本局已結束';
+      topMsg.innerText = revealText ? `${baseText}・${revealText}` : baseText;
     }
 
     function isPlayerSolutionCorrect(state) {

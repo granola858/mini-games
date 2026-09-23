@@ -5,6 +5,10 @@ const NonogramCore = (() => {
 
   const DIFFICULTY_LEVELS = ['easy', 'medium', 'hard'];
   const DEFAULT_DIFFICULTY = 'medium';
+  // 「隨機」只是玩家的選擇，不是題目的難度：生題時才從三級中抽一個，
+  // 所以它不進 DIFFICULTY_LEVELS，評分結果也永遠不會是 random。
+  const RANDOM_DIFFICULTY = 'random';
+  const DIFFICULTY_CHOICES = [...DIFFICULTY_LEVELS, RANDOM_DIFFICULTY];
 
   // 生成偏置：鄰居已填黑時提高本格填黑機率，用來控制方塊的聚集程度。
   // 正偏置 → 色塊聚成長條，線索少而長，開局靠重疊就能推出大半；
@@ -81,6 +85,17 @@ const NonogramCore = (() => {
 
   function normalizeDifficulty(value) {
     return DIFFICULTY_LEVELS.includes(value) ? value : DEFAULT_DIFFICULTY;
+  }
+
+  function normalizeDifficultyChoice(value) {
+    return DIFFICULTY_CHOICES.includes(value) ? value : DEFAULT_DIFFICULTY;
+  }
+
+  // 把玩家的選擇換成實際要生的難度；random 參數可注入，方便測試固定結果。
+  function resolveDifficulty(choice, random = Math.random) {
+    if (choice !== RANDOM_DIFFICULTY) return normalizeDifficulty(choice);
+    const index = Math.floor(random() * DIFFICULTY_LEVELS.length);
+    return DIFFICULTY_LEVELS[Math.min(DIFFICULTY_LEVELS.length - 1, Math.max(0, index))];
   }
 
   function getGenerationProfile(difficulty) {
@@ -373,7 +388,7 @@ const NonogramCore = (() => {
   }
 
   function generatePuzzle(targetSize, difficulty) {
-    const targetDifficulty = normalizeDifficulty(difficulty);
+    const targetDifficulty = resolveDifficulty(difficulty);
 
     for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
       const solution = createRandomSolution(targetSize, targetDifficulty);
@@ -384,7 +399,7 @@ const NonogramCore = (() => {
       if (!rating.solved) continue;
       if (classifyDifficulty(rating, targetSize) !== targetDifficulty) continue;
 
-      return { solution, rowClues, colClues, rating };
+      return { solution, rowClues, colClues, rating, difficulty: targetDifficulty };
     }
 
     throw new Error(`Unable to generate a ${targetDifficulty} ${targetSize}x${targetSize} puzzle.`);
@@ -393,6 +408,8 @@ const NonogramCore = (() => {
   return {
     DIFFICULTY_LEVELS,
     DEFAULT_DIFFICULTY,
+    RANDOM_DIFFICULTY,
+    DIFFICULTY_CHOICES,
     GENERATION_PROFILES,
     RATING_THRESHOLDS,
     MAX_GENERATION_ATTEMPTS,
@@ -404,6 +421,8 @@ const NonogramCore = (() => {
     isValidMatrix,
     isValidClueSet,
     normalizeDifficulty,
+    normalizeDifficultyChoice,
+    resolveDifficulty,
     getGenerationProfile,
     createRandomSolution,
     getLinePatterns,
