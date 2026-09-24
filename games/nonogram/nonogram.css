@@ -472,9 +472,13 @@
       position: relative;
     }
 
+    /* 選項都只有兩個中文字，難度這組只佔內容寬度，剩下的空間讓給盤面大小 */
+    .control-group--compact {
+      flex: 0 0 auto;
+    }
+
     .mode-select {
-      flex: 1 1 0;
-      min-width: 0;
+      flex: 0 0 auto;
       appearance: none;
       -webkit-appearance: none;
       border: none;
@@ -485,9 +489,7 @@
       font-weight: bold;
       /* 低於 16px 時 iOS Safari 點選單會自動放大整頁，所以手機版也不縮字 */
       font-size: 16px;
-      padding: 6px 28px;
-      text-align: center;
-      text-align-last: center;
+      padding: 6px 30px 6px 14px;
       cursor: pointer;
       outline: none;
     }
@@ -506,7 +508,7 @@
       content: "";
       position: absolute;
       top: 50%;
-      right: 16px;
+      right: 15px;
       width: 6px;
       height: 6px;
       border-right: 2px solid var(--text-muted);
