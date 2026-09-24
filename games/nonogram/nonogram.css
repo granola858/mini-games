@@ -402,7 +402,9 @@
 
     /* 盤面與難度切換 (Slot Controls)
        兩組並排成一列（不是上下兩列）：手機直向時這兩排各佔一行的話，
-       盤面就會被擠到需要捲動才看得完，併成一排才能一頁檢視。 */
+       盤面就會被擠到需要捲動才看得完，併成一排才能一頁檢視。
+       兩組都只佔內容寬度、整排置中，跟下方的塗黑／標記切換同樣是一組收攏的控制；
+       撐滿整列的話，只有兩三個字的按鈕會被灌進大量留白，看起來反而鬆散又擁擠。 */
     .control-stack {
       width: 100%;
       max-width: 420px;
@@ -410,12 +412,11 @@
       flex-direction: row;
       align-items: stretch;
       justify-content: center;
-      gap: 10px;
+      gap: 16px;
     }
 
     .control-group {
-      flex: 1 1 0;
-      min-width: 0;
+      flex: 0 0 auto;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -439,15 +440,20 @@
       border-radius: 10px;
     }
 
+    /* 等寬分段：1fr 欄位在內容寬度的容器裡會一起取最寬那顆（10x10）的寬度 */
+    #level-toggle {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+    }
+
     .mode-btn {
       background-color: transparent;
-      flex: 1 1 0;
-      min-width: 0;
       border: none;
       border-radius: 6px;
       font-weight: bold;
       font-size: 0.95rem;
-      padding: 8px 2px;
+      padding: 8px 14px;
       cursor: pointer;
       color: var(--text-disabled);
       white-space: nowrap;
@@ -470,11 +476,6 @@
        用原生 select 是為了讓手機跳出系統自己的選取器。 */
     .select-container {
       position: relative;
-    }
-
-    /* 選項都只有兩個中文字，難度這組只佔內容寬度，剩下的空間讓給盤面大小 */
-    .control-group--compact {
-      flex: 0 0 auto;
     }
 
     .mode-select {
@@ -925,7 +926,7 @@
 
       .control-stack {
         max-width: 390px;
-        gap: 8px;
+        gap: 14px;
       }
 
       .control-group {
@@ -944,7 +945,7 @@
 
       .mode-btn {
         font-size: 0.84rem;
-        padding: 7px 1px;
+        padding: 7px 12px;
       }
 
       .clue-cell {
@@ -992,7 +993,7 @@
       }
 
       .control-stack {
-        gap: 6px;
+        gap: 12px;
         margin-bottom: 4px;
       }
 
@@ -1005,6 +1006,6 @@
       }
 
       .mode-btn {
-        padding: 6px 1px;
+        padding: 6px 12px;
       }
     }
