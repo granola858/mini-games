@@ -1,0 +1,151 @@
+:root {
+  --page-bg: #efd8c4;
+  --page-glow: #fbeee2;
+  --btn-bg: rgba(255, 250, 242, 0.86);
+  --btn-ink: #5a3a22;
+  --btn-border: rgba(90, 58, 34, 0.2);
+  --stage-shadow: 0 18px 50px rgba(120, 72, 36, 0.22);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --page-bg: #17110d;
+  --page-glow: #2b1e15;
+  --stage-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  height: 100dvh;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  background: radial-gradient(circle at 50% 35%, var(--page-glow), var(--page-bg) 70%);
+  font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  /* 防止雙擊縮放、長按選取與下拉重整 */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 9:16 舞台：寬度取「可用寬度」與「可用高度 × 9/16」較小者，自然形成上下或左右黑邊 */
+.stage {
+  --avail-h: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  position: relative;
+  flex: none;
+  width: min(100%, calc(var(--avail-h) * 9 / 16));
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+}
+
+@supports (height: 100dvh) {
+  .stage {
+    --avail-h: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (min-aspect-ratio: 10 / 16) {
+  .stage {
+    border-radius: 20px;
+    box-shadow: var(--stage-shadow);
+  }
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.hud-btn {
+  position: absolute;
+  top: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 38px;
+  min-width: 38px;
+  padding: 0 12px;
+  border: 2px solid var(--btn-border);
+  border-radius: 999px;
+  background: var(--btn-bg);
+  color: var(--btn-ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(90, 58, 34, 0.15);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  touch-action: manipulation;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.hud-btn:hover {
+  background: #fffaf2;
+}
+
+.hud-btn:active {
+  transform: scale(0.94);
+}
+
+.hud-btn:focus-visible {
+  outline: 3px solid #ff9f5a;
+  outline-offset: 2px;
+}
+
+.back-btn {
+  left: 10px;
+}
+
+.sound-btn {
+  right: 10px;
+  width: 38px;
+  padding: 0;
+  font-size: 18px;
+}
+
+.sound-btn[aria-pressed="false"] {
+  opacity: 0.72;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-btn {
+    transition: none;
+  }
+}
