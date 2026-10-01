@@ -46,7 +46,8 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 9:16 舞台：寬度取「可用寬度」與「可用高度 × 9/16」較小者，自然形成上下或左右黑邊 */
+/* 9:16 舞台：寬度取「可用寬度」與「可用高度 × 9/16」較小者，自然形成上下或左右黑邊。
+   舞台同時是容器查詢的容器：橫拿手機時舞台會窄到 220px 以下，HUD 按鈕要跟著收窄 */
 .stage {
   --avail-h: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   position: relative;
@@ -54,6 +55,7 @@ body {
   width: min(100%, calc(var(--avail-h) * 9 / 16));
   aspect-ratio: 9 / 16;
   overflow: hidden;
+  container-type: inline-size;
 }
 
 @supports (height: 100dvh) {
@@ -75,6 +77,12 @@ body {
   height: 100%;
   cursor: pointer;
   touch-action: none;
+}
+
+/* 像素主題：畫布的 CSS 尺寸常常是小數（例如 202.5px、1081.5 實體像素），瀏覽器合成時會把整張畫布
+   再縮放不到 1 個實體像素；預設的雙線性取樣會在每條像素邊緣多出一條混色，改用最近鄰才維持硬邊 */
+.stage[data-style="pixel16"] #game-canvas {
+  image-rendering: pixelated;
 }
 
 .hud-btn {
@@ -104,6 +112,11 @@ body {
   transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
+/* display: inline-flex 會蓋過瀏覽器內建的 [hidden]，JS 藏起來的按鈕（沒有音效、沒有像素主題）要明確收掉 */
+.hud-btn[hidden] {
+  display: none;
+}
+
 .hud-btn:hover {
   background: #fffaf2;
 }
@@ -112,9 +125,11 @@ body {
   transform: scale(0.94);
 }
 
+/* 雙色焦點框：內圈深褐、外圈橘，在米白牆與深色木頭上都看得見 */
 .hud-btn:focus-visible {
   outline: 3px solid #ff9f5a;
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--btn-ink);
 }
 
 .back-btn {
@@ -130,6 +145,53 @@ body {
 
 .sound-btn[aria-pressed="false"] {
   opacity: 0.72;
+}
+
+/* 畫面風格鍵緊貼在音效鍵左邊，文字標示目前的風格 */
+.style-btn {
+  right: 56px;
+  padding: 0 11px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+/* 沒有音效鍵（瀏覽器不支援 Web Audio）時，風格鍵補到最右邊，不留一格空位 */
+.stage:has(#sound-btn[hidden]) .style-btn {
+  right: 10px;
+}
+
+/* 像素主題：舞台與 HUD 按鈕都改成直角、硬邊階梯陰影、不做毛玻璃，跟畫面的像素顆粒一致 */
+.stage[data-style="pixel16"] {
+  border-radius: 0;
+}
+
+.stage[data-style="pixel16"] .hud-btn {
+  border-radius: 0;
+  box-shadow: 2px 2px 0 rgba(90, 58, 34, 0.3), 4px 4px 0 rgba(90, 58, 34, 0.12);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.stage[data-style="pixel16"] .hud-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--btn-ink);
+}
+
+/* 舞台窄到放不下「回首頁 + 風格 + 音效」一整排（橫拿手機、視窗很矮）：回首頁只留箭頭、風格鍵收窄 */
+@container (max-width: 230px) {
+  .back-btn {
+    width: 38px;
+    padding: 0;
+  }
+
+  .back-btn span {
+    display: none;
+  }
+
+  .style-btn {
+    right: 54px;
+    padding: 0 7px;
+    letter-spacing: 0;
+  }
 }
 
 .sr-only {
