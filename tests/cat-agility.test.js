@@ -122,6 +122,8 @@ function createContext2d(texts, ops = null, draws = null, paths = null) {
       if (paths && key === 'fill') return () => paths.push({ op: 'fill', color: target.fillStyle });
       if (ops && key === 'drawImage') return (img, ...args) => ops.push({ op: 'drawImage', img, args });
       if (ops && key === 'translate') return (...args) => ops.push({ op: 'translate', args });
+      if (ops && key === 'scale') return (...args) => ops.push({ op: 'scale', args });
+      if (ops && key === 'rotate') return (...args) => ops.push({ op: 'rotate', args });
       if (draws && key === 'fillRect') {
         return (x, y, w, h) => draws.push({
           op: 'fillRect', x, y, w, h, color: target.fillStyle, alpha: target.globalAlpha === undefined ? 1 : target.globalAlpha
@@ -2110,6 +2112,28 @@ test('形變量跟著速度大小走：慢慢下墜只微微壓扁，速度到 3
   const fast = bootSave(validSave({ cat: { y: 300, vy: 5, rot: 0 } })).snap();
   assert.equal(fast.catSx, 1.25);
   assert.equal(fast.catSy, 0.8);
+});
+
+// 回歸：經典主題的貓原本只會跟著 cat.rot 旋轉，沒有跳躍伸展與縮成肉球的動態，跟像素主題不同步
+test('經典主題跟像素主題同步：依姿勢套用同樣的形變，不再拿 cat.rot 旋轉整隻貓', () => {
+  const tilt = 60 * Math.PI / 180;
+  for (const [vy, pose] of [[-6, 'stretch'], [3.5, 'squash'], [6, 'ball']]) {
+    const game = bootSave(validSave({ cat: { y: 300, vy, rot: 60 } }), { pref: { style: 'classic' } });
+    game.tick();
+    const s = game.snap();
+    assert.equal(s.theme, 'classic');
+    assert.equal(s.catPose, pose);
+    // 球只保留 35% 形變，跟像素貓一樣維持圓形
+    const keep = pose === 'ball' ? 0.35 : 1;
+    const want = [1 + (s.catSx - 1) * keep, 1 + (s.catSy - 1) * keep];
+    const scales = game.ops.filter(op => op.op === 'scale');
+    assert.ok(
+      scales.some(op => Math.abs(op.args[0] - want[0]) < 1e-9 && Math.abs(op.args[1] - want[1]) < 1e-9),
+      `${pose}：經典貓要以 ${want.join(' × ')} 縮放（實際 ${JSON.stringify(scales.map(op => op.args))}）`
+    );
+    const rotations = game.ops.filter(op => op.op === 'rotate');
+    assert.ok(!rotations.some(op => Math.abs(op.args[0] - tilt) < 1e-6), `${pose}：不該再用存檔的 rot 旋轉整隻貓`);
+  }
 });
 
 test('READY 維持 1 × 1 的待機姿勢，回到 READY 立刻復原', () => {
