@@ -1109,10 +1109,11 @@
 
   // #region theme:classic
   // ===========================================================================
-  // 經典主題：原本的純向量繪製（漸層、圓角、曲線），外觀完全保留
+  // 經典主題：原本的純向量繪製（漸層、圓角、曲線）；黑貓依 catPose() 換姿勢，跟像素貓同步
   // ===========================================================================
 
   // 漸層只建一次；各自以「繪製當下的區域座標」定義，使用前先 translate 到對應位置
+  // （貓的 body／head 以身體中心、頭心為原點，四種姿勢共用同一組漸層）
   const paint = (() => {
     const addStops = (gradient, stops) => {
       stops.forEach(([at, color]) => gradient.addColorStop(at, color));
@@ -1126,8 +1127,8 @@
       post: linear(0, 0, PIPE.postWidth, 0, [[0, '#E6CFA8'], [0.4, SISAL], [1, '#B48F62']]),
       cap: linear(0, 0, 0, PIPE.capHeight, [[0, '#A5733F'], [1, '#76481F']]),
       sky: linear(0, 0, 0, 120, [[0, '#BFE3FF'], [1, '#EAF6FF']]),
-      body: radial(-9, -3, 1, -5, 3, 18, [[0, '#474747'], [0.55, '#1A1A1A'], [1, '#050505']]),
-      head: radial(5, -10, 1, 9.5, -4.5, 13, [[0, '#4C4C4C'], [0.5, '#1C1C1C'], [1, '#060606']]),
+      body: radial(-4, -6.5, 1, 0, -0.5, 18, [[0, '#474747'], [0.55, '#1A1A1A'], [1, '#050505']]),
+      head: radial(-4.5, -5.5, 1, 0, 0, 13, [[0, '#4C4C4C'], [0.5, '#1C1C1C'], [1, '#060606']]),
       eye: radial(-0.8, -1.2, 0.3, 0, 0, 4.4, [[0, EYE_GOLD], [1, EYE_GREEN]])
     };
   })();
@@ -1387,71 +1388,254 @@
     }
   }
 
-  // --- 黑貓（區域座標以身體中心為原點、面向右） ----------------------------------
-  function drawCat(x, y, rotation, tail, mood) {
+  // --- 黑貓（區域座標以碰撞中心為原點、面向右） ----------------------------------
+  // 跟像素貓共用同一份姿勢規格：catPose() 給 idle／stretch／squash／ball，catMood() 給 normal／scared／dizzy。
+  // 不再拿 cat.rot 旋轉整隻貓，傾斜由姿勢本身表現；Squash & Stretch 以碰撞中心為錨點 ctx.scale(sx, sy)，
+  // 頭與腳掌再各自反向抵銷一半形變（classicRig），五官與白手套不會被拉成細長條
+  const CLASSIC_FUR = '#141414';
+  const CLASSIC_EAR = '#121212';
+  const CLASSIC_RIM = 'rgba(255, 255, 255, 0.28)';
+  const CLASSIC_WHISKER = 'rgba(255, 255, 255, 0.55)';
+  const CLASSIC_BALL_KEEP = 0.35;
+  const CLASSIC_DEFAULT_LOOK = Object.freeze({ pose: 'idle', mood: 'normal', sx: 1, sy: 1, tail: 0 });
+  // 豎起的耳朵（頭部區域座標，頭心為原點、半徑 12）：遠側在左後、近側在右前；粉紅耳內在載入時算好
+  const classicEar = (outer) => {
+    const cx = (outer[0][0] + outer[1][0] + outer[2][0]) / 3;
+    const cy = (outer[0][1] + outer[1][1] + outer[2][1]) / 3;
+    const inner = outer.map(([px, py]) => [cx + (px - cx) * 0.58, cy + (py - cy) * 0.58]);
+    return Object.freeze({ outer, inner });
+  };
+  const CLASSIC_EAR_FAR = classicEar([[-10, -6], [-8.5, -18.5], [-1.5, -10.5]]);
+  const CLASSIC_EAR_NEAR = classicEar([[1.5, -11.5], [9, -18], [11, -4.5]]);
+  const CLASSIC_EYES = [[-4.5, -1], [5, -1]];
+  // 頭與腳掌的反向縮放：每次 drawCat 覆寫，不在熱路徑上配置物件
+  const classicRig = { kx: 1, ky: 1 };
+
+  function classicScale(value) {
+    return Number.isFinite(value) && value > 0 ? value : 1;
+  }
+
+  // look = { pose, mood, sx, sy, tail }；球只保留 35% 形變（跟像素貓一樣），維持圓滾滾的球形
+  function drawCat(x, y, look) {
+    const lk = look || CLASSIC_DEFAULT_LOOK;
+    const keep = lk.pose === 'ball' ? CLASSIC_BALL_KEEP : 1;
+    const sx = 1 + (classicScale(lk.sx) - 1) * keep;
+    const sy = 1 + (classicScale(lk.sy) - 1) * keep;
+    const tail = Number.isFinite(lk.tail) ? clamp(lk.tail, -18, 18) : 0;
+    const mood = lk.mood === 'scared' || lk.mood === 'dizzy' ? lk.mood : 'normal';
+    classicRig.kx = 1 / Math.sqrt(sx);
+    classicRig.ky = 1 / Math.sqrt(sy);
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(rotation * DEG);
+    ctx.scale(sx, sy);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    if (lk.pose === 'stretch') drawCatStretch(tail, mood);
+    else if (lk.pose === 'squash') drawCatSquash(tail, mood);
+    else if (lk.pose === 'ball') drawCatBall(tail, mood);
+    else drawCatIdle(tail, mood);
+    ctx.restore();
+  }
 
-    ctx.strokeStyle = '#141414';
-    ctx.lineWidth = 5;
+  // 待機滑翔：身體水平、尾巴從臀部往後上方彎、四腳收在肚子下（READY 畫面的主角，維持原本的樣子）
+  function drawCatIdle(tail, mood) {
+    strokeTail(idleTailPath, tail);
+
+    drawPaw(-12, 12.5, 5, 4.2, 0);
+    drawBody(-5, 3.5, 15.5, 12, 0);
+    drawPaw(4.5, 13.5, 3.8, 3.2, 0);
+    drawPaw(11, 12.5, 3.8, 3.2, 0);
+    drawCatHead(9.5, -4.5, 1, 0, 'up', mood, false);
+  }
+
+  // 上升拉長：身體斜向右上、頭在最前上方領路、雙耳往後平貼；近側前腳伸到下巴前、遠側前腳收在胸口，
+  // 後腿往左下拖直，尾巴從臀部往下繃直（剛起跳時尾巴還甩在後面，彈簧追上後才垂直）。
+  // 身體在區域座標只斜 18°，套上 0.8 × 1.25 的拉長後畫面上約 35°
+  function drawCatStretch(tail, mood) {
+    strokeTail(stretchTailPath, tail);
+
+    drawLeg(-10.5, 7, -14, 14, 4.5);
+    drawPaw(-14.4, 14.6, 3.4, 2.8, 30);
+    drawBody(-3, 3, 17.5, 9.5, -18);
+    drawPaw(7.5, 9.6, 3.3, 2.7, -25);
+    drawLeg(-5.5, 9, -9.5, 16.5, 5.5);
+    drawPaw(-9.9, 17.1, 3.8, 3.1, 30);
+    // 伸出去的前腳先畫、頭後蓋：腳根藏在項圈下，鈴鐺不會被手臂擋住
+    drawLeg(7, 8, 22, 5, 5);
+    drawPaw(23, 4.7, 3.7, 3.1, -100);
+    drawCatHead(14, -6.5, 1, -15, 'back', mood, false);
+  }
+
+  // 下墜蜷縮：身體低而寬、前腳往前下方撐直、腳掌往外張開、雙耳豎起、尾巴水平在後
+  function drawCatSquash(tail, mood) {
+    strokeTail(squashTailPath, tail);
+
+    drawLeg(5, 5, 9.5, 14, 4.5);
+    drawPaw(9.8, 14.6, 4, 3, 12);
+    drawBody(-4, 4.5, 17, 10.5, 0);
+    drawPaw(-11.5, 13.4, 5, 3.6, 0);
+    drawLeg(12, 5, 18.5, 13.8, 5);
+    drawPaw(19.2, 14.6, 4.4, 3.2, -18);
+    drawCatHead(9.5, -3, 1, 0, 'up', mood, false);
+  }
+
+  // 縮成肉球：圓滾滾的球，頭埋在右前方只露出兩隻小耳朵，尾巴從後下方繞到前面捲起，
+  // 白手套從球邊露出一點點（後腳在左下、前腳縮在下巴底下）；平常閉著眼（^ ^）
+  function drawCatBall(tail, mood) {
+    drawBody(-0.5, 0.5, 14.5, 14.5, 0);
+    drawPaw(-9.5, 12.2, 3.4, 2.8, 35);
+    drawCatHead(5.5, -3, 0.84, 0, 'up', mood, true);
+
+    drawMitt(5, 10.6, 2.6, -10);
+    drawMitt(10, 8.8, 2.6, -30);
+    strokeTail(ballTailPath, tail);
+  }
+
+  // 從球邊露出來的白手套：整片白、深色細框，再兩道趾縫
+  function drawMitt(x, y, r, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(classicRig.kx, classicRig.ky);
+    ctx.rotate(angle * DEG);
     ctx.beginPath();
-    ctx.moveTo(-16, 6);
-    ctx.quadraticCurveTo(-31, 8 + tail * 0.45, -28, -8 + tail);
-    ctx.stroke();
-
-    drawPaw(-12, 12.5, 5, 4.2);
-
-    ctx.fillStyle = paint.body;
-    ctx.beginPath();
-    ctx.ellipse(-5, 3.5, 15.5, 12, 0, 0, TAU);
+    ctx.ellipse(0, 0, r, r * 0.78, 0, 0, TAU);
+    ctx.fillStyle = '#FFFFFF';
     ctx.fill();
+    ctx.strokeStyle = '#111111';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.3, r * 0.15);
+    ctx.lineTo(-r * 0.3, r * 0.75);
+    ctx.moveTo(r * 0.3, r * 0.15);
+    ctx.lineTo(r * 0.3, r * 0.75);
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+    ctx.restore();
+  }
 
-    drawPaw(4.5, 13.5, 3.8, 3.2);
-    drawPaw(11, 12.5, 3.8, 3.2);
+  // 尾巴：同一條路徑描兩次，先往左上偏一點描輪廓光、再描黑毛，疊在黑色身體上也分得出來
+  function strokeTail(pathOf, tail) {
+    pathOf(tail, -0.5, -0.8);
+    ctx.strokeStyle = CLASSIC_RIM;
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    pathOf(tail, 0, 0);
+    ctx.strokeStyle = CLASSIC_FUR;
+    ctx.stroke();
+  }
 
-    drawEar([[-0.5, -10.5], [1, -23], [8, -15]]);
-    drawEar([[11, -16], [18.5, -22.5], [20.5, -9]]);
+  // 待機：從臀部往後上方彎，尾巴彈簧值讓尾尖上下擺
+  function idleTailPath(tail, ox, oy) {
+    ctx.beginPath();
+    ctx.moveTo(-16 + ox, 6 + oy);
+    ctx.quadraticCurveTo(-31 + ox, 8 + tail * 0.45 + oy, -28 + ox, -8 + tail + oy);
+  }
+
+  // 拉長：從臀部垂直往下繃直；剛起跳時彈簧值還沒追上（tail < 18），尾尖先甩在左後方
+  function stretchTailPath(tail, ox, oy) {
+    const lag = (18 - tail) * 0.45;
+    ctx.beginPath();
+    ctx.moveTo(-18.5 + ox, 5 + oy);
+    ctx.quadraticCurveTo(-19.5 + ox, 15 + oy, -20 - lag * 0.6 + ox, 25 - lag * 0.2 + oy);
+  }
+
+  // 壓扁：水平拖在身後，下墜越快尾尖翹越高
+  function squashTailPath(tail, ox, oy) {
+    ctx.beginPath();
+    ctx.moveTo(-18 + ox, 3.5 + oy);
+    ctx.quadraticCurveTo(-27 + ox, 3.5 + tail * 0.12 + oy, -34 + ox, tail * 0.4 + oy);
+  }
+
+  // 肉球：從後下方沿著球底繞到前面，尾尖在下巴前捲起
+  function ballTailPath(tail, ox, oy) {
+    const curl = tail * 0.1;
+    ctx.beginPath();
+    ctx.moveTo(-11 + ox, 6.5 + oy);
+    ctx.bezierCurveTo(-9 + ox, 15 + oy, 4 + ox, 16.5 + oy, 11 + ox, 12 + oy);
+    ctx.quadraticCurveTo(16 + ox, 8.5 + curl + oy, 14.5 + ox, 4.5 + curl + oy);
+  }
+
+  function drawLeg(x0, y0, x1, y1, width) {
+    ctx.strokeStyle = CLASSIC_FUR;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  }
+
+  // 身體橢圓：路徑先建好，填色時才 translate，漸層只跟著身體中心走、不跟著旋轉，光一律從左上來。
+  // 左上緣的輪廓光以待機身體（15.5 × 12）為準，依橢圓比例縮放；線寬反向補回，維持約 2px
+  function drawBody(cx, cy, rx, ry, angle) {
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, angle * DEG, 0, TAU);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = paint.body;
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle * DEG);
+    ctx.scale(rx / 15.5, ry / 12);
+    ctx.strokeStyle = CLASSIC_RIM;
+    ctx.lineWidth = 2 * Math.min(15.5 / rx, 12 / ry);
+    ctx.beginPath();
+    ctx.arc(-1, -0.5, 10, 1.05 * Math.PI, 1.38 * Math.PI);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 腳掌：黑色肉墊外加白手套；angle 是手套朝向（0＝朝下），頭與腳掌只吃一半形變
+  function drawPaw(x, y, rx, ry, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(classicRig.kx, classicRig.ky);
+    if (angle) ctx.rotate(angle * DEG);
+    ctx.fillStyle = '#111111';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, ry, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.ellipse(0, ry * 0.45, rx * 0.72, ry * 0.5, 0, 0, Math.PI);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 頭部群組（頭心 (hx, hy)、半徑 12 × size）：耳朵 → 頭 → 輪廓光 → 項圈鈴鐺 → 五官
+  // tilt：抬頭角度（度，負值往上看）；ears：'up' 豎起、'back' 往後平貼；shut：閉眼（肉球）
+  function drawCatHead(hx, hy, size, tilt, ears, mood, shut) {
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.scale(classicRig.kx * size, classicRig.ky * size);
+    if (tilt) ctx.rotate(tilt * DEG);
+    if (ears === 'back') {
+      drawEarsBack();
+    } else {
+      drawEar(CLASSIC_EAR_FAR);
+      drawEar(CLASSIC_EAR_NEAR);
+    }
 
     ctx.fillStyle = paint.head;
     ctx.beginPath();
-    ctx.arc(9.5, -4.5, 12, 0, TAU);
+    ctx.arc(0, 0, 12, 0, TAU);
     ctx.fill();
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+    ctx.strokeStyle = CLASSIC_RIM;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(8.5, -5, 8.5, 1.08 * Math.PI, 1.42 * Math.PI);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(-6, 3, 10, 1.05 * Math.PI, 1.38 * Math.PI);
+    ctx.arc(-1, -0.5, 8.5, 1.08 * Math.PI, 1.42 * Math.PI);
     ctx.stroke();
 
     ctx.strokeStyle = '#E4574B';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(9.5, -4.5, 11.2, 0.3 * Math.PI, 0.92 * Math.PI);
+    ctx.arc(0, 0, 11.2, 0.3 * Math.PI, 0.92 * Math.PI);
     ctx.stroke();
-    ctx.fillStyle = EYE_GOLD;
-    ctx.beginPath();
-    ctx.arc(4.8, 7.6, 2.3, 0, TAU);
-    ctx.fill();
-
-    drawFace(mood);
+    drawBell(-4.7, 12.1);
+    drawFace(mood, shut);
     ctx.restore();
-  }
-
-  function drawPaw(x, y, rx, ry) {
-    ctx.fillStyle = '#111111';
-    ctx.beginPath();
-    ctx.ellipse(x, y, rx, ry, 0, 0, TAU);
-    ctx.fill();
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.ellipse(x, y + ry * 0.45, rx * 0.72, ry * 0.5, 0, 0, Math.PI);
-    ctx.fill();
   }
 
   function trianglePath(points) {
@@ -1462,21 +1646,65 @@
     ctx.closePath();
   }
 
-  function drawEar(points) {
-    ctx.fillStyle = '#121212';
-    trianglePath(points);
+  // 豎起的耳朵：黑色三角形，裡面再一個往重心縮成 58% 的粉紅耳內（ear = { outer, inner }）
+  function drawEar(ear) {
+    ctx.fillStyle = CLASSIC_EAR;
+    trianglePath(ear.outer);
     ctx.fill();
-    const cx = (points[0][0] + points[1][0] + points[2][0]) / 3;
-    const cy = (points[0][1] + points[1][1] + points[2][1]) / 3;
     ctx.fillStyle = EAR_PINK;
-    trianglePath(points.map(([px, py]) => [cx + (px - cx) * 0.58, cy + (py - cy) * 0.58]));
+    trianglePath(ear.inner);
     ctx.fill();
   }
 
-  function drawFace(mood) {
-    const eyes = [[5, -5.5], [14.5, -5.5]];
-    if (mood === 'normal') {
-      for (const [ex, ey] of eyes) {
+  // 往後平貼的耳朵：耳根埋在頭殼裡（頭稍後蓋上去），只露出沿頭頂後緣往左後方伸的流線一片，
+  // 上緣順著頭頂的弧線延伸出去、耳尖朝左後方，不會有斷開或往上翹的殘塊；
+  // 遠側耳朵（較暗）只從近側耳朵下方露出一個小尖，近側耳朵沿下緣露一小片粉紅耳內
+  function drawEarsBack() {
+    ctx.fillStyle = '#0A0A0A';
+    ctx.beginPath();
+    ctx.moveTo(-9, -8);
+    ctx.quadraticCurveTo(-13, -7.6, -15, -4.6);
+    ctx.quadraticCurveTo(-13, -4, -11.6, -3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#1A1A1A';
+    ctx.beginPath();
+    ctx.moveTo(2, -11.8);
+    ctx.quadraticCurveTo(-8, -14.6, -17, -9.2);
+    ctx.quadraticCurveTo(-12.5, -8.6, -10.8, -5.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = EAR_PINK;
+    ctx.beginPath();
+    ctx.moveTo(-8.5, -10.8);
+    ctx.quadraticCurveTo(-12, -10.8, -14.6, -9);
+    ctx.quadraticCurveTo(-11.8, -9.3, -10, -8.4);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 金色鈴鐺：中間一道開口、左上一點反光
+  function drawBell(x, y) {
+    ctx.fillStyle = EYE_GOLD;
+    ctx.beginPath();
+    ctx.arc(x, y, 2.3, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(122, 82, 0, 0.7)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x - 0.9, y + 1.1);
+    ctx.lineTo(x + 0.9, y + 1.1);
+    ctx.stroke();
+    ctx.fillStyle = '#FFF6C8';
+    ctx.beginPath();
+    ctx.arc(x - 0.8, y - 0.9, 0.6, 0, TAU);
+    ctx.fill();
+  }
+
+  // 五官（頭部區域座標）：normal 睜眼、scared 緊閉的 > <、dizzy 打叉；shut 是肉球的 ^ ^ 閉眼
+  function drawFace(mood, shut) {
+    if (mood === 'normal' && !shut) {
+      for (const [ex, ey] of CLASSIC_EYES) {
         ctx.save();
         ctx.translate(ex, ey);
         ctx.fillStyle = paint.eye;
@@ -1499,18 +1727,24 @@
       ctx.beginPath();
       if (mood === 'scared') {
         // 緊閉的 > < 眼
-        ctx.moveTo(2.8, -8.2);
-        ctx.lineTo(6.6, -5.5);
-        ctx.lineTo(2.8, -2.8);
-        ctx.moveTo(16.7, -8.2);
-        ctx.lineTo(12.9, -5.5);
-        ctx.lineTo(16.7, -2.8);
-      } else {
-        for (const [ex, ey] of eyes) {
+        ctx.moveTo(-6.7, -3.7);
+        ctx.lineTo(-2.9, -1);
+        ctx.lineTo(-6.7, 1.7);
+        ctx.moveTo(7.2, -3.7);
+        ctx.lineTo(3.4, -1);
+        ctx.lineTo(7.2, 1.7);
+      } else if (mood === 'dizzy') {
+        for (const [ex, ey] of CLASSIC_EYES) {
           ctx.moveTo(ex - 2.5, ey - 2.5);
           ctx.lineTo(ex + 2.5, ey + 2.5);
           ctx.moveTo(ex + 2.5, ey - 2.5);
           ctx.lineTo(ex - 2.5, ey + 2.5);
+        }
+      } else {
+        // 肉球瞇成 ^ ^ 的笑眼
+        for (const [ex, ey] of CLASSIC_EYES) {
+          ctx.moveTo(ex - 2.8, ey + 0.8);
+          ctx.quadraticCurveTo(ex, ey - 2.6, ex + 2.8, ey + 0.8);
         }
       }
       ctx.stroke();
@@ -1518,37 +1752,37 @@
 
     ctx.fillStyle = EAR_PINK;
     ctx.beginPath();
-    ctx.moveTo(10.4, -1.6);
-    ctx.lineTo(13, -1.6);
-    ctx.lineTo(11.7, -0.1);
+    ctx.moveTo(0.9, 2.9);
+    ctx.lineTo(3.5, 2.9);
+    ctx.lineTo(2.2, 4.4);
     ctx.closePath();
     ctx.fill();
 
     if (mood === 'normal') {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.strokeStyle = CLASSIC_WHISKER;
       ctx.lineWidth = 0.9;
       ctx.beginPath();
-      ctx.moveTo(10, 0.9);
-      ctx.quadraticCurveTo(10.9, 2.2, 11.7, 0.5);
-      ctx.quadraticCurveTo(12.5, 2.2, 13.4, 0.9);
+      ctx.moveTo(0.5, 5.4);
+      ctx.quadraticCurveTo(1.4, 6.7, 2.2, 5);
+      ctx.quadraticCurveTo(3, 6.7, 3.9, 5.4);
       ctx.stroke();
     } else {
       ctx.beginPath();
-      ctx.ellipse(11.7, 2.8, 1.7, 2.2, 0, 0, TAU);
+      ctx.ellipse(2.2, 7.3, 1.7, 2.2, 0, 0, TAU);
       ctx.fill();
     }
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.strokeStyle = CLASSIC_WHISKER;
     ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.moveTo(17.5, -0.5);
-    ctx.lineTo(26, -2.5);
-    ctx.moveTo(17.5, 1.5);
-    ctx.lineTo(26, 2.5);
-    ctx.moveTo(4, -0.2);
-    ctx.lineTo(-3, -1.8);
-    ctx.moveTo(4, 1.6);
-    ctx.lineTo(-3, 2.4);
+    ctx.moveTo(8, 4);
+    ctx.lineTo(16.5, 2);
+    ctx.moveTo(8, 6);
+    ctx.lineTo(16.5, 7);
+    ctx.moveTo(-5.5, 4.3);
+    ctx.lineTo(-12.5, 2.7);
+    ctx.moveTo(-5.5, 6.1);
+    ctx.lineTo(-12.5, 6.9);
     ctx.stroke();
   }
 
@@ -1557,11 +1791,33 @@
   // 用 source-atop 只對貓身上的像素上色，色相直接跟著 rainbowHue 轉。
   // 不另外疊 ctx.filter：軟體繪圖（GPU 被停用）時，一次 hue-rotate 貼圖要付整張畫布的濾鏡成本，
   // 衝刺那 3 秒會從 60fps 掉到 40fps；上色本身就已經是完整的彩虹
+  // 96 × 96：四種姿勢在 1.25 倍形變、尾巴甩到底時都還在中心 ±48 以內（最遠是壓扁時的尾尖，約 -46）
   const CLASSIC_LAYER = 96;
   const classicLayer = createLayer(CLASSIC_LAYER, CLASSIC_LAYER);
+  // 本尊與殘影輪流使用同一個 look 物件，每次畫之前覆寫，不配置新物件
+  const classicLook = { pose: 'idle', mood: 'normal', sx: 1, sy: 1, tail: 0 };
+
+  function classicLiveLook(alpha) {
+    classicLook.pose = catPose();
+    classicLook.mood = catMood();
+    classicLook.sx = lerp(cat.prevSx, cat.sx, alpha);
+    classicLook.sy = lerp(cat.prevSy, cat.sy, alpha);
+    classicLook.tail = cat.tail;
+    return classicLook;
+  }
+
+  // 殘影照它被記錄下來的姿勢與形變畫；表情一律 normal，尾巴跟本尊同步
+  function classicGhostLook(entry) {
+    classicLook.pose = entry.pose;
+    classicLook.mood = 'normal';
+    classicLook.sx = entry.sx;
+    classicLook.sy = entry.sy;
+    classicLook.tail = cat.tail;
+    return classicLook;
+  }
 
   // 圖層依目前的縮放比例建立實體像素，貼回主畫布時一比一，不會比直接畫糊
-  function classicPaintLayer(rot, mood, tint, strength) {
+  function classicPaintLayer(look, tint, strength) {
     const w = Math.max(1, Math.round(CLASSIC_LAYER * view.sx));
     const h = Math.max(1, Math.round(CLASSIC_LAYER * view.sy));
     if (classicLayer.canvas.width !== w || classicLayer.canvas.height !== h) {
@@ -1577,7 +1833,7 @@
     const main = ctx;
     ctx = layerCtx;
     try {
-      drawCat(CLASSIC_LAYER / 2, CLASSIC_LAYER / 2, rot, cat.tail, mood);
+      drawCat(CLASSIC_LAYER / 2, CLASSIC_LAYER / 2, look);
     } finally {
       ctx = main;
     }
@@ -1596,12 +1852,11 @@
     ctx.globalAlpha = 1;
   }
 
+  // 姿勢與表情跟像素貓同一個來源（catPose／catMood），形變在兩個模擬步之間插值；不再讀 cat.rot
   function classicDrawPlayer(alpha) {
     const y = lerp(cat.prevY, cat.y, alpha);
-    const rot = lerp(cat.prevRot, cat.rot, alpha);
-    const mood = catMood();
     if (!rainbowActive() || !classicLayer) {
-      drawCat(CAT.x, y, rot, cat.tail, mood);
+      drawCat(CAT.x, y, classicLiveLook(alpha));
       return;
     }
     const hue = rainbowHue(alpha);
@@ -1609,11 +1864,11 @@
     for (let i = FRENZY.ghostLags.length - 1; i >= 0; i--) {
       const ghost = ghostAt(i, hue);
       if (!ghost) continue;
-      classicPaintLayer(ghost.entry.rot, 'normal', `hsl(${Math.round(ghost.hue)}, 90%, 62%)`, 0.85);
+      classicPaintLayer(classicGhostLook(ghost.entry), `hsl(${Math.round(ghost.hue)}, 90%, 62%)`, 0.85);
       classicBlitLayer(ghost.x, ghost.entry.y, ghost.alpha);
     }
     // 本尊：用循環色相上色，強度跟著 trailFade 淡出
-    classicPaintLayer(rot, mood, `hsl(${Math.round(hue)}, 95%, 58%)`, 0.62 * game.trailFade);
+    classicPaintLayer(classicLiveLook(alpha), `hsl(${Math.round(hue)}, 95%, 58%)`, 0.62 * game.trailFade);
     classicBlitLayer(CAT.x, y, 1);
   }
 
@@ -3826,13 +4081,15 @@
     white: '#FFFFFF'    // 眼睛亮點
   });
 
-  const CATPIX_W = 32;
-  const CATPIX_H = 32;
-  const CATPIX_AX = 16; // 碰撞中心在 sprite 內的位置（像素交界），縮放以此為錨點
-  const CATPIX_AY = 16;
+  const CATPIX_W = 40;
+  const CATPIX_H = 40;
+  const CATPIX_AX = 20; // 碰撞中心在 sprite 內的位置（像素交界），縮放以此為錨點
+  const CATPIX_AY = 20;
   const CATPIX_TAIL_STEP = 5; // 尾巴彈簧值超過 ±5 就換「上揚／下垂」幀
+  const CATPIX_BALL_KEEP = 0.35; // 球：核心給的形變只保留 35%，維持圓滾滾的球形
 
-  // 零件（相對座標，由姿勢表決定擺放位置）---------------------------------------------
+  // ===== 待機（設計比例 1 × 1）=====
+  // 身體水平、頭在右前方、雙耳豎起、尾巴從臀部往後上方彎、四腳收在肚子下露出白手套
   // 豎耳的頭：14×15，眼睛在第 7～9 列、鼻子第 10 列、嘴第 11 列（第 10～11 列右緣是臉頰）
   const CATPIX_HEAD_UP = [
     '..#........#..',
@@ -3851,26 +4108,6 @@
     '..##########..',
     '...########...'
   ];
-
-  // 飛機耳的頭：兩隻耳朵從後腦勺往後平貼，近側那隻只有 2 列高——拉長姿勢會再縱向放大 1.25 倍，
-  // 耳朵畫得太斜的話放大後會變成豎起來的耳朵（或像蝴蝶結）
-  const CATPIX_HEAD_FLAT = [
-    '......##',
-    '####..####',
-    '.##ii########',
-    '....############',
-    '.....############',
-    '.....#############',
-    '.....#############',
-    '.....#############',
-    '.....#############',
-    '.....##############',
-    '.....##############',
-    '......############',
-    '.......##########',
-    '........########'
-  ];
-
   const CATPIX_BODY_IDLE = [
     '.....####.......',
     '...#########....',
@@ -3884,63 +4121,6 @@
     '..##############',
     '....##########..'
   ];
-
-  // 蜷縮：比待機短一截，橫向放大 1.25 倍後才不會變成臘腸
-  const CATPIX_BODY_SQUASH = [
-    '....######.....',
-    '..##########...',
-    '.#############.',
-    '###############',
-    '###############',
-    '###############',
-    '###############',
-    '###############',
-    '.#############.',
-    '..###########..'
-  ];
-
-  // 跳躍拉長：身體約 33° 斜向右上（縱向拉長後接近 45°）；肚子刻意飽滿，碰撞圓右下角才不會是空的
-  const CATPIX_BODY_STRETCH = [
-    '.............####',
-    '...........########',
-    '.........##########',
-    '.......#############',
-    '......##############',
-    '....################',
-    '..##################',
-    '.###################',
-    '###################',
-    '###################',
-    '#################',
-    '###############',
-    '#############',
-    '############',
-    '.#########',
-    '..######'
-  ];
-
-  // 縮成球：耳朵是右上兩個小三角，臉朝右下埋進去
-  const CATPIX_BALL = [
-    '.................#....#',
-    '................##...##',
-    '..............#####.#ii#',
-    '............############',
-    '..........##############',
-    '..........#############',
-    '.........##############',
-    '.........##############',
-    '........################',
-    '........################',
-    '........################',
-    '........################',
-    '.........##############',
-    '.........##############',
-    '..........############',
-    '..........############',
-    '............########',
-    '..............####'
-  ];
-
   // 尾巴三幀：上揚／中間／下垂（2px 粗，細長）
   const CATPIX_TAIL_UP = [
     '....##',
@@ -3981,135 +4161,281 @@
     '##..',
     '.##.'
   ];
-  // 拉長姿勢：尾巴垂直往下繃直
-  const CATPIX_TAIL_TAUT = [
-    '##', '##', '##', '##', '##', '##', '##', '##', '##', '##', '##', '##'
-  ];
-  // 縮成球：尾巴從後下方貼著身體繞到前面，尾尖停在臉頰下
-  const CATPIX_TAIL_CURL = [
-    '.........................##',
-    '........................##',
-    '.......................##',
-    '.......................##',
-    '.......................##',
-    '.......................##',
-    '......................##',
-    '......................##',
-    '........##...........##',
-    '.........##.........###',
-    '...........##.....####',
-    '............########',
-    '.............######'
-  ];
-
   // 腳：遠側（畫在身體後面，用暗部色）與近側（自動上光）
   // 白手套露在剪影外緣的部分，烘焙時會自動補暗部色描邊（catPixOutline）
   const CATPIX_LEG_FAR = ['ss', 'gg'];
   const CATPIX_LEG_NEAR = ['###', '###', '###', 'ggg', 'ggg'];
-  const CATPIX_LEG_BRACE = ['###', '###', '###', '###', '###', 'ggg', 'gggg']; // 蜷縮：前腳撐直、腳掌張開
-  const CATPIX_FOOT_FLAT = ['.###', '.###', '####', 'gggg'];                   // 蜷縮：後腳平貼
-  const CATPIX_LEG_REACH = [ // 拉長：前腳往右上伸到下巴前面
-    '.........gg',
-    '.......##gg',
-    '....#####',
-    '.######',
-    '####'
+
+  // ===== 跳躍拉長（設計比例 0.8 × 1.25：直接畫成拉到底的樣子）=====
+  // 身體斜向右上、頭在最前上方領路；頭本身只拉長一點點（太瘦長的頭在 2 倍顯示時讀不出貓臉）
+  // 頭：飛機耳——耳朵往後平貼在後腦勺，耳尖朝左後方；遠側那隻貼在頭後面被擋住，
+  // 所以頭頂輪廓上沒有任何往上翹或斷開的殘塊
+  const CATPIX_HEAD_FLAT = [
+    '...######',
+    '.##########',
+    '############',
+    '############',
+    '############',
+    '############',
+    '############',
+    '############',
+    '############',
+    '#############',
+    '#############',
+    '.###########',
+    '..#########',
+    '....#####'
   ];
-  const CATPIX_LEG_TUCK_FAR = ['ssss', 'ssss', 'ssss', 'ssss', '.sss', '.ggg']; // 拉長：遠側前腳收在胸口下
-  const CATPIX_LEG_TRAIL = [ // 拉長：大腿飽滿、小腿往左下拖，腳底露出肉球
-    '......#####',
-    '....#######',
-    '...########',
-    '..#######',
-    '.#####',
+  // 近側耳朵：疊在頭上的低矮三角形，上緣接著頭頂的輪廓光往左下斜、耳尖只超出後腦勺 4 格；
+  // 耳內粉紅只留在耳根的折角，下緣背光、耳尖下面留缺口，才讀得出「往後貼平的耳朵」
+  const CATPIX_EAR_FLAT = [
+    '....####',
+    '..####i#',
+    '####iii.',
+    '.ss.....'
+  ];
+  const CATPIX_BODY_STRETCH = [
+    '...............#####',
+    '..............#######',
+    '............##########',
+    '...........############',
+    '..........#############',
+    '.........##############',
+    '........##############',
+    '.......##############',
+    '......##############',
+    '.....##############',
+    '....#############',
+    '...#############',
+    '..#############',
+    '..############',
+    '.#############',
+    '.#############',
+    '##############',
+    '#############',
+    '#############',
+    '.###########',
+    '..#########',
+    '....#####'
+  ];
+  const CATPIX_TAIL_TAUT = [ // 尾巴從臀部垂直往下繃直
+    '##', '##', '##', '##', '##', '##', '##', '##', '##', '##', '##', '#.'
+  ];
+  const CATPIX_LEG_REACH = [ // 前腳往右上伸到下巴前面（遠側那隻在後面、低一點）
+    '......ggg',
+    '...###ggg',
+    '.#####...',
+    '####.....'
+  ];
+  const CATPIX_LEG_REACH_FAR = [
+    '...ssgg',
+    'sssssgg'
+  ];
+  // 後腿往左下拖直：大腿是一道弧形的輪廓光；大腿左緣在臀部裡面，寫死成 k 免得多出一條直線
+  const CATPIX_LEG_TRAIL = [
+    '........###',
+    '......######',
+    '.....#######',
+    '....########',
+    '...#########',
+    '...k########',
+    '...k#######',
+    '...k######',
+    '...k#####',
+    '..k####',
+    '..####',
+    '.####',
     '.###',
-    '###',
+    '.###',
     'ggg',
     'gdg'
   ];
-  const CATPIX_LEG_TRAIL_FAR = ['..ss', '.ss', '.ss', 'ss', 'gg'];
-  const CATPIX_BALL_PAWS = [ // 球：後腳肉球從左下探出來，前掌抱著尾巴從右側露出
-    '.gg............gg',
-    '.dg............gg'
+  const CATPIX_LEG_TRAIL_FAR = ['.sss', '.sss', 'sss.', 'sss.', 'ss..'];
+
+  // ===== 下墜蜷縮（設計比例 1.25 × 0.8：直接畫成壓到底的樣子）=====
+  // 身體低而寬、前腳撐直、腳掌張開、雙耳豎起、尾巴水平拖在後面
+  // 頭：耳朵豎起但矮一截、臉橫向放寬（頭只壓一點點，五官才不會擠成一團）
+  const CATPIX_HEAD_WIDE = [
+    '..#.........#..',
+    '..#i#.....#i#..',
+    '.##ii#...#ii##.',
+    '.#############.',
+    '###############',
+    '###############',
+    '###############',
+    '###############',
+    '###############',
+    '.#############.',
+    '..###########..',
+    '....#######....'
+  ];
+  const CATPIX_BODY_SQUASH = [
+    '.....###########.....',
+    '..#################..',
+    '.###################.',
+    '#####################',
+    '#####################',
+    '#####################',
+    '#####################',
+    '.###################.',
+    '...###############...'
+  ];
+  // 尾巴水平拖在後面：上揚／中間／下垂三幀只差在尾尖
+  const CATPIX_TAIL_FLAT_UP = [
+    '#........',
+    '##.......',
+    '.##......',
+    '..####...',
+    '...######',
+    '.....####'
+  ];
+  const CATPIX_TAIL_FLAT_MID = [
+    '##.......',
+    '.########',
+    '...######'
+  ];
+  const CATPIX_TAIL_FLAT_DOWN = [
+    '...######',
+    '.########',
+    '##.......',
+    '#........'
+  ];
+  // 前腳撐直、腳掌張開準備著地；遠側那隻在後面、腳掌高一格；後腳短短平貼
+  const CATPIX_LEG_BRACE = ['.###.', '.###.', '.###.', '.###.', '.###.', '.###.', '.ggg.', 'ggggg'];
+  const CATPIX_LEG_BRACE_FAR = ['sss.', 'sss.', 'sss.', 'sss.', 'sss.', 'ggg.', 'gggg'];
+  const CATPIX_FOOT_FLAT = ['.###.', '.###.', '####.', '#####', 'ggggg'];
+
+  // ===== 縮成球（設計比例 = 壓扁到底再只保留 35%，約 1.09 × 0.93）=====
+  // 圓滾滾的緊實球形；頭疊在右上，自己的輪廓光畫出「頭埋進身體」的那道弧線
+  const CATPIX_BALL = [
+    '......########',
+    '....############',
+    '...##############',
+    '..################',
+    '.##################',
+    '.##################',
+    '####################',
+    '####################',
+    '####################',
+    '####################',
+    '####################',
+    '.##################',
+    '.##################',
+    '..################',
+    '...##############',
+    '....############',
+    '......########'
+  ];
+  // 頭埋在右前方：只看得到右上兩隻小耳朵與閉著的眼睛
+  const CATPIX_BALL_HEAD = [
+    '...#......#...',
+    '...##....##...',
+    '...#i#..#i#...',
+    '..##ii##ii##..',
+    '..##########..',
+    '.############.',
+    '.############.',
+    '##############',
+    '##############',
+    '##############',
+    '.############.',
+    '.############.',
+    '..##########..',
+    '...########...'
+  ];
+  // 尾巴從後下方貼著球底繞到前面，尾尖在前掌下面往上捲；下緣比球多凸出一格，剪影上也看得到尾巴
+  const CATPIX_TAIL_CURL = [
+    '##................##',
+    '###..............###',
+    '.####..........####',
+    '...####.....#####',
+    '.....#########'
+  ];
+  const CATPIX_BALL_PAWS = [ // 後腳肉球從左側探出來，前掌從臉頰下方的球緣露一點
+    '....................gg',
+    '...................ggg',
+    'gg....................',
+    'dg....................'
   ];
 
   // 眼睛補丁（'.' 代表不動底圖）。睜眼款寬 2；寬 3 的補丁左眼往左多佔 1 格
-  // 睜眼 we/ep/ee：縮放時不論掉哪一欄或哪一列，剩下的都還至少有兩格黃綠，不會整顆眼睛消失
-  const CATPIX_EYES_OPEN = {
+  const CATPIX_EYES_OPEN = Object.freeze({
     normal: [['we', 'ep', 'ee'], ['we', 'ep', 'ee']],
     scared: [['e..', '.ee', 'e..'], ['..e', 'ee.', '..e']],
     dizzy: [['e.e', '.e.', 'e.e'], ['e.e', '.e.', 'e.e']]
-  };
-  const CATPIX_EYES_SHUT = { // 球：眼睛一律閉緊
+  });
+  const CATPIX_EYES_SHUT = Object.freeze({ // 球：平常閉眼 ^ ^，受驚／暈眩照樣換成 > < 與 X X
     normal: [['.e.', 'e.e'], ['.e.', 'e.e']],
     scared: [['e..', '.ee', 'e..'], ['..e', 'ee.', '..e']],
     dizzy: [['e.e', '.e.', 'e.e'], ['e.e', '.e.', 'e.e']]
-  };
-  // 嘴巴補丁：平常是鼻子加一撇嘴，受驚／暈眩張嘴
-  const CATPIX_MOUTH = {
+  });
+  // 嘴巴補丁：平常是鼻子加一撇嘴，受驚／暈眩張嘴；鼻子與張開的嘴之間一定隔一格，不會連成一條粉紅直線
+  const CATPIX_MOUTH = Object.freeze({
     normal: ['nn', 'rr'],
     scared: ['nn', 'kk', 'dd'],
     dizzy: ['nn', 'kk', 'dd']
-  };
-  const CATPIX_MOUTH_SMALL = {
+  });
+  const CATPIX_MOUTH_SMALL = Object.freeze({
     normal: ['n'],
-    scared: ['n', 'd'],
-    dizzy: ['n', 'd']
-  };
+    scared: ['n', '.', 'd'],
+    dizzy: ['n', '.', 'd']
+  });
   const CATPIX_WHISKERS = ['.rr', '...', 'rr.'];
 
   // 姿勢表：依序疊圖層 [零件, x, y]；null 是尾巴的位置，烘焙時換成對應尾巴幀
+  // design：這張 sprite 畫成的形變比例（該姿勢最常出現、也就是形變飽和時的比例），繪製時只套殘差
   // face：eyes [左 x, y, 右 x, y]（以寬 2 的睜眼為準）、nose [x, y]、shut 閉眼、whisk 鬍鬚位置
-  // snap：縱向取樣錨點列（見 pixelDrawCat），會被壓扁的姿勢設在眼睛與鼻子中間
   // keep：核心給的 Squash & Stretch 形變保留多少（預設 1＝全部）；球本身就畫成圓的，全壓扁會變成扁麵包
   const CATPIX_POSES = Object.freeze({
     idle: {
-      tails: [[CATPIX_TAIL_UP, 0, 3], [CATPIX_TAIL_MID, 0, 5], [CATPIX_TAIL_DOWN, 0, 15]],
+      design: [1, 1],
+      tails: [[CATPIX_TAIL_UP, 4, 7], [CATPIX_TAIL_MID, 4, 9], [CATPIX_TAIL_DOWN, 4, 19]],
       layers: [
         null,
-        [CATPIX_LEG_FAR, 15, 21],
-        [CATPIX_BODY_IDLE, 3, 11],
-        [CATPIX_LEG_NEAR, 4, 19], [CATPIX_LEG_NEAR, 18, 19],
-        [CATPIX_HEAD_UP, 13, 3]
+        [CATPIX_LEG_FAR, 19, 25],
+        [CATPIX_BODY_IDLE, 7, 15],
+        [CATPIX_LEG_NEAR, 8, 23], [CATPIX_LEG_NEAR, 22, 23],
+        [CATPIX_HEAD_UP, 17, 7]
       ],
-      face: { eyes: [17, 10, 22, 10], nose: [20, 13], shut: false, mouth: CATPIX_MOUTH, whisk: [26, 13] },
-      snap: CATPIX_AY
-    },
-    squash: {
-      tails: [[CATPIX_TAIL_UP, 0, 5], [CATPIX_TAIL_MID, 0, 5], [CATPIX_TAIL_DOWN, 0, 16]],
-      layers: [
-        null,
-        [CATPIX_LEG_FAR, 13, 22],
-        [CATPIX_BODY_SQUASH, 3, 13],
-        [CATPIX_FOOT_FLAT, 3, 20], [CATPIX_LEG_BRACE, 17, 18],
-        [CATPIX_HEAD_UP, 12, 5]
-      ],
-      face: { eyes: [16, 12, 21, 12], nose: [19, 15], shut: false, mouth: CATPIX_MOUTH, whisk: [25, 15] },
-      snap: 14
+      face: { eyes: [21, 14, 26, 14], nose: [24, 17], shut: false, mouth: CATPIX_MOUTH, whisk: [30, 17] }
     },
     stretch: {
-      tails: [[CATPIX_TAIL_TAUT, 3, 20]],
+      design: [SQUASH.stretchX, SQUASH.stretchY],
+      tails: [[CATPIX_TAIL_TAUT, 7, 28]],
       layers: [
         null,
-        [CATPIX_LEG_TRAIL_FAR, 11, 22], [CATPIX_LEG_TUCK_FAR, 18, 16],
-        [CATPIX_BODY_STRETCH, 3, 8],
-        [CATPIX_LEG_TRAIL, 7, 19],
-        [CATPIX_HEAD_FLAT, 10, 0],
-        [CATPIX_LEG_REACH, 19, 11]
+        [CATPIX_LEG_TRAIL_FAR, 17, 30], [CATPIX_LEG_REACH_FAR, 26, 18],
+        [CATPIX_BODY_STRETCH, 8, 11],
+        [CATPIX_LEG_TRAIL, 11, 22],
+        [CATPIX_HEAD_FLAT, 22, 2],
+        [CATPIX_EAR_FLAT, 17, 3],
+        [CATPIX_LEG_REACH, 26, 15]
       ],
-      face: { eyes: [19, 7, 24, 7], nose: [22, 10], shut: false, mouth: CATPIX_MOUTH, whisk: null },
-      snap: CATPIX_AY
+      face: { eyes: [25, 6, 30, 6], nose: [28, 10], shut: false, mouth: CATPIX_MOUTH, whisk: null }
+    },
+    squash: {
+      design: [SQUASH.squashX, SQUASH.squashY],
+      tails: [[CATPIX_TAIL_FLAT_UP, 0, 14], [CATPIX_TAIL_FLAT_MID, 0, 17], [CATPIX_TAIL_FLAT_DOWN, 0, 18]],
+      layers: [
+        null,
+        [CATPIX_LEG_BRACE_FAR, 22, 21],
+        [CATPIX_BODY_SQUASH, 7, 16],
+        [CATPIX_FOOT_FLAT, 7, 23], [CATPIX_LEG_BRACE, 24, 21],
+        [CATPIX_HEAD_WIDE, 21, 9]
+      ],
+      face: { eyes: [25, 13, 31, 13], nose: [29, 17], shut: false, mouth: CATPIX_MOUTH, whisk: [34, 16] }
     },
     ball: {
-      tails: [[CATPIX_TAIL_CURL, 0, 12]],
+      design: [1 + (SQUASH.squashX - 1) * CATPIX_BALL_KEEP, 1 + (SQUASH.squashY - 1) * CATPIX_BALL_KEEP],
+      tails: [[CATPIX_TAIL_CURL, 10, 25]],
       layers: [
-        [CATPIX_BALL, 0, 6],
-        null,
-        [CATPIX_BALL_PAWS, 7, 18]
+        [CATPIX_BALL, 9, 12],
+        [CATPIX_BALL_HEAD, 18, 9],
+        [CATPIX_BALL_PAWS, 8, 22],
+        null
       ],
-      face: { eyes: [16, 12, 19, 12], nose: [18, 14], shut: true, mouth: CATPIX_MOUTH_SMALL, whisk: null },
-      snap: 14,
-      keep: 0.35
+      face: { eyes: [22, 16, 27, 16], nose: [25, 18], shut: true, mouth: CATPIX_MOUTH_SMALL, whisk: null },
+      keep: CATPIX_BALL_KEEP
     }
   });
 
@@ -4138,8 +4464,7 @@
     }
   }
 
-  // 白手套／肉球跟米白牆幾乎同亮度：露在外面（上下左右鄰格透明）的那一側補一格暗部色描邊，
-  // 腳掌才會是「黑框裡的白襪」，而不是融進牆裡、只剩黑腳截斷
+  // 白手套／肉球跟米白牆幾乎同亮度：露在外面（上下左右鄰格透明）的那一側補一格暗部色描邊
   function catPixOutline(grid) {
     const edge = (x, y) => x >= 0 && x < CATPIX_W && y >= 0 && y < CATPIX_H && (grid[y][x] === 'g' || grid[y][x] === 'd');
     const marks = [];
@@ -4169,6 +4494,111 @@
     return grid.map((row) => row.join(''));
   }
 
+  // --- 殘差縮放的「刪／補哪幾條」：烘焙時就排好優先順序 ----------------------------------
+  // sprite 已經畫成該姿勢最常見的形變比例，逐幀只需要套「殘差」＝實際形變 ÷ 設計比例；形變飽和時殘差是 1，
+  // 一格都不重取樣。過渡的那幾幀才要刪掉或重複幾列（欄），這時挑「跟隔壁幾乎一樣」的列先動，
+  // 眼睛、鼻子所在的列最後才輪到——等於把縮放的鋸齒藏進身體中段，臉永遠完整；
+  // 而且順序固定，形變慢慢變化時一次只多（少）一列，不會整隻貓的列在那邊跳來跳去
+  const CATPIX_FACE_CHARS = 'epwn';
+  const CATPIX_DETAIL_CHARS = 'gdi';
+  // 臉的加價比「連動兩條相鄰的」還貴：寧可身體連刪兩列，也不能讓眼睛少一欄
+  const CATPIX_FACE_COST = 10000;
+  const CATPIX_NEIGHBOR_COST = 1000;
+  const CATPIX_EDGE_COST = 60;
+
+  function catPixCell(rows, x, y) {
+    return y >= 0 && y < CATPIX_H && x >= 0 && x < CATPIX_W ? rows[y][x] : '.';
+  }
+
+  // 兩格差多少：臉部五官 > 剪影進出／手套耳內 > 同一塊黑色裡的明暗
+  function catPixDiff(a, b) {
+    if (a === b) return 0;
+    if (CATPIX_FACE_CHARS.includes(a) || CATPIX_FACE_CHARS.includes(b)) return 6;
+    if (a === '.' || b === '.' || CATPIX_DETAIL_CHARS.includes(a) || CATPIX_DETAIL_CHARS.includes(b)) return 3;
+    return 1;
+  }
+
+  // vertical：比較列（true）或欄（false）；第 line 條與第 other 條逐格的差（W 與 H 相同）
+  function catPixLineDiff(rows, vertical, line, other) {
+    let sum = 0;
+    for (let i = 0; i < CATPIX_W; i++) {
+      sum += vertical ? catPixDiff(catPixCell(rows, i, line), catPixCell(rows, i, other))
+        : catPixDiff(catPixCell(rows, line, i), catPixCell(rows, other, i));
+    }
+    return sum;
+  }
+
+  // 動這一條的代價：跟比較像的那個鄰居差多少（一模一樣的列刪掉或多畫一次都看不出來），再加上細節與臉的加價。
+  // 範圍 [lo, hi) 外面是空白，不算「像」：耳尖、腳底描邊這種最外圈的細線只能跟裡面那條比，才不會被當成便宜貨先刪掉
+  function catPixLineCost(rows, vertical, line, lo, hi) {
+    const prev = line - 1 >= lo ? catPixLineDiff(rows, vertical, line, line - 1) : Infinity;
+    const next = line + 1 < hi ? catPixLineDiff(rows, vertical, line, line + 1) : Infinity;
+    // 最外圈那條本身就是剪影的頂點（耳尖、腳底），再便宜也最後才動
+    let cost = Math.min(prev, next);
+    if (cost === Infinity) cost = 0;
+    if (line === lo || line === hi - 1) cost += CATPIX_EDGE_COST;
+    for (let i = 0; i < CATPIX_W; i++) {
+      const ch = vertical ? rows[line][i] : rows[i][line];
+      if (CATPIX_FACE_CHARS.includes(ch)) return cost + CATPIX_FACE_COST;
+      if (CATPIX_DETAIL_CHARS.includes(ch)) cost += 2;
+    }
+    return cost;
+  }
+
+  // [from, to) 這一段的優先順序：便宜的先；剛挑過的隔壁不挑（不會連刪兩條、把細節整段吃掉），
+  // 隔一條的稍微加價（讓刪補的位置平均散開）；同分時挑離錨點近的（身體中段最單調）
+  function catPixOrder(rows, vertical, from, to, anchor, lo, hi) {
+    const cost = [];
+    for (let i = from; i < to; i++) cost.push(catPixLineCost(rows, vertical, i, lo, hi));
+    const taken = new Array(to - from).fill(false);
+    const order = [];
+    for (let n = from; n < to; n++) {
+      let best = -1;
+      let bestScore = Infinity;
+      for (let i = 0; i < taken.length; i++) {
+        if (taken[i]) continue;
+        let score = cost[i] + Math.abs(from + i + 0.5 - anchor) * 0.01;
+        if (taken[i - 1] || taken[i + 1]) score += CATPIX_NEIGHBOR_COST;
+        else if (taken[i - 2] || taken[i + 2]) score += 2;
+        if (score < bestScore) {
+          bestScore = score;
+          best = i;
+        }
+      }
+      taken[best] = true;
+      order.push(from + best);
+    }
+    return Object.freeze(order);
+  }
+
+  // 一張烘焙好的 sprite：有畫到的範圍 [x0, x1) × [y0, y1)，以及錨點兩側各自的刪補順序
+  function catPixPlan(rows) {
+    let x0 = CATPIX_W;
+    let x1 = 0;
+    let y0 = CATPIX_H;
+    let y1 = 0;
+    for (let y = 0; y < CATPIX_H; y++) {
+      for (let x = 0; x < CATPIX_W; x++) {
+        if (rows[y][x] === '.') continue;
+        x0 = Math.min(x0, x);
+        x1 = Math.max(x1, x + 1);
+        y0 = Math.min(y0, y);
+        y1 = Math.max(y1, y + 1);
+      }
+    }
+    x0 = Math.min(x0, CATPIX_AX - 1);
+    x1 = Math.max(x1, CATPIX_AX + 1);
+    y0 = Math.min(y0, CATPIX_AY - 1);
+    y1 = Math.max(y1, CATPIX_AY + 1);
+    return Object.freeze({
+      rows: Object.freeze(rows), x0, x1, y0, y1,
+      left: catPixOrder(rows, false, x0, CATPIX_AX, CATPIX_AX, x0, x1),
+      right: catPixOrder(rows, false, CATPIX_AX, x1, CATPIX_AX, x0, x1),
+      up: catPixOrder(rows, true, y0, CATPIX_AY, CATPIX_AY, y0, y1),
+      down: catPixOrder(rows, true, CATPIX_AY, y1, CATPIX_AY, y0, y1)
+    });
+  }
+
   // CATPIX_SPRITES[pose].moods[mood][tailFrame]：3 幀尾巴（上揚／中間／下垂）；只有一條尾巴的姿勢三格共用
   // 用無原型物件，傳進奇怪的 pose / mood 字串只會退回預設，不會撈到 Object.prototype 的東西
   const CATPIX_SPRITES = (() => {
@@ -4177,25 +4607,48 @@
       const pose = CATPIX_POSES[name];
       const moods = Object.create(null);
       for (const mood of ['normal', 'scared', 'dizzy']) {
-        const frames = pose.tails.map((tail) => catPixBake(pose, tail, mood));
-        moods[mood] = [frames[0], frames[1] || frames[0], frames[2] || frames[0]];
+        const frames = pose.tails.map((tail) => catPixPlan(catPixBake(pose, tail, mood)));
+        moods[mood] = Object.freeze([frames[0], frames[1] || frames[0], frames[2] || frames[0]]);
       }
-      out[name] = { snap: pose.snap, keep: pose.keep === undefined ? 1 : pose.keep, moods };
+      out[name] = Object.freeze({
+        designX: pose.design[0],
+        designY: pose.design[1],
+        keep: pose.keep === undefined ? 1 : pose.keep,
+        moods: Object.freeze(moods)
+      });
     }
-    return out;
+    return Object.freeze(out);
   })();
 
   // 字元 → 調色盤鍵；對照表物件重複使用，每次呼叫只覆寫 10 個值，不配置新物件
-  const CATPIX_KEYS = [
+  const CATPIX_KEYS = Object.freeze([
     ['k', 'body'], ['s', 'shade'], ['r', 'rim'], ['e', 'eye'], ['p', 'pupil'],
     ['g', 'glove'], ['d', 'pad'], ['i', 'earIn'], ['n', 'nose'], ['w', 'white']
-  ];
+  ]);
   const CATPIX_MAP = {};
-  const CATPIX_OPTS = { sx: 1, sy: 1, ax: CATPIX_AX, ay: CATPIX_AY };
   const CATPIX_DEFAULT_LOOK = Object.freeze({ pose: 'idle', mood: 'normal', sx: 1, sy: 1, tail: 0, palette: null });
+  // 殘差限制在 0.5～2 倍（核心實際只會給 0.64～1.57）：輸出最多 2 × 40 條，對照表一次配好重複使用
+  const CATPIX_RESIDUAL_MIN = 0.5;
+  const CATPIX_RESIDUAL_MAX = 2;
+  const CATPIX_COUNT = new Int8Array(CATPIX_W); // 每條來源列（欄）要畫幾次；W 與 H 相同，兩軸共用
+  const CATPIX_ROW_MAP = new Int8Array(CATPIX_H * CATPIX_RESIDUAL_MAX);
+  const CATPIX_COL_MAP = new Int8Array(CATPIX_W * CATPIX_RESIDUAL_MAX);
 
   function catPixScale(value) {
     return Number.isFinite(value) && value > 0 ? value : 1;
+  }
+
+  // 來源 [from, to) 縮放成 n 條：依 order 刪掉（或多畫一次）最前面的幾條，結果接在 map[at] 之後；回傳新的長度
+  function catPixLines(map, at, order, from, to, n) {
+    for (let i = from; i < to; i++) CATPIX_COUNT[i] = 1;
+    const extra = n - (to - from);
+    for (let k = 0; k < -extra; k++) CATPIX_COUNT[order[k]] = 0;
+    for (let k = 0; k < extra; k++) CATPIX_COUNT[order[k % order.length]] += 1;
+    let out = at;
+    for (let i = from; i < to; i++) {
+      for (let c = CATPIX_COUNT[i]; c > 0; c--) map[out++] = i;
+    }
+    return out;
   }
 
   // (cx, cy)：碰撞中心（美術像素，可為小數）；look = { pose, mood, sx, sy, tail, palette }
@@ -4204,22 +4657,51 @@
     const set = CATPIX_SPRITES[lk.pose] || CATPIX_SPRITES.idle;
     const frames = set.moods[lk.mood] || set.moods.normal;
     const tail = Number.isFinite(lk.tail) ? lk.tail : 0;
-    const rows = frames[tail < -CATPIX_TAIL_STEP ? 0 : tail > CATPIX_TAIL_STEP ? 2 : 1];
+    const plan = frames[tail < -CATPIX_TAIL_STEP ? 0 : tail > CATPIX_TAIL_STEP ? 2 : 1];
     const palette = lk.palette || PIXEL_CAT_PALETTE;
     for (let i = 0; i < CATPIX_KEYS.length; i++) {
       const key = CATPIX_KEYS[i][1];
       CATPIX_MAP[CATPIX_KEYS[i][0]] = palette[key] || PIXEL_CAT_PALETTE[key];
     }
-    // 形變只保留姿勢表指定的比例（球：大部分抵銷，維持圓滾滾的球形）
+    // 形變只保留姿勢表指定的比例（球：大部分抵銷，維持圓滾滾的球形），再除以設計比例得到殘差
     const keep = set.keep;
-    const sy = 1 + (catPixScale(lk.sy) - 1) * keep;
-    CATPIX_OPTS.sx = 1 + (catPixScale(lk.sx) - 1) * keep;
-    CATPIX_OPTS.sy = sy;
-    CATPIX_OPTS.ay = set.snap;
-    // 縮放錨點＝碰撞中心；但縱向縮小時最近鄰每 5 列會丟 1 列，所以改拿「臉部那條像素交界（snap 列）」
-    // 當取樣錨點並對齊整數列：交界上 2 列、下 2 列（眼睛＋鼻子）在 0.8～1 倍之間保證完整。
-    // 兩種錨點對應同一個縮放變換，碰撞中心（第 CATPIX_AY 列）仍落在 cy 的 ±0.5px 內；取整也讓貓上下移動時不閃爍
-    pix.sprite(rows, CATPIX_MAP, Math.round(cx), Math.round(cy + (set.snap - CATPIX_AY) * sy), CATPIX_OPTS);
+    const rx = clamp((1 + (catPixScale(lk.sx) - 1) * keep) / set.designX, CATPIX_RESIDUAL_MIN, CATPIX_RESIDUAL_MAX);
+    const ry = clamp((1 + (catPixScale(lk.sy) - 1) * keep) / set.designY, CATPIX_RESIDUAL_MIN, CATPIX_RESIDUAL_MAX);
+    // 錨點（碰撞中心那條像素交界）對齊整數格，兩側各自依殘差算出格數：碰撞中心仍落在 (cx, cy) 的 ±0.5px 內，
+    // 取整也讓貓上下移動時不閃爍
+    const left = CATPIX_AX - plan.x0;
+    const up = CATPIX_AY - plan.y0;
+    const nLeft = Math.round(left * rx);
+    const nUp = Math.round(up * ry);
+    const cols = catPixLines(CATPIX_COL_MAP, catPixLines(CATPIX_COL_MAP, 0, plan.left, plan.x0, CATPIX_AX, nLeft),
+      plan.right, CATPIX_AX, plan.x1, Math.round((plan.x1 - CATPIX_AX) * rx));
+    const rowsOut = catPixLines(CATPIX_ROW_MAP, catPixLines(CATPIX_ROW_MAP, 0, plan.up, plan.y0, CATPIX_AY, nUp),
+      plan.down, CATPIX_AY, plan.y1, Math.round((plan.y1 - CATPIX_AY) * ry));
+    const ox = Math.round(cx) - nLeft;
+    const oy = Math.round(cy) - nUp;
+    const rows = plan.rows;
+    let j = 0;
+    while (j < rowsOut) {
+      // 同一條來源列連續畫兩次（放大時）就合成一個兩格高的矩形
+      let h = 1;
+      while (j + h < rowsOut && CATPIX_ROW_MAP[j + h] === CATPIX_ROW_MAP[j]) h++;
+      const row = rows[CATPIX_ROW_MAP[j]];
+      let runStart = 0;
+      let runColor = null;
+      for (let i = 0; i <= cols; i++) {
+        let color = null;
+        if (i < cols) {
+          const ch = row[CATPIX_COL_MAP[i]];
+          if (ch !== '.') color = CATPIX_MAP[ch] || null;
+        }
+        if (color !== runColor) {
+          if (runColor) pix.rect(ox + runStart, oy + j, i - runStart, h, runColor);
+          runStart = i;
+          runColor = color;
+        }
+      }
+      j += h;
+    }
   }
   // #endregion pixel:cat
 
