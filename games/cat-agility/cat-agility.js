@@ -60,13 +60,16 @@
   // 存檔捲動量上限：正常玩要連續飛上好幾個月才會到，只擋手改或壞掉的存檔
   const MAX_SCROLL = 1e9;
 
-  // 無敵衝刺：180 步 = 3000ms；速度倍率 10 步升到 1.6、30 步降回 1；
-  // 殘影取往回 3／6／9 步的位置，撞散家具噴 8～12 顆碎屑
+  // 拆家暴衝（貓草）：撞穿接下來 3 組家具才結束，不用秒數計時，結束點一定落在兩組家具之間的空地
+  // （秒數計時會剛好在第 3 組門口到期，玩家來不及對準縫隙）。吃到時正在穿過的那組另外撐完，不算在 3 組裡。
+  // 速度倍率 10 步升到 1.6、30 步降回 1；殘影取往回 3／6／9 步的位置；
+  // 撞散家具噴 8～12 顆碎屑，每撞散半截加 smashBonus 分，衝刺才不只是白送幾組
   const FRENZY = Object.freeze({
-    steps: 180,
+    pipes: 3,
     speed: 1.6,
     rampIn: 0.06,
     rampOut: 0.02,
+    smashBonus: 1,
     ghostLags: Object.freeze([3, 6, 9]),
     ghostAlphas: Object.freeze([0.5, 0.34, 0.18]),
     trailLen: 10,
@@ -74,8 +77,35 @@
     debrisMax: 12
   });
 
-  // 每穿過 10 組障礙物，就在下一組的縫隙正中央放一顆道具（罐頭或貓草），畫面上下浮動 ±3px
-  const ITEM = Object.freeze({ every: 10, radius: 12, bob: 3, kinds: Object.freeze(['can', 'grass']) });
+  // 吃飽護盾（罐頭）：不會過期，擋下一次撞家具（撞到的那半截撞散），之後 45 步（0.75 秒）內再撞到也只撞散，
+  // 免得護盾剛破、貓還卡在同一組家具裡就馬上撞死；地板一樣判死
+  const SHIELD = Object.freeze({ graceSteps: 45, ghostAlpha: 0.5 });
+
+  // 道具：每穿過 7～13 組（每次重新抽）送一顆，種類與位置也都抽：
+  //   kinds — can 罐頭（護盾）／grass 貓草（拆家暴衝）；已經有護盾時一律給貓草
+  //   spots — edge 貼著上或下頂蓋（離縫隙中心 42px，要擦著家具吃）／center 縫隙正中央／
+  //           between 這組與下一組之間的空地（x 往後 110px，高度在縫隙中心 ±90px 內，要繞路去吃）
+  // radius 是吃道具的判定半徑；glow 是畫面上光暈、閃光點的半寬，家具要等道具整顆捲出畫面才移除；畫面上下浮動 ±3px
+  const ITEM = Object.freeze({
+    gapMin: 7,
+    gapMax: 13,
+    radius: 12,
+    glow: 26,
+    bob: 3,
+    edge: 42,
+    betweenDx: 110,
+    drift: 90,
+    kinds: Object.freeze(['can', 'grass']),
+    spots: Object.freeze(['edge', 'center', 'between'])
+  });
+  const ITEM_MIN_Y = PIPE.minCenter - ITEM.edge;
+  const ITEM_MAX_Y = PIPE.maxCenter + ITEM.edge;
+
+  // 貓碰得到障礙物的範圍：x 小於 ENTER_X 就碰得到，x 不大於 CLEAR_X 就已經整組滑到貓身後、再也碰不到
+  const ENTER_X = CAT.x + CAT.radius;
+  const CLEAR_X = CAT.x - CAT.radius - PIPE.width;
+  // 障礙物間距（PIPE.speed × PIPE.spawnEvery）：衝刺計量條以一個間距當一格
+  const PIPE_SPACING = PIPE.speed * PIPE.spawnEvery;
 
   // 家具組合：A 立體貓抓柱／B 半開抽屜櫃 + 地面跳箱／C 高垂盆栽 + 矮几
   const VARIANTS = Object.freeze(['post', 'drawer', 'plant']);
@@ -102,6 +132,7 @@
     pipe: PIPE,
     cat: CAT,
     frenzy: FRENZY,
+    shield: SHIELD,
     item: ITEM,
     squash: SQUASH
   };
@@ -126,6 +157,8 @@
   const EYE_GREEN = '#98FB98';
   const EYE_GOLD = '#FFD700';
   const SPARK_COLORS = Object.freeze(['#FFF6C8', '#FFD54F', '#F48FB1', '#D4E157', '#9AD0EC', '#FFFFFF']);
+  // 護盾泡泡：罐頭標籤的粉藍色系
+  const BUBBLE_COLORS = Object.freeze(['#FFFFFF', '#D6ECF7', '#9FCBE6', '#7FB0D0']);
   const FONT = '"PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif';
 
   const STORAGE_KEYS = Object.freeze({
@@ -228,7 +261,7 @@
       } catch (_) {}
     };
 
-    // 吃到道具：方波由低到高的 4 音階快速琶音；stagger 交給音訊時鐘排程，不用 setTimeout
+    // 吃到貓草：方波由低到高的 4 音階快速琶音；stagger 交給音訊時鐘排程，不用 setTimeout
     const frenzy = () => {
       if (!kit) return;
       kit.chord([392, 523.25, 659.25, 1046.5], { type: 'square', stagger: 0.07, duration: 0.12, gain: 0.07 });
@@ -241,6 +274,20 @@
       kit.sweep({ type: 'triangle', from: 220, to: 70, duration: 0.12, gain: 0.12 });
     };
 
+    // 吃到罐頭：往上滑的「啵」一聲，再補兩個錯開的高音，像泡泡鼓起來
+    const shield = () => {
+      if (!kit) return;
+      kit.sweep({ type: 'sine', from: 330, to: 990, duration: 0.16, gain: 0.12 });
+      kit.chord([1046.5, 1318.5], { type: 'triangle', stagger: 0.06, duration: 0.12, gain: 0.06, delay: 0.08 });
+    };
+
+    // 護盾破掉：高通噪音的「啪」加一記往下掉的正弦
+    const shieldBreak = () => {
+      if (!kit) return;
+      kit.noise({ duration: 0.1, gain: 0.14, filter: { type: 'highpass', frequency: 1800 } });
+      kit.sweep({ type: 'sine', from: 880, to: 260, duration: 0.18, gain: 0.12 });
+    };
+
     return {
       available: !!kit,
       jump,
@@ -248,6 +295,8 @@
       hit,
       frenzy,
       smash,
+      shield,
+      shieldBreak,
       enabled: () => (kit ? kit.enabled : false),
       toggle: () => (kit ? kit.toggle() : false)
     };
@@ -290,13 +339,18 @@
     pipes: [],
     effects: [],
     motes: [],
-    // 累計穿過的障礙物數；每 ITEM.every 組送一顆道具
+    // 累計穿過的障礙物數（分數另外含撞散家具的加分，兩者不一定相同）
     passCount: 0,
-    // 達標當下畫面上還沒有下一組障礙物時，道具留給下一次生成的那組
+    // 再穿過幾組就送下一顆道具（每次送出後重新抽 ITEM.gapMin～gapMax）
+    itemIn: ITEM.gapMax,
+    // 該送道具時畫面上還沒有下一組障礙物，道具留給下一次生成的那組
     itemPending: false,
-    // 無敵衝刺剩餘步數：模擬步計時，暫停時自然凍結，不必清任何計時器
+    // 拆家暴衝還要撞穿幾組家具（含吃到時正在穿過的那組）；以障礙物計數，暫停時自然凍結，不必清任何計時器
     frenzy: 0,
     speedMul: 1,
+    // 吃飽護盾，以及護盾破掉後的緩衝步數
+    shield: false,
+    guard: 0,
     // 彩虹殘影取樣（最多 FRENZY.trailLen 筆）與淡出係數 0..1
     trail: [],
     trailFade: 0
@@ -341,8 +395,11 @@
       scroll: game.scroll,
       spawnTimer: game.spawnTimer,
       passCount: game.passCount,
+      itemIn: game.itemIn,
       frenzy: game.frenzy,
       speed: game.speedMul,
+      shield: game.shield,
+      guard: game.guard,
       itemPending: game.itemPending,
       cat: { y: cat.y, vy: cat.vy, rot: cat.rot },
       pipes: game.pipes.map((pipe) => ({
@@ -351,6 +408,8 @@
         passed: pipe.passed,
         variant: pipe.variant,
         item: pipe.item,
+        itemDx: pipe.itemDx,
+        itemY: pipe.itemY,
         brokenTop: pipe.brokenTop,
         brokenBottom: pipe.brokenBottom
       }))
@@ -367,13 +426,15 @@
       && pipe.gapY >= PIPE.minCenter && pipe.gapY <= PIPE.maxCenter
       && optional(pipe.variant, (value) => VARIANTS.includes(value))
       && optional(pipe.item, (value) => value === null || ITEM.kinds.includes(value))
+      && optional(pipe.itemDx, isNum) && optional(pipe.itemY, isNum)
       && optional(pipe.brokenTop, isBool)
       && optional(pipe.brokenBottom, isBool);
     const valid = saved.v === 1
       && isNum(saved.score) && saved.score >= 0
       && isNum(saved.scroll) && isNum(saved.spawnTimer)
-      && optional(saved.passCount, isNum) && optional(saved.frenzy, isNum)
+      && optional(saved.passCount, isNum) && optional(saved.itemIn, isNum) && optional(saved.frenzy, isNum)
       && optional(saved.speed, isNum) && optional(saved.itemPending, isBool)
+      && optional(saved.shield, isBool) && optional(saved.guard, isNum)
       && saved.cat && isNum(saved.cat.y) && isNum(saved.cat.vy) && isNum(saved.cat.rot)
       && Array.isArray(saved.pipes) && saved.pipes.length <= 8 && saved.pipes.every(validPipe);
     if (!valid) {
@@ -387,14 +448,19 @@
     game.scroll = game.prevScroll = clamp(saved.scroll, 0, MAX_SCROLL);
     game.spawnTimer = clamp(saved.spawnTimer, 0, PIPE.spawnEvery);
     game.passCount = isNum(saved.passCount) ? Math.floor(Math.max(0, saved.passCount)) : game.score;
+    game.itemIn = isNum(saved.itemIn) ? Math.floor(clamp(saved.itemIn, 1, ITEM.gapMax)) : rollItemGap();
     game.itemPending = saved.itemPending === true;
-    game.frenzy = isNum(saved.frenzy) ? Math.floor(clamp(saved.frenzy, 0, FRENZY.steps)) : 0;
+    // 舊版存的是衝刺剩餘步數（最多 180），一樣夾進「最多 3 組 + 正在穿過的 1 組」
+    game.frenzy = isNum(saved.frenzy) ? Math.floor(clamp(saved.frenzy, 0, FRENZY.pipes + 1)) : 0;
     game.speedMul = isNum(saved.speed) ? clamp(saved.speed, 1, FRENZY.speed) : 1;
+    game.shield = saved.shield === true;
+    game.guard = isNum(saved.guard) ? Math.floor(clamp(saved.guard, 0, SHIELD.graceSteps)) : 0;
     // 殘影不存檔：續玩後重新取樣；衝刺剛結束、速度還在降的存檔，彩虹淡出係數跟著速度倍率接回去
     game.trail.length = 0;
     game.trailFade = game.frenzy > 0 ? 1 : clamp((game.speedMul - 1) / (FRENZY.speed - 1), 0, 1);
     game.pipes = saved.pipes.map((pipe) => {
-      const x = clamp(pipe.x, -PIPE.width, VIEW_W + PIPE.width);
+      // 帶著「兩組之間」道具的家具會在畫面左緣外多留一段，等道具捲出畫面才移除
+      const x = clamp(pipe.x, -(PIPE.width / 2 + ITEM.betweenDx + ITEM.glow), VIEW_W + PIPE.width);
       return {
         x,
         prevX: x,
@@ -402,6 +468,8 @@
         passed: pipe.passed === true,
         variant: pipe.variant || VARIANTS[0],
         item: pipe.item || null,
+        itemDx: isNum(pipe.itemDx) ? clamp(pipe.itemDx, 0, ITEM.betweenDx) : 0,
+        itemY: isNum(pipe.itemY) ? clamp(pipe.itemY, ITEM_MIN_Y, ITEM_MAX_Y) : pipe.gapY,
         brokenTop: pipe.brokenTop === true,
         brokenBottom: pipe.brokenBottom === true
       };
@@ -451,8 +519,9 @@
     game.pipes.length = 0;
     game.spawnTimer = PIPE.spawnEvery - PIPE.firstDelay;
     game.passCount = 0;
+    game.itemIn = rollItemGap();
     game.itemPending = false;
-    clearFrenzy();
+    clearPowerups();
   }
 
   function flap() {
@@ -470,7 +539,7 @@
     game.effects.length = 0;
     game.passCount = 0;
     game.itemPending = false;
-    clearFrenzy();
+    clearPowerups();
     cat.y = cat.prevY = CAT.readyY;
     cat.vy = 0;
     cat.rot = cat.prevRot = 0;
@@ -480,10 +549,12 @@
     announce('');
   }
 
-  // 無敵衝刺相關狀態一律從這裡歸零（開局、回 READY、結算共用），殘影陣列就地清空不留參照
-  function clearFrenzy() {
+  // 衝刺與護盾狀態一律從這裡歸零（開局、回 READY、結算共用），殘影陣列就地清空不留參照
+  function clearPowerups() {
     game.frenzy = 0;
     game.speedMul = 1;
+    game.shield = false;
+    game.guard = 0;
     game.trail.length = 0;
     game.trailFade = 0;
   }
@@ -505,7 +576,9 @@
     game.shakeAmp = SHAKE.amplitude;
     cat.vy = Math.max(cat.vy, 0);
     game.grounded = cat.y + CAT.radius >= GROUND_Y - 0.5;
-    clearFrenzy();
+    // 護盾擋不了地板：還留著的護盾跟著破掉
+    if (game.shield) spawnSparks(CAT.x, cat.y, BUBBLE_COLORS);
+    clearPowerups();
     spawnBurst(CAT.x, cat.y);
     Sound.hit();
 
@@ -549,6 +622,7 @@
 
   function updatePlaying() {
     if (game.shake > 0) game.shake -= 1;
+    if (game.guard > 0) game.guard -= 1;
     updateFrenzy();
     cat.vy = Math.min(cat.vy + PHYSICS.gravity, PHYSICS.maxFall);
     cat.y += cat.vy;
@@ -563,7 +637,7 @@
     game.scroll += speed;
     updatePipes(speed);
 
-    // 地板永遠判死，無敵衝刺也一樣
+    // 地板永遠判死，拆家暴衝與護盾也一樣
     if (cat.y + CAT.radius >= GROUND_Y) {
       cat.y = GROUND_Y - CAT.radius;
       gameOver();
@@ -641,10 +715,9 @@
     cat.sy = cat.prevSy = goal.y;
   }
 
-  // --- 無敵衝刺 ------------------------------------------------------------------
-  // 計時與速度倍率都是模擬步計數：暫停時自然凍結，也沒有任何 setTimeout 需要回收
+  // --- 拆家暴衝與吃飽護盾 ------------------------------------------------------------
+  // 衝刺以撞穿的組數計、速度倍率與護盾緩衝以模擬步計：暫停時自然凍結，也沒有任何 setTimeout 需要回收
   function updateFrenzy() {
-    if (game.frenzy > 0) game.frenzy -= 1;
     const target = game.frenzy > 0 ? FRENZY.speed : 1;
     // 線性逼近並用 min／max 停在目標值上，不會累積浮點誤差
     if (game.speedMul < target) game.speedMul = Math.min(target, game.speedMul + FRENZY.rampIn);
@@ -662,6 +735,15 @@
     }
   }
 
+  // 衝刺計量條（0..1）：還要撞穿的組數，加上眼前這組還差多遠才整組穿過（一個障礙物間距算一格），
+  // 所以會跟著距離連續往下降；吃到時正在穿過的那組撐完之前一直是滿的
+  function frenzyMeter() {
+    if (game.frenzy <= 0) return 0;
+    const next = game.pipes.find((pipe) => pipe.x > CLEAR_X);
+    const part = next ? clamp((next.x - CLEAR_X) / PIPE_SPACING, 0, 1) : 1;
+    return clamp((game.frenzy - 1 + part) / FRENZY.pipes, 0, 1);
+  }
+
   // 衝刺中（含淡出期）每步記一筆貓的姿態，只留最近 trailLen 筆；最舊的物件回收重用，不會越積越多
   function recordTrail() {
     if (game.frenzy <= 0 && game.trailFade <= 0) return;
@@ -675,25 +757,36 @@
     trail.push(entry);
   }
 
-  // 道具與貓都當成圓形判定，圓心是縫隙正中央（上下浮動只是畫面效果）
+  function itemX(pipe) {
+    return pipe.x + PIPE.width / 2 + pipe.itemDx;
+  }
+
+  // 道具與貓都當成圓形判定（上下浮動只是畫面效果）；貓草開始拆家暴衝，罐頭套上護盾
   function collectItems() {
     const reach = CAT.radius + ITEM.radius;
     for (const pipe of game.pipes) {
       if (!pipe.item) continue;
-      const x = pipe.x + PIPE.width / 2;
+      const x = itemX(pipe);
       const dx = CAT.x - x;
-      const dy = cat.y - pipe.gapY;
+      const dy = cat.y - pipe.itemY;
       if (dx * dx + dy * dy >= reach * reach) continue;
+      const kind = pipe.item;
       pipe.item = null;
-      startFrenzy(x, pipe.gapY);
+      if (kind === 'grass') startFrenzy(x, pipe.itemY);
+      else gainShield(x, pipe.itemY);
     }
   }
 
-  // 衝刺中再吃到道具就把時間補滿；吃到道具時殘影取樣不足 trailLen 筆（剛開始衝刺，或讀檔續玩後還在重新取樣）
+  // 吃到貓草：撞穿接下來 FRENZY.pipes 組才結束；吃到時正在穿過的那組（貓碰得到、還沒整組穿過）另外撐完，
+  // 衝刺中再吃到就重新算滿。殘影取樣不足 trailLen 筆（剛開始衝刺，或讀檔續玩後還在重新取樣）
   // 就用現在的姿態補滿，吃到的那一幀起就有 3 道殘影，之後隨真正的取樣自然錯開。
   // 讀檔本身不補：殘影不存檔、讀檔後從空的開始，續玩後隨取樣在 10 步內依序出現
   function startFrenzy(x, y) {
-    game.frenzy = FRENZY.steps;
+    let inside = 0;
+    for (const pipe of game.pipes) {
+      if (pipe.x > CLEAR_X && pipe.x < ENTER_X) inside += 1;
+    }
+    game.frenzy = FRENZY.pipes + inside;
     game.trailFade = 1;
     while (game.trail.length < FRENZY.trailLen) {
       game.trail.push({ y: cat.y, rot: cat.rot, sx: cat.sx, sy: cat.sy, pose: catPose() });
@@ -702,21 +795,68 @@
     Sound.frenzy();
   }
 
+  // 吃到罐頭：套上護盾（只有一層，不疊加、不會過期）
+  function gainShield(x, y) {
+    game.shield = true;
+    spawnSparks(x, y);
+    Sound.shield();
+  }
+
+  // 護盾替貓擋下一次碰撞：泡泡破掉，接著進入緩衝
+  function breakShield() {
+    game.shield = false;
+    game.guard = SHIELD.graceSteps;
+    spawnSparks(CAT.x, cat.y, BUBBLE_COLORS);
+    Sound.shieldBreak();
+  }
+
   // --- 障礙物 --------------------------------------------------------------------
   function spawnPipe() {
     const x = VIEW_W + 4;
     const gapY = rand(PIPE.minCenter, PIPE.maxCenter);
     const variant = VARIANTS[Math.min(VARIANTS.length - 1, Math.floor(Math.random() * VARIANTS.length))];
-    let item = null;
+    const pipe = {
+      x,
+      prevX: x,
+      gapY,
+      passed: false,
+      variant,
+      item: null,
+      itemDx: 0,
+      itemY: gapY,
+      brokenTop: false,
+      brokenBottom: false
+    };
     if (game.itemPending) {
       game.itemPending = false;
-      item = pickItemKind();
+      placeItem(pipe);
     }
-    game.pipes.push({ x, prevX: x, gapY, passed: false, variant, item, brokenTop: false, brokenBottom: false });
+    game.pipes.push(pipe);
   }
 
+  function rollItemGap() {
+    const span = ITEM.gapMax - ITEM.gapMin + 1;
+    return ITEM.gapMin + Math.min(span - 1, Math.floor(Math.random() * span));
+  }
+
+  // 已經套著護盾時再給罐頭沒有用，一律給貓草；否則罐頭與貓草各半
   function pickItemKind() {
+    if (game.shield) return 'grass';
     return Math.random() < 0.5 ? ITEM.kinds[0] : ITEM.kinds[1];
+  }
+
+  // 道具的種類與位置在交給障礙物時一次抽好：貼著上或下頂蓋／縫隙中央／這組與下一組之間的空地
+  function placeItem(pipe) {
+    pipe.item = pickItemKind();
+    const spot = ITEM.spots[Math.min(ITEM.spots.length - 1, Math.floor(Math.random() * ITEM.spots.length))];
+    pipe.itemDx = 0;
+    pipe.itemY = pipe.gapY;
+    if (spot === 'edge') {
+      pipe.itemY += Math.random() < 0.5 ? -ITEM.edge : ITEM.edge;
+    } else if (spot === 'between') {
+      pipe.itemDx = ITEM.betweenDx;
+      pipe.itemY = clamp(pipe.gapY + rand(-ITEM.drift, ITEM.drift), PIPE.minCenter, PIPE.maxCenter);
+    }
   }
 
   // 生成改用「累積距離」：衝刺加速時間距仍是 220px；倍率 1 時與逐步計數完全相同
@@ -734,16 +874,28 @@
         game.score += 1;
         game.passCount += 1;
         Sound.score();
-        if (game.passCount % ITEM.every === 0) queueItem();
+        game.itemIn -= 1;
+        if (game.itemIn <= 0) {
+          queueItem();
+          game.itemIn = rollItemGap();
+        }
       }
-      if (pipe.x + PIPE.width < -SHAKE.amplitude) game.pipes.splice(i, 1);
+      // 整組滑到貓身後、再也碰不到貓的那一步才算撞穿；撞穿最後一組時，衝刺就在兩組家具之間的空地結束
+      if (game.frenzy > 0 && pipe.prevX > CLEAR_X && pipe.x <= CLEAR_X) game.frenzy -= 1;
+      if (pipeRight(pipe) < -SHAKE.amplitude) game.pipes.splice(i, 1);
     }
   }
 
-  // 每個里程碑只送一顆：交給下一組還沒通過的障礙物；還沒生成就等下一組
+  // 障礙物連同它帶著的道具（含光暈）在畫面上的右緣：道具要整顆捲出畫面才移除，不會在貓身後憑空消失
+  function pipeRight(pipe) {
+    const reach = pipe.item ? PIPE.width / 2 + pipe.itemDx + ITEM.glow : 0;
+    return pipe.x + Math.max(PIPE.width, reach);
+  }
+
+  // 每次只送一顆：交給下一組還沒通過、也還沒帶著道具的障礙物；還沒生成就等下一組
   function queueItem() {
     const next = game.pipes.find((pipe) => !pipe.passed && !pipe.item);
-    if (next) next.item = pickItemKind();
+    if (next) placeItem(next);
     else game.itemPending = true;
   }
 
@@ -755,16 +907,23 @@
 
   const HALVES = Object.freeze(['top', 'bottom']);
 
-  // 上下半截分開判定：無敵時只撞散碰到的那一半，另一半照樣擋路；平常碰到任一半就結束
+  // 上下半截分開判定：衝刺中、套著護盾或護盾剛破的緩衝期間，只撞散碰到的那一半，另一半照樣擋路；
+  // 只有衝刺撞散才加分（護盾是保命用的）；平常碰到任一半就結束
   function hitObstacles() {
     for (const pipe of game.pipes) {
       for (const half of HALVES) {
         if (isBroken(pipe, half) || !hitsHalf(pipe, half)) continue;
-        if (game.frenzy <= 0) {
+        if (game.frenzy > 0) {
+          smash(pipe, half);
+          game.score += FRENZY.smashBonus;
+          spawnBonus(CAT.x + 18, Math.max(CAT.ceiling + 8, cat.y - 48));
+        } else if (game.shield || game.guard > 0) {
+          if (game.shield) breakShield();
+          smash(pipe, half);
+        } else {
           gameOver();
           return true;
         }
-        smash(pipe, half);
       }
     }
     return false;
@@ -851,8 +1010,8 @@
     }
   }
 
-  // 吃到道具：一圈彩色星光從縫隙中央往外噴
-  function spawnSparks(x, y) {
+  // 吃到道具：一圈彩色星光從道具的位置往外噴；護盾破掉時換成泡泡的藍白色
+  function spawnSparks(x, y, colors = SPARK_COLORS) {
     const count = 12;
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * TAU + rand(-0.15, 0.15);
@@ -873,9 +1032,31 @@
         life,
         maxLife: life,
         alpha: 1,
-        color: SPARK_COLORS[i % SPARK_COLORS.length]
+        color: colors[i % colors.length]
       });
     }
+  }
+
+  // 衝刺撞散家具的加分：貓頭上方冒出一個「+1」（疊在貓頭上會看不清楚），往上飄一小段後淡出（字樣由主題自己畫）
+  function spawnBonus(x, y) {
+    const life = 40;
+    game.effects.push({
+      kind: 'bonus',
+      layer: 'front',
+      x,
+      y,
+      vx: 0,
+      vy: -1.6,
+      gravity: 0,
+      drag: 0.92,
+      size: 1,
+      rot: 0,
+      spin: 0,
+      life,
+      maxLife: life,
+      alpha: 1,
+      color: '#FFFFFF'
+    });
   }
 
   // 碎屑水平散布的最小寬度（虛擬像素，柱身寬的 1/3）
@@ -1074,7 +1255,7 @@
   }
 
   // 彩虹色相約每秒轉一圈，跟著 game.tick 走。tick 在每個狀態都會前進，所以暫停時色相（以及道具的浮動與閃光）
-  // 照樣轉；凍結的只有衝刺計時與速度倍率
+  // 照樣轉；凍結的只有衝刺進度、速度倍率與護盾緩衝
   function rainbowHue(alpha) {
     return ((game.tick + alpha) * 6) % 360;
   }
@@ -1087,11 +1268,27 @@
     return Math.sin(game.tick * 0.1) * ITEM.bob;
   }
 
-  // 衝刺計量條最後 1/4 的提醒（兩種主題共用）：step = 剩餘步數，每 16 步切換一次（約 1.9Hz，
-  // 低於每秒 3 次的閃爍門檻），一開始就是亮的；使用者要求減少動態時不閃，整段固定成提醒色
-  function frenzyMeterWarn(remain, step) {
-    if (remain >= 0.25) return false;
-    return reduceMotion || ((step >> 4) & 1) === 0;
+  // 衝刺計量條的動畫刻度（兩種主題共用）：全滿 = 180 刻，斜紋流動與提醒閃爍都照刻度走；
+  // 全速衝刺時一格（一個障礙物間距）約 62 步，換算下來大約每步 1 刻
+  const METER_TICKS = 180;
+  // 只剩最後一組要撞穿（計量條不到 1/3）就提醒
+  const METER_WARN = 1 / FRENZY.pipes;
+
+  function meterTick(remain) {
+    return Math.round(remain * METER_TICKS);
+  }
+
+  // 最後一組的提醒：從進入提醒起每 16 刻切換一次（全速時約 1.8Hz，低於每秒 3 次的閃爍門檻），
+  // 一開始就是亮的；使用者要求減少動態時不閃，整段固定成提醒色
+  function frenzyMeterWarn(remain) {
+    if (remain >= METER_WARN) return false;
+    const into = meterTick(METER_WARN) - meterTick(remain);
+    return reduceMotion || ((into >> 4) & 1) === 0;
+  }
+
+  // 護盾剛破的緩衝期間，貓畫成半透明（不閃爍），看得出這段時間撞到不會死
+  function catAlpha() {
+    return game.guard > 0 ? SHIELD.ghostAlpha : 1;
   }
 
   // 第 i 道殘影：往回 lag 步的姿態，x 依目前場景速度往後排；取樣還不夠（剛吃到道具）就先不畫
@@ -1376,14 +1573,14 @@
     ctx.restore();
   }
 
-  // --- 道具：縫隙正中央，畫面上下浮動 -------------------------------------------
+  // --- 道具：跟著帶著它的家具捲動，畫面上下浮動 ---------------------------------------
   function classicDrawItems(alpha) {
     const bob = itemBob();
     for (const pipe of game.pipes) {
       if (!pipe.item) continue;
-      const x = lerp(pipe.prevX, pipe.x, alpha) + PIPE.width / 2;
+      const x = lerp(pipe.prevX, pipe.x, alpha) + PIPE.width / 2 + pipe.itemDx;
       ctx.save();
-      classicDrawItem(ctx, x, pipe.gapY + bob, pipe.item, game.tick);
+      classicDrawItem(ctx, x, pipe.itemY + bob, pipe.item, game.tick);
       ctx.restore();
     }
   }
@@ -1790,7 +1987,7 @@
   // 黑貓幾乎沒有色相可言，單靠 hue-rotate 濾鏡看不出變化：先把向量貓畫進離屏圖層，
   // 用 source-atop 只對貓身上的像素上色，色相直接跟著 rainbowHue 轉。
   // 不另外疊 ctx.filter：軟體繪圖（GPU 被停用）時，一次 hue-rotate 貼圖要付整張畫布的濾鏡成本，
-  // 衝刺那 3 秒會從 60fps 掉到 40fps；上色本身就已經是完整的彩虹
+  // 衝刺那幾秒會從 60fps 掉到 40fps；上色本身就已經是完整的彩虹
   // 96 × 96：四種姿勢在 1.25 倍形變、尾巴甩到底時都還在中心 ±48 以內（最遠是壓扁時的尾尖，約 -46）
   const CLASSIC_LAYER = 96;
   const classicLayer = createLayer(CLASSIC_LAYER, CLASSIC_LAYER);
@@ -1837,6 +2034,8 @@
     } finally {
       ctx = main;
     }
+    // 沒給上色（護盾緩衝期間只要整隻半透明）就保留原色
+    if (!tint || strength <= 0) return;
     layerCtx.globalCompositeOperation = 'source-atop';
     layerCtx.globalAlpha = strength;
     layerCtx.fillStyle = tint;
@@ -1855,21 +2054,32 @@
   // 姿勢與表情跟像素貓同一個來源（catPose／catMood），形變在兩個模擬步之間插值；不再讀 cat.rot
   function classicDrawPlayer(alpha) {
     const y = lerp(cat.prevY, cat.y, alpha);
-    if (!rainbowActive() || !classicLayer) {
+    const rainbow = rainbowActive();
+    const bodyAlpha = catAlpha();
+    if (!classicLayer || (!rainbow && bodyAlpha >= 1)) {
       drawCat(CAT.x, y, classicLiveLook(alpha));
-      return;
+    } else {
+      const hue = rainbowHue(alpha);
+      if (rainbow) {
+        // 殘影由遠到近畫，最淡的在最底下，全部都在本尊後面
+        for (let i = FRENZY.ghostLags.length - 1; i >= 0; i--) {
+          const ghost = ghostAt(i, hue);
+          if (!ghost) continue;
+          classicPaintLayer(classicGhostLook(ghost.entry), `hsl(${Math.round(ghost.hue)}, 90%, 62%)`, 0.85);
+          classicBlitLayer(ghost.x, ghost.entry.y, ghost.alpha);
+        }
+      }
+      // 本尊先畫進圖層再整張貼上（半透明時身體各部位重疊處才不會疊出深淺）；
+      // 衝刺中用循環色相上色，強度跟著 trailFade 淡出
+      const tint = rainbow ? `hsl(${Math.round(hue)}, 95%, 58%)` : null;
+      classicPaintLayer(classicLiveLook(alpha), tint, 0.62 * game.trailFade);
+      classicBlitLayer(CAT.x, y, bodyAlpha);
     }
-    const hue = rainbowHue(alpha);
-    // 殘影由遠到近畫，最淡的在最底下，全部都在本尊後面
-    for (let i = FRENZY.ghostLags.length - 1; i >= 0; i--) {
-      const ghost = ghostAt(i, hue);
-      if (!ghost) continue;
-      classicPaintLayer(classicGhostLook(ghost.entry), `hsl(${Math.round(ghost.hue)}, 90%, 62%)`, 0.85);
-      classicBlitLayer(ghost.x, ghost.entry.y, ghost.alpha);
+    if (game.shield) {
+      ctx.save();
+      classicDrawBubble(ctx, CAT.x, y, game.tick);
+      ctx.restore();
     }
-    // 本尊：用循環色相上色，強度跟著 trailFade 淡出
-    classicPaintLayer(classicLiveLook(alpha), `hsl(${Math.round(hue)}, 95%, 58%)`, 0.62 * game.trailFade);
-    classicBlitLayer(CAT.x, y, 1);
   }
 
   // --- 粒子 ----------------------------------------------------------------------
@@ -1900,11 +2110,12 @@
   function drawEffects(layer) {
     for (const fx of game.effects) {
       if (fx.layer !== layer) continue;
-      // 撞散的碎屑與道具星光交給 classic:fx，座標、旋轉與透明度由它自己處理
-      if (fx.kind === 'chip' || fx.kind === 'spark') {
+      // 撞散的碎屑、道具星光與加分字樣交給 classic:fx，座標、旋轉與透明度由它自己處理
+      if (fx.kind === 'chip' || fx.kind === 'spark' || fx.kind === 'bonus') {
         ctx.save();
         if (fx.kind === 'chip') classicDrawChip(ctx, fx);
-        else classicDrawSpark(ctx, fx);
+        else if (fx.kind === 'spark') classicDrawSpark(ctx, fx);
+        else classicDrawBonus(ctx, fx);
         ctx.restore();
         continue;
       }
@@ -1932,7 +2143,7 @@
     drawText(String(game.score), VIEW_W / 2, 84, { size: 58, fill: '#FFFFFF', stroke: INK, strokeWidth: 9 });
     if (game.frenzy > 0) {
       ctx.save();
-      classicDrawFrenzyMeter(ctx, game.frenzy / FRENZY.steps);
+      classicDrawFrenzyMeter(ctx, frenzyMeter());
       ctx.restore();
     }
   }
@@ -1963,7 +2174,7 @@
 
   // #region classic:fx
   // ---------------------------------------------------------------------------
-  // classic:fx — 經典向量版的道具、家具碎屑、拾取閃光與無敵計量條
+  // classic:fx — 經典向量版的道具、家具碎屑、拾取閃光、加分字樣、護盾泡泡與衝刺計量條
   // 沿用經典畫面的語彙：柔和漸層、圓角、深褐描邊；不取亂數，閃爍全由 tick／life 推導
   // ---------------------------------------------------------------------------
   // 描邊色直接用共用的 INK（經典區在像素區之前，INK 在最上面的常數區就宣告了，不會碰到 TDZ）
@@ -1971,8 +2182,10 @@
   const FXC_EDGE = 'rgba(90, 58, 34, 0.5)';
   const FXC_GOLD = '#FFD36B';
   const FXC_RAINBOW = Object.freeze(['#FF9A8B', '#FFC27A', '#FFE683', '#A8DDA0', '#8FD0F2', '#B9A6EC']);
-  const FXC_METER = Object.freeze({ w: 104, h: 10, y: 114, steps: FRENZY.steps });
-  // 最後 1/4 的提醒色：空軌道是近白色，液面若也閃成白色就跟軌道糊成一片，看起來像已經見底；
+  const FXC_METER = Object.freeze({ w: 104, h: 10, y: 114 });
+  // 護盾泡泡：半徑 30（把向量貓整隻包住，尾巴甩到底也只露出一點），每 80 步呼吸一次、半徑 ±1
+  const FXC_BUBBLE = Object.freeze({ r: 30, breathe: 1, period: 80, rim: 'rgba(95, 150, 196, 0.8)' });
+  // 最後一組的提醒色：空軌道是近白色，液面若也閃成白色就跟軌道糊成一片，看起來像已經見底；
   // 改用番茄紅，對白色軌道約 3.9:1，軌道透出較暗的牆色時也還有 3:1 以上（非文字元件建議至少 3:1）
   const FXC_METER_WARN = '#E04F4A';
   // 閃光點（相對道具中心，虛擬像素）與各自的相位差
@@ -2009,6 +2222,9 @@
       glass: linear(-10, 0, 10, 0, [[0, '#B9D8AE'], [0.28, '#EEF8E8'], [0.6, '#D3EBC9'], [1, '#98BF8B']]),
       leaf: linear(0, -4, 0, 12, [[0, '#8DB27A'], [1, '#56794A']]),
       cork: linear(-4, 0, 4, 0, [[0, '#D9B48B'], [0.4, '#E8CBA6'], [1, '#A77B52']]),
+      // 泡泡中間幾乎透明、越靠邊越藍，貓才看得清楚
+      bubble: radial(FXC_BUBBLE.r * 0.5, FXC_BUBBLE.r + FXC_BUBBLE.breathe,
+        [[0, 'rgba(214, 236, 247, 0)'], [0.65, 'rgba(190, 222, 242, 0.2)'], [1, 'rgba(150, 198, 232, 0.45)']]),
       rainbow
     };
     return fxcPaintCache;
@@ -2293,7 +2509,52 @@
     ctx.restore();
   }
 
-  // --- 無敵衝刺計量條：分數下方的圓角彩虹條，剩最後 1/4 時閃成番茄紅提醒 ------------------------
+  // 衝刺撞散家具的加分字樣：金色「+1」配深褐描邊，前半段維持不透明，後半段才淡出
+  function classicDrawBonus(ctx, fx) {
+    const fade = fx.maxLife > 0 ? clamp(fx.life / fx.maxLife, 0, 1) : 0;
+    const a = Math.min(1, fade * 2) * (fx.alpha === undefined ? 1 : fx.alpha);
+    if (a <= 0) return;
+    ctx.save();
+    ctx.globalAlpha *= a;
+    ctx.font = `900 20px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = FXC_INK;
+    ctx.strokeText('+1', fx.x, fx.y);
+    ctx.fillStyle = FXC_GOLD;
+    ctx.fillText('+1', fx.x, fx.y);
+    ctx.restore();
+  }
+
+  // 護盾泡泡：淡藍漸層把貓包住，左上一道弧形反光、右下一個小亮點；半徑緩慢呼吸（不閃爍）
+  function classicDrawBubble(ctx, x, y, tick) {
+    const tone = fxcPaint(ctx);
+    const r = FXC_BUBBLE.r + Math.sin(((tick || 0) / FXC_BUBBLE.period) * TAU) * FXC_BUBBLE.breathe;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, TAU);
+    ctx.fillStyle = tone.bubble;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = FXC_BUBBLE.rim;
+    ctx.stroke();
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.beginPath();
+    ctx.arc(0, 0, r - 5, Math.PI * 1.05, Math.PI * 1.4);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.beginPath();
+    ctx.arc(r * 0.5, r * 0.5, 1.8, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // --- 衝刺計量條：分數下方的圓角彩虹條，分成 3 格（一格一組家具），剩最後一組時閃成番茄紅提醒 ------
   function classicDrawFrenzyMeter(ctx, t) {
     const remain = clamp(Number(t) || 0, 0, 1);
     if (remain <= 0) return;
@@ -2301,8 +2562,8 @@
     const { w, h, y } = FXC_METER;
     const x = VIEW_W / 2 - w / 2;
     const r = h / 2;
-    const step = Math.round(remain * FXC_METER.steps);
-    const warn = frenzyMeterWarn(remain, step);
+    const step = meterTick(remain);
+    const warn = frenzyMeterWarn(remain);
 
     ctx.save();
     ctx.fillStyle = 'rgba(90, 58, 34, 0.18)';
@@ -2320,7 +2581,7 @@
     ctx.rect(0, 0, w * remain, h);
     ctx.fillStyle = warn ? FXC_METER_WARN : tone.rainbow;
     ctx.fill();
-    // 斜紋隨剩餘時間流動
+    // 斜紋隨剩餘量流動
     ctx.clip();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
     ctx.beginPath();
@@ -2336,6 +2597,17 @@
     ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
     ctx.fillRect(0, 1.5, w * remain, 2);
     ctx.restore();
+
+    // 格線：一格代表一組家具
+    ctx.beginPath();
+    for (let k = 1; k < FRENZY.pipes; k++) {
+      const gx = x + (w * k) / FRENZY.pipes;
+      ctx.moveTo(gx, y + 1.5);
+      ctx.lineTo(gx, y + h - 1.5);
+    }
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(90, 58, 34, 0.55)';
+    ctx.stroke();
 
     fxcRoundRect(ctx, x, y, w, h, r);
     ctx.lineWidth = 2.5;
@@ -2603,15 +2875,15 @@
     pix.alpha(1);
   }
 
-  // 道具的 x 跟著家具的格線走（PIPE.width / 2 剛好是整數個美術像素），不會跟縫隙錯開 1 格
+  // 道具的 x 跟著家具的格線走（PIPE.width / 2 與 ITEM.betweenDx 都是整數個美術像素），不會跟縫隙錯開 1 格
   function pixelDrawItems(alpha) {
     const pix = pixelBuffer.pix;
     const bob = itemBob();
     const scroll = lerp(game.prevScroll, game.scroll, alpha);
     for (const pipe of game.pipes) {
       if (!pipe.item) continue;
-      const cx = pixelObstacleAx(pipe, alpha, scroll) + PIPE_AW / 2;
-      const cy = Math.round((pipe.gapY + bob) / PX);
+      const cx = pixelObstacleAx(pipe, alpha, scroll) + (PIPE.width / 2 + pipe.itemDx) / PX;
+      const cy = Math.round((pipe.itemY + bob) / PX);
       pixelDrawItem(pix, cx, cy, pipe.item, game.tick);
     }
     pix.alpha(1);
@@ -2645,7 +2917,13 @@
     pixelLook.sy = lerp(cat.prevSy, cat.sy, alpha);
     pixelLook.tail = cat.tail;
     pixelLook.palette = rainbow ? rainbowPalette(hue, game.trailFade) : PIXEL_CAT_PALETTE;
-    pixelDrawCat(pix, CAT_AX, lerp(cat.prevY, cat.y, alpha) / PX, pixelLook);
+    const cy = lerp(cat.prevY, cat.y, alpha) / PX;
+    // 護盾泡泡畫在貓後面當光圈：像素貓比碰撞範圍大很多，泡泡大到能整隻包住會讓人誤以為判定變大，
+    // 畫在前面又會被外圈切過貓身；放在後面，頭尾探出泡泡也自然
+    if (game.shield) pixelDrawBubble(pix, CAT_AX, cy, game.tick);
+    // 像素貓一列一段、互不重疊，直接整隻套半透明也不會疊出深淺
+    pix.alpha(catAlpha());
+    pixelDrawCat(pix, CAT_AX, cy, pixelLook);
     pix.alpha(1);
   }
 
@@ -2670,11 +2948,11 @@
     bufferCtx.globalAlpha = 1;
   }
 
-  // 分數與衝刺計時條直接畫進緩衝區，跟場景一起放大，維持像素顆粒
+  // 分數與衝刺計量條直接畫進緩衝區，跟場景一起放大，維持像素顆粒
   function pixelDrawHud() {
     const pix = pixelBuffer.pix;
     pixelDrawScore(pix, game.score);
-    if (game.frenzy > 0) pixelDrawFrenzyMeter(pix, game.frenzy / FRENZY.steps);
+    if (game.frenzy > 0) pixelDrawFrenzyMeter(pix, frenzyMeter());
     pix.alpha(1);
   }
 
@@ -3470,7 +3748,7 @@
     wallShadow: 'rgba(90, 70, 50, 0.16)'
   });
 
-  // 碎片顏色（無敵衝刺撞碎時的粒子）：[組合][上半／下半]
+  // 碎片顏色（衝刺或護盾撞碎時的粒子）：[組合][上半／下半]
   const PIXEL_DEBRIS = Object.freeze({
     post: Object.freeze({
       top: Object.freeze([FURN_C.siHi, FURN_C.siMid, FURN_C.siDeep, FURN_C.walnut]),
@@ -4030,7 +4308,7 @@
   });
 
   // 一組障礙物：ax = 32 格寬足跡的左緣；gapTop / gapBottom = 縫隙上下緣（相差 GAP_AH）
-  // brokenTop / brokenBottom：無敵衝刺撞碎的那一半不畫（也不參與碰撞）
+  // brokenTop / brokenBottom：撞散的那一半不畫（也不參與碰撞）
   function pixelDrawObstacle(pix, ax, gapTop, gapBottom, variant, brokenTop, brokenBottom) {
     const x = Math.round(ax);
     // 整組都在緩衝區外（含右側 1 格牆影）就不畫
@@ -4978,7 +5256,56 @@
     }
   }
 
-  // --- 粒子：腳印塵、撞擊星星、家具碎屑、拾取閃光 -------------------------------------
+  // --- 護盾泡泡：1 格粉藍外圈 + 半透明內膜，左上一道弧形反光、右下一個亮點（畫在貓後面） ---------
+  // 半徑 16／17 格（32／34 虛擬像素，貓身大致在裡面）每 40 步輪流一次，像泡泡在呼吸；減少動態時固定 16 格
+  const FX_BUBBLE_PAL = Object.freeze({ f: '#D3E8F5', o: '#6FA3C8', h: FX_GLINT });
+  const FX_BUBBLE_PHASE_TICKS = 40;
+
+  function fxBubbleRows(r) {
+    const rows = [];
+    for (let y = 0; y < r * 2; y++) {
+      const dy = y + 0.5 - r;
+      let line = '';
+      for (let x = 0; x < r * 2; x++) {
+        const dx = x + 0.5 - r;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        let ch = '.';
+        if (d > r - 1 && d <= r) ch = 'o';
+        else if (d > r - 3 && d <= r - 2 && angle > -2.9 && angle < -1.95) ch = 'h';
+        else if (d <= r) ch = 'f';
+        line += ch;
+      }
+      rows.push(line);
+    }
+    // 右下的小亮點
+    const spot = Math.round(r * 1.45);
+    rows[spot] = rows[spot].slice(0, spot) + 'h' + rows[spot].slice(spot + 1);
+    return rows;
+  }
+
+  const FX_BUBBLE = [16, 17].map((r) => {
+    const rows = fxBubbleRows(r);
+    return {
+      w: r * 2,
+      h: r * 2,
+      fill: fxCompile(rows, { f: FX_BUBBLE_PAL.f }),
+      rim: fxCompile(rows, { o: FX_BUBBLE_PAL.o, h: FX_BUBBLE_PAL.h })
+    };
+  });
+
+  function pixelDrawBubble(pix, cx, cy, tick) {
+    const bubble = FX_BUBBLE[reduceMotion ? 0 : Math.floor((tick || 0) / FX_BUBBLE_PHASE_TICKS) & 1];
+    const x = Math.round(cx) - (bubble.w >> 1);
+    const y = Math.round(cy) - (bubble.h >> 1);
+    pix.alpha(0.5);
+    fxBlit(pix, bubble.fill, x, y);
+    pix.alpha(0.9);
+    fxBlit(pix, bubble.rim, x, y);
+    pix.alpha(1);
+  }
+
+  // --- 粒子：腳印塵、撞擊星星、家具碎屑、拾取閃光、加分字樣 -----------------------------
   // 色槽：'1' = fx.color、'2' = 描邊、'3' = 高光白
   const FX_PAW_SMALL_ROWS = ['1.1', '111', '111'];
   const FX_PAW_BIG_ROWS = ['.1.1.', '1...1', '.111.', '11111', '.111.'];
@@ -5023,6 +5350,17 @@
     return rows;
   }
   const FX_SPARK = [0, 1, 2, 3].map((arm) => [false, true].map((diag) => fxSprite(fxSparkRows(arm, diag), FX_SLOT_PAL)));
+
+  // 衝刺撞散家具的加分字樣「+1」：10×7 淡金色字身 + 1 格深胡桃描邊
+  const FX_BONUS = fxSprite(fxOutline([
+    '.......##.',
+    '..#...###.',
+    '..#....##.',
+    '#####..##.',
+    '..#....##.',
+    '..#....##.',
+    '......####'
+  ], 'o'), { '#': '#FFE08A', o: FX_INK });
 
   const FX_EDGE = '#8C6A50';       // 前景粒子描邊（暖褐，米白牆上也看得清）
   const FX_PAW_BIG_AT = 4.4;       // 虛擬尺寸 ≥ 這個值就用 5×5 大腳印
@@ -5089,6 +5427,13 @@
         // 每 4 步換一次閃光造型；使用者要求減少動態時固定在同一個造型，只保留自然淡出
         const blink = reduceMotion ? 0 : ((fx.life | 0) >> 2) & 1;
         fxDrawCentered(pix, FX_SPARK[arm][blink], x, y, color, FX_EDGE, FX_GLINT);
+        break;
+      }
+      case 'bonus': {
+        // 前半段維持不透明，後半段才一格一格淡出
+        const fade = fx.maxLife > 0 ? clamp(fx.life / fx.maxLife, 0, 1) : 0;
+        pix.alpha(Math.ceil(Math.min(1, fade * 2) * 4) / 4);
+        fxDrawCentered(pix, FX_BONUS, x, y);
         break;
       }
       default: {
@@ -5170,8 +5515,8 @@
     }
   }
 
-  // --- 無敵衝刺計量條：分數下方 40×4 的彩虹斜紋，剩最後 1/4 時閃爍提醒 ---------------------
-  const FX_METER = Object.freeze({ w: 40, h: 4, y: 58, steps: FRENZY.steps });
+  // --- 衝刺計量條：分數下方 40×4 的彩虹斜紋，分成 3 格（一格一組家具），剩最後一組時閃爍提醒 ------
+  const FX_METER = Object.freeze({ w: 40, h: 4, y: 58 });
   const FX_METER_STRIPES = Object.freeze(['#E59A94', '#E8B78A', '#E3D48D', '#A9C79A', '#8EBBD2', '#AFA3D6']);
   const FX_METER_BAND = 3; // 每色斜紋寬度
 
@@ -5180,9 +5525,9 @@
     if (remain <= 0) return;
     const left = Math.round(LOW_W / 2 - FX_METER.w / 2);
     const top = FX_METER.y;
-    const step = Math.round(remain * FX_METER.steps);
-    // 最後 1/4：框變淺木色、液面變米白，節奏與減少動態的處理見 frenzyMeterWarn
-    const warn = frenzyMeterWarn(remain, step);
+    const step = meterTick(remain);
+    // 最後一組：框變淺木色、液面變米白，節奏與減少動態的處理見 frenzyMeterWarn
+    const warn = frenzyMeterWarn(remain);
 
     // 外框：胡桃 1 格 + 右下 1 格深色投影
     pix.rect(left, top, FX_METER.w + 2, FX_METER.h + 2, FX_INK);
@@ -5192,7 +5537,7 @@
     const fill = Math.max(1, Math.ceil(FX_METER.w * remain));
     const shift = Math.floor(step / 2);
     for (let row = 0; row < FX_METER.h; row++) {
-      // 斜紋：每往下一列往左錯一格，隨剩餘時間往右流動
+      // 斜紋：每往下一列往左錯一格，隨剩餘量往右流動
       let x = 0;
       while (x < fill) {
         const k = x + row + shift;
@@ -5208,6 +5553,10 @@
     pix.rect(left, top, fill, 1, '#FFFFFF');
     pix.alpha(1);
     pix.rect(left + fill - 1, top, 1, FX_METER.h, FX_GLINT);
+    // 格線：一格代表一組家具，顏色跟外框一致
+    for (let k = 1; k < FRENZY.pipes; k++) {
+      pix.rect(left + Math.round((FX_METER.w * k) / FRENZY.pipes), top, 1, FX_METER.h, warn ? PAL.oak : PAL.walnut);
+    }
   }
 
   // --- 像素面板（主畫布、虛擬座標）：階梯缺角、胡桃邊框、米白底、內側亮暗邊 -------------------
@@ -5657,10 +6006,15 @@
       motes: game.motes.length,
       theme: activeTheme(),
       passCount: game.passCount,
+      itemIn: game.itemIn,
       itemPending: game.itemPending,
       speed: game.speedMul,
-      frenzyMs: Math.round(game.frenzy * STEP_MS),
+      // 拆家暴衝還要撞穿幾組（含正在穿過的那組）與計量條（0..1）
+      frenzy: game.frenzy,
+      frenzyMeter: frenzyMeter(),
       invincible: game.frenzy > 0,
+      shield: game.shield,
+      guard: game.guard,
       ghosts: game.trail.length,
       catVy: cat.vy,
       catPose: catPose(),
@@ -5668,7 +6022,7 @@
       catSy: cat.sy,
       items: game.pipes
         .filter((pipe) => pipe.item)
-        .map((pipe) => ({ kind: pipe.item, x: pipe.x + PIPE.width / 2, y: pipe.gapY })),
+        .map((pipe) => ({ kind: pipe.item, x: itemX(pipe), y: pipe.itemY })),
       obstacles: game.pipes.map((pipe) => ({
         x: pipe.x,
         gapY: pipe.gapY,

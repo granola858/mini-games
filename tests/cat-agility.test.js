@@ -30,7 +30,7 @@ const KEYS = Object.freeze({
 });
 const STEP_MS = 1000 / 60;
 // 測試時鐘每幀多走一點點：剛好加 STEP_MS 時，浮點誤差會讓偶爾一幀跑 0 步、下一幀補 2 步，
-// 逐步驗證（例如無敵剛好 180 步）就對不準；多 1e-6ms 要累積上千萬幀才會多出一步
+// 逐步驗證（例如護盾緩衝剛好 45 步）就對不準；多 1e-6ms 要累積上千萬幀才會多出一步
 const TICK_MS = STEP_MS + 1e-6;
 // 與 cat-agility.js 的常數對齊：地板 y = 640 - 60，貓半徑 14，天花板 16
 const GROUND_REST_Y = 580 - 14;
@@ -351,13 +351,20 @@ const storageWithSave = save => createStorage({ [KEYS.state]: JSON.stringify(sav
 // 主題、道具與無敵衝刺用的輔助工具
 // ---------------------------------------------------------------------------
 // 與 cat-agility.js 的契約常數對齊
-const PIPE_HALF_W = 32; // 道具 x = 障礙物 x + PIPE.width / 2
+const PIPE_HALF_W = 32; // 道具 x = 障礙物 x + PIPE.width / 2（兩組之間的道具再往後 110）
 const PIPE_SPEED = 2.2;
 const SPAWN_SPACING = 220; // PIPE.speed × PIPE.spawnEvery：任何速度下障礙物間距都要維持這個值
-const FRENZY_STEPS = 180; // 3000ms
+const FRENZY_PIPES = 3; // 拆家暴衝撞穿 3 組才結束（吃到時正在穿過的那組另外撐完）
 const FRENZY_SPEED = 1.6;
 const TRAIL_LEN = 10;
+const GRACE_STEPS = 45; // 護盾破掉後的緩衝步數
 const ITEM_KINDS = Object.freeze(['can', 'grass']);
+const ITEM_EDGE = 42; // 貼頂蓋的道具離縫隙中心的距離
+const ITEM_BETWEEN_DX = 110; // 兩組之間的道具往後的距離
+const ITEM_DRIFT = 90; // 兩組之間的道具離縫隙中心最多多遠
+// 貓碰得到障礙物的範圍：障礙物 x < 114 就碰得到（貓 100 + 半徑 14），x ≤ 22 就整組在貓身後（100 - 14 - 64）
+const ENTER_X = 114;
+const CLEAR_X = 22;
 const VARIANT_NAMES = Object.freeze(['post', 'drawer', 'plant']);
 const BUFFER_SIZE = Object.freeze({ width: 180, height: 320 });
 
@@ -382,26 +389,31 @@ function bootSave(save, { pref, ...opts } = {}) {
 
 const bootPref = (pref, opts = {}) => boot({ ...opts, storage: createStorage({ [KEYS.pref]: JSON.stringify(pref) }) });
 
-// 罐頭就在貓的正前方：續玩的第一步就吃到，之後的步數都從這一步算起；
-// 貓放在縫隙中心偏下 20px，續玩那一蹬（約升 61px）才不會頂到上半截
-function bootPickup(opts = {}) {
+// 道具就在貓的正前方：續玩的第一步就吃到，之後的步數都從這一步算起；預設是貓草（拆家暴衝），
+// 傳 kind: 'can' 就是罐頭（護盾）。貓放在縫隙中心偏下 20px，續玩那一蹬（約升 61px）才不會頂到上半截
+function bootPickup({ kind = 'grass', ...opts } = {}) {
   const game = bootSave(validSave({
     score: 3,
     passCount: 3,
     spawnTimer: 0,
     cat: { y: 335, vy: 0, rot: 0 },
-    pipes: [{ x: 68, gapY: 315, passed: false, variant: 'post', item: 'can' }]
+    pipes: [{ x: 68, gapY: 315, passed: false, variant: 'post', item: kind }]
   }), opts);
   assert.equal(game.snap().items.length, 1);
   assert.equal(game.snap().invincible, false);
+  assert.equal(game.snap().shield, false);
   game.key('ArrowUp');
   game.tick();
-  assert.equal(game.snap().invincible, true, '續玩第一步就應該吃到罐頭');
+  const s = game.snap();
+  assert.equal(s.items.length, 0, '續玩第一步就應該吃到道具');
+  assert.equal(kind === 'grass' ? s.invincible : s.shield, true, `吃到${kind === 'grass' ? '貓草要開始拆家暴衝' : '罐頭要套上護盾'}`);
   return game;
 }
 
-// 里程碑那一步：新道具必須掛在「生成順序中第一個還沒通過、原本也沒有道具」的障礙物上，位置是縫隙正中央
-function assertMilestoneItem(before, after, label) {
+// 送道具的那一步：新道具必須掛在「生成順序中第一個還沒通過、原本也沒有道具」的障礙物上，
+// 位置是三種之一：貼著上或下頂蓋（離縫隙中心 42px）、縫隙正中央、這組與下一組之間（往後 110px、離縫隙中心 ±90 內）。
+// 回傳拿到道具的障礙物、道具本身，以及道具相對縫隙中心的位移
+function assertNewItem(before, after, label) {
   assert.equal(after.obstacles.length, before.obstacles.length, `${label}：這一步不該剛好有障礙物生成或移除`);
   const expected = after.obstacles.findIndex((o, i) => !o.passed && !before.obstacles[i].item);
   assert.ok(expected >= 0, `${label}：找不到下一組還沒通過的障礙物`);
@@ -411,14 +423,21 @@ function assertMilestoneItem(before, after, label) {
   });
   const holder = after.obstacles[expected];
   assert.ok(ITEM_KINDS.includes(holder.item), `${label}：道具種類 ${holder.item} 不合法`);
-  assert.equal(after.items.length, before.items.length + 1, `${label}：一個里程碑只能多一顆道具`);
-  assert.ok(
-    after.items.some(it => it.kind === holder.item && it.x === holder.x + PIPE_HALF_W && it.y === holder.gapY),
-    `${label}：道具不在縫隙正中央 ${JSON.stringify(after.items)} vs ${JSON.stringify(holder)}`
-  );
-  return holder;
+  assert.equal(after.items.length, before.items.length + 1, `${label}：一次只能多一顆道具`);
+  const fresh = after.items.filter(it => !before.items.some(old => old.kind === it.kind && Math.abs(old.y - it.y) < 1e-9));
+  assert.equal(fresh.length, 1, `${label}：找不到新道具 ${JSON.stringify(after.items)}`);
+  const item = fresh[0];
+  assert.equal(item.kind, holder.item);
+  const dx = item.x - holder.x - PIPE_HALF_W;
+  const dy = item.y - holder.gapY;
+  if (Math.abs(dx) < 1e-9) {
+    assert.ok([0, ITEM_EDGE, -ITEM_EDGE].some(v => Math.abs(dy - v) < 1e-9), `${label}：縫隙裡的道具只能在中央或貼頂蓋（dy=${dy}）`);
+  } else {
+    assert.ok(Math.abs(dx - ITEM_BETWEEN_DX) < 1e-9, `${label}：道具 x 位移 ${dx} 不是 0 也不是 ${ITEM_BETWEEN_DX}`);
+    assert.ok(Math.abs(dy) <= ITEM_DRIFT + 1e-9 && item.y >= 150 && item.y <= 480, `${label}：兩組之間的道具高度 ${item.y} 超出範圍`);
+  }
+  return { holder, item, dx, dy };
 }
-
 // 目前要鑽的縫隙：第一個還沒完全離開貓（貓左緣 x = 86）的障礙物；沒有就守在畫面中段
 function nextGap(s) {
   const next = s.obstacles.find(o => o.x + PIPE_HALF_W * 2 > 86);
@@ -1053,7 +1072,7 @@ test('進行中（含衝刺中）切換風格完全不影響模擬：兩局逐�
     cat: { y: 300, vy: 0, rot: 0 },
     pipes: [
       { x: 130, gapY: 150, passed: false, variant: 'drawer' },
-      { x: 350, gapY: 400, passed: false, variant: 'plant' }
+      { x: 350, gapY: 400, passed: false, variant: 'plant', item: 'grass' }
     ]
   });
   const clicks = new Set([3, 8, 9, 40, 41, 42, 120, 260, 261, 400, 555]);
@@ -1094,7 +1113,7 @@ test('進行中（含衝刺中）切換風格完全不影響模擬：兩局逐�
   assert.ok([...clicks].some(i => toggled.frames[i - 1].invincible), '至少要有一次在衝刺中切換');
   assert.ok(toggled.frames.some(s => s.theme === 'classic') && toggled.frames.some(s => s.theme === 'pixel16'));
   assert.ok(plain.frames.some(s => s.obstacles.some(o => o.brokenTop || o.brokenBottom)), '劇本裡要有撞散家具');
-  assert.ok(plain.frames.some((s, i) => i > 0 && s.frenzyMs > plain.frames[i - 1].frenzyMs), '劇本裡要吃到道具');
+  assert.ok(plain.frames.some((s, i) => i > 0 && s.frenzy > plain.frames[i - 1].frenzy), '劇本裡要吃到道具');
   assert.ok(plain.frames.some(s => s.state === 'GAMEOVER'), '劇本裡要有結算');
 });
 
@@ -1221,105 +1240,179 @@ test('障礙物生成時在三種家具組合中隨機三選一', () => {
   assert.deepEqual([...seen].sort(), [...VARIANT_NAMES].sort());
 });
 
-test('從頭飛過第 10 組障礙物：道具出現在下一組的縫隙正中央，而且只有一顆', () => {
-  const game = boot();
-  game.key('Space');
-  let prev = game.snap();
-  const appeared = [];
-  for (let i = 0; i < 2500 && prev.passCount < 12; i++) {
-    const s = game.step(330);
-    assert.equal(s.state, 'PLAYING', '自動駕駛應該全程存活');
-    assert.equal(s.passCount, s.score, '累計通過數要跟分數一起加');
-    if (s.items.length > prev.items.length) appeared.push({ before: prev, after: s });
-    prev = s;
+test('從頭飛過：第一顆道具在穿過第 7～13 組的那一步送出（依亂數），而且只有一顆', () => {
+  // 亂數固定時縫隙也固定（0 → 150、0.5 → 315、0.9999 → 約 479.97）；種類、位置與間隔都吃同一個亂數：
+  // 0 → 罐頭貼上頂蓋、間隔 7；0.5 → 貓草在縫隙正中央、間隔 10；0.9999 → 貓草在兩組之間（往下偏移後夾回 480）、間隔 13
+  const cases = [
+    { random: 0, gap: 7, kind: 'can', dx: 0, y: 150 - ITEM_EDGE },
+    { random: 0.5, gap: 10, kind: 'grass', dx: 0, y: 315 },
+    { random: 0.9999, gap: 13, kind: 'grass', dx: ITEM_BETWEEN_DX, y: 480 }
+  ];
+  for (const { random, gap, kind, dx, y } of cases) {
+    const label = `亂數 ${random}`;
+    const game = boot({ random: () => random });
+    game.key('Space');
+    let prev = game.snap();
+    assert.equal(prev.itemIn, gap, `${label}：開局就抽好第一顆道具的間隔`);
+    const appeared = [];
+    for (let i = 0; i < 4000 && prev.passCount < gap + 2; i++) {
+      const s = game.step(nextGap(prev) + 15);
+      assert.equal(s.state, 'PLAYING', `${label}：自動駕駛應該全程存活`);
+      if (s.items.length > prev.items.length) appeared.push({ before: prev, after: s });
+      prev = s;
+    }
+    assert.ok(prev.passCount >= gap + 2, `${label}：應該飛過 ${gap + 2} 組`);
+    assert.equal(appeared.length, 1, `${label}：0～${gap + 1} 組之間只能生成一顆道具`);
+    const { before, after } = appeared[0];
+    assert.equal(before.passCount, gap - 1);
+    assert.equal(after.passCount, gap, `${label}：道具要在剛好第 ${gap} 組通過的那一步生成`);
+    const got = assertNewItem(before, after, label);
+    assert.equal(got.item.kind, kind, `${label}：道具種類`);
+    assert.equal(got.dx, dx, `${label}：道具的 x 位移`);
+    assert.ok(Math.abs(got.item.y - y) < 1e-9, `${label}：道具高度 ${got.item.y}，應為 ${y}`);
+    assert.equal(after.itemIn, gap, `${label}：送出後重新抽下一次的間隔`);
   }
-  assert.ok(prev.passCount >= 12);
-  assert.equal(appeared.length, 1, '0～11 組之間只能生成一顆道具');
-  const { before, after } = appeared[0];
-  assert.equal(before.passCount, 9);
-  assert.equal(after.passCount, 10, '道具要在剛好第 10 組通過的那一步生成');
-  const holder = assertMilestoneItem(before, after, '第 10 組');
-  assert.equal(holder.item, 'grass', 'Math.random() 固定 0.5 → 不小於 0.5 → 貓草');
 });
 
-test('里程碑 10／20／30 在各種縫隙位置與亂數下 100% 生成於縫隙中央；9、11 不會多生', () => {
-  const gapPairs = [[150, 480], [480, 150], [315, 222]];
-  const randoms = [0, 0.25, 0.5, 0.9999];
-  const passBefore = (passCount, rest, random, lead = []) => {
+test('道具間隔每次送出後重抽 7～13 組：倒數歸零那一步才送，送給緊接在後的那一組', () => {
+  const passOne = (itemIn, random, rest) => {
     const game = bootSave(validSave({
-      score: passCount,
-      passCount,
+      score: 5,
+      passCount: 5,
+      itemIn,
       spawnTimer: 0,
       cat: { y: 315, vy: 0, rot: 0 },
-      pipes: [...lead, { x: 70, gapY: 315, passed: false }, ...rest]
+      pipes: [{ x: 4, gapY: 200, passed: true, variant: 'plant' }, { x: 70, gapY: 315, passed: false }, ...rest]
     }), { random });
     game.key('ArrowUp');
     const before = game.snap();
     game.tick();
     const after = game.snap();
     assert.equal(after.state, 'PLAYING');
-    assert.equal(after.passCount, passCount + 1, '續玩第一步就通過貓所在的那一組');
+    assert.equal(after.passCount, 6, '續玩第一步就通過貓所在的那一組');
     return { before, after };
   };
+  const rest = () => [{ x: 290, gapY: 260, passed: false, variant: 'drawer' }, { x: 410, gapY: 300, passed: false }];
 
-  let cases = 0;
-  for (const milestone of [10, 20, 30]) {
-    for (const [g1, g2] of gapPairs) {
-      for (const random of randoms) {
-        const lead = [{ x: 4, gapY: 200, passed: true, variant: 'plant' }];
-        const rest = [{ x: 290, gapY: g1, passed: false, variant: 'drawer' }, { x: 410, gapY: g2, passed: false }];
-        const { before, after } = passBefore(milestone - 1, rest, () => random, lead);
-        const label = `第 ${milestone} 組（縫隙 ${g1}、亂數 ${random}）`;
-        const holder = assertMilestoneItem(before, after, label);
-        assert.equal(holder.gapY, g1, `${label}：道具要給緊接在後的那一組`);
-        assert.equal(holder.item, random < 0.5 ? 'can' : 'grass', `${label}：罐頭與貓草各半`);
-        assert.equal(after.itemPending, false);
-        cases += 1;
-      }
-    }
-  }
-  assert.equal(cases, 36);
-
-  // 下一組已經帶著道具（沒吃到的舊道具）：新道具順延給再下一組
-  const skip = passBefore(29, [
-    { x: 290, gapY: 200, passed: false, item: 'can' },
-    { x: 410, gapY: 400, passed: false }
-  ], () => 0.7);
-  const holder = assertMilestoneItem(skip.before, skip.after, '第 30 組（下一組已有道具）');
-  assert.equal(holder.gapY, 400);
-
-  // 第 9 組與第 11 組不是里程碑：不能多生
-  for (const passCount of [8, 10, 18, 20]) {
-    const { after } = passBefore(passCount, [{ x: 290, gapY: 260, passed: false }, { x: 410, gapY: 300, passed: false }], () => 0.3);
-    assert.equal(after.items.length, 0, `第 ${passCount + 1} 組不該生成道具`);
+  for (const [random, gap] of [[0, 7], [0.2, 8], [0.5, 10], [0.9999, 13]]) {
+    const label = `亂數 ${random}`;
+    const { before, after } = passOne(1, () => random, rest());
+    const { holder } = assertNewItem(before, after, label);
+    assert.equal(holder.gapY, 260, `${label}：道具要給緊接在後的那一組`);
+    assert.equal(after.itemIn, gap, `${label}：下一次間隔應為 ${gap} 組`);
     assert.equal(after.itemPending, false);
   }
+
+  // 還沒倒數完：只扣 1，不會多生
+  for (const itemIn of [2, 7, 13]) {
+    const { after } = passOne(itemIn, () => 0.3, rest());
+    assert.equal(after.items.length, 0, `還差 ${itemIn} 組時不該生成道具`);
+    assert.equal(after.itemIn, itemIn - 1);
+    assert.equal(after.itemPending, false);
+  }
+
+  // 下一組已經帶著道具（沒吃到的舊道具）：新道具順延給再下一組
+  const skip = passOne(1, () => 0.7, [{ x: 290, gapY: 200, passed: false, item: 'can' }, { x: 410, gapY: 400, passed: false }]);
+  const { holder } = assertNewItem(skip.before, skip.after, '下一組已有道具');
+  assert.equal(holder.gapY, 400);
 });
 
-test('里程碑看的是累計通過數，不是分數（兩者不同步的存檔也一樣）', () => {
-  const run = (score, passCount) => {
+test('道具位置三選一：貼著上或下頂蓋（離縫隙中心 42px）、縫隙正中央、這組與下一組之間的空地', () => {
+  // 亂數依序是：種類（< 0.5 罐頭）、位置（< 1/3 貼頂蓋、< 2/3 中央、其餘兩組之間）、
+  // 貼頂蓋的上下（< 0.5 上）或兩組之間的高度偏移（-90～90，夾在 150～480），最後是下一次的間隔
+  const place = (seq, gapY = 260) => {
+    const queue = [];
     const game = bootSave(validSave({
-      score,
-      passCount,
+      score: 5,
+      passCount: 5,
+      itemIn: 1,
       spawnTimer: 0,
       cat: { y: 315, vy: 0, rot: 0 },
-      pipes: [{ x: 70, gapY: 315, passed: false }, { x: 290, gapY: 260, passed: false }]
-    }));
+      pipes: [{ x: 70, gapY: 315, passed: false }, { x: 290, gapY, passed: false, variant: 'drawer' }]
+    }), { random: () => (queue.length ? queue.shift() : 0.5) });
     game.key('ArrowUp');
-    return game.step();
+    queue.push(...seq);
+    const before = game.snap();
+    game.tick();
+    assert.equal(queue.length, 0, `${JSON.stringify(seq)}：這一步應該剛好用掉這些亂數`);
+    return assertNewItem(before, game.snap(), JSON.stringify(seq));
   };
-  const hit = run(5, 9);
-  assert.equal(hit.passCount, 10);
-  assert.equal(hit.items.length, 1, '累計通過到第 10 組就要送道具，即使分數才 6');
-  const miss = run(9, 5);
-  assert.equal(miss.score, 10);
-  assert.equal(miss.items.length, 0, '分數到 10 但累計通過數才 6，不該送道具');
+  const cases = [
+    { seq: [0.2, 0.1, 0.2, 0.5], kind: 'can', dx: 0, dy: -ITEM_EDGE },
+    { seq: [0.2, 0.1, 0.8, 0.5], kind: 'can', dx: 0, dy: ITEM_EDGE },
+    { seq: [0.7, 0.5, 0.5], kind: 'grass', dx: 0, dy: 0 },
+    { seq: [0.7, 0.9, 0, 0.5], kind: 'grass', dx: ITEM_BETWEEN_DX, dy: -ITEM_DRIFT },
+    { seq: [0.4, 0.9, 0.5, 0.5], kind: 'can', dx: ITEM_BETWEEN_DX, dy: 0 },
+    { seq: [0.7, 0.9, 0.75, 0.5], kind: 'grass', dx: ITEM_BETWEEN_DX, dy: 45 },
+    // 縫隙在最低處（480）再往下偏：夾回 480
+    { seq: [0.7, 0.9, 0.99, 0.5], gapY: 480, kind: 'grass', dx: ITEM_BETWEEN_DX, dy: 0 }
+  ];
+  for (const { seq, gapY, kind, dx, dy } of cases) {
+    const got = place(seq, gapY);
+    const label = JSON.stringify(seq);
+    assert.equal(got.item.kind, kind, `${label}：種類`);
+    assert.ok(Math.abs(got.dx - dx) < 1e-9, `${label}：x 位移 ${got.dx}，應為 ${dx}`);
+    assert.ok(Math.abs(got.dy - dy) < 1e-9, `${label}：y 位移 ${got.dy}，應為 ${dy}`);
+  }
 });
 
-test('里程碑當下還沒有下一組障礙物：道具留給下一次生成的那一組', () => {
+test('帶著「兩組之間」道具的家具，要等道具整顆捲出畫面才移除；沒帶道具的照舊在家具捲出畫面時移除', () => {
+  const ITEM_GLOW = 26; // 道具光暈與閃光點的半寬
+  const run = (pipe) => {
+    const game = bootSave(validSave({ spawnTimer: 0, cat: { y: 480, vy: 0, rot: 0 }, pipes: [pipe] }));
+    game.key('ArrowUp');
+    let prev = game.snap();
+    for (let i = 0; i < 200; i++) {
+      const s = game.step(480);
+      assert.equal(s.state, 'PLAYING');
+      if (s.obstacles.length === 0) return prev;
+      prev = s;
+    }
+    assert.fail('障礙物一直沒有移除');
+    return null;
+  };
+  const withItem = run({ x: -40, gapY: 315, passed: true, variant: 'post', item: 'can', itemDx: ITEM_BETWEEN_DX, itemY: 200 });
+  const lastItemX = withItem.items[0].x;
+  assert.ok(lastItemX + ITEM_GLOW >= -4, '道具還看得到時不能移除');
+  assert.ok(lastItemX - PIPE_SPEED + ITEM_GLOW < -4, `道具整顆捲出畫面的那一步就要移除（最後 x=${lastItemX}）`);
+  assert.ok(withItem.obstacles[0].x + 64 < -4, '家具本身早就捲出畫面，是為了道具才多留');
+
+  const plain = run({ x: -40, gapY: 315, passed: true, variant: 'post' });
+  const lastX = plain.obstacles[0].x;
+  assert.ok(lastX + 64 >= -4 && lastX - PIPE_SPEED + 64 < -4, `沒帶道具的家具照舊在捲出畫面時移除（最後 x=${lastX}）`);
+});
+
+test('撞散家具的加分不算進道具間隔：只有穿過一組才倒數', () => {
+  const game = bootSave(validSave({
+    score: 2,
+    passCount: 2,
+    itemIn: 2,
+    frenzy: 2,
+    speed: FRENZY_SPEED,
+    spawnTimer: 0,
+    cat: { y: 300, vy: 0, rot: 0 },
+    pipes: [{ x: 130, gapY: 150, passed: false, variant: 'plant' }]
+  }));
+  game.key('ArrowUp');
+  let s = game.snap();
+  for (let i = 0; i < 30 && !s.obstacles[0].brokenBottom; i++) s = game.step();
+  assert.equal(s.obstacles[0].brokenBottom, true, '貓守在下半截的高度，應該撞散');
+  assert.equal(s.score, 3, '撞散半截加 1 分');
+  assert.equal(s.passCount, 2);
+  assert.equal(s.itemIn, 2, '撞散不算穿過，道具倒數不動');
+  assert.ok(game.runUntil(x => x.obstacles[0].passed, 2000));
+  s = game.snap();
+  assert.equal(s.score, 4);
+  assert.equal(s.passCount, 3);
+  assert.equal(s.itemIn, 1);
+  assert.equal(s.items.length, 0);
+});
+
+test('該送道具時還沒有下一組障礙物：道具留給下一次生成的那一組', () => {
   const game = bootSave(validSave({
     score: 9,
     passCount: 9,
+    itemIn: 1,
     spawnTimer: 0,
     cat: { y: 335, vy: 0, rot: 0 },
     pipes: [{ x: 70, gapY: 315, passed: false }]
@@ -1329,6 +1422,7 @@ test('里程碑當下還沒有下一組障礙物：道具留給下一次生成�
   assert.equal(s.passCount, 10);
   assert.equal(s.itemPending, true);
   assert.equal(s.items.length, 0);
+  assert.equal(s.itemIn, 10, '送出（留著）的同時就重抽下一次間隔');
 
   // 剛生成的障礙物在畫面右緣外（x ≈ 360）；在那之前道具一直保留、不能先出現
   const isFresh = o => o.x > 340;
@@ -1343,20 +1437,21 @@ test('里程碑當下還沒有下一組障礙物：道具留給下一次生成�
   assert.ok(spawned, '150 步內應該生成下一組');
   assert.equal(s.itemPending, false);
   assert.equal(s.items.length, 1);
-  assert.deepEqual(s.items[0], { kind: spawned.item, x: spawned.x + PIPE_HALF_W, y: spawned.gapY });
-  assert.ok(ITEM_KINDS.includes(spawned.item));
+  // 亂數 0.5：貓草、縫隙正中央
+  assert.equal(spawned.item, 'grass');
+  assert.deepEqual(s.items[0], { kind: 'grass', x: spawned.x + PIPE_HALF_W, y: spawned.gapY });
 
   for (let i = 0; i < 60; i++) s = game.step(330);
-  assert.ok(s.items.length <= 1, '同一個里程碑只能有一顆道具');
+  assert.ok(s.items.length <= 1, '同一次只能有一顆道具');
 });
 
-test('吃到道具：立刻無敵 3000ms、速度線性升到剛好 1.6，並播放由低到高的 4 音琶音', () => {
+test('吃到貓草：立刻拆家暴衝（撞穿接下來 3 組，正在穿過的那組另外撐完）、速度線性升到剛好 1.6，並播放由低到高的 4 音琶音', () => {
   const game = bootSave(validSave({
     score: 3,
     passCount: 3,
     spawnTimer: 0,
     cat: { y: 335, vy: 0, rot: 0 },
-    pipes: [{ x: 68, gapY: 315, passed: false, variant: 'post', item: 'can' }]
+    pipes: [{ x: 68, gapY: 315, passed: false, variant: 'post', item: 'grass' }]
   }), { audio: true });
   const arpeggios = () => game.audio.filter(c => c.kind === 'chord' && Array.isArray(c.args[0]) && c.args[0].length === 4);
   game.key('ArrowUp');
@@ -1367,7 +1462,9 @@ test('吃到道具：立刻無敵 3000ms、速度線性升到剛好 1.6，並播
   assert.equal(s.items.length, 0, '道具被吃掉');
   assert.equal(s.obstacles[0].item, null);
   assert.equal(s.invincible, true);
-  assert.equal(s.frenzyMs, 3000);
+  assert.equal(s.frenzy, FRENZY_PIPES + 1, '吃到時貓正在穿過這一組：先撐完它，再撞穿接下來 3 組');
+  assert.equal(s.frenzyMeter, 1, '計量條一開始是滿的');
+  assert.equal(s.shield, false, '貓草不給護盾');
   assert.ok(s.effects > effectsBefore, '吃到時要噴出星光');
 
   const played = arpeggios();
@@ -1393,31 +1490,31 @@ test('吃到道具：立刻無敵 3000ms、速度線性升到剛好 1.6，並播
   assert.equal(game.timers.length, 0, '衝刺不能靠 setTimeout／setInterval 計時');
 });
 
-test('衝刺中再吃到道具會把時間補滿', () => {
+test('拆家暴衝中再吃到貓草會重新算滿 3 組（不疊加）', () => {
   const game = bootSave(validSave({
     score: 3,
     passCount: 3,
-    frenzy: 30,
+    frenzy: 1,
     speed: FRENZY_SPEED,
     spawnTimer: 0,
     cat: { y: 335, vy: 0, rot: 0 },
     pipes: [{ x: 68, gapY: 315, passed: false, variant: 'plant', item: 'grass' }]
   }));
-  assert.equal(game.snap().frenzyMs, 500);
+  assert.equal(game.snap().frenzy, 1);
   game.key('ArrowUp');
   const s = game.step();
   assert.equal(s.items.length, 0);
-  assert.equal(s.frenzyMs, 3000, '再吃一次要重新計滿 3000ms，不是疊加也不是忽略');
+  assert.equal(s.frenzy, FRENZY_PIPES + 1, '重新算滿：正在穿過的這組 + 接下來 3 組，不是把剩下的再加上去');
   assert.equal(s.invincible, true);
 });
 
-test('無敵時撞到家具只會撞散那半截，噴出 8～12 顆碎屑，穿過後照樣計分', () => {
+test('拆家暴衝撞到家具只會撞散那半截，噴出 8～12 顆碎屑並加 1 分，穿過後照樣計分', () => {
   const counts = [];
   for (const random of [0, 0.5, 0.9999]) {
     const game = bootSave(validSave({
       score: 2,
       passCount: 2,
-      frenzy: 150,
+      frenzy: 2,
       speed: FRENZY_SPEED,
       spawnTimer: 0,
       cat: { y: 300, vy: 0, rot: 0 },
@@ -1429,14 +1526,16 @@ test('無敵時撞到家具只會撞散那半截，噴出 8～12 顆碎屑，穿
     for (let i = 0; i < 30 && !smashed; i++) {
       const mark = game.audio.length;
       const s = game.step();
-      assert.equal(s.state, 'PLAYING', '無敵時撞到家具不能結束');
+      assert.equal(s.state, 'PLAYING', '衝刺中撞到家具不能結束');
       if (s.obstacles[0].brokenBottom) smashed = { before: prev, after: s, sounds: game.audio.slice(mark) };
       prev = s;
     }
     assert.ok(smashed, '貓守在下半截的高度，應該撞上');
     const { before, after, sounds } = smashed;
     assert.equal(after.obstacles[0].brokenTop, false, '只撞散碰到的那一半');
-    const debris = after.effects - before.effects;
+    assert.equal(after.score, before.score + 1, '撞散半截加 1 分');
+    // 多出來的粒子：碎屑之外還有 1 個「+1」字樣
+    const debris = after.effects - before.effects - 1;
     assert.ok(debris >= 8 && debris <= 12, `碎屑 ${debris} 顆，應為 8～12`);
     assert.ok(sounds.some(c => c.kind === 'noise'), '撞散要有碎裂的噪音');
     counts.push(debris);
@@ -1445,7 +1544,7 @@ test('無敵時撞到家具只會撞散那半截，噴出 8～12 顆碎屑，穿
     assert.ok(scored, '撞散的障礙物還是要能通過');
     const s = game.snap();
     assert.equal(s.state, 'PLAYING');
-    assert.equal(s.score, 3, '撞散的障礙物照樣計分');
+    assert.equal(s.score, 4, '撞散加 1、穿過再加 1');
     assert.equal(s.passCount, 3);
     assert.equal(s.obstacles[0].brokenBottom, true);
   }
@@ -1453,33 +1552,39 @@ test('無敵時撞到家具只會撞散那半截，噴出 8～12 顆碎屑，穿
   assert.equal(Math.max(...counts), 12, '亂數最大時碎屑是 12 顆');
 });
 
-test('無敵剛好撐到計時歸零：剩 1 步時撞到照樣結束；剩 2 步時那一步撞散，之後已撞散的半截不再判死', () => {
-  // 障礙物 x 68（續玩那步移到 64.48，柱身 72.48～120.48 正對貓），縫隙 150 → 下半截從 220 起；貓在下半截柱身裡
-  const save = frenzy => validSave({
+test('撞穿最後一組的那一步衝刺才結束：結束點在兩組家具之間的空地，下一組照常判死', () => {
+  // 第一組 x 68：續玩那步就壓在貓身上；縫隙 150 → 下半截從 220 起，貓守在 y ≈ 300 一路撞散它
+  const game = bootSave(validSave({
     score: 2,
     passCount: 2,
-    frenzy,
+    frenzy: 1,
     speed: FRENZY_SPEED,
     spawnTimer: 0,
     cat: { y: 300, vy: 0, rot: 0 },
-    pipes: [{ x: 68, gapY: 150, passed: false, variant: 'drawer' }]
-  });
-  const last = bootSave(save(1));
-  last.key('ArrowUp');
-  assert.equal(last.step().state, 'GAMEOVER', '衝刺計時倒數到 0 的那一步已經不是無敵');
-
-  const game = bootSave(save(2));
+    pipes: [{ x: 68, gapY: 150, passed: false, variant: 'drawer' }, { x: 288, gapY: 150, passed: false, variant: 'post' }]
+  }));
   game.key('ArrowUp');
-  let s = game.step();
-  assert.equal(s.state, 'PLAYING', '無敵的最後一步撞到只會撞散');
-  assert.equal(s.invincible, true);
+  let s = game.step(330);
+  assert.equal(s.state, 'PLAYING', '衝刺中撞到只會撞散');
   assert.equal(s.obstacles[0].brokenBottom, true);
-  assert.equal(s.obstacles[0].brokenTop, false);
-  for (let i = 1; i <= 4; i++) {
-    s = game.step();
-    assert.equal(s.invincible, false);
-    assert.equal(s.state, 'PLAYING', `衝刺結束後第 ${i} 步，貓還在已撞散的下半截裡，不能被判死`);
+  let end = null;
+  for (let i = 0; i < 300 && s.state === 'PLAYING'; i++) {
+    const prev = s;
+    s = game.step(330);
+    if (prev.invincible && !s.invincible) end = s;
+    if (s.invincible) assert.equal(s.state, 'PLAYING');
   }
+  assert.ok(end, '衝刺應該結束');
+  const [cleared, next] = end.obstacles;
+  assert.ok(cleared.x <= CLEAR_X && cleared.x > CLEAR_X - PIPE_SPEED * FRENZY_SPEED - 1e-6,
+    `應該剛好在第一組整組穿過的那一步結束（x=${cleared.x}）`);
+  assert.ok(next.x - ENTER_X >= 100, `結束時下一組還在 ${next.x - ENTER_X}px 外，結束點落在空地`);
+  assert.equal(s.state, 'GAMEOVER', '衝刺結束後撞到下一組照常判死');
+  // 第一組可能已經捲出畫面被移除，用家具組合找第二組
+  const second = s.obstacles.find(o => o.variant === 'post');
+  assert.ok(second);
+  assert.equal(second.brokenBottom, false, '沒有衝刺時不會撞散');
+  assert.ok(s.catY < GROUND_REST_Y - 100, `應該撞柱而不是摔地，catY=${s.catY}`);
 });
 
 test('撞散上半截不會連下半截一起撞散', () => {
@@ -1510,7 +1615,7 @@ test('只擦到頂蓋外緣（碰不到柱身）也算撞到：上下兩個頂�
   }
 });
 
-test('道具要真的碰到才吃得到：在縫隙裡離道具中心超過 26px 飛過不會觸發衝刺', () => {
+test('道具要真的碰到才吃得到：在縫隙裡離道具中心超過 26px 飛過不會吃到', () => {
   // 障礙物 x 70 → 續玩那步 67.8，道具中心 (99.8, 300) 幾乎正對貓（x 100）；判定半徑 = 貓 14 + 道具 12
   for (const [dy, picked] of [[20, true], [-20, true], [28, false], [-28, false], [40, false], [-40, false]]) {
     const game = bootSave(validSave({
@@ -1524,8 +1629,89 @@ test('道具要真的碰到才吃得到：在縫隙裡離道具中心超過 26px
     const s = game.step();
     assert.equal(s.state, 'PLAYING', `離縫隙中心 ${dy}px 的貓應該安全穿過`);
     assert.ok(Math.abs(s.catY - (300 + dy)) < 1e-6);
-    assert.equal(s.invincible, picked, `離道具 ${dy}px ${picked ? '應該' : '不該'}吃到`);
+    assert.equal(s.shield, picked, `離道具 ${dy}px ${picked ? '應該' : '不該'}吃到`);
     assert.equal(s.items.length, picked ? 0 : 1);
+  }
+});
+
+test('吃到罐頭：套上護盾（不加速、不會過期），播放往上滑的泡泡聲', () => {
+  const game = bootPickup({ kind: 'can', audio: true });
+  let s = game.snap();
+  assert.equal(s.invincible, false, '罐頭不是拆家暴衝');
+  assert.equal(s.speed, 1, '護盾不會加速');
+  assert.equal(s.guard, 0);
+  assert.ok(game.audio.some(c => c.kind === 'sweep' && c.args[0].from === 330 && c.args[0].to > 330), '要播放往上滑的「啵」');
+  // 一路平安飛 15 秒，護盾一直都在
+  for (let i = 0; i < 900; i++) {
+    s = game.step(nextGap(s) + 15);
+    assert.equal(s.state, 'PLAYING');
+    assert.equal(s.shield, true, `第 ${i} 步護盾不見了`);
+  }
+});
+
+test('護盾擋下一次撞擊：只撞散那半截且不加分，泡泡破掉後 45 步內再撞也只撞散，之後照常判死', () => {
+  // 第一組 x 110 → 續玩那步 107.8：下頂蓋 370～388 正好碰到貓（續玩那一蹬讓貓升 6.42 到 379）
+  const game = bootSave(validSave({
+    score: 4,
+    passCount: 4,
+    shield: true,
+    spawnTimer: 0,
+    cat: { y: 379 + 6.42, vy: 0, rot: 0 },
+    pipes: [{ x: 110, gapY: 300, passed: false, variant: 'drawer' }, { x: 330, gapY: 300, passed: false, variant: 'post' }]
+  }), { audio: true });
+  game.key('ArrowUp');
+  const mark = game.audio.length;
+  let s = game.step();
+  assert.equal(s.state, 'PLAYING', '護盾擋下這一撞');
+  assert.equal(s.obstacles[0].brokenBottom, true);
+  assert.equal(s.obstacles[0].brokenTop, false);
+  assert.equal(s.shield, false, '泡泡破掉');
+  assert.equal(s.guard, GRACE_STEPS);
+  assert.equal(s.score, 4, '護盾撞散不加分');
+  const sounds = game.audio.slice(mark);
+  assert.ok(sounds.some(c => c.kind === 'noise' && c.args[0].filter && c.args[0].filter.type === 'highpass'), '泡泡破掉要有「啪」一聲');
+
+  // 緩衝期間一路往上衝，撞到同一組的上半截也只撞散
+  let topAt = -1;
+  for (let i = 1; i <= GRACE_STEPS && topAt < 0; i++) {
+    game.key('Space');
+    s = game.step();
+    assert.equal(s.state, 'PLAYING', `緩衝第 ${i} 步不該判死`);
+    assert.equal(s.guard, GRACE_STEPS - i);
+    if (s.obstacles[0].brokenTop) topAt = i;
+  }
+  assert.ok(topAt > 0, '緩衝期間應該撞散上半截');
+  assert.equal(s.score, s.passCount, '緩衝期間撞散也不加分');
+
+  // 緩衝結束後一路往天花板蹬，撞到下一組就結束
+  for (let i = 0; i < 400 && s.state === 'PLAYING'; i++) {
+    game.key('Space');
+    s = game.step();
+  }
+  assert.equal(s.state, 'GAMEOVER');
+  assert.equal(s.obstacles[1].brokenTop, false, '緩衝結束後不會再撞散');
+  assert.ok(s.catY < GROUND_REST_Y - 100, `應該撞柱而不是摔地，catY=${s.catY}`);
+});
+
+test('已經套著護盾時，送出的道具一律是貓草', () => {
+  const pass = (random, shield) => {
+    const game = bootSave(validSave({
+      score: 5,
+      passCount: 5,
+      itemIn: 1,
+      shield,
+      spawnTimer: 0,
+      cat: { y: 315, vy: 0, rot: 0 },
+      pipes: [{ x: 70, gapY: 315, passed: false }, { x: 290, gapY: 260, passed: false }]
+    }), { random: () => random });
+    game.key('ArrowUp');
+    const before = game.snap();
+    game.tick();
+    return assertNewItem(before, game.snap(), `亂數 ${random}${shield ? '（有護盾）' : ''}`).item.kind;
+  };
+  for (const random of [0, 0.2, 0.49]) {
+    assert.equal(pass(random, false), 'can', `對照組：亂數 ${random} 平常是罐頭`);
+    assert.equal(pass(random, true), 'grass', `亂數 ${random}：有護盾時要改給貓草`);
   }
 });
 
@@ -1674,52 +1860,67 @@ test('存檔裡的捲動量過大會被夾回，重開後的存檔也不會再�
   assert.ok(classic.tick().some(t => t.text === '暫停中'));
 });
 
-test('無敵衝刺中碰到地板仍然結束，衝刺狀態一併歸零', () => {
-  const game = bootSave(validSave({
-    score: 3,
-    passCount: 3,
-    frenzy: 150,
-    speed: FRENZY_SPEED,
-    spawnTimer: 0,
-    cat: { y: 540, vy: 5, rot: 0 },
-    pipes: []
-  }));
-  game.key('ArrowUp');
-  let prev = game.snap();
-  let s = prev;
-  for (let i = 0; i < 200 && s.state === 'PLAYING'; i++) {
-    prev = s;
-    s = game.step();
+test('拆家暴衝或套著護盾時碰到地板仍然結束，衝刺與護盾一併歸零', () => {
+  for (const extra of [{ frenzy: 3, speed: FRENZY_SPEED }, { shield: true }, { shield: true, guard: 30 }]) {
+    const label = JSON.stringify(extra);
+    const game = bootSave(validSave({
+      score: 3,
+      passCount: 3,
+      spawnTimer: 0,
+      cat: { y: 540, vy: 5, rot: 0 },
+      pipes: [],
+      ...extra
+    }));
+    game.key('ArrowUp');
+    let prev = game.snap();
+    let s = prev;
+    for (let i = 0; i < 200 && s.state === 'PLAYING'; i++) {
+      prev = s;
+      s = game.step();
+    }
+    assert.ok(prev.invincible || prev.shield, `${label}：落地前一步還在保護中`);
+    assert.equal(s.state, 'GAMEOVER', label);
+    assert.equal(s.catY, GROUND_REST_Y);
+    assert.equal(s.invincible, false);
+    assert.equal(s.frenzy, 0);
+    assert.equal(s.frenzyMeter, 0);
+    assert.equal(s.speed, 1);
+    assert.equal(s.ghosts, 0);
+    assert.equal(s.shield, false);
+    assert.equal(s.guard, 0);
+    assert.deepEqual(game.readJson(KEYS.stats), { best: 3, plays: 1 });
   }
-  assert.equal(prev.invincible, true, '落地前一步仍在無敵中');
-  assert.equal(s.state, 'GAMEOVER');
-  assert.equal(s.catY, GROUND_REST_Y);
-  assert.equal(s.invincible, false);
-  assert.equal(s.frenzyMs, 0);
-  assert.equal(s.speed, 1);
-  assert.equal(s.ghosts, 0);
-  assert.deepEqual(game.readJson(KEYS.stats), { best: 3, plays: 1 });
 });
 
-test('衝刺剛好 180 步後結束：速度平滑降回 1、殘影清空，之後撞柱照常判死，粒子也會自然消光', () => {
+test('拆家暴衝撞穿 3 組（加上吃到時正在穿過的那組）後結束：速度平滑降回 1、殘影清空，之後撞柱照常判死，粒子也會自然消光', () => {
   const game = bootPickup();
   let s = game.snap();
   assert.equal(s.ghosts, TRAIL_LEN, '吃到的那一幀殘影取樣就要補滿，3 道殘影立刻出現');
-  let invincibleSteps = 1; // 吃到的那一步已經是無敵
+  assert.equal(s.frenzy, FRENZY_PIPES + 1);
+  let clears = 0;
   let maxGhosts = s.ghosts;
-  for (let i = 0; i < 400; i++) {
+  for (let i = 0; i < 600; i++) {
     const prev = s;
     s = game.step(345);
     assert.equal(s.state, 'PLAYING');
+    if (s.frenzy < prev.frenzy) {
+      clears += 1;
+      assert.equal(prev.frenzy - s.frenzy, 1, '一步最多撞穿一組');
+      assert.ok(s.obstacles.some(o => o.x <= CLEAR_X && o.x > CLEAR_X - PIPE_SPEED * FRENZY_SPEED - 1e-6),
+        `第 ${clears} 次撞穿時，應該剛好有一組在這一步整組滑到貓身後`);
+    }
     if (!s.invincible) break;
-    assert.ok(s.frenzyMs < prev.frenzyMs, '衝刺時間每步遞減');
+    assert.ok(s.frenzyMeter <= prev.frenzyMeter + 1e-9, '計量條只降不升');
     assert.ok(s.speed >= prev.speed, '衝刺中速度只升不降');
     maxGhosts = Math.max(maxGhosts, s.ghosts);
-    invincibleSteps += 1;
   }
-  assert.equal(invincibleSteps, FRENZY_STEPS, '無敵剛好 180 步（3000ms）');
-  assert.equal(s.frenzyMs, 0);
+  assert.equal(clears, FRENZY_PIPES + 1, '吃到時正在穿過的那組 + 接下來 3 組');
+  assert.equal(s.frenzy, 0);
+  assert.equal(s.frenzyMeter, 0);
   assert.equal(maxGhosts, TRAIL_LEN, '殘影取樣最多 10 筆');
+  // 衝刺結束在兩組家具之間的空地：前方最近的一組至少還有 100px 才碰得到
+  const ahead = s.obstacles.filter(o => o.x > CLEAR_X);
+  assert.ok(ahead.length > 0 && ahead[0].x - ENTER_X >= 100, `衝刺結束時下一組只剩 ${ahead.length ? ahead[0].x - ENTER_X : '?'}px`);
 
   // 衝刺結束：速度每步只降不升，精準回到 1；回到 1 時殘影已經清空
   let fadeSteps = 0;
@@ -1739,7 +1940,7 @@ test('衝刺剛好 180 步後結束：速度平滑降回 1、殘影清空，之�
     s = game.step(345);
     assert.equal(s.speed, 1);
     assert.equal(s.ghosts, 0);
-    assert.equal(s.frenzyMs, 0);
+    assert.equal(s.frenzy, 0);
   }
 
   // 不再無敵：一路往天花板蹬，下一組家具的上半截就會撞死
@@ -1763,6 +1964,7 @@ test('連續多輪衝刺與一般飛行，陣列大小都有上限，不會越�
   const game = bootSave(validSave({
     score: 9,
     passCount: 9,
+    itemIn: 1,
     spawnTimer: 0,
     cat: { y: 340, vy: 0, rot: 0 },
     pipes: [{ x: 70, gapY: 315, passed: false }, { x: 290, gapY: 315, passed: false }]
@@ -1790,7 +1992,7 @@ test('連續多輪衝刺與一般飛行，陣列大小都有上限，不會越�
     maxPipes = Math.max(maxPipes, s.pipes);
   }
   assert.ok(s.passCount >= 41);
-  assert.ok(starts >= 4, `四個里程碑應該觸發四輪衝刺（實際 ${starts} 輪）`);
+  assert.ok(starts >= 4, `第 10／20／30／40 組送出的四顆貓草應該觸發四輪衝刺（實際 ${starts} 輪）`);
   assert.ok(ends >= starts - 1);
   assert.ok(maxEffects <= 40, `粒子數量失控：${maxEffects}`);
   assert.ok(maxPipes <= 3, `障礙物數量失控：${maxPipes}`);
@@ -1800,18 +2002,21 @@ test('連續多輪衝刺與一般飛行，陣列大小都有上限，不會越�
   s = game.snap();
   assert.equal(s.effects, 0);
   assert.equal(s.ghosts, 0);
-  assert.equal(s.frenzyMs, 0);
+  assert.equal(s.frenzy, 0);
   assert.equal(s.speed, 1);
   assert.equal(game.timers.length, 0);
 });
 
-test('結算與回到 READY 會把道具與衝刺狀態歸零', () => {
+test('結算與回到 READY 會把道具、衝刺與護盾狀態歸零', () => {
   const game = bootSave(validSave({
     score: 12,
     passCount: 12,
+    itemIn: 3,
     itemPending: true,
-    frenzy: 100,
+    frenzy: 3,
     speed: FRENZY_SPEED,
+    shield: true,
+    guard: 10,
     spawnTimer: 0,
     cat: { y: 400, vy: 0, rot: 0 },
     pipes: [{ x: 300, gapY: 300, passed: false, variant: 'drawer', item: 'can' }]
@@ -1819,10 +2024,13 @@ test('結算與回到 READY 會把道具與衝刺狀態歸零', () => {
   game.key('ArrowUp');
   assert.ok(game.runUntil(s => s.state === 'GAMEOVER', 5000));
   let s = game.snap();
-  assert.equal(s.frenzyMs, 0);
+  assert.equal(s.frenzy, 0);
+  assert.equal(s.frenzyMeter, 0);
   assert.equal(s.invincible, false);
   assert.equal(s.speed, 1);
   assert.equal(s.ghosts, 0);
+  assert.equal(s.shield, false);
+  assert.equal(s.guard, 0);
 
   game.advance(500);
   game.key('Space');
@@ -1832,15 +2040,18 @@ test('結算與回到 READY 會把道具與衝刺狀態歸零', () => {
   assert.equal(s.itemPending, false);
   assert.deepEqual(s.items, []);
   assert.deepEqual(s.obstacles, []);
-  assert.equal(s.frenzyMs, 0);
+  assert.equal(s.frenzy, 0);
   assert.equal(s.speed, 1);
   assert.equal(s.ghosts, 0);
+  assert.equal(s.shield, false);
+  assert.equal(s.guard, 0);
 
   game.key('Space');
   s = game.snap();
   assert.equal(s.state, 'PLAYING');
   assert.equal(s.passCount, 0);
   assert.equal(s.itemPending, false);
+  assert.equal(s.itemIn, 10, '新的一局重新抽第一顆道具的間隔（亂數 0.5 → 10）');
 });
 
 test('快照每次都是新的純物件，外部修改不影響遊戲', () => {
@@ -1855,50 +2066,54 @@ test('快照每次都是新的純物件，外部修改不影響遊戲', () => {
   assert.deepEqual(s.items, [{ kind: 'can', x: 220 + PIPE_HALF_W, y: 300 }]);
 });
 
-test('暫停時衝刺計時凍結，續玩後才繼續倒數', () => {
+test('暫停時衝刺進度與護盾緩衝都凍結，續玩後才繼續', () => {
   const game = bootSave(validSave({
     score: 3,
     passCount: 3,
-    frenzy: 150,
+    frenzy: 2,
     speed: FRENZY_SPEED,
+    guard: 30,
     spawnTimer: 0,
     cat: { y: 315, vy: 0, rot: 0 },
-    pipes: []
+    pipes: [{ x: 200, gapY: 315, passed: false }]
   }));
-  assert.equal(game.snap().frenzyMs, 2500);
+  const keys = ['frenzy', 'frenzyMeter', 'invincible', 'guard', 'speed', 'ghosts', 'catY', 'obstacles'];
+  const start = game.snap();
+  assert.ok(start.frenzyMeter > 0.5 && start.frenzyMeter < 0.7, `剩 2 組、眼前這組還差 178px：計量條約 0.6（實際 ${start.frenzyMeter}）`);
   game.advance(1000);
-  assert.equal(game.snap().frenzyMs, 2500, '存檔開機的暫停局也不能倒數');
+  const idle = game.snap();
+  for (const key of keys) assert.deepEqual(idle[key], start[key], `存檔開機的暫停局，${key} 不能變`);
 
   game.key('ArrowUp');
   for (let i = 0; i < 10; i++) game.step(345);
   const before = game.snap();
-  assert.equal(before.frenzyMs, Math.round(140 * STEP_MS));
+  assert.ok(before.frenzyMeter < start.frenzyMeter, '續玩後計量條跟著距離往下降');
+  assert.equal(before.guard, 20);
   game.hide();
   assert.equal(game.snap().state, 'PAUSED');
-  assert.equal(game.readJson(KEYS.state).frenzy, 140);
+  const saved = game.readJson(KEYS.state);
+  assert.equal(saved.frenzy, 2);
+  assert.equal(saved.guard, 20);
 
   game.advance(3000);
   game.show();
   game.advance(1000);
   const after = game.snap();
   assert.equal(after.state, 'PAUSED');
-  assert.equal(after.frenzyMs, before.frenzyMs);
-  assert.equal(after.invincible, true);
-  assert.equal(after.speed, before.speed);
-  assert.equal(after.ghosts, before.ghosts);
-  assert.equal(after.catY, before.catY);
+  for (const key of keys) assert.deepEqual(after[key], before[key], `暫停期間 ${key} 不能變`);
 
   game.key('Space');
   const resumed = game.step();
   assert.equal(resumed.state, 'PLAYING');
-  assert.equal(resumed.frenzyMs, Math.round(139 * STEP_MS), '續玩後才繼續倒數');
+  assert.ok(resumed.frenzyMeter < after.frenzyMeter, '續玩後才繼續往下降');
+  assert.equal(resumed.guard, 19);
 });
 
 test('衝刺加速時障礙物間距仍維持約 220px（依距離生成）', () => {
   const game = bootSave(validSave({
     score: 3,
     passCount: 3,
-    frenzy: FRENZY_STEPS,
+    frenzy: FRENZY_PIPES + 1,
     speed: FRENZY_SPEED,
     spawnTimer: 99,
     cat: { y: 315, vy: 0, rot: 0 },
@@ -1933,15 +2148,18 @@ test('新欄位存檔往返：pagehide 後重新載入完全還原', () => {
   const first = bootSave(validSave({
     score: 12,
     passCount: 12,
+    itemIn: 4,
     itemPending: true,
-    frenzy: 120,
+    frenzy: 3,
     speed: 1.3,
+    shield: true,
+    guard: 20,
     spawnTimer: 10,
     cat: { y: 300, vy: -2, rot: -10 },
     pipes: [
       { x: 10, gapY: 200, passed: true, variant: 'drawer', item: null, brokenTop: true, brokenBottom: false },
-      { x: 240, gapY: 300, passed: false, variant: 'plant', item: 'can', brokenTop: false, brokenBottom: true },
-      { x: 420, gapY: 420, passed: false, variant: 'post', item: 'grass' }
+      { x: 240, gapY: 300, passed: false, variant: 'plant', item: 'can', itemDx: 110, itemY: 260, brokenTop: false, brokenBottom: true },
+      { x: 420, gapY: 420, passed: false, variant: 'post', item: 'grass', itemY: 462 }
     ]
   }));
   first.key('ArrowUp');
@@ -1954,19 +2172,23 @@ test('新欄位存檔往返：pagehide 後重新載入完全還原', () => {
   const saved = first.readJson(KEYS.state);
   assert.equal(saved.v, 1);
   assert.equal(saved.passCount, 12);
+  assert.equal(saved.itemIn, 4);
   assert.equal(saved.itemPending, true);
-  assert.equal(saved.frenzy, 115);
+  assert.equal(saved.frenzy, 3);
+  assert.equal(saved.shield, true);
+  assert.equal(saved.guard, 15);
   assert.equal(typeof saved.speed, 'number');
-  assert.deepEqual(saved.pipes.map(p => [p.variant, p.item, p.brokenTop, p.brokenBottom]), [
-    ['drawer', null, true, false],
-    ['plant', 'can', false, true],
-    ['post', 'grass', false, false]
+  assert.deepEqual(saved.pipes.map(p => [p.variant, p.item, p.itemDx, p.itemY, p.brokenTop, p.brokenBottom]), [
+    ['drawer', null, 0, 200, true, false],
+    ['plant', 'can', 110, 260, false, true],
+    ['post', 'grass', 0, 462, false, false]
   ]);
 
   const second = boot({ storage: first.storage });
   const after = second.snap();
   assert.equal(after.state, 'PAUSED');
-  for (const key of ['score', 'passCount', 'itemPending', 'speed', 'frenzyMs', 'invincible', 'catY', 'catVy', 'pipes']) {
+  const keys = ['score', 'passCount', 'itemIn', 'itemPending', 'speed', 'frenzy', 'frenzyMeter', 'invincible', 'shield', 'guard', 'catY', 'catVy', 'pipes'];
+  for (const key of keys) {
     assert.deepEqual(after[key], before[key], `${key} 沒有還原`);
   }
   assert.deepEqual(after.obstacles, before.obstacles);
@@ -1984,9 +2206,13 @@ test('沒有新欄位的舊存檔照樣載入並補預設值', () => {
   const s = game.snap();
   assert.equal(s.state, 'PAUSED');
   assert.equal(s.passCount, 5, '舊存檔的累計通過數以分數補上');
+  assert.equal(s.itemIn, 10, '舊存檔沒有道具間隔：載入時重抽一次（亂數 0.5 → 10 組）');
   assert.equal(s.itemPending, false);
-  assert.equal(s.frenzyMs, 0);
+  assert.equal(s.frenzy, 0);
+  assert.equal(s.frenzyMeter, 0);
   assert.equal(s.invincible, false);
+  assert.equal(s.shield, false);
+  assert.equal(s.guard, 0);
   assert.equal(s.speed, 1);
   assert.equal(s.ghosts, 0);
   assert.deepEqual(s.obstacles, [
@@ -1999,8 +2225,13 @@ test('沒有新欄位的舊存檔照樣載入並補預設值', () => {
   game.pagehide();
   const upgraded = game.readJson(KEYS.state);
   assert.equal(upgraded.passCount, 5);
+  assert.equal(upgraded.itemIn, 10);
+  assert.equal(upgraded.shield, false);
+  assert.equal(upgraded.guard, 0);
   assert.equal(upgraded.pipes[0].variant, 'post');
   assert.equal(upgraded.pipes[0].item, null);
+  assert.equal(upgraded.pipes[0].itemDx, 0);
+  assert.equal(upgraded.pipes[0].itemY, 300, '道具高度預設是縫隙中心');
 });
 
 test('新欄位型別錯誤或列舉值未知時整包丟棄', () => {
@@ -2024,7 +2255,18 @@ test('新欄位型別錯誤或列舉值未知時整包丟棄', () => {
     pipe({ item: 0 }),
     pipe({ brokenTop: 'yes' }),
     pipe({ brokenTop: null }),
-    pipe({ brokenBottom: 1 })
+    pipe({ brokenBottom: 1 }),
+    { itemIn: '3' },
+    { itemIn: null },
+    { shield: 'yes' },
+    { shield: 1 },
+    { shield: null },
+    { guard: '5' },
+    { guard: null },
+    pipe({ itemDx: '110' }),
+    pipe({ itemDx: null }),
+    pipe({ itemY: 'x' }),
+    pipe({ itemY: false })
   ];
   broken.forEach((extra) => {
     const game = bootSave(validSave(extra));
@@ -2034,15 +2276,31 @@ test('新欄位型別錯誤或列舉值未知時整包丟棄', () => {
 });
 
 test('新欄位數值超出範圍會被夾回', () => {
+  const pipe = extra => ({ pipes: [{ x: 220, gapY: 300, passed: false, item: 'can', ...extra }] });
   const cases = [
-    [{ frenzy: 999 }, s => s.frenzyMs === 3000 && s.invincible],
-    [{ frenzy: -5 }, s => s.frenzyMs === 0 && !s.invincible],
-    [{ frenzy: 150.7 }, s => s.frenzyMs === 2500],
+    [{ frenzy: 999 }, s => s.frenzy === FRENZY_PIPES + 1 && s.invincible],
+    // 舊版存的是衝刺剩餘步數（最多 180）：一樣夾進「3 組 + 正在穿過的 1 組」
+    [{ frenzy: 180 }, s => s.frenzy === FRENZY_PIPES + 1],
+    [{ frenzy: -5 }, s => s.frenzy === 0 && !s.invincible],
+    [{ frenzy: 2.7 }, s => s.frenzy === 2],
     [{ speed: 5 }, s => s.speed === FRENZY_SPEED],
     [{ speed: 0.2 }, s => s.speed === 1],
     [{ speed: -3 }, s => s.speed === 1],
     [{ passCount: -3 }, s => s.passCount === 0],
-    [{ passCount: 7.8 }, s => s.passCount === 7]
+    [{ passCount: 7.8 }, s => s.passCount === 7],
+    [{ itemIn: 0 }, s => s.itemIn === 1],
+    [{ itemIn: -4 }, s => s.itemIn === 1],
+    [{ itemIn: 99 }, s => s.itemIn === 13],
+    [{ itemIn: 4.6 }, s => s.itemIn === 4],
+    [{ guard: 999 }, s => s.guard === GRACE_STEPS],
+    [{ guard: -2 }, s => s.guard === 0],
+    [{ guard: 7.9 }, s => s.guard === 7],
+    [pipe({ itemDx: 500 }), s => s.items[0].x === 220 + PIPE_HALF_W + ITEM_BETWEEN_DX],
+    [pipe({ itemDx: -50 }), s => s.items[0].x === 220 + PIPE_HALF_W],
+    [pipe({ itemY: 9999 }), s => s.items[0].y === 480 + ITEM_EDGE],
+    [pipe({ itemY: -100 }), s => s.items[0].y === 150 - ITEM_EDGE],
+    // 帶著「兩組之間」道具的家具可以在畫面左緣外多留一段：x 夾到 -(32 + 110 + 26)
+    [{ pipes: [{ x: -500, gapY: 300, passed: true, item: 'can', itemDx: 110 }] }, s => s.obstacles[0].x === -(PIPE_HALF_W + ITEM_BETWEEN_DX + 26)]
   ];
   cases.forEach(([extra, check]) => {
     const s = bootSave(validSave(extra)).snap();
@@ -2331,6 +2589,126 @@ test('道具畫在縫隙正中央：緩衝區裡量得到的道具中心就是 (
   assert.ok(Math.abs(cy - 300) <= 3 + 3, `道具中心 y=${cy}，應為 300（±3 浮動）`);
 });
 
+test('貼頂蓋與兩組之間的道具，也畫在它的判定位置上', () => {
+  const save = extra => validSave({
+    cat: { y: 480, vy: 0, rot: 0 },
+    pipes: [{ x: 160, gapY: 300, passed: false, variant: 'post', ...extra }]
+  });
+  const cases = [
+    [{ item: 'grass', itemY: 300 - ITEM_EDGE }, 160 + PIPE_HALF_W, 300 - ITEM_EDGE],
+    [{ item: 'can', itemY: 300 + ITEM_EDGE }, 160 + PIPE_HALF_W, 300 + ITEM_EDGE],
+    [{ item: 'can', itemDx: ITEM_BETWEEN_DX, itemY: 380 }, 160 + PIPE_HALF_W + ITEM_BETWEEN_DX, 380]
+  ];
+  for (const [extra, ex, ey] of cases) {
+    const label = JSON.stringify(extra);
+    const box = boundsOf(insertedRects(pausedRects(save({})), pausedRects(save(extra)), label));
+    const cx = ((box.x0 + box.x1) / 2) * PX;
+    const cy = ((box.y0 + box.y1) / 2) * PX;
+    assert.ok(Math.abs(cx - ex) <= 3, `${label}：道具中心 x=${cx}，應為 ${ex}`);
+    assert.ok(Math.abs(cy - ey) <= 6, `${label}：道具中心 y=${cy}，應為 ${ey}（±3 浮動）`);
+  }
+});
+
+test('護盾泡泡把貓包起來；護盾破掉後的緩衝期間，貓整隻畫成半透明（不閃爍）', () => {
+  const BUBBLE_RIM = '#6FA3C8';
+  const save = extra => validSave({ cat: { y: 300, vy: 0, rot: 0 }, pipes: [], ...extra });
+  const plain = pausedRects(save({}));
+  assert.ok(!plain.some(r => r.color === BUBBLE_RIM), '沒有護盾時不畫泡泡');
+  assert.ok(plain.filter(r => r.color === CAT_BODY).every(r => r.alpha === 1), '平常的貓是不透明的');
+
+  const shielded = pausedRects(save({ shield: true }));
+  const rim = shielded.filter(r => r.color === BUBBLE_RIM);
+  assert.ok(rim.length > 10, '套著護盾要畫出泡泡外圈');
+  // 泡泡圓心是貓的碰撞中心（美術像素 50, 150），直徑 32～34 格；畫在貓後面，貓身不會被泡泡蓋住
+  const box = boundsOf(rim);
+  assert.ok(Math.abs((box.x0 + box.x1) / 2 - 50) <= 1 && Math.abs((box.y0 + box.y1) / 2 - 150) <= 1, `泡泡沒有對準貓：${JSON.stringify(box)}`);
+  assert.ok(box.x1 - box.x0 >= 32 && box.x1 - box.x0 <= 34, `泡泡直徑 ${box.x1 - box.x0} 格`);
+  const firstBody = shielded.findIndex(r => r.color === CAT_BODY);
+  assert.ok(firstBody > shielded.findLastIndex(r => r.color === BUBBLE_RIM), '泡泡要畫在貓後面');
+
+  const ghosted = pausedRects(save({ guard: 30 }));
+  const body = ghosted.filter(r => r.color === CAT_BODY);
+  assert.ok(body.length > 0 && body.every(r => r.alpha === 0.5), '緩衝期間貓要半透明');
+  // 半透明是固定值：連續幾幀都一樣，不是閃爍
+  const game = bootSave(save({ guard: 30 }), { draws: true });
+  for (let i = 0; i < 20; i++) {
+    game.tick();
+    assert.ok(bufferRects(game).filter(r => r.color === CAT_BODY).every(r => r.alpha === 0.5), `第 ${i} 幀的半透明變了`);
+  }
+
+  // 經典主題：緩衝期間貓先畫進圖層再半透明貼上（身體各部位重疊處才不會疊出深淺）；平常直接畫
+  const classicBlits = (extra) => {
+    const classic = bootSave(save(extra), { pref: { style: 'classic' } });
+    classic.tick();
+    assert.equal(classic.snap().theme, 'classic');
+    return classic.ops.filter(op => op.op === 'drawImage').length;
+  };
+  assert.equal(classicBlits({}), 0, '經典主題平常不走圖層');
+  assert.equal(classicBlits({ guard: 30 }), 1, '經典主題緩衝期間貼一次半透明圖層');
+  assert.equal(classicBlits({ shield: true }), 0, '經典主題的泡泡直接畫在主畫布上');
+});
+
+test('拆家暴衝撞散家具時冒出 +1：像素主題畫點陣字、經典主題畫文字，飄一下就淡出', () => {
+  const BONUS_FILL = '#FFE08A';
+  const save = validSave({
+    score: 2,
+    passCount: 2,
+    frenzy: 2,
+    speed: FRENZY_SPEED,
+    spawnTimer: 0,
+    cat: { y: 300, vy: 0, rot: 0 },
+    pipes: [{ x: 72, gapY: 150, passed: false, variant: 'drawer' }]
+  });
+  const pixel = bootSave(save, { draws: true });
+  pixel.key('ArrowUp');
+  let s = pixel.step();
+  assert.equal(s.obstacles[0].brokenBottom, true, '續玩第一步就撞散下半截');
+  assert.equal(s.score, 3);
+  const glyph = bufferRects(pixel).filter(r => r.color === BONUS_FILL);
+  assert.ok(glyph.length >= 4, '要畫出 +1');
+  const box = boundsOf(glyph);
+  const cx = ((box.x0 + box.x1) / 2) * PX;
+  const cy = ((box.y0 + box.y1) / 2) * PX;
+  assert.ok(Math.abs(cx - 118) <= 6 && Math.abs(cy - (s.catY - 48)) <= 8, `+1 應該在貓頭上方：(${cx}, ${cy})，貓 y=${s.catY}`);
+  const firstY = box.y0;
+  for (let i = 0; i < 10; i++) pixel.step();
+  const later = bufferRects(pixel).filter(r => r.color === BONUS_FILL);
+  assert.ok(later.length >= 4 && boundsOf(later).y0 < firstY, '+1 要往上飄');
+  for (let i = 0; i < 40; i++) pixel.step();
+  assert.ok(!bufferRects(pixel).some(r => r.color === BONUS_FILL), '+1 飄一下就淡出');
+
+  const classic = bootSave(save, { pref: { style: 'classic' } });
+  classic.key('ArrowUp');
+  classic.tick();
+  assert.ok(classic.tick().some(t => t.text === '+1'), '經典主題要畫出 +1 文字');
+});
+
+test('衝刺計量條分 3 格：吃到時是滿的，隨距離連續往下降，每撞穿一組剛好少一格', () => {
+  const game = bootPickup({ draws: true });
+  let s = game.snap();
+  assert.equal(s.frenzyMeter, 1);
+  // 像素計量條：軌道 (70, 58) 起 40×4，格線在第 13、27 格（顏色跟外框一樣）
+  const DIVIDER_COLORS = new Set(['#785338', '#B38B6D']);
+  const dividers = rects => rects.filter(r => r.y === 58 && r.w === 1 && r.h === 4 && (r.x === 83 || r.x === 97) && DIVIDER_COLORS.has(r.color));
+  let clears = 0;
+  for (let i = 0; i < 600 && s.invincible; i++) {
+    const prev = s;
+    s = game.step(345);
+    assert.ok(s.frenzyMeter <= prev.frenzyMeter + 1e-9, `計量條不能回升：${prev.frenzyMeter} → ${s.frenzyMeter}`);
+    if (s.frenzy < prev.frenzy) {
+      clears += 1;
+      const expected = Math.min(1, s.frenzy / FRENZY_PIPES);
+      assert.ok(Math.abs(s.frenzyMeter - expected) < 0.03, `撞穿一組後計量條應該約 ${expected}（實際 ${s.frenzyMeter}）`);
+    }
+    if (s.invincible) {
+      assert.ok(s.frenzyMeter > 0, '衝刺還沒結束，計量條不能見底');
+      assert.equal(dividers(bufferRects(game)).length, 2, '計量條要畫出 2 條格線');
+    }
+  }
+  assert.equal(clears, FRENZY_PIPES + 1);
+  assert.equal(s.frenzyMeter, 0);
+});
+
 test('家具腳跟地板接縫一起捲動：同一組家具底下的接縫不會左右抖 1 格', () => {
   const CONTACT_SHADOW = 'rgba(40, 26, 16, 0.28)';
   for (const scroll of [0, 37.3, 91.9]) {
@@ -2441,12 +2819,20 @@ test('經典主題的彩虹貓只靠上色轉色相，不用 ctx.filter（軟體
   assert.ok(hues.size >= 20, `上色的色相要一路轉：${[...hues].join(', ')}`);
 });
 
-test('減少動態：衝刺計量條最後 1/4 固定成提醒色不閃；一般設定下的提醒閃爍也不超過每秒約 2 次', () => {
+test('減少動態：衝刺計量條剩最後一組時固定成提醒色不閃；一般設定下的提醒閃爍也不超過每秒約 2 次', () => {
+  // 還要撞穿 2 組：第一組 x 150、第二組 x 370；第一組穿過後就只剩最後一組（約 62 幀）
+  const save = () => validSave({
+    frenzy: 2,
+    speed: FRENZY_SPEED,
+    spawnTimer: 0,
+    cat: { y: 315, vy: 0, rot: 0 },
+    pipes: [{ x: 150, gapY: 315, passed: false }, { x: 370, gapY: 315, passed: false }]
+  });
   const frameColors = (reduceMotion) => {
-    const game = bootSave(validSave({ frenzy: 60, speed: FRENZY_SPEED, cat: { y: 315, vy: 0, rot: 0 }, pipes: [] }), { draws: true, reduceMotion });
+    const game = bootSave(save(), { draws: true, reduceMotion });
     game.key('ArrowUp');
     const colors = [];
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 200; i++) {
       const s = game.step(345);
       if (!s.invincible) break;
       const frame = bufferRects(game).find(r => r.x === 69 && r.y === 57 && r.w === 42 && r.h === 6);
@@ -2465,7 +2851,8 @@ test('減少動態：衝刺計量條最後 1/4 固定成提醒色不閃；一般
   const calm = runs(frameColors(true));
   assert.equal(calm.length, 2, `減少動態時只該換一次色（一般 → 提醒）：${JSON.stringify(calm)}`);
   const normal = runs(frameColors(false));
-  assert.ok(normal.length >= 3, `一般設定下最後 1/4 要閃爍提醒：${JSON.stringify(normal)}`);
+  assert.ok(normal.length >= 3, `一般設定下最後一組要閃爍提醒：${JSON.stringify(normal)}`);
+  assert.equal(normal[1].color, calm[1].color, '提醒一開始就是亮的');
   // 中間每一段（不含頭尾）至少維持 12 幀：切換間隔 ≥ 0.2 秒
   normal.slice(1, -1).forEach(run => assert.ok(run.n >= 12, `提醒閃得太快：${JSON.stringify(normal)}`));
 });
@@ -2495,10 +2882,10 @@ function contrastRatio(a, b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-test('衝刺計量條最後 1/4 的提醒色跟空軌道對比夠高：兩種主題都不會看起來像已經見底', () => {
+test('衝刺計量條剩最後一組時的提醒色跟空軌道對比夠高：兩種主題都不會看起來像已經見底', () => {
   // 像素：軌道是 (70, 58) 起 40×4 的矩形，緊接著畫的第一段就是液面；框（69, 57, 42×6）換色代表提醒中。
-  // 經典：主畫布上 rect(0, 0, 104 × 剩餘比例, 10) 之後的 fill 是液面，它之前的 fill 是軌道；液面平常是彩虹漸層，提醒時是單色
-  const meterColors = (game, style, left) => {
+  // 經典：主畫布上 rect(0, 0, 104 × 計量條, 10) 之後的 fill 是液面，它之前的 fill 是軌道；液面平常是彩虹漸層，提醒時是單色
+  const meterColors = (game, style, remain) => {
     if (style === 'pixel16') {
       const rects = bufferRects(game);
       const at = rects.findIndex(r => r.x === 70 && r.y === 58 && r.w === 40 && r.h === 4);
@@ -2509,7 +2896,7 @@ test('衝刺計量條最後 1/4 的提醒色跟空軌道對比夠高：兩種主
     }
     const paths = game.paths;
     const at = paths.findIndex(p => p.op === 'rect' && p.args[0] === 0 && p.args[1] === 0 && p.args[3] === 10
-      && Math.abs(p.args[2] - 104 * left / FRENZY_STEPS) < 1e-6);
+      && Math.abs(p.args[2] - 104 * remain) < 1e-6);
     assert.ok(at > 0, '找不到經典計量條的液面');
     assert.equal(paths[at - 1].op, 'fill');
     assert.equal(paths[at + 1].op, 'fill');
@@ -2518,32 +2905,36 @@ test('衝刺計量條最後 1/4 的提醒色跟空軌道對比夠高：兩種主
   for (const style of ['pixel16', 'classic']) {
     for (const reduceMotion of [true, false]) {
       const label = `${style}${reduceMotion ? '（減少動態）' : ''}`;
-      const game = bootSave(validSave({ frenzy: 60, speed: FRENZY_SPEED, cat: { y: 315, vy: 0, rot: 0 }, pipes: [] }),
-        { draws: true, paths: true, reduceMotion, pref: { style } });
+      const game = bootSave(validSave({
+        frenzy: 2,
+        speed: FRENZY_SPEED,
+        spawnTimer: 0,
+        cat: { y: 315, vy: 0, rot: 0 },
+        pipes: [{ x: 150, gapY: 315, passed: false }, { x: 370, gapY: 315, passed: false }]
+      }), { draws: true, paths: true, reduceMotion, pref: { style } });
       game.key('ArrowUp');
       let calmFrame = null;
-      let lastQuarter = 0;
+      let lastPipe = 0;
       let warned = 0;
-      for (let i = 0; i < 80; i++) {
+      for (let i = 0; i < 200; i++) {
         const s = game.step(345);
         if (!s.invincible) break;
         assert.equal(s.theme, style);
-        const left = Math.round(s.frenzyMs / STEP_MS);
-        const colors = meterColors(game, style, left);
-        if (left >= FRENZY_STEPS / 4) {
+        const colors = meterColors(game, style, s.frenzyMeter);
+        if (s.frenzyMeter >= 1 / FRENZY_PIPES) {
           calmFrame = colors.frame;
           continue;
         }
-        lastQuarter += 1;
+        lastPipe += 1;
         if (colors.frame === calmFrame) continue;
         warned += 1;
         assert.equal(typeof colors.fill, 'string', `${label}：提醒時液面要是單色`);
         const ratio = contrastRatio(colors.fill, colors.track);
-        assert.ok(ratio >= 3, `${label}：剩 ${left} 步時液面 ${colors.fill} 對軌道 ${colors.track} 只有 ${ratio.toFixed(2)}:1，看起來像已經見底`);
+        assert.ok(ratio >= 3, `${label}：計量條 ${s.frenzyMeter.toFixed(3)} 時液面 ${colors.fill} 對軌道 ${colors.track} 只有 ${ratio.toFixed(2)}:1，看起來像已經見底`);
       }
-      assert.ok(calmFrame !== null && lastQuarter >= 30, `${label}：應該量到計量條的一般時段與最後 1/4`);
-      if (reduceMotion) assert.equal(warned, lastQuarter, `${label}：減少動態時最後 1/4 整段都是提醒色`);
-      else assert.ok(warned > 0 && warned < lastQuarter, `${label}：一般設定下最後 1/4 要閃爍提醒（${warned}/${lastQuarter}）`);
+      assert.ok(calmFrame !== null && lastPipe >= 30, `${label}：應該量到計量條的一般時段與最後一組`);
+      if (reduceMotion) assert.equal(warned, lastPipe, `${label}：減少動態時最後一組整段都是提醒色`);
+      else assert.ok(warned > 0 && warned < lastPipe, `${label}：一般設定下最後一組要閃爍提醒（${warned}/${lastPipe}）`);
     }
   }
 });
