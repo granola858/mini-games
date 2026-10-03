@@ -173,7 +173,7 @@ localStorage 讀寫有沒有包在 try/catch 裡。**不會開瀏覽器**，所�
 | reversi | `#board` | `div.cell` × 64（**不要點 `.board-row`**，見 Gotchas） |
 | make24 | `#keypad-grid` | `button.btn-key` |
 | sic-bo | `#bet-table` | `button.bet-cell` × 50（六組注格全在同一個容器內，事件委派） |
-| cat-agility | `#game-canvas` | 單一 canvas，用 `key Space` 驅動；`window.CatAgility.snapshot()` 讀狀態機。預設 16-bit 像素主題，右上 `#style-btn` 切換像素／經典（存在 `cat-agility_pref_v1.style`）；snapshot 另有 `theme`、`frenzyMs`、`invincible`、`ghosts`、`items`、`obstacles`、`catPose` 可驗證道具與無敵衝刺 |
+| cat-agility | `#game-canvas` | 單一 canvas，用 `key Space` 驅動；`window.CatAgility.snapshot()` 讀狀態機。預設 16-bit 像素主題，右上 `#style-btn` 切換像素／經典（存在 `cat-agility_pref_v1.style`）；snapshot 另有 `theme`、`frenzy`（還要撞穿幾組）、`frenzyMeter`、`invincible`、`shield`、`guard`、`itemIn`、`ghosts`、`items`、`obstacles`、`catPose` 可驗證道具、拆家暴衝與護盾 |
 | 1a2b / color-text / puzzle / slap | 無格狀盤面 | 按鈕與輸入框驅動，用 `probe` 查 |
 
 ## Gotchas
