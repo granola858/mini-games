@@ -79,6 +79,8 @@ let size = 8;
     const boardEl = document.getElementById('board');
     const mainActions = document.getElementById('main-actions');
     const checkBtn = document.getElementById('check-btn');
+    const hintBtn = document.getElementById('hint-btn');
+    const hintMsg = document.getElementById('hint-msg');
     const newGameBtn = document.getElementById('new-game-btn');
     const undoBtn = document.getElementById('undo-btn');
     const clearBoardBtn = document.getElementById('clear-board-btn');
@@ -739,6 +741,7 @@ let size = 8;
     });
 
     checkBtn.addEventListener('click', checkAnswer);
+    hintBtn.addEventListener('click', showNextHint);
     newGameBtn.addEventListener('click', () => { confirmStartNewGame(size, difficulty); });
     undoBtn.addEventListener('click', undoLastAction);
     clearBoardBtn.addEventListener('click', clearBoard);
@@ -1094,7 +1097,32 @@ let size = 8;
     // cellEls[r][c] → 該格的 DOM 節點，讓單格更新不必每次查詢 DOM
     let cellEls = [];
 
+    function clearHint() {
+      boardEl.querySelectorAll('.hint-cell').forEach(cell => cell.classList.remove('hint-cell'));
+      hintMsg.textContent = '';
+    }
+
+    function showNextHint() {
+      const state = getCurrentState();
+      if (!state || state.isGameOver) return;
+      clearHint();
+      const hint = NonogramCore.getNextHint(state.globalRowClues, state.globalColClues, state.playerState);
+      if (hint.status === 'contradiction') {
+        hintMsg.textContent = '目前的塗黑或留白標記與線索矛盾，請先檢查作答或返回上一步。';
+      } else if (hint.status === 'complete') {
+        hintMsg.textContent = '盤面已完成，可以確認答案了！';
+      } else if (hint.status === 'stuck') {
+        hintMsg.textContent = '目前沒有能直接確定的格子，請再交叉檢查列與欄的線索。';
+      } else {
+        cellEls[hint.row][hint.col].classList.add('hint-cell');
+        const line = hint.axis === 'row' ? '列' : '欄';
+        const action = hint.value === 1 ? '塗黑' : '標記 Ｏ（留白）';
+        hintMsg.textContent = `第 ${hint.row + 1} 列、第 ${hint.col + 1} 欄可以${action}：第 ${hint.lineIndex + 1} ${line}所有符合線索與目前作答的排列，在這格都相同。`;
+      }
+    }
+
     function renderBoard() {
+      clearHint();
       let state = getCurrentState();
       boardEl.style.gridTemplateColumns = `max-content repeat(${size}, minmax(0, 1fr))`;
       boardEl.innerHTML = '';
@@ -1325,6 +1353,7 @@ let size = 8;
 
       // 數值沒變就不必重掃線索與重算按鈕狀態（掃描是 O(size²)）
       if (currentValue === nextValue) return;
+      clearHint();
 
       if (!dragHistoryCommitted && dragSnapshot) {
         actionHistory.push(dragSnapshot);
@@ -1345,6 +1374,7 @@ let size = 8;
     }
 
     function showResult(isWin) {
+      clearHint();
       mainActions.classList.add('hidden');
       resultBox.classList.remove('hidden');
       resultBtns.innerHTML = '';
@@ -1402,6 +1432,7 @@ let size = 8;
     }
 
     function resetUI() {
+      clearHint();
       if (getCurrentState() && getCurrentState().isGameOver) return; // 避免結束後還原按鈕
 
       actionToggle.classList.remove('hidden');

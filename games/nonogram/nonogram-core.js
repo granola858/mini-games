@@ -278,6 +278,41 @@ const NonogramCore = (() => {
     };
   }
 
+  // 玩家盤面：0 未作答、1 塗黑、2 標記留白。只提示線索能確定的一格。
+  function getNextHint(rowClues, colClues, playerState) {
+    const targetSize = rowClues.length;
+    const board = playerState.map(row => row.map(value => value === 0 ? -1 : value === 1 ? 1 : 0));
+    const rowDomains = rowClues.map(clues => getLinePatterns(targetSize, clues));
+    const colDomains = colClues.map(clues => getLinePatterns(targetSize, clues));
+
+    // 先檢查交叉推理是否矛盾，避免把錯誤的既有作答當成可靠前提。
+    if (!propagateConstraints(cloneGrid(board), cloneDomains(rowDomains), cloneDomains(colDomains))) {
+      return { status: 'contradiction' };
+    }
+
+    for (const axis of ['row', 'col']) {
+      for (let index = 0; index < targetSize; index++) {
+        const line = axis === 'row' ? board[index] : board.map(row => row[index]);
+        const domains = axis === 'row' ? rowDomains[index] : colDomains[index];
+        const candidates = domains.filter(pattern => line.every((value, i) => value === -1 || value === pattern[i]));
+        for (let offset = 0; offset < targetSize; offset++) {
+          if (line[offset] !== -1) continue;
+          const value = getForcedLineValue(candidates, offset);
+          if (value === -1) continue;
+          return {
+            status: 'hint',
+            row: axis === 'row' ? index : offset,
+            col: axis === 'col' ? index : offset,
+            value: value === 1 ? 1 : 2,
+            axis,
+            lineIndex: index
+          };
+        }
+      }
+    }
+    return { status: isBoardSolved(board) ? 'complete' : 'stuck' };
+  }
+
   // --- 回溯計數 (Solution Counting) ---
   function searchSolutions(board, rowDomains, colDomains, limit, counter) {
     if (counter.count >= limit) return;
@@ -429,6 +464,7 @@ const NonogramCore = (() => {
     propagateConstraints,
     isBoardSolved,
     solveByLineLogic,
+    getNextHint,
     countSolutions,
     classifyDifficulty,
     ratePuzzle,

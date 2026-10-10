@@ -749,6 +749,25 @@
       background-color: var(--wrong-color) !important;
     }
 
+    .cell.hint-cell {
+      outline: 3px solid var(--primary-display);
+      outline-offset: -3px;
+      z-index: 1;
+    }
+
+    .hint-msg {
+      max-width: 420px;
+      padding: 0 10px;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    .hint-msg:empty {
+      display: none;
+    }
+
     .cell.error-wrong::after {
       display: none;
     }
