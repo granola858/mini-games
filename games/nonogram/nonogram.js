@@ -1147,9 +1147,8 @@ let size = 8;
         cellEls[hint.row][hint.col].classList.add('hint-mistake');
         hintMsg.textContent = '這格填錯了';
       } else {
-        const action = hint.value === 1 ? '塗黑' : '標記 Ｏ';
         const source = hint.axis ? `看第 ${hint.lineIndex + 1} ${hint.axis === 'row' ? '列' : '欄'}：` : '';
-        hintMsg.textContent = `${source}這格要${action}`;
+        hintMsg.textContent = `${source}這格要塗黑`;
       }
     }
 

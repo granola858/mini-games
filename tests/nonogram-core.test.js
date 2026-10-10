@@ -21,23 +21,23 @@ try {
 
 const SIZES = [8, 10, 12];
 
-test('提示優先塗黑格，且不修改玩家盤面', () => {
+test('提示指出可推出的塗黑格，且不修改玩家盤面', () => {
   const solution = [[1, 1], [0, 0]];
   const { rowClues, colClues } = core.buildCluesFromSolution(solution);
   const board = [[0, 0], [0, 0]];
   const before = structuredClone(board);
   assert.deepEqual(core.getNextHint(rowClues, colClues, board, solution), {
-    status: 'hint', row: 0, col: 0, value: 1, axis: 'row', lineIndex: 0
+    status: 'hint', row: 0, col: 0, axis: 'row', lineIndex: 0
   });
   assert.deepEqual(board, before);
 });
 
-test('沒有能推出的塗黑格時，才提示標記 Ｏ', () => {
-  // 列與欄的 [1] 都無法確定位置，只有線索 0 的第 2 列、第 2 欄能推出留白
-  const solution = [[1, 0, 0], [0, 0, 0], [0, 0, 1]];
+test('需要先推出留白才能確定塗黑時，留白在內部推、不要求玩家標 Ｏ', () => {
+  // 第 1 列、第 1 欄的 [1] 單看都無法確定；要先由線索 0 的列與欄推出留白，才能確定 (0,0) 塗黑
+  const solution = [[1, 0, 0], [0, 0, 0], [0, 0, 0]];
   const { rowClues, colClues } = core.buildCluesFromSolution(solution);
   assert.deepEqual(core.getNextHint(rowClues, colClues, core.createEmptyPlayerState(3), solution), {
-    status: 'hint', row: 1, col: 0, value: 2, axis: 'row', lineIndex: 1
+    status: 'hint', row: 0, col: 0, axis: 'col', lineIndex: 0
   });
 });
 
@@ -54,21 +54,23 @@ test('該塗的都塗了就算完成，不要求標滿留白', () => {
   assert.deepEqual(core.getNextHint(rowClues, colClues, [[1, 1], [0, 0]], solution), { status: 'complete' });
 });
 
-test('照著提示一路下去能解完各尺寸隨機題', () => {
+test('只塗黑、從不標 Ｏ，照著提示也能一路解完各尺寸各難度的題目', () => {
   for (const targetSize of SIZES) {
-    const { solution, rowClues, colClues } = core.generatePuzzle(targetSize, 'hard');
-    const board = core.createEmptyPlayerState(targetSize);
-    let hint;
-    for (let step = 0; step <= targetSize * targetSize; step++) {
-      hint = core.getNextHint(rowClues, colClues, board, solution);
-      if (hint.status === 'complete') break;
-      assert.equal(hint.status, 'hint');
-      assert.notEqual(hint.axis, null, '無誤盤面應該都能靠單線推理');
-      assert.equal(board[hint.row][hint.col], 0);
-      assert.equal(hint.value, solution[hint.row][hint.col] === 1 ? 1 : 2);
-      board[hint.row][hint.col] = hint.value;
+    for (const level of ['easy', 'medium', 'hard']) {
+      const { solution, rowClues, colClues } = core.generatePuzzle(targetSize, level);
+      const board = core.createEmptyPlayerState(targetSize);
+      let hint;
+      for (let step = 0; step <= targetSize * targetSize; step++) {
+        hint = core.getNextHint(rowClues, colClues, board, solution);
+        if (hint.status === 'complete') break;
+        assert.equal(hint.status, 'hint');
+        assert.notEqual(hint.axis, null, '無誤盤面應該都能靠線索推理出來');
+        assert.equal(board[hint.row][hint.col], 0);
+        assert.equal(solution[hint.row][hint.col], 1, '提示只會叫玩家塗黑');
+        board[hint.row][hint.col] = 1;
+      }
+      assert.equal(hint.status, 'complete');
     }
-    assert.equal(hint.status, 'complete');
   }
 });
 
