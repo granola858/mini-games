@@ -21,50 +21,55 @@ try {
 
 const SIZES = [8, 10, 12];
 
-test('下一步提示可推導塗黑與留白，且不修改玩家盤面或候選快取', () => {
-  const { rowClues, colClues } = core.buildCluesFromSolution([[1, 1], [0, 0]]);
+test('提示優先塗黑格，且不修改玩家盤面', () => {
+  const solution = [[1, 1], [0, 0]];
+  const { rowClues, colClues } = core.buildCluesFromSolution(solution);
   const board = [[0, 0], [0, 0]];
   const before = structuredClone(board);
-  const patterns = structuredClone(core.getLinePatterns(2, [2]));
-  assert.deepEqual(core.getNextHint(rowClues, colClues, board), {
+  assert.deepEqual(core.getNextHint(rowClues, colClues, board, solution), {
     status: 'hint', row: 0, col: 0, value: 1, axis: 'row', lineIndex: 0
   });
   assert.deepEqual(board, before);
-  assert.deepEqual(core.getLinePatterns(2, [2]), patterns);
-  assert.deepEqual(core.getNextHint(rowClues, colClues, [[1, 1], [0, 0]]), {
+});
+
+test('沒有能推出的塗黑格時，才提示標記 Ｏ', () => {
+  // 列與欄的 [1] 都無法確定位置，只有線索 0 的第 2 列、第 2 欄能推出留白
+  const solution = [[1, 0, 0], [0, 0, 0], [0, 0, 1]];
+  const { rowClues, colClues } = core.buildCluesFromSolution(solution);
+  assert.deepEqual(core.getNextHint(rowClues, colClues, core.createEmptyPlayerState(3), solution), {
     status: 'hint', row: 1, col: 0, value: 2, axis: 'row', lineIndex: 1
   });
 });
 
-test('下一步提示使用欄線索與玩家留白標記，不會猜測雙解題', () => {
-  assert.deepEqual(core.getNextHint([[1], [1]], [[2], [0]], [[0, 0], [0, 0]]), {
-    status: 'hint', row: 0, col: 0, value: 1, axis: 'col', lineIndex: 0
-  });
-  assert.deepEqual(core.getNextHint([[1], [1]], [[1], [1]], [[0, 0], [0, 0]]), { status: 'stuck' });
-  assert.deepEqual(core.getNextHint([[1], [1]], [[1], [1]], [[2, 0], [0, 0]]), {
-    status: 'hint', row: 0, col: 1, value: 1, axis: 'row', lineIndex: 0
-  });
-});
-
-test('下一步提示區分完成與矛盾，包括交叉推理後才發現的衝突', () => {
-  const rows = [[2], [0]], cols = [[1], [1]];
-  assert.deepEqual(core.getNextHint(rows, cols, [[1, 1], [2, 2]]), { status: 'complete' });
-  assert.deepEqual(core.getNextHint(rows, cols, [[2, 0], [0, 0]]), { status: 'contradiction' });
-  assert.deepEqual(core.getNextHint([[1], [1]], [[2], [0]], [[2, 0], [0, 0]]), { status: 'contradiction' });
-});
-
-test('持續採用下一步提示能解完既有線解題，每次只提示一個未知格', () => {
-  const solution = [[0, 1, 0], [1, 1, 1], [0, 1, 0]];
+test('填錯的格子會優先被指出', () => {
+  const solution = [[1, 1], [0, 0]];
   const { rowClues, colClues } = core.buildCluesFromSolution(solution);
-  const board = core.createEmptyPlayerState(3);
-  for (let step = 0; step < 9; step++) {
-    const hint = core.getNextHint(rowClues, colClues, board);
-    assert.equal(hint.status, 'hint');
-    assert.equal(board[hint.row][hint.col], 0);
-    assert.equal(hint.value, solution[hint.row][hint.col] === 1 ? 1 : 2);
-    board[hint.row][hint.col] = hint.value;
+  assert.deepEqual(core.getNextHint(rowClues, colClues, [[0, 0], [1, 0]], solution), { status: 'mistake', row: 1, col: 0 });
+  assert.deepEqual(core.getNextHint(rowClues, colClues, [[2, 0], [0, 0]], solution), { status: 'mistake', row: 0, col: 0 });
+});
+
+test('該塗的都塗了就算完成，不要求標滿留白', () => {
+  const solution = [[1, 1], [0, 0]];
+  const { rowClues, colClues } = core.buildCluesFromSolution(solution);
+  assert.deepEqual(core.getNextHint(rowClues, colClues, [[1, 1], [0, 0]], solution), { status: 'complete' });
+});
+
+test('照著提示一路下去能解完各尺寸隨機題', () => {
+  for (const targetSize of SIZES) {
+    const { solution, rowClues, colClues } = core.generatePuzzle(targetSize, 'hard');
+    const board = core.createEmptyPlayerState(targetSize);
+    let hint;
+    for (let step = 0; step <= targetSize * targetSize; step++) {
+      hint = core.getNextHint(rowClues, colClues, board, solution);
+      if (hint.status === 'complete') break;
+      assert.equal(hint.status, 'hint');
+      assert.notEqual(hint.axis, null, '無誤盤面應該都能靠單線推理');
+      assert.equal(board[hint.row][hint.col], 0);
+      assert.equal(hint.value, solution[hint.row][hint.col] === 1 ? 1 : 2);
+      board[hint.row][hint.col] = hint.value;
+    }
+    assert.equal(hint.status, 'complete');
   }
-  assert.deepEqual(core.getNextHint(rowClues, colClues, board), { status: 'complete' });
 });
 
 test('nonogram-core.js 可被 Node 載入並導出必要 API', () => {

@@ -278,28 +278,39 @@ const NonogramCore = (() => {
     };
   }
 
-  // 玩家盤面：0 未作答、1 塗黑、2 標記留白。只提示線索能確定的一格。
-  function getNextHint(rowClues, colClues, playerState) {
+  // 玩家盤面：0 未作答、1 塗黑、2 標記留白。
+  // 優先指出與答案不符的格子；否則找一條線靠線索就能確定的格子，塗黑優先於留白。
+  function getNextHint(rowClues, colClues, playerState, solution) {
     const targetSize = rowClues.length;
-    const board = playerState.map(row => row.map(value => value === 0 ? -1 : value === 1 ? 1 : 0));
-    const rowDomains = rowClues.map(clues => getLinePatterns(targetSize, clues));
-    const colDomains = colClues.map(clues => getLinePatterns(targetSize, clues));
 
-    // 先檢查交叉推理是否矛盾，避免把錯誤的既有作答當成可靠前提。
-    if (!propagateConstraints(cloneGrid(board), cloneDomains(rowDomains), cloneDomains(colDomains))) {
-      return { status: 'contradiction' };
+    for (let r = 0; r < targetSize; r++) {
+      for (let c = 0; c < targetSize; c++) {
+        const value = playerState[r][c];
+        if ((value === 1 && solution[r][c] !== 1) || (value === 2 && solution[r][c] === 1)) {
+          return { status: 'mistake', row: r, col: c };
+        }
+      }
     }
+
+    // 勝利只看塗黑格，該塗的都塗了就算完成，不要求把留白也標滿。
+    if (solution.every((row, r) => row.every((value, c) => value !== 1 || playerState[r][c] === 1))) {
+      return { status: 'complete' };
+    }
+
+    const board = playerState.map(row => row.map(value => value === 0 ? -1 : value === 1 ? 1 : 0));
+    let blankHint = null;
 
     for (const axis of ['row', 'col']) {
       for (let index = 0; index < targetSize; index++) {
         const line = axis === 'row' ? board[index] : board.map(row => row[index]);
-        const domains = axis === 'row' ? rowDomains[index] : colDomains[index];
-        const candidates = domains.filter(pattern => line.every((value, i) => value === -1 || value === pattern[i]));
+        const clues = axis === 'row' ? rowClues[index] : colClues[index];
+        const candidates = getLinePatterns(targetSize, clues)
+          .filter(pattern => line.every((value, i) => value === -1 || value === pattern[i]));
         for (let offset = 0; offset < targetSize; offset++) {
           if (line[offset] !== -1) continue;
           const value = getForcedLineValue(candidates, offset);
           if (value === -1) continue;
-          return {
+          const hint = {
             status: 'hint',
             row: axis === 'row' ? index : offset,
             col: axis === 'col' ? index : offset,
@@ -307,10 +318,22 @@ const NonogramCore = (() => {
             axis,
             lineIndex: index
           };
+          if (value === 1) return hint;
+          if (!blankHint) blankHint = hint;
         }
       }
     }
-    return { status: isBoardSolved(board) ? 'complete' : 'stuck' };
+    if (blankHint) return blankHint;
+
+    // 題目都保證可純線解，盤面無誤時不會走到這裡；保險起見直接給一格答案。
+    for (let r = 0; r < targetSize; r++) {
+      for (let c = 0; c < targetSize; c++) {
+        if (solution[r][c] === 1 && playerState[r][c] !== 1) {
+          return { status: 'hint', row: r, col: c, value: 1, axis: null, lineIndex: null };
+        }
+      }
+    }
+    return { status: 'complete' };
   }
 
   // --- 回溯計數 (Solution Counting) ---

@@ -29,6 +29,7 @@ let size = 8;
     const LIGHT_SURFACE_COLOR = '#FFFFFF';
     const DARK_SURFACE_COLOR = '#0F141C';
     const SHARED_SEED_PREFIX = 'NGM';
+    const HINT_LIMIT = 3; // 每一局可用的提示次數，清空盤面或返回上一步都不會退還
     const RESULT_STATE = {
       IN_PROGRESS: 'in-progress',
       WIN: 'win',
@@ -81,6 +82,7 @@ let size = 8;
     const checkBtn = document.getElementById('check-btn');
     const hintBtn = document.getElementById('hint-btn');
     const hintMsg = document.getElementById('hint-msg');
+    const hintCount = document.getElementById('hint-count');
     const newGameBtn = document.getElementById('new-game-btn');
     const undoBtn = document.getElementById('undo-btn');
     const clearBoardBtn = document.getElementById('clear-board-btn');
@@ -314,6 +316,7 @@ let size = 8;
         globalColClues: decodedSeed.colClues,
         isGameOver: false,
         resultState: RESULT_STATE.IN_PROGRESS,
+        hintsUsed: 0,
         stateRevision: getStateRevision(gameStates[slotKey])
       };
       markStateDirty(slotKey);
@@ -396,6 +399,10 @@ let size = 8;
       dirtySlotKeys.add(String(slotKey));
     }
 
+    function normalizeHintsUsed(value) {
+      return Number.isInteger(value) && value > 0 ? Math.min(value, HINT_LIMIT) : 0;
+    }
+
     function cloneSavedGameState(state) {
       if (!state) return null;
       return {
@@ -405,6 +412,7 @@ let size = 8;
         globalColClues: state.globalColClues.map(line => line.slice()),
         isGameOver: Boolean(state.isGameOver),
         resultState: state.resultState || (state.isGameOver ? RESULT_STATE.COMPLETED : RESULT_STATE.IN_PROGRESS),
+        hintsUsed: normalizeHintsUsed(state.hintsUsed),
         stateRevision: getStateRevision(state)
       };
     }
@@ -535,6 +543,7 @@ let size = 8;
       if (!leftState || !rightState) return false;
       if (leftState.isGameOver !== rightState.isGameOver) return false;
       if (leftState.resultState !== rightState.resultState) return false;
+      if (normalizeHintsUsed(leftState.hintsUsed) !== normalizeHintsUsed(rightState.hintsUsed)) return false;
 
       return JSON.stringify(leftState.solution) === JSON.stringify(rightState.solution) &&
         JSON.stringify(leftState.playerState) === JSON.stringify(rightState.playerState) &&
@@ -877,6 +886,7 @@ let size = 8;
         globalColClues: savedState.globalColClues.map(line => line.slice()),
         isGameOver: isGameOver,
         resultState: resultState,
+        hintsUsed: normalizeHintsUsed(savedState.hintsUsed),
         stateRevision: getStateRevision(savedState)
       };
     }
@@ -944,6 +954,7 @@ let size = 8;
         globalColClues: colClues,
         isGameOver: false
         , resultState: RESULT_STATE.IN_PROGRESS
+        , hintsUsed: 0
         , stateRevision: getStateRevision(gameStates[slotKey])
       };
       markStateDirty(slotKey);
@@ -1098,26 +1109,47 @@ let size = 8;
     let cellEls = [];
 
     function clearHint() {
-      boardEl.querySelectorAll('.hint-cell').forEach(cell => cell.classList.remove('hint-cell'));
+      boardEl.querySelectorAll('.hint-cell').forEach(cell => cell.classList.remove('hint-cell', 'hint-mistake'));
       hintMsg.textContent = '';
+    }
+
+    function updateHintButtonState() {
+      const state = getCurrentState();
+      const remaining = state ? HINT_LIMIT - normalizeHintsUsed(state.hintsUsed) : 0;
+      const shouldDisable = !state || state.isGameOver || remaining <= 0;
+      hintCount.textContent = String(remaining);
+      hintBtn.disabled = shouldDisable;
+      hintBtn.setAttribute('aria-disabled', String(shouldDisable));
+      hintBtn.setAttribute('aria-label', `提示（剩 ${remaining} 次）`);
+      hintBtn.title = `提示（剩 ${remaining} 次）`;
     }
 
     function showNextHint() {
       const state = getCurrentState();
       if (!state || state.isGameOver) return;
+      // 上一個提示還亮著（盤面沒動過）就不重複扣次數
+      if (boardEl.querySelector('.hint-cell')) return;
+      if (normalizeHintsUsed(state.hintsUsed) >= HINT_LIMIT) return;
       clearHint();
-      const hint = NonogramCore.getNextHint(state.globalRowClues, state.globalColClues, state.playerState);
-      if (hint.status === 'contradiction') {
-        hintMsg.textContent = '目前的塗黑或留白標記與線索矛盾，請先檢查作答或返回上一步。';
-      } else if (hint.status === 'complete') {
-        hintMsg.textContent = '盤面已完成，可以確認答案了！';
-      } else if (hint.status === 'stuck') {
-        hintMsg.textContent = '目前沒有能直接確定的格子，請再交叉檢查列與欄的線索。';
+      const hint = NonogramCore.getNextHint(state.globalRowClues, state.globalColClues, state.playerState, state.solution);
+      if (hint.status === 'complete') {
+        hintMsg.textContent = '都完成了，按 ✓ 確認答案';
+        return;
+      }
+
+      state.hintsUsed = normalizeHintsUsed(state.hintsUsed) + 1;
+      markStateDirty();
+      saveData();
+      updateHintButtonState();
+
+      cellEls[hint.row][hint.col].classList.add('hint-cell');
+      if (hint.status === 'mistake') {
+        cellEls[hint.row][hint.col].classList.add('hint-mistake');
+        hintMsg.textContent = '這格填錯了';
       } else {
-        cellEls[hint.row][hint.col].classList.add('hint-cell');
-        const line = hint.axis === 'row' ? '列' : '欄';
-        const action = hint.value === 1 ? '塗黑' : '標記 Ｏ（留白）';
-        hintMsg.textContent = `第 ${hint.row + 1} 列、第 ${hint.col + 1} 欄可以${action}：第 ${hint.lineIndex + 1} ${line}所有符合線索與目前作答的排列，在這格都相同。`;
+        const action = hint.value === 1 ? '塗黑' : '標記 Ｏ';
+        const source = hint.axis ? `看第 ${hint.lineIndex + 1} ${hint.axis === 'row' ? '列' : '欄'}：` : '';
+        hintMsg.textContent = `${source}這格要${action}`;
       }
     }
 
@@ -1171,6 +1203,7 @@ let size = 8;
       updateCurrentSeedDisplay();
       updateClearBoardButtonState();
       updateUndoButtonState();
+      updateHintButtonState();
     }
 
     function startNewGame(targetSize = size, targetDifficulty = difficulty) {
