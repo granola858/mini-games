@@ -12,6 +12,7 @@
     setup: $('setup-panel'),
     game: $('game-panel'),
     playerCount: $('player-count'),
+    handSize: $('hand-size'),
     difficulty: $('difficulty'),
     start: $('start-button'),
     resume: $('resume-button'),
@@ -75,6 +76,7 @@
   function settingsFromForm() {
     return Core.normalizePreferences({
       playerCount: Number(elements.playerCount.value),
+      handSize: Number(elements.handSize.value),
       difficulty: elements.difficulty.value
     });
   }
@@ -138,6 +140,7 @@
     const label = getCardLabel(action.card);
     let effect = '';
     switch (action.card.rank) {
+      case 'A': effect = action.choice === 'zero' ? '歸零' : '加 1'; break;
       case '4': effect = '反轉方向'; break;
       case '5': effect = '指定 ' + (Core.getPlayer(game, action.targetId)?.name || '玩家'); break;
       case 'J': effect = '跳過下一位'; break;
@@ -149,10 +152,12 @@
       default:
         effect = '加 ' + (action.card.rank === 'A' ? '1' : action.card.rank);
     }
-    return (player ? player.name : '玩家') + ' 出了 ' + label + ' · ' + effect;
+    return (player ? player.name : '玩家') + ' 出了 ' + label + ' · ' + effect
+      + (action.busted ? '，爆點淘汰' : '');
   }
 
   function turnDescription() {
+    if (game.lastAction?.busted) return actionDescription(game.lastAction);
     const eliminated = game.lastEliminatedIds.map(id => Core.getPlayer(game, id).name);
     return eliminated.length
       ? eliminated.join('、') + ' 無牌可出，已淘汰'
@@ -170,7 +175,7 @@
         + escapeHtml(actionDescription(action) + '，點數 ' + action.value + (latest ? '，最新' : '')) + '">'
         + '<span class="history-owner">' + escapeHtml(owner.name) + '</span>'
         + '<strong class="history-face' + (red ? ' red' : '') + '">' + getCardLabel(action.card) + '</strong>'
-        + '<span class="history-value">→ ' + action.value + '</span></li>';
+        + '<span class="history-value">→ ' + action.value + (action.busted ? ' 爆點' : '') + '</span></li>';
     });
     elements.history.innerHTML = [...placeholders, ...cards].join('');
   }
@@ -209,20 +214,21 @@
     const player = Core.getPlayer(game, 'p0');
     const humanTurn = game.status === 'active' && game.currentPlayerId === 'p0' && !thinking;
     if (!player) return;
-    const legalMoves = humanTurn ? Core.getAvailableMoves(game) : [];
+    const safeMoves = humanTurn ? Core.getSafeMoves(game) : [];
+    elements.hand.style.setProperty('--hand-size', game.handSize);
     const suitGlyph = { spades: '♠', hearts: '♥', diamonds: '♦', clubs: '♣' };
     elements.hand.innerHTML = player.hand.map(card => {
       const red = card.suit === 'hearts' || card.suit === 'diamonds';
       const selected = selectedMoves.some(move => move.cardId === card.id);
-      const safe = legalMoves.some(move => move.cardId === card.id);
+      const safe = safeMoves.some(move => move.cardId === card.id);
       const blocked = humanTurn && !safe;
       return '<button class="playing-card' + (red ? ' red' : '') + (selected ? ' selected' : '')
         + '" type="button" data-card-id="' + card.id + '" aria-label="出 ' + card.rank
-        + suitGlyph[card.suit] + (blocked ? '，超過 99，無法出牌' : '') + '" '
-        + (humanTurn && safe ? '' : 'disabled') + '>'
+        + suitGlyph[card.suit] + (blocked ? '，出牌會爆點淘汰' : '') + '" '
+        + (humanTurn ? '' : 'disabled') + '>'
         + '<span class="rank">' + card.rank + '</span><span class="suit" aria-hidden="true">'
         + suitGlyph[card.suit] + '</span>'
-        + (blocked ? '<span class="card-warning">爆點</span>' : '') + '</button>';
+        + (blocked ? '<span class="card-warning">會爆點</span>' : '') + '</button>';
     }).join('');
     elements.turnHint.textContent = !player.alive
       ? '你已淘汰，電腦繼續對局'
@@ -239,6 +245,14 @@
     }
     elements.options.hidden = false;
     const card = Core.getPlayer(game, 'p0').hand.find(item => item.id === selectedMoves[0].cardId);
+    if (card.id === 'spades-A') {
+      elements.options.innerHTML = selectedMoves.map((move, index) => {
+        const value = move.choice === 'zero' ? 0 : game.currentValue + 1;
+        const label = move.choice === 'zero' ? '歸零 → 0' : '+1 → ' + value + (value > 99 ? ' · 爆點' : '');
+        return '<button type="button" data-move-index="' + index + '">' + label + '</button>';
+      }).join('');
+      return;
+    }
     if (card.rank === '10' || card.rank === 'Q') {
       const amount = card.rank === '10' ? 10 : 20;
       elements.options.innerHTML = ['plus', 'minus'].map(choice => {
@@ -378,7 +392,7 @@
     elements.game.hidden = true;
     elements.setup.hidden = false;
     document.body.classList.remove('is-playing');
-    elements.status.textContent = '調整人數或難度，再開始新局；也可以接續剛才的牌局。';
+    elements.status.textContent = '調整人數、手牌或難度，再開始新局；也可以接續剛才的牌局。';
   }
 
   function resumeGame() {
@@ -396,6 +410,7 @@
     savedMatchId = typeof saved.value.recordedMatchId === 'string'
       ? saved.value.recordedMatchId : savedMatchId;
     elements.playerCount.value = String(game.playerCount);
+    elements.handSize.value = String(game.handSize);
     elements.difficulty.value = game.difficulty;
     elements.status.textContent = game.lastEliminatedIds.length ? turnDescription() : '已接續上局。';
     render();
@@ -408,8 +423,7 @@
     if (!moves.length) return;
     selectedMoves = moves;
     renderHand();
-    const card = Core.getPlayer(game, 'p0').hand.find(item => item.id === button.dataset.cardId);
-    if (moves.length === 1 && card.rank !== '10' && card.rank !== 'Q') {
+    if (moves.length === 1) {
       applyHumanMove(moves[0]);
     } else {
       renderOptions();
@@ -439,6 +453,7 @@
     const preferences = readJson(PREF_KEY);
     const settings = Core.normalizePreferences(preferences.value);
     elements.playerCount.value = String(settings.playerCount);
+    elements.handSize.value = String(settings.handSize);
     elements.difficulty.value = settings.difficulty;
     const savedStats = readJson(STATS_KEY);
     stats = Core.normalizeStats(savedStats.value);
@@ -448,6 +463,7 @@
     elements.start.addEventListener('click', () => startGame(false));
     elements.resume.addEventListener('click', resumeGame);
     elements.playerCount.addEventListener('change', saveSettings);
+    elements.handSize.addEventListener('change', saveSettings);
     elements.difficulty.addEventListener('change', saveSettings);
     elements.hand.addEventListener('click', handleCardClick);
     elements.options.addEventListener('click', handleOptionClick);

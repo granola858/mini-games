@@ -149,7 +149,7 @@ body.is-playing .status-line { min-height: 18px; margin: 0 auto 8px; font-size: 
 
 .hand-heading h2 { font-size: 1rem; }
 .turn-hint { color: var(--muted); font-size: 0.75rem; text-align: right; }
-.hand { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
+.hand { display: grid; grid-template-columns: repeat(var(--hand-size, 5), minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
 .playing-card {
   position: relative;
   width: 100%;

@@ -9,7 +9,7 @@ function createFixture({ rank, value = 0, playerCount = 3, difficulty = 'normal'
     ...game.drawPile,
     ...game.discardPile
   ];
-  const targetIndex = allCards.findIndex(card => card.rank === rank);
+  const targetIndex = allCards.findIndex(card => card.rank === rank && (rank !== 'A' || card.suit !== 'spades'));
   const targetCard = allCards.splice(targetIndex, 1)[0];
   game.players.forEach((player, index) => {
     const count = index === 0 ? 4 : 5;
@@ -29,11 +29,12 @@ function createFixture({ rank, value = 0, playerCount = 3, difficulty = 'normal'
 }
 
 function withHands(hands, value = 99) {
-  const game = Core.createGame({ playerCount: hands.length }, () => 0.25);
+  const game = Core.createGame({ playerCount: hands.length, handSize: hands[0].length }, () => 0.25);
   const cards = Core.createDeck();
   hands.forEach((ranks, index) => {
     game.players[index].hand = ranks.map(rank => {
-      const cardIndex = cards.findIndex(card => card.rank === rank);
+      const cardIndex = cards.findIndex(card => card.id === rank
+        || (card.rank === rank && (rank !== 'A' || card.suit !== 'spades')));
       assert.notEqual(cardIndex, -1, `Not enough ${rank} cards`);
       return cards.splice(cardIndex, 1)[0];
     });
@@ -50,14 +51,44 @@ function playRank(game, rank, option) {
   return Core.applyMove(game, move, () => 0);
 }
 
-test('new games deal five cards to 2–4 seats with exactly one human', () => {
+test('new games deal the configured four or five cards to 2–4 seats with exactly one human', () => {
   for (let count = 2; count <= 4; count += 1) {
-    const game = Core.createGame({ playerCount: count }, () => 0.4);
-    assert.equal(game.players.length, count);
-    assert.deepEqual(game.players.map(player => player.hand.length), Array(count).fill(5));
-    assert.equal(game.players.filter(player => player.human).length, 1);
-    assert.equal(game.players[0].human, true);
-    assert.equal(game.drawPile.length, 52 - count * 5);
+    for (const handSize of [4, 5]) {
+      const game = Core.createGame({ playerCount: count, handSize }, () => 0.4);
+      assert.equal(game.players.length, count);
+      assert.equal(game.handSize, handSize);
+      assert.deepEqual(game.players.map(player => player.hand.length), Array(count).fill(handSize));
+      assert.equal(game.players.filter(player => player.human).length, 1);
+      assert.equal(game.players[0].human, true);
+      assert.equal(game.drawPile.length, 52 - count * handSize);
+      assert.ok(Core.normalizeGame(game));
+    }
+  }
+  assert.throws(() => Core.createGame({ handSize: 3 }), /handSize/);
+});
+
+test('only the spade Ace offers +1 or reset, including +1 bust penalties', () => {
+  const game = withHands([['spades-A', '2', '10', 'Q', 'K'], ['4', '5', '6', '7', '8']], 70);
+  assert.deepEqual(Core.getAvailableMoves(game).filter(move => move.cardId === 'spades-A'), [
+    { cardId: 'spades-A', choice: 'plus' }, { cardId: 'spades-A', choice: 'zero' }
+  ]);
+  assert.equal(playRank(game, 'A', { choice: 'plus' }).currentValue, 71);
+  const reset = playRank(game, 'A', { choice: 'zero' });
+  assert.equal(reset.currentValue, 0);
+  assert.equal(reset.history.at(-1).choice, 'zero');
+  assert.ok(Core.normalizeGame(reset));
+  game.currentValue = 99;
+  assert.equal(Core.resolveTurn(game).players[0].alive, true);
+  assert.equal(Core.getSafeMoves(game).filter(move => move.cardId === 'spades-A').length, 1);
+  const busted = playRank(game, 'A', { choice: 'plus' });
+  assert.equal(busted.players[0].alive, false);
+  assert.equal(busted.currentValue, 99);
+  for (const suit of ['hearts', 'diamonds', 'clubs']) {
+    const other = withHands([[suit + '-A', '2', '10', 'Q', 'K'], ['4', '5', '6', '7', '8']], 70);
+    assert.deepEqual(Core.getAvailableMoves(other).filter(move => move.cardId === suit + '-A'), [
+      { cardId: suit + '-A' }
+    ]);
+    assert.throws(() => Core.applyMove(other, { cardId: suit + '-A', choice: 'zero' }), /not legal/);
   }
 });
 
@@ -82,7 +113,7 @@ test('4 reverses direction, 5 targets another live player, and J skips one playe
   assert.equal(skipped.currentPlayerId, 'p2');
 });
 
-test('bust moves are excluded and rejected without changing the game', () => {
+test('tool bust options are rejected while ordinary bust cards remain playable', () => {
   const game = withHands([['A', '2', '10', 'Q', 'K'], ['4', '5', '6', '7', '8']], 90);
   const before = JSON.stringify(game);
   const moves = Core.getAvailableMoves(game);
@@ -93,9 +124,31 @@ test('bust moves are excluded and rejected without changing the game', () => {
     assert.throws(() => Core.applyMove(game, { cardId: card.id, choice: 'plus' }), /not legal/);
   }
   const at99 = withHands([['A', '2', '3', '6', '7'], ['4', '5', '8', '9', 'K']]);
-  assert.deepEqual(Core.getAvailableMoves(at99), []);
-  assert.throws(() => playRank(at99, 'A'), /not legal/);
+  assert.equal(Core.getAvailableMoves(at99).length, 5);
+  assert.deepEqual(Core.getSafeMoves(at99), []);
   assert.equal(JSON.stringify(game), before);
+});
+
+test('an accidental ordinary bust eliminates the player without drawing or changing the shared total', () => {
+  for (const handSize of [4, 5]) {
+    for (const playerCount of [2, 3, 4]) {
+      const hands = Array.from({ length: playerCount }, (_, index) =>
+        (index === 0 ? ['2', '10', 'Q', 'K', '4'] : ['J', '4', '5', '10', 'Q']).slice(0, handSize));
+      const game = withHands(hands, 98);
+      const next = playRank(game, '2');
+      assert.equal(next.players[0].alive, false);
+      assert.equal(next.players[0].hand.length, handSize - 1);
+      assert.equal(next.drawPile.length, game.drawPile.length);
+      assert.equal(next.currentValue, 98);
+      assert.equal(next.lastAction.value, 100);
+      assert.equal(next.lastAction.busted, true);
+      assert.equal(next.history.at(-1).playerId, 'p0');
+      assert.deepEqual(next.lastEliminatedIds, ['p0']);
+      assert.equal(next.status, playerCount === 2 ? 'finished' : 'active');
+      assert.equal(next.currentPlayerId, 'p1');
+      assert.ok(Core.normalizeGame(next));
+    }
+  }
 });
 
 test('exactly 99 is allowed, with no lower clamp on subtraction', () => {
@@ -182,15 +235,32 @@ test('invalid moves and corrupted saves are rejected', () => {
   assert.equal(Core.normalizeGame(corrupted), null);
   assert.deepEqual(Core.normalizePreferences({ playerCount: 99, difficulty: 'evil' }), {
     playerCount: 3,
-    difficulty: 'normal'
+    difficulty: 'normal',
+    handSize: 5
   });
+});
+
+test('hand-size settings persist, validate and migrate legacy five-card saves', () => {
+  assert.deepEqual(Core.normalizePreferences({ playerCount: 4, difficulty: 'hard', handSize: 4 }), {
+    playerCount: 4, difficulty: 'hard', handSize: 4
+  });
+  assert.equal(Core.normalizePreferences({ handSize: 6 }).handSize, 5);
+  const legacy = Core.createGame();
+  delete legacy.handSize;
+  assert.equal(Core.normalizeGame(legacy).handSize, 5);
+  const four = Core.createGame({ handSize: 4 });
+  assert.equal(Core.normalizeGame(JSON.parse(JSON.stringify(four))).handSize, 4);
+  four.handSize = 5;
+  assert.equal(Core.normalizeGame(four), null);
+  four.handSize = 6;
+  assert.equal(Core.normalizeGame(four), null);
 });
 
 test('history retains the last five cards with their owners and survives save/restore', () => {
   let game = Core.createGame({ playerCount: 3 }, () => 0.4);
   const played = [];
   for (let turn = 0; turn < 8; turn += 1) {
-    const move = Core.getAvailableMoves(game).find(candidate => {
+    const move = Core.getSafeMoves(game).find(candidate => {
       const card = Core.getCurrentPlayer(game).hand.find(item => item.id === candidate.cardId);
       return card.rank !== 'K' && !candidate.targetId;
     });
@@ -226,25 +296,27 @@ test('every AI difficulty only chooses safe moves near 99', () => {
 
 test('all AI levels finish deterministic games with 2–4 players', () => {
   for (let playerCount = 2; playerCount <= 4; playerCount += 1) {
-    for (const difficulty of Core.DIFFICULTIES) {
-      let seed = 0x12345678 + playerCount * 101;
-      const rng = () => {
-        seed = (seed * 1664525 + 1013904223) >>> 0;
-        return seed / 0x100000000;
-      };
-      let game = Core.createGame({ playerCount, difficulty }, rng);
-      let turns = 0;
-      while (game.status === 'active' && turns < 20000) {
-        const move = Core.chooseMove(game, difficulty, rng);
-        assert.ok(move, `${playerCount} seats / ${difficulty} has no legal move`);
-        game = Core.applyMove(game, move, rng);
-        assert.ok(game.currentValue <= 99);
-        assert.ok(Core.normalizeGame(game), 'Every intermediate state must be restorable');
-        turns += 1;
+    for (const handSize of [4, 5]) {
+      for (const difficulty of Core.DIFFICULTIES) {
+        let seed = 0x12345678 + playerCount * 101;
+        const rng = () => {
+          seed = (seed * 1664525 + 1013904223) >>> 0;
+          return seed / 0x100000000;
+        };
+        let game = Core.createGame({ playerCount, difficulty, handSize }, rng);
+        let turns = 0;
+        while (game.status === 'active' && turns < 20000) {
+          const move = Core.chooseMove(game, difficulty, rng);
+          assert.ok(move, `${playerCount} seats / ${difficulty} has no legal move`);
+          game = Core.applyMove(game, move, rng);
+          assert.ok(game.currentValue <= 99);
+          assert.ok(Core.normalizeGame(game), 'Every intermediate state must be restorable');
+          turns += 1;
+        }
+        assert.equal(game.status, 'finished', `${playerCount} seats / ${difficulty} failed to finish`);
+        assert.ok(turns < 20000, 'The deterministic game exceeded the turn safety limit');
+        assert.ok(Core.normalizeGame(game), 'Finished game failed save validation');
       }
-      assert.equal(game.status, 'finished', `${playerCount} seats / ${difficulty} failed to finish`);
-      assert.ok(turns < 20000, 'The deterministic game exceeded the turn safety limit');
-      assert.ok(Core.normalizeGame(game), 'Finished game failed save validation');
     }
   }
 });
