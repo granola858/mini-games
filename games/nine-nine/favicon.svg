@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="波波九九撲克牌">
+  <rect width="32" height="32" rx="8" fill="#197148"/>
+  <g transform="rotate(-9 14 16)">
+    <rect x="7" y="4" width="16" height="24" rx="2.5" fill="#fff" stroke="#d9e8dd"/>
+    <path d="M10 8h4v4h-4z" fill="#c4444d"/>
+    <path d="M13 15c-1-2-4-1-4 1 0 2 4 5 4 5s4-3 4-5c0-2-3-3-4-1Z" fill="#c4444d"/>
+  </g>
+  <circle cx="23.5" cy="8.5" r="6.5" fill="#f4bd69"/>
+  <text x="23.5" y="11" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="800" fill="#172b1e">99</text>
+</svg>
