@@ -7,6 +7,7 @@ const NineNineCore = (() => {
   const RANKS = Object.freeze(['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']);
   const DIFFICULTIES = Object.freeze(['easy', 'normal', 'hard']);
   const HAND_SIZE = 5;
+  const HAND_SIZES = Object.freeze([4, 5]);
 
   const isObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
   const isInteger = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
@@ -36,8 +37,10 @@ const NineNineCore = (() => {
     const settings = options || {};
     const playerCount = settings.playerCount === undefined ? 3 : settings.playerCount;
     const difficulty = settings.difficulty || 'normal';
+    const handSize = settings.handSize === undefined ? HAND_SIZE : settings.handSize;
     if (!isInteger(playerCount, 2, 4)) throw new RangeError('playerCount must be between 2 and 4');
     if (!DIFFICULTIES.includes(difficulty)) throw new RangeError('Unknown AI difficulty');
+    if (!HAND_SIZES.includes(handSize)) throw new RangeError('handSize must be 4 or 5');
 
     const random = typeof rng === 'function' ? rng : Math.random;
     const deck = shuffled(createDeck(), random);
@@ -46,13 +49,14 @@ const NineNineCore = (() => {
       name: index === 0 ? '你' : '電腦 ' + index,
       human: index === 0,
       alive: true,
-      hand: deck.splice(0, HAND_SIZE)
+      hand: deck.splice(0, handSize)
     }));
 
     return {
       version: SAVE_VERSION,
       matchId: settings.matchId || (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)),
       playerCount,
+      handSize,
       difficulty,
       players,
       drawPile: deck,
@@ -93,18 +97,23 @@ const NineNineCore = (() => {
   }
 
   function choicesForCard(game, player, card) {
+    if (card.id === 'spades-A') {
+      return [{ choice: 'plus' }, { choice: 'zero' }];
+    }
     if (card.rank === '5') {
       return activePlayers(game)
         .filter(target => target.id !== player.id)
         .map(target => ({ targetId: target.id }));
     }
     if (card.rank === '10' || card.rank === 'Q') {
-      return [{ choice: 'plus' }, { choice: 'minus' }];
+      return [{ choice: 'plus' }, { choice: 'minus' }]
+        .filter(option => valueAfterCard(game.currentValue, card, option.choice) <= 99);
     }
     return [{}];
   }
 
   function valueAfterCard(value, card, choice) {
+    if (card.id === 'spades-A' && choice === 'zero') return 0;
     if (card.rank === 'A') return value + 1;
     if (['2', '3', '6', '7', '8', '9'].includes(card.rank)) return value + Number(card.rank);
     if (card.rank === '10' || card.rank === 'Q') {
@@ -118,8 +127,15 @@ const NineNineCore = (() => {
     const player = getCurrentPlayer(game);
     if (!player || !player.alive) return [];
     return player.hand.flatMap(card => choicesForCard(game, player, card)
-      .filter(option => valueAfterCard(game.currentValue, card, option.choice) <= 99)
       .map(option => Object.assign({ cardId: card.id }, option)));
+  }
+
+  function getSafeMoves(game) {
+    const player = getCurrentPlayer(game);
+    return getAvailableMoves(game).filter(move => {
+      const card = player.hand.find(item => item.id === move.cardId);
+      return valueAfterCard(game.currentValue, card, move.choice) <= 99;
+    });
   }
 
   function findMove(game, move) {
@@ -140,7 +156,7 @@ const NineNineCore = (() => {
   }
 
   function eliminateBlockedPlayers(game) {
-    while (game.status === 'active' && !getAvailableMoves(game).length) {
+    while (game.status === 'active' && !getSafeMoves(game).length) {
       const player = getCurrentPlayer(game);
       player.alive = false;
       game.lastEliminatedIds.push(player.id);
@@ -178,7 +194,9 @@ const NineNineCore = (() => {
 
     let skip = 0;
     let forcedTarget = null;
-    next.currentValue = valueAfterCard(next.currentValue, card, legalMove.choice);
+    const playedValue = valueAfterCard(next.currentValue, card, legalMove.choice);
+    const busted = playedValue > 99;
+    if (!busted) next.currentValue = playedValue;
     switch (card.rank) {
       case '4':
         next.direction *= -1;
@@ -196,11 +214,18 @@ const NineNineCore = (() => {
       card: card,
       choice: legalMove.choice || null,
       targetId: legalMove.targetId || null,
-      value: next.currentValue
+      value: playedValue,
+      busted
     };
     next.history = [...(next.history || []), next.lastAction].slice(-5);
     next.lastEliminatedIds = [];
-    refillHand(next, player, typeof rng === 'function' ? rng : Math.random);
+    if (busted) {
+      player.alive = false;
+      next.lastEliminatedIds.push(player.id);
+      if (finishIfLastPlayer(next)) return next;
+    } else {
+      refillHand(next, player, typeof rng === 'function' ? rng : Math.random);
+    }
     next.currentPlayerId = forcedTarget || getNextActive(next, player.id, 1 + skip).id;
     return eliminateBlockedPlayers(next);
   }
@@ -262,7 +287,7 @@ const NineNineCore = (() => {
 
   function chooseMove(game, difficulty, rng) {
     const level = DIFFICULTIES.includes(difficulty) ? difficulty : 'normal';
-    const moves = getAvailableMoves(game);
+    const moves = getSafeMoves(game);
     if (!moves.length) return null;
     const random = typeof rng === 'function' ? rng : Math.random;
     if (level === 'easy') return moves[Math.floor(random() * moves.length)];
@@ -287,7 +312,10 @@ const NineNineCore = (() => {
   }
 
   function normalizeGame(value) {
-    if (!isObject(value) || value.version !== SAVE_VERSION
+    if (!isObject(value)) return null;
+    const handSize = value.handSize === undefined ? HAND_SIZE : value.handSize;
+    if (value.version !== SAVE_VERSION
+      || !HAND_SIZES.includes(handSize)
       || typeof value.matchId !== 'string' || !value.matchId
       || !isInteger(value.playerCount, 2, 4)
       || !DIFFICULTIES.includes(value.difficulty)
@@ -306,7 +334,8 @@ const NineNineCore = (() => {
       if (!isObject(player) || player.id !== 'p' + index
         || typeof player.name !== 'string' || typeof player.human !== 'boolean'
         || typeof player.alive !== 'boolean' || !Array.isArray(player.hand)) return null;
-      if (player.alive && player.hand.length !== HAND_SIZE) return null;
+      if (player.alive && player.hand.length !== handSize) return null;
+      if (player.hand.length > handSize) return null;
       if (player.human) humanCount += 1;
       for (const card of player.hand) {
         if (!isCard(card) || ids.has(card.id)) return null;
@@ -330,7 +359,9 @@ const NineNineCore = (() => {
 
     const validAction = action => isObject(action) && !!getPlayer(value, action.playerId)
       && isCard(action.card) && Number.isInteger(action.value)
-      && [null, 'plus', 'minus'].includes(action.choice)
+      && [null, 'plus', 'minus', 'zero'].includes(action.choice)
+      && (action.choice !== 'zero' || action.card.id === 'spades-A')
+      && (action.busted === undefined || typeof action.busted === 'boolean')
       && (action.targetId === null || !!getPlayer(value, action.targetId));
     if (value.lastAction !== null && !validAction(value.lastAction)) return null;
     // Old saves only contain the last card; retain it instead of inventing missing history.
@@ -342,7 +373,7 @@ const NineNineCore = (() => {
     if (!Array.isArray(eliminated) || eliminated.length > value.playerCount
       || new Set(eliminated).size !== eliminated.length
       || eliminated.some(id => !getPlayer(value, id) || getPlayer(value, id).alive)) return null;
-    return JSON.parse(JSON.stringify(Object.assign({}, value, { history, lastEliminatedIds: eliminated })));
+    return JSON.parse(JSON.stringify(Object.assign({}, value, { handSize, history, lastEliminatedIds: eliminated })));
   }
 
   function emptyStats() {
@@ -359,9 +390,10 @@ const NineNineCore = (() => {
   }
 
   function normalizePreferences(value) {
-    if (!isObject(value)) return { playerCount: 3, difficulty: 'normal' };
+    if (!isObject(value)) return { playerCount: 3, difficulty: 'normal', handSize: HAND_SIZE };
     return {
       playerCount: isInteger(value.playerCount, 2, 4) ? value.playerCount : 3,
+      handSize: HAND_SIZES.includes(value.handSize) ? value.handSize : HAND_SIZE,
       difficulty: DIFFICULTIES.includes(value.difficulty) ? value.difficulty : 'normal'
     };
   }
@@ -372,12 +404,14 @@ const NineNineCore = (() => {
     RANKS,
     DIFFICULTIES,
     HAND_SIZE,
+    HAND_SIZES,
     createDeck,
     createGame,
     getPlayer,
     getCurrentPlayer,
     activePlayers,
     getAvailableMoves,
+    getSafeMoves,
     applyMove,
     resolveTurn,
     chooseMove,
