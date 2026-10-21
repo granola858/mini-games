@@ -63,7 +63,9 @@ const NineNineCore = (() => {
       turnNumber: 0,
       status: 'active',
       winnerId: null,
-      lastAction: null
+      lastAction: null,
+      history: [],
+      lastEliminatedIds: []
     };
   }
 
@@ -102,11 +104,21 @@ const NineNineCore = (() => {
     return [{}];
   }
 
+  function valueAfterCard(value, card, choice) {
+    if (card.rank === 'A') return value + 1;
+    if (['2', '3', '6', '7', '8', '9'].includes(card.rank)) return value + Number(card.rank);
+    if (card.rank === '10' || card.rank === 'Q') {
+      return value + (choice === 'minus' ? -1 : 1) * (card.rank === '10' ? 10 : 20);
+    }
+    return card.rank === 'K' ? 99 : value;
+  }
+
   function getAvailableMoves(game) {
     if (!game || game.status !== 'active') return [];
     const player = getCurrentPlayer(game);
     if (!player || !player.alive) return [];
     return player.hand.flatMap(card => choicesForCard(game, player, card)
+      .filter(option => valueAfterCard(game.currentValue, card, option.choice) <= 99)
       .map(option => Object.assign({ cardId: card.id }, option)));
   }
 
@@ -121,9 +133,27 @@ const NineNineCore = (() => {
     if (remaining.length <= 1) {
       game.status = 'finished';
       game.winnerId = remaining.length === 1 ? remaining[0].id : null;
+      game.currentPlayerId = game.winnerId;
       return true;
     }
     return false;
+  }
+
+  function eliminateBlockedPlayers(game) {
+    while (game.status === 'active' && !getAvailableMoves(game).length) {
+      const player = getCurrentPlayer(game);
+      player.alive = false;
+      game.lastEliminatedIds.push(player.id);
+      if (finishIfLastPlayer(game)) break;
+      game.currentPlayerId = getNextActive(game, player.id, 1).id;
+    }
+    return game;
+  }
+
+  function resolveTurn(game) {
+    const next = JSON.parse(JSON.stringify(game));
+    next.lastEliminatedIds = [];
+    return eliminateBlockedPlayers(next);
   }
 
   function refillHand(game, player, rng) {
@@ -148,34 +178,18 @@ const NineNineCore = (() => {
 
     let skip = 0;
     let forcedTarget = null;
-    let delta = 0;
+    next.currentValue = valueAfterCard(next.currentValue, card, legalMove.choice);
     switch (card.rank) {
-      case 'A': delta = 1; break;
-      case '2': case '3': case '6': case '7': case '8': case '9':
-        delta = Number(card.rank);
-        break;
       case '4':
         next.direction *= -1;
         break;
       case '5':
         forcedTarget = legalMove.targetId;
         break;
-      case '10':
-        delta = legalMove.choice === 'minus' ? -10 : 10;
-        break;
       case 'J':
         skip = 1;
         break;
-      case 'Q':
-        delta = legalMove.choice === 'minus' ? -20 : 20;
-        break;
-      case 'K':
-        next.currentValue = 99;
-        break;
-      default:
-        throw new Error('Unsupported card rank: ' + card.rank);
     }
-    if (delta) next.currentValue += delta;
     next.turnNumber += 1;
     next.lastAction = {
       playerId: player.id,
@@ -184,41 +198,24 @@ const NineNineCore = (() => {
       targetId: legalMove.targetId || null,
       value: next.currentValue
     };
-
-    if (next.currentValue > 99) {
-      player.alive = false;
-      finishIfLastPlayer(next);
-    }
-
-    if (next.status === 'active') {
-      if (player.alive) refillHand(next, player, typeof rng === 'function' ? rng : Math.random);
-      if (forcedTarget) {
-        next.currentPlayerId = forcedTarget;
-      } else {
-        next.currentPlayerId = getNextActive(next, player.id, 1 + skip).id;
-      }
-    }
-    return next;
+    next.history = [...(next.history || []), next.lastAction].slice(-5);
+    next.lastEliminatedIds = [];
+    refillHand(next, player, typeof rng === 'function' ? rng : Math.random);
+    next.currentPlayerId = forcedTarget || getNextActive(next, player.id, 1 + skip).id;
+    return eliminateBlockedPlayers(next);
   }
 
   function resultingMove(game, move) {
     const player = getCurrentPlayer(game);
     const card = player.hand.find(item => item.id === move.cardId);
-    let value = game.currentValue;
+    const value = valueAfterCard(game.currentValue, card, move.choice);
     let direction = game.direction;
     let nextPlayerId = null;
-    if (card.rank === 'A') value += 1;
-    else if (['2', '3', '6', '7', '8', '9'].includes(card.rank)) value += Number(card.rank);
-    else if (card.rank === '10') value += move.choice === 'minus' ? -10 : 10;
-    else if (card.rank === 'Q') value += move.choice === 'minus' ? -20 : 20;
-    else if (card.rank === 'K') value = 99;
     if (card.rank === '4') direction *= -1;
     if (card.rank === '5') nextPlayerId = move.targetId;
     else {
-      const originalDirection = game.direction;
       const copy = Object.assign({}, game, { direction });
       nextPlayerId = getNextActive(copy, player.id, card.rank === 'J' ? 2 : 1).id;
-      copy.direction = originalDirection;
     }
     return { card, value, direction, nextPlayerId };
   }
@@ -331,12 +328,21 @@ const NineNineCore = (() => {
       || (alive.length === 1 && value.winnerId !== alive[0].id)
       || (alive.length === 0 && value.winnerId !== null)) return null;
 
-    if (value.lastAction !== null) {
-      const action = value.lastAction;
-      if (!isObject(action) || !getPlayer(value, action.playerId) || !isCard(action.card)
-        || !Number.isInteger(action.value)) return null;
-    }
-    return JSON.parse(JSON.stringify(value));
+    const validAction = action => isObject(action) && !!getPlayer(value, action.playerId)
+      && isCard(action.card) && Number.isInteger(action.value)
+      && [null, 'plus', 'minus'].includes(action.choice)
+      && (action.targetId === null || !!getPlayer(value, action.targetId));
+    if (value.lastAction !== null && !validAction(value.lastAction)) return null;
+    // Old saves only contain the last card; retain it instead of inventing missing history.
+    const history = value.history === undefined
+      ? (value.lastAction ? [value.lastAction] : [])
+      : value.history;
+    if (!Array.isArray(history) || history.length > 5 || !history.every(validAction)) return null;
+    const eliminated = value.lastEliminatedIds === undefined ? [] : value.lastEliminatedIds;
+    if (!Array.isArray(eliminated) || eliminated.length > value.playerCount
+      || new Set(eliminated).size !== eliminated.length
+      || eliminated.some(id => !getPlayer(value, id) || getPlayer(value, id).alive)) return null;
+    return JSON.parse(JSON.stringify(Object.assign({}, value, { history, lastEliminatedIds: eliminated })));
   }
 
   function emptyStats() {
@@ -373,6 +379,7 @@ const NineNineCore = (() => {
     activePlayers,
     getAvailableMoves,
     applyMove,
+    resolveTurn,
     chooseMove,
     normalizeGame,
     emptyStats,

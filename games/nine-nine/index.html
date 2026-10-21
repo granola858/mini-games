@@ -23,6 +23,7 @@
 <body>
   <header class="topbar">
     <a class="back-link" href="../../index.html" aria-label="回到波波小遊戲首頁">← <span>回首頁</span></a>
+    <span class="table-brand" aria-hidden="true">九九 <b>99</b></span>
     <div class="top-actions">
       <button class="icon-button" id="theme-button" type="button" aria-label="切換主題" title="切換主題">🌙</button>
       <button class="icon-button" id="rules-button" type="button">玩法</button>
@@ -75,10 +76,7 @@
     <section class="game-panel" id="game-panel" hidden aria-label="九九牌局">
       <div class="table-top panel">
         <div class="table-heading">
-          <div>
-            <p class="eyebrow">TABLE</p>
-            <h2 id="turn-title" aria-live="polite">準備中</h2>
-          </div>
+          <h2 id="turn-title" aria-live="polite">準備中</h2>
           <button class="button button-quiet" id="new-game-button" type="button">新局設定</button>
         </div>
         <div class="players-list" id="players-list" aria-label="玩家狀態"></div>
@@ -88,31 +86,29 @@
           <div class="score-track" aria-hidden="true"><span id="score-fill"></span></div>
           <span class="score-caption" id="score-caption">還有 99 點空間</span>
         </div>
-        <div class="discard-row">
-          <div>
-            <span class="eyebrow">上一張牌</span>
-            <div class="last-play" id="last-play">尚未出牌</div>
+        <section class="history-section" aria-labelledby="history-title">
+          <div class="history-heading">
+            <h3 id="history-title">最近五張 <small>舊 → 新</small></h3>
+            <div class="deck-count"><span aria-hidden="true">🂠</span> 牌堆 <strong id="deck-count">0</strong></div>
           </div>
-          <div class="deck-count"><span aria-hidden="true">🂠</span> 牌堆 <strong id="deck-count">0</strong></div>
-        </div>
+          <ol class="play-history" id="play-history" aria-label="最近五張出牌紀錄"></ol>
+        </section>
       </div>
 
-      <div class="panel hand-panel">
+      <div class="panel hand-panel" id="hand-panel">
         <div class="panel-heading hand-heading">
-          <div>
-            <p class="eyebrow">YOUR HAND</p>
-            <h2>你的手牌</h2>
-          </div>
+          <h2>你的手牌</h2>
           <span class="turn-hint" id="turn-hint">選一張牌出牌</span>
         </div>
         <div class="hand" id="hand" role="group" aria-label="你的手牌"></div>
-        <div class="move-options" id="move-options" role="group" aria-label="選擇牌的效果" hidden></div>
+        <div class="action-slot">
+          <div class="move-options" id="move-options" role="group" aria-label="選擇牌的效果" hidden></div>
+        </div>
       </div>
 
       <section class="result-panel panel" id="result-panel" hidden aria-live="polite">
         <div class="result-icon" aria-hidden="true">🏆</div>
         <div>
-          <p class="eyebrow">ROUND COMPLETE</p>
           <h2 id="result-title">本局結束</h2>
           <p id="result-copy"></p>
         </div>
@@ -120,20 +116,25 @@
       </section>
     </section>
 
-    <details class="rules-card panel" id="rules-card">
-      <summary>📖 規則速讀</summary>
+  </main>
+
+    <dialog class="rules-card panel" id="rules-dialog" aria-labelledby="rules-title">
+      <div class="panel-heading">
+        <h2 id="rules-title">📖 規則速讀</h2>
+        <form method="dialog"><button class="icon-button" aria-label="關閉玩法">✕</button></form>
+      </div>
       <div class="rules-content">
-        <p>從 0 開始，每回合出一張牌並補牌。出牌後點數超過 99 就淘汰；最後留下的玩家獲勝。牌堆抽完時，會把桌上的牌洗回牌堆，點數不變。</p>
+        <p>從 0 開始，每回合出一張牌並補牌。會超過 99 的牌或加點選項不能使用；輪到某位玩家時若沒有任何安全出法，就自動淘汰並保留原點數。最後留下的玩家獲勝。牌堆抽完時，會把桌上的牌洗回牌堆，點數不變。</p>
         <ul>
           <li><strong>A、2、3、6、7、8、9</strong>：加牌面點數。</li>
           <li><strong>4</strong>：反轉出牌方向；<strong>5</strong>：指定下一位玩家。</li>
           <li><strong>10</strong>：加 10 或減 10；<strong>J</strong>：跳過下一位玩家。</li>
           <li><strong>Q</strong>：加 20 或減 20；<strong>K</strong>：直接加到 99。</li>
         </ul>
+        <p>桌面依序顯示最近五張牌（由舊到新），每張都有出牌者、牌面與出牌後的點數；最近一張會特別標示。選擇 10 或 Q 時可先查看加減選項，爆點的加法會停用。</p>
         <p>功能牌依公規使用，不當作一般點數牌。難度只影響策略：簡單隨機出牌、普通評估點數風險、困難會更積極保留控制牌並針對高風險對手。</p>
       </div>
-    </details>
-  </main>
+    </dialog>
 
   <script src="../../assets/js/bobo-theme.js"></script>
   <script src="../../assets/js/stats.js"></script>
