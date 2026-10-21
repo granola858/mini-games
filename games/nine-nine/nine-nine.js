@@ -23,8 +23,9 @@
     value: $('current-value'),
     fill: $('score-fill'),
     caption: $('score-caption'),
-    lastPlay: $('last-play'),
+    history: $('play-history'),
     deckCount: $('deck-count'),
+    handPanel: $('hand-panel'),
     turnHint: $('turn-hint'),
     hand: $('hand'),
     options: $('move-options'),
@@ -151,9 +152,33 @@
     return (player ? player.name : '玩家') + ' 出了 ' + label + ' · ' + effect;
   }
 
+  function turnDescription() {
+    const eliminated = game.lastEliminatedIds.map(id => Core.getPlayer(game, id).name);
+    return eliminated.length
+      ? eliminated.join('、') + ' 無牌可出，已淘汰'
+      : actionDescription(game.lastAction);
+  }
+
+  function renderHistory() {
+    const placeholders = Array.from({ length: 5 - game.history.length }, () =>
+      '<li class="history-empty" aria-label="尚無出牌"><span aria-hidden="true">—</span></li>');
+    const cards = game.history.map((action, index) => {
+      const owner = Core.getPlayer(game, action.playerId);
+      const latest = index === game.history.length - 1;
+      const red = ['hearts', 'diamonds'].includes(action.card.suit);
+      return '<li class="history-card' + (latest ? ' is-latest' : '') + '" aria-label="'
+        + escapeHtml(actionDescription(action) + '，點數 ' + action.value + (latest ? '，最新' : '')) + '">'
+        + '<span class="history-owner">' + escapeHtml(owner.name) + '</span>'
+        + '<strong class="history-face' + (red ? ' red' : '') + '">' + getCardLabel(action.card) + '</strong>'
+        + '<span class="history-value">→ ' + action.value + '</span></li>';
+    });
+    elements.history.innerHTML = [...placeholders, ...cards].join('');
+  }
+
   function renderPlayers() {
     const current = Core.getCurrentPlayer(game);
     const directionLabel = game.direction === 1 ? '順時針' : '逆時針';
+    elements.players.style.setProperty('--player-count', game.playerCount);
     elements.players.innerHTML = game.players.map(player => {
       const classes = ['player-tile'];
       if (player.id === game.currentPlayerId && game.status === 'active') classes.push('is-current');
@@ -184,17 +209,24 @@
     const player = Core.getPlayer(game, 'p0');
     const humanTurn = game.status === 'active' && game.currentPlayerId === 'p0' && !thinking;
     if (!player) return;
+    const legalMoves = humanTurn ? Core.getAvailableMoves(game) : [];
     const suitGlyph = { spades: '♠', hearts: '♥', diamonds: '♦', clubs: '♣' };
     elements.hand.innerHTML = player.hand.map(card => {
       const red = card.suit === 'hearts' || card.suit === 'diamonds';
       const selected = selectedMoves.some(move => move.cardId === card.id);
+      const safe = legalMoves.some(move => move.cardId === card.id);
+      const blocked = humanTurn && !safe;
       return '<button class="playing-card' + (red ? ' red' : '') + (selected ? ' selected' : '')
         + '" type="button" data-card-id="' + card.id + '" aria-label="出 ' + card.rank
-        + suitGlyph[card.suit] + '" ' + (humanTurn ? '' : 'disabled') + '>'
+        + suitGlyph[card.suit] + (blocked ? '，超過 99，無法出牌' : '') + '" '
+        + (humanTurn && safe ? '' : 'disabled') + '>'
         + '<span class="rank">' + card.rank + '</span><span class="suit" aria-hidden="true">'
-        + suitGlyph[card.suit] + '</span></button>';
+        + suitGlyph[card.suit] + '</span>'
+        + (blocked ? '<span class="card-warning">爆點</span>' : '') + '</button>';
     }).join('');
-    elements.turnHint.textContent = thinking
+    elements.turnHint.textContent = !player.alive
+      ? '你已淘汰，電腦繼續對局'
+      : thinking
       ? '電腦正在思考…'
       : humanTurn ? '點選一張手牌出牌' : game.status === 'active' ? '請稍候' : '對局已結束';
   }
@@ -206,6 +238,19 @@
       return;
     }
     elements.options.hidden = false;
+    const card = Core.getPlayer(game, 'p0').hand.find(item => item.id === selectedMoves[0].cardId);
+    if (card.rank === '10' || card.rank === 'Q') {
+      const amount = card.rank === '10' ? 10 : 20;
+      elements.options.innerHTML = ['plus', 'minus'].map(choice => {
+        const index = selectedMoves.findIndex(move => move.choice === choice);
+        const value = game.currentValue + (choice === 'plus' ? amount : -amount);
+        const label = (choice === 'plus' ? '+' : '−') + amount
+          + (index < 0 ? ' · 爆點' : ' → ' + value);
+        return '<button type="button" data-move-index="' + index + '"'
+          + (index < 0 ? ' disabled' : '') + '>' + label + '</button>';
+      }).join('');
+      return;
+    }
     elements.options.innerHTML = selectedMoves.map((move, index) => {
       let label = '出牌';
       if (move.choice) label = move.choice === 'plus' ? '加點' : '減點';
@@ -224,13 +269,13 @@
     elements.caption.textContent = game.currentValue < 0
       ? '目前低於 0 點 ' + Math.abs(game.currentValue) + ' 點'
       : '距離 99 還有 ' + Math.max(0, 99 - game.currentValue) + ' 點';
-    elements.lastPlay.textContent = actionDescription(game.lastAction);
     elements.deckCount.textContent = String(game.drawPile.length);
   }
 
   function renderResult() {
     const finished = game.status === 'finished';
     elements.result.hidden = !finished;
+    elements.handPanel.hidden = finished;
     if (!finished) return;
     const winner = game.winnerId ? Core.getPlayer(game, game.winnerId) : null;
     elements.resultTitle.textContent = winner
@@ -243,12 +288,14 @@
 
   function render() {
     if (!game) return;
+    document.body.classList.add('is-playing');
     elements.setup.hidden = true;
     elements.game.hidden = false;
     renderPlayers();
     renderHand();
     renderOptions();
     renderScore();
+    renderHistory();
     renderResult();
     if (game.status === 'finished') recordResult();
     saveGame();
@@ -283,7 +330,7 @@
         selectedMoves = [];
         if (game.status === 'finished') recordResult();
         saveGame();
-        elements.status.textContent = actionDescription(game.lastAction);
+        elements.status.textContent = turnDescription();
         render();
       } catch (error) {
         thinking = false;
@@ -301,7 +348,7 @@
       thinking = false;
       if (game.status === 'finished') recordResult();
       saveGame();
-      elements.status.textContent = actionDescription(game.lastAction);
+      elements.status.textContent = turnDescription();
       render();
     } catch (error) {
       elements.status.textContent = '無法出牌：' + error.message;
@@ -330,6 +377,7 @@
     selectedMoves = [];
     elements.game.hidden = true;
     elements.setup.hidden = false;
+    document.body.classList.remove('is-playing');
     elements.status.textContent = '調整人數或難度，再開始新局；也可以接續剛才的牌局。';
   }
 
@@ -343,13 +391,13 @@
       return;
     }
     clearAiTurn();
-    game = resumed;
+    game = Core.resolveTurn(resumed);
     selectedMoves = [];
     savedMatchId = typeof saved.value.recordedMatchId === 'string'
       ? saved.value.recordedMatchId : savedMatchId;
     elements.playerCount.value = String(game.playerCount);
     elements.difficulty.value = game.difficulty;
-    elements.status.textContent = '已接續上局。';
+    elements.status.textContent = game.lastEliminatedIds.length ? turnDescription() : '已接續上局。';
     render();
   }
 
@@ -360,8 +408,13 @@
     if (!moves.length) return;
     selectedMoves = moves;
     renderHand();
-    if (moves.length === 1) applyHumanMove(moves[0]);
-    else renderOptions();
+    const card = Core.getPlayer(game, 'p0').hand.find(item => item.id === button.dataset.cardId);
+    if (moves.length === 1 && card.rank !== '10' && card.rank !== 'Q') {
+      applyHumanMove(moves[0]);
+    } else {
+      renderOptions();
+      elements.options.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
+    }
   }
 
   function handleOptionClick(event) {
@@ -401,9 +454,7 @@
     $('new-game-button').addEventListener('click', openSettings);
     $('play-again-button').addEventListener('click', () => startGame(true));
     $('rules-button').addEventListener('click', () => {
-      const rules = $('rules-card');
-      rules.open = true;
-      rules.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('rules-dialog').showModal();
     });
     $('theme-button').addEventListener('click', () => {
       if (themeKit) themeKit.toggle();

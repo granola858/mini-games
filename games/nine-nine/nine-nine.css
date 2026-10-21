@@ -106,41 +106,61 @@ button { color: inherit; }
 .status-line { color: var(--muted); }
 .storage-notice { padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--danger) 42%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--danger) 10%, var(--surface)); color: var(--text); }
 
-.game-panel { display: grid; gap: 16px; }
-.table-top, .hand-panel, .result-panel { padding: clamp(18px, 4vw, 28px); }
-.table-heading { margin-bottom: 22px; }
-.players-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
-.player-tile { min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-strong); }
+.table-brand { display: none; font-weight: 900; }
+.table-brand b { color: var(--accent); }
+body.is-playing .table-brand { display: inline; }
+body.is-playing .intro { display: none; }
+body.is-playing .topbar { min-height: 50px; }
+body.is-playing .page-shell { margin-bottom: max(8px, env(safe-area-inset-bottom)); }
+body.is-playing .status-line { min-height: 18px; margin: 0 auto 8px; font-size: 0.76rem; line-height: 1.4; }
+
+.game-panel { display: grid; gap: 10px; max-width: 640px; margin: 0 auto; }
+.table-top, .hand-panel, .result-panel { padding: 14px 16px; }
+.table-heading { margin-bottom: 10px; gap: 6px; }
+.table-heading h2 { font-size: 1rem; }
+.players-list { display: grid; grid-template-columns: repeat(var(--player-count, 3), minmax(0, 1fr)); gap: 6px; }
+.player-tile { min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-strong); }
 .player-tile.is-current { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .player-tile.is-out { opacity: 0.56; }
-.player-name { display: flex; gap: 5px; align-items: center; overflow: hidden; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
-.player-meta { display: block; margin-top: 5px; color: var(--muted); font-size: 0.76rem; }
+.player-name { display: flex; gap: 4px; align-items: center; font-size: 0.85rem; font-weight: 850; white-space: nowrap; }
+.player-meta { display: block; margin-top: 3px; color: var(--muted); font-size: 0.72rem; }
 .turn-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--accent); }
 
-.score-board { max-width: 390px; margin: 26px auto 24px; text-align: center; }
+.score-board { max-width: 390px; margin: 10px auto; text-align: center; }
 .score-label, .score-caption { display: block; color: var(--muted); font-size: 0.82rem; font-weight: 700; }
-.score-board strong { display: block; margin: 4px 0 9px; font-size: clamp(4rem, 14vw, 6.5rem); font-variant-numeric: tabular-nums; letter-spacing: -0.08em; line-height: 1; }
+.score-board strong { display: block; margin: 2px 0 6px; font-size: clamp(2.7rem, 10vh, 4rem); font-variant-numeric: tabular-nums; letter-spacing: -0.06em; line-height: 1; }
 .score-track { height: 9px; overflow: hidden; border-radius: 99px; background: var(--surface-soft); }
 .score-track span { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #76c98a, var(--accent)); transition: width 220ms ease; }
 .score-track span.is-danger { background: var(--danger); }
-.score-caption { margin-top: 7px; }
-.discard-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 17px; border-top: 1px solid var(--line); }
-.last-play { min-height: 26px; font-weight: 750; }
-.deck-count { padding: 9px 12px; border-radius: 12px; background: var(--surface-soft); color: var(--muted); font-size: 0.83rem; white-space: nowrap; }
+.score-caption { margin-top: 4px; font-size: 0.72rem; }
+.history-section { padding-top: 8px; border-top: 1px solid var(--line); }
+.history-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+.history-heading h3 { margin: 0; font-size: 0.8rem; }
+.history-heading small { margin-left: 5px; color: var(--muted); font-size: 0.66rem; font-weight: 500; }
+.deck-count { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
 .deck-count strong { margin-left: 4px; color: var(--text); }
+.play-history { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; padding: 0; margin: 0; list-style: none; }
+.history-card, .history-empty { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 70px; padding: 5px 2px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-strong); }
+.history-empty { color: var(--muted); background: transparent; border-style: dashed; }
+.history-card.is-latest { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 -3px var(--accent); }
+.history-owner { font-size: 0.68rem; font-weight: 750; white-space: nowrap; }
+.history-face { font-size: 1.25rem; line-height: 1.2; }
+.history-value { font-size: 0.65rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-.turn-hint { color: var(--muted); font-size: 0.84rem; text-align: right; }
-.hand { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.hand-heading h2 { font-size: 1rem; }
+.turn-hint { color: var(--muted); font-size: 0.75rem; text-align: right; }
+.hand { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
 .playing-card {
   position: relative;
-  width: clamp(64px, 15vw, 92px);
-  min-height: clamp(91px, 20vw, 128px);
+  width: 100%;
+  min-width: 0;
+  height: clamp(70px, 12vh, 100px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 8px;
+  gap: 3px;
+  padding: 5px 2px;
   border: 1px solid var(--line);
   border-radius: 13px;
   background: var(--surface-strong);
@@ -153,19 +173,24 @@ button { color: inherit; }
 .playing-card:disabled { cursor: default; opacity: 0.55; }
 .playing-card .rank { font-size: 1.45rem; font-weight: 950; line-height: 1; }
 .playing-card .suit { font-size: 1.9rem; line-height: 1; }
-.playing-card.red { color: #c4444d; }
-:root[data-theme="dark"] .playing-card.red { color: #ff9298; }
-.move-options { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.red { color: #c4444d; }
+:root[data-theme="dark"] .red { color: #ff9298; }
+.card-warning { font-size: 0.6rem; font-weight: 800; color: var(--danger); }
+.action-slot { min-height: 50px; padding-top: 6px; }
+.move-options { display: flex; gap: 6px; }
 .move-options:empty { display: none; }
-.move-options button { min-height: 42px; padding: 0 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); cursor: pointer; font-weight: 800; }
-.move-options button:hover { border-color: var(--accent); }
+.move-options button { flex: 1; min-width: 0; min-height: 44px; padding: 3px 5px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); cursor: pointer; font-size: 0.8rem; font-weight: 800; }
+.move-options button:hover:not(:disabled) { border-color: var(--accent); }
+.move-options button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.result-panel { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; }
+.result-panel { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; }
+.result-panel .button { grid-column: 1 / -1; width: 100%; }
 .result-icon { font-size: 2.5rem; }
-.result-panel h2 { margin: 0; }
-.result-panel p:last-child { margin: 5px 0 0; color: var(--muted); }
-.rules-card { margin-top: 18px; padding: 17px 21px; }
-.rules-card summary { cursor: pointer; font-weight: 850; }
+.result-panel h2 { margin: 0; font-size: 1.2rem; }
+.result-panel p:last-child { margin: 5px 0 0; color: var(--muted); font-size: 0.83rem; }
+.rules-card { width: min(100% - 24px, 580px); max-height: calc(100dvh - 32px); padding: 17px 21px; color: var(--text); background: var(--surface-strong); overflow-y: auto; }
+.rules-card::backdrop { background: rgba(0, 0, 0, 0.5); }
+.rules-card h2 { margin: 0; font-size: 1.1rem; }
 .rules-content { padding: 8px 3px 0; color: var(--muted); font-size: 0.91rem; line-height: 1.72; }
 .rules-content ul { padding-left: 21px; }
 .rules-content strong { color: var(--text); }
@@ -175,21 +200,62 @@ button { color: inherit; }
 @media (max-width: 650px) {
   .topbar { min-height: 58px; }
   .intro { padding: 23px 0 20px; }
-  .players-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .result-panel { grid-template-columns: auto 1fr; }
-  .result-panel .button { grid-column: 1 / -1; width: 100%; }
 }
 
 @media (max-width: 440px) {
   .page-shell, .topbar { width: min(100% - 22px, 860px); }
   .settings-grid { grid-template-columns: 1fr; }
   .panel-heading { align-items: flex-start; }
-  .table-heading { align-items: flex-start; }
   .button-quiet { padding: 0 7px; }
-  .hand { justify-content: center; gap: 7px; }
-  .playing-card { width: calc((100% - 28px) / 5); min-width: 52px; padding: 6px 3px; }
+  .table-top, .hand-panel, .result-panel { padding: 10px; }
+  .player-tile { padding: 7px 4px; }
+  .player-name { font-size: 0.72rem; gap: 3px; }
+  .player-meta { font-size: 0.65rem; }
+  .turn-dot { width: 6px; height: 6px; flex-basis: 6px; }
+  .table-heading h2 { font-size: 0.84rem; }
+  .history-heading small { margin-left: 2px; }
   .playing-card .rank { font-size: 1.15rem; }
   .playing-card .suit { font-size: 1.5rem; }
+}
+
+@media (max-height: 600px) {
+  body.is-playing .topbar { min-height: 46px; }
+  body.is-playing .status-line { margin-bottom: 5px; }
+  .table-top, .hand-panel, .result-panel { padding: 8px 10px; }
+  .table-heading { margin-bottom: 6px; }
+  .game-panel { gap: 8px; }
+  .player-tile { padding-block: 5px; }
+  .score-board { margin: 4px auto; }
+  .score-board strong { font-size: 2.2rem; }
+  .history-card, .history-empty { min-height: 58px; padding-block: 3px; gap: 1px; }
+  .history-face { font-size: 1.125rem; }
+  .hand { margin-top: 6px; }
+  .playing-card { height: 70px; }
+}
+
+@media (min-width: 560px) and (max-height: 600px) {
+  body.is-playing .page-shell { width: min(100% - 24px, 960px); }
+  .game-panel { grid-template-columns: 1fr 1fr; align-items: start; max-width: none; }
+  .score-board { display: grid; grid-template-columns: auto auto 1fr; grid-template-areas: "label value track" "label value caption"; align-items: center; gap: 2px 8px; }
+  .score-label { grid-area: label; }
+  .score-board strong { grid-area: value; margin: 0; }
+  .score-track { grid-area: track; }
+  .score-caption { grid-area: caption; margin: 0; }
+  .player-tile { padding-inline: 4px; }
+  .player-name { font-size: 0.72rem; gap: 3px; }
+  .player-meta { font-size: 0.65rem; white-space: nowrap; }
+  .turn-dot { width: 6px; height: 6px; flex-basis: 6px; }
+}
+
+@media (min-width: 560px) and (max-height: 340px) {
+  body.is-playing .topbar { min-height: 44px; }
+  .table-heading { margin-bottom: 4px; }
+  .player-tile { padding-block: 5px; }
+  .score-board { margin-block: 4px; }
+  .score-board strong { font-size: 2rem; }
+  .history-card, .history-empty { min-height: 54px; padding-block: 2px; gap: 0; }
+  .history-face { font-size: 1rem; }
+  .history-owner, .history-value { line-height: 1.1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
