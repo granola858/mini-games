@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f2f8f3" data-theme-color-dark="#08130d" data-theme-color-light="#f2f8f3">
+  <meta name="description" content="來玩九九撲克牌！和電腦玩家一起出牌，挑戰三種難度，別讓點數超過 99。">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>九九 - 波波小遊戲</title>
+  <script>
+    (() => {
+      try {
+        const homePref = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
+        const theme = ['dark', 'light'].includes(homePref.theme)
+          ? homePref.theme
+          : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+      } catch (_) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="nine-nine.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="back-link" href="../../index.html" aria-label="回到波波小遊戲首頁">← <span>回首頁</span></a>
+    <div class="top-actions">
+      <button class="icon-button" id="theme-button" type="button" aria-label="切換主題" title="切換主題">🌙</button>
+      <button class="icon-button" id="rules-button" type="button">玩法</button>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="intro">
+      <p class="eyebrow">BOBO CARD TABLE</p>
+      <h1>九九 <span>99</span></h1>
+      <p>輪流出牌，讓點數留在 99 以內。撐到最後的玩家獲勝！</p>
+    </section>
+
+    <p class="storage-notice" id="storage-notice" role="status" hidden></p>
+    <p class="status-line" id="status-line" role="status" aria-live="polite"></p>
+
+    <section class="panel setup-panel" id="setup-panel" aria-labelledby="setup-title">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">NEW ROUND</p>
+          <h2 id="setup-title">準備開局</h2>
+        </div>
+        <div class="record-chip" id="record-chip" aria-live="polite">勝 0 · 敗 0</div>
+      </div>
+      <div class="settings-grid">
+        <label class="field">
+          <span>玩家總人數</span>
+          <select id="player-count">
+            <option value="2">2 人（你 + 1 位電腦）</option>
+            <option value="3" selected>3 人（你 + 2 位電腦）</option>
+            <option value="4">4 人（你 + 3 位電腦）</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>電腦難度</span>
+          <select id="difficulty">
+            <option value="easy">🌱 簡單</option>
+            <option value="normal" selected>🎯 普通</option>
+            <option value="hard">🔥 困難</option>
+          </select>
+        </label>
+      </div>
+      <div class="setup-actions">
+        <button class="button button-primary" id="start-button" type="button">開始新局</button>
+        <button class="button button-secondary" id="resume-button" type="button" hidden>接續上局</button>
+      </div>
+      <p class="setup-hint">建議 3 人最均衡；2 人對抗直接、4 人更熱鬧但局勢變化較快。每人起手 5 張。</p>
+    </section>
+
+    <section class="game-panel" id="game-panel" hidden aria-label="九九牌局">
+      <div class="table-top panel">
+        <div class="table-heading">
+          <div>
+            <p class="eyebrow">TABLE</p>
+            <h2 id="turn-title" aria-live="polite">準備中</h2>
+          </div>
+          <button class="button button-quiet" id="new-game-button" type="button">新局設定</button>
+        </div>
+        <div class="players-list" id="players-list" aria-label="玩家狀態"></div>
+        <div class="score-board" aria-live="polite">
+          <span class="score-label">海中點數</span>
+          <strong id="current-value">0</strong>
+          <div class="score-track" aria-hidden="true"><span id="score-fill"></span></div>
+          <span class="score-caption" id="score-caption">還有 99 點空間</span>
+        </div>
+        <div class="discard-row">
+          <div>
+            <span class="eyebrow">上一張牌</span>
+            <div class="last-play" id="last-play">尚未出牌</div>
+          </div>
+          <div class="deck-count"><span aria-hidden="true">🂠</span> 牌堆 <strong id="deck-count">0</strong></div>
+        </div>
+      </div>
+
+      <div class="panel hand-panel">
+        <div class="panel-heading hand-heading">
+          <div>
+            <p class="eyebrow">YOUR HAND</p>
+            <h2>你的手牌</h2>
+          </div>
+          <span class="turn-hint" id="turn-hint">選一張牌出牌</span>
+        </div>
+        <div class="hand" id="hand" role="group" aria-label="你的手牌"></div>
+        <div class="move-options" id="move-options" role="group" aria-label="選擇牌的效果" hidden></div>
+      </div>
+
+      <section class="result-panel panel" id="result-panel" hidden aria-live="polite">
+        <div class="result-icon" aria-hidden="true">🏆</div>
+        <div>
+          <p class="eyebrow">ROUND COMPLETE</p>
+          <h2 id="result-title">本局結束</h2>
+          <p id="result-copy"></p>
+        </div>
+        <button class="button button-primary" id="play-again-button" type="button">再玩一局</button>
+      </section>
+    </section>
+
+    <details class="rules-card panel" id="rules-card">
+      <summary>📖 規則速讀</summary>
+      <div class="rules-content">
+        <p>從 0 開始，每回合出一張牌並補牌。出牌後點數超過 99 就淘汰；最後留下的玩家獲勝。牌堆抽完時，會把桌上的牌洗回牌堆，點數不變。</p>
+        <ul>
+          <li><strong>A、2、3、6、7、8、9</strong>：加牌面點數。</li>
+          <li><strong>4</strong>：反轉出牌方向；<strong>5</strong>：指定下一位玩家。</li>
+          <li><strong>10</strong>：加 10 或減 10；<strong>J</strong>：跳過下一位玩家。</li>
+          <li><strong>Q</strong>：加 20 或減 20；<strong>K</strong>：直接加到 99。</li>
+        </ul>
+        <p>功能牌依公規使用，不當作一般點數牌。難度只影響策略：簡單隨機出牌、普通評估點數風險、困難會更積極保留控制牌並針對高風險對手。</p>
+      </div>
+    </details>
+  </main>
+
+  <script src="../../assets/js/bobo-theme.js"></script>
+  <script src="../../assets/js/stats.js"></script>
+  <script src="nine-nine-core.js"></script>
+  <script src="nine-nine.js"></script>
+  <script>if (typeof Stats !== 'undefined') Stats.recordGamePlay('nine-nine');</script>
+</body>
+</html>
