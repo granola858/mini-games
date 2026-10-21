@@ -749,6 +749,48 @@
       background-color: var(--wrong-color) !important;
     }
 
+    .cell.hint-cell {
+      outline: 3px solid var(--primary-display);
+      outline-offset: -3px;
+      z-index: 1;
+    }
+
+    #hint-btn {
+      position: relative;
+    }
+
+    .hint-count {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 8px;
+      background-color: var(--primary-color);
+      color: var(--primary-contrast);
+      font-size: 0.7rem;
+      line-height: 16px;
+      text-align: center;
+    }
+
+    .cell.hint-cell.hint-mistake {
+      outline-color: var(--error-color);
+    }
+
+    .hint-msg {
+      max-width: 420px;
+      padding: 0 10px;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    .hint-msg:empty {
+      display: none;
+    }
+
     .cell.error-wrong::after {
       display: none;
     }

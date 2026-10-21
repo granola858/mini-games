@@ -278,6 +278,62 @@ const NonogramCore = (() => {
     };
   }
 
+  // 玩家盤面：0 未作答、1 塗黑、2 標記留白。
+  // 優先指出與答案不符的格子；否則找一格能靠線索推出的塗黑格。
+  // 過關不需要標 Ｏ，所以推得出的留白只在內部套用、繼續往下推，不會拿來當提示。
+  function getNextHint(rowClues, colClues, playerState, solution) {
+    const targetSize = rowClues.length;
+
+    for (let r = 0; r < targetSize; r++) {
+      for (let c = 0; c < targetSize; c++) {
+        const value = playerState[r][c];
+        if ((value === 1 && solution[r][c] !== 1) || (value === 2 && solution[r][c] === 1)) {
+          return { status: 'mistake', row: r, col: c };
+        }
+      }
+    }
+
+    if (solution.every((row, r) => row.every((value, c) => value !== 1 || playerState[r][c] === 1))) {
+      return { status: 'complete' };
+    }
+
+    const board = playerState.map(row => row.map(value => value === 0 ? -1 : value === 1 ? 1 : 0));
+    let progressed = true;
+
+    while (progressed) {
+      progressed = false;
+      for (const axis of ['row', 'col']) {
+        for (let index = 0; index < targetSize; index++) {
+          const line = axis === 'row' ? board[index] : board.map(row => row[index]);
+          const clues = axis === 'row' ? rowClues[index] : colClues[index];
+          const candidates = getLinePatterns(targetSize, clues)
+            .filter(pattern => line.every((value, i) => value === -1 || value === pattern[i]));
+          if (!candidates.length) continue;
+          for (let offset = 0; offset < targetSize; offset++) {
+            if (line[offset] !== -1) continue;
+            const value = getForcedLineValue(candidates, offset);
+            if (value === -1) continue;
+            const row = axis === 'row' ? index : offset;
+            const col = axis === 'col' ? index : offset;
+            if (value === 1) return { status: 'hint', row, col, axis, lineIndex: index };
+            board[row][col] = 0;
+            progressed = true;
+          }
+        }
+      }
+    }
+
+    // 題目都保證可純線解，盤面無誤時不會走到這裡；保險起見直接給一格答案。
+    for (let r = 0; r < targetSize; r++) {
+      for (let c = 0; c < targetSize; c++) {
+        if (solution[r][c] === 1 && playerState[r][c] !== 1) {
+          return { status: 'hint', row: r, col: c, axis: null, lineIndex: null };
+        }
+      }
+    }
+    return { status: 'complete' };
+  }
+
   // --- 回溯計數 (Solution Counting) ---
   function searchSolutions(board, rowDomains, colDomains, limit, counter) {
     if (counter.count >= limit) return;
@@ -429,6 +485,7 @@ const NonogramCore = (() => {
     propagateConstraints,
     isBoardSolved,
     solveByLineLogic,
+    getNextHint,
     countSolutions,
     classifyDifficulty,
     ratePuzzle,

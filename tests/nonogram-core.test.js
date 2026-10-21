@@ -21,6 +21,59 @@ try {
 
 const SIZES = [8, 10, 12];
 
+test('提示指出可推出的塗黑格，且不修改玩家盤面', () => {
+  const solution = [[1, 1], [0, 0]];
+  const { rowClues, colClues } = core.buildCluesFromSolution(solution);
+  const board = [[0, 0], [0, 0]];
+  const before = structuredClone(board);
+  assert.deepEqual(core.getNextHint(rowClues, colClues, board, solution), {
+    status: 'hint', row: 0, col: 0, axis: 'row', lineIndex: 0
+  });
+  assert.deepEqual(board, before);
+});
+
+test('需要先推出留白才能確定塗黑時，留白在內部推、不要求玩家標 Ｏ', () => {
+  // 第 1 列、第 1 欄的 [1] 單看都無法確定；要先由線索 0 的列與欄推出留白，才能確定 (0,0) 塗黑
+  const solution = [[1, 0, 0], [0, 0, 0], [0, 0, 0]];
+  const { rowClues, colClues } = core.buildCluesFromSolution(solution);
+  assert.deepEqual(core.getNextHint(rowClues, colClues, core.createEmptyPlayerState(3), solution), {
+    status: 'hint', row: 0, col: 0, axis: 'col', lineIndex: 0
+  });
+});
+
+test('填錯的格子會優先被指出', () => {
+  const solution = [[1, 1], [0, 0]];
+  const { rowClues, colClues } = core.buildCluesFromSolution(solution);
+  assert.deepEqual(core.getNextHint(rowClues, colClues, [[0, 0], [1, 0]], solution), { status: 'mistake', row: 1, col: 0 });
+  assert.deepEqual(core.getNextHint(rowClues, colClues, [[2, 0], [0, 0]], solution), { status: 'mistake', row: 0, col: 0 });
+});
+
+test('該塗的都塗了就算完成，不要求標滿留白', () => {
+  const solution = [[1, 1], [0, 0]];
+  const { rowClues, colClues } = core.buildCluesFromSolution(solution);
+  assert.deepEqual(core.getNextHint(rowClues, colClues, [[1, 1], [0, 0]], solution), { status: 'complete' });
+});
+
+test('只塗黑、從不標 Ｏ，照著提示也能一路解完各尺寸各難度的題目', () => {
+  for (const targetSize of SIZES) {
+    for (const level of ['easy', 'medium', 'hard']) {
+      const { solution, rowClues, colClues } = core.generatePuzzle(targetSize, level);
+      const board = core.createEmptyPlayerState(targetSize);
+      let hint;
+      for (let step = 0; step <= targetSize * targetSize; step++) {
+        hint = core.getNextHint(rowClues, colClues, board, solution);
+        if (hint.status === 'complete') break;
+        assert.equal(hint.status, 'hint');
+        assert.notEqual(hint.axis, null, '無誤盤面應該都能靠線索推理出來');
+        assert.equal(board[hint.row][hint.col], 0);
+        assert.equal(solution[hint.row][hint.col], 1, '提示只會叫玩家塗黑');
+        board[hint.row][hint.col] = 1;
+      }
+      assert.equal(hint.status, 'complete');
+    }
+  }
+});
+
 test('nonogram-core.js 可被 Node 載入並導出必要 API', () => {
   assert.equal(moduleLoadError, null, `載入失敗: ${moduleLoadError && moduleLoadError.message}`);
   [
