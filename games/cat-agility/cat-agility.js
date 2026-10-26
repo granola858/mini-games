@@ -2624,10 +2624,10 @@
   // 再關掉平滑、以最近鄰放大貼回主畫布。這一區只用對齊網格的整數矩形，不畫任何曲線
   // ===========================================================================
 
-  // 低彩度日系客廳調色盤（規格指定的主色；美術片段可以衍生同色系深淺）
+  // 暖陽日系客廳調色盤（規格指定的主色；美術片段衍生暖色系與活潑點綴色）
   const PAL = Object.freeze({
-    wallLight: '#E8E3D9', // 牆面米白
-    wallShade: '#D5CFC4', // 亞麻灰
+    wallLight: '#FBF2E3', // 暖陽米白牆
+    wallShade: '#E8CFAF', // 檜木暖杏腰壁
     walnut: '#785338',    // 胡桃木
     oak: '#B38B6D',       // 淺木
     sage: '#6A7F60',      // 灰綠
@@ -2743,6 +2743,8 @@
     glove: [0.3, 88],
     pad: [0.3, 76],
     nose: [0.4, 70],
+    collar: [0.45, 62],
+    bell: [0.25, 78],
     white: [0.2, 94]
   });
   const rainbowCache = new Map();
@@ -2964,81 +2966,114 @@
 
   // #region pixel:bg
   // ---------------------------------------------------------------------------
-  // 像素背景：遠景客廳牆面（0.3× 視差）、踢腳板、近景木地板（1.0×）與飄浮微塵
-  // 牆上擺設在載入時就排成「矩形清單」，每幀只做平移＋裁切，不配置新物件
+  // 像素背景：遠景暖陽日系客廳（0.3× 視差）、檜木框組腰壁、踢腳板、近景木地板（1.0×）與飄浮微塵
+  // 8 種高低錯落、色彩豐富的客廳生活場景在載入時排成「矩形清單」，每幀只做平移＋裁切，不配置新物件
   // ---------------------------------------------------------------------------
 
-  // 遠景一律偏亮、低對比：墨黑的貓與胡桃木家具都得從牆面「跳出來」
+  // 暖陽客廳色盤：牆面溫暖明亮，搭配晴空藍、翠綠植栽、珊瑚橘、山吹黃與靛藍點綴；與墨黑貓、胡桃木障礙物保持鮮明層次
   const BG_C = Object.freeze({
-    wall: PAL.wallLight,   // 米白牆
-    wallDot: '#DED8CD',    // 砂壁斑點（暗）
-    wallFleck: '#EFEBE4',  // 砂壁斑點（亮）
-    wallShadow: '#DAD4C9', // 擺設投在牆上的影子
-    ceilShadow: '#DFDAD0', // 天花板迴緣下的淡影
-    wallTop: '#E2DDD3',    // 牆面上緣三階色帶（天花板下稍暗，往下漸亮）
-    wallMid: '#E4DFD5',
-    wallLow: '#E6E1D7',
-    lampHi: '#FBF8F1',     // 和紙吊燈：亮
-    lamp: '#F5F0E5',
-    lampRib: '#E4DCCD',
-    cord: '#B3A898',
-    wain: PAL.wallShade,   // 亞麻灰腰壁
-    wainSeam: '#CAC3B7',
-    wainHi: '#D9D4CA',
-    wainShadow: '#C8C1B5',
-    woodHi: '#DDCEBA',     // 遠景淺木（障子框、書架、畫框）
-    wood: '#C9B49B',
-    woodMid: '#BAA389',
-    woodLo: '#A89077',
-    baseHi: '#C8B29A',     // 踢腳板
-    base: '#AD9479',
-    baseLo: '#8E765E',
-    shojiHi: '#E4D8C7',
-    shoji: '#D5C3AB',
-    shojiLo: '#BDA88E',
-    kumiko: '#D9CBB8',
-    paperHi: '#F8F5EE',    // 障子紙：上半透著日光
-    paper: '#F4F1EA',
-    paperLo: '#EFEBE3',
-    paperLeaf: '#DCD6CA',  // 竹影
-    kick: '#CDB9A0',       // 障子下方的腰板
-    kickLo: '#B7A287',
-    sky: '#E1E6E3',        // 半開障子外的庭院
-    garden: '#C3CCB6',
-    gardenLo: '#B0BAA2',
-    bamboo: '#B8C3A7',
-    back: '#CFC4B4',       // 書架內壁
-    backShade: '#C0B4A2',
-    potHi: '#CDB8A0',
-    pot: '#B89F85',
-    leaf: '#A7B39A',       // 遠景植物：灰綠／抹茶綠提亮
-    leafLo: '#8F9D85',
-    mat: '#F2EEE6',        // 畫框襯紙
-    ink: '#A6A095',        // 掛軸墨色
-    inkLight: '#C8C3B8',
-    silk: '#D6CCB9',       // 掛軸裱布
-    silkLo: '#C2B6A0',
-    scrollPaper: '#F3EFE6',
-    face: '#F4F1EA',       // 時鐘面
-    tick: '#B6AA9A',
-    hand: '#857666',
-    brass: '#CDBB90',
-    brassLo: '#B3A276',
-    glass: '#DDD6C9',
-    photoSky: '#DCE1DE',
-    photoMount: '#B8BFC0',
-    photoSnow: '#F3F1EB',
-    photoHill: '#BAC3AB',
-    photoHillLo: '#A7B39B',
-    photoWarm: '#ECE3D1',
-    photoSun: '#E4D0A8',
-    mote: '#FFFBF0'        // 微塵：暖白
+    wall: PAL.wallLight,   // 暖陽米白牆
+    wallDot: '#EFE1CC',    // 珪藻土暖砂斑點（暗）
+    wallFleck: '#FFFBF4',  // 珪藻土暖砂斑點（亮）
+    wallShadow: '#EBD9C0', // 擺設投在牆上的柔和暖影
+    ceilShadow: '#ECDCC4', // 天花板迴緣下的淡影
+    wallTop: '#F1E0C6',    // 牆面上緣暖陽漸層色帶
+    wallMid: '#F5E7D0',
+    wallLow: '#F8EEDC',
+    sunbeam: '#FFF9EC',    // 窗邊斜射暖陽光束
+    lampHalo: '#FDF0C8',   // 吊燈柔和暖光暈
+    lampHi: '#FFFDF5',     // 和紙與復古吊燈
+    lamp: '#FFEBB8',
+    lampRib: '#E5C485',
+    lampMint: '#78C4A8',   // 復古青綠玻璃燈罩
+    lampMintHi: '#A4DEC8',
+    cord: '#B89B7C',
+    wain: PAL.wallShade,   // 檜木暖杏腰壁
+    wainPanel: '#E2C49F',  // 腰壁內凹框板
+    wainSeam: '#CFA980',
+    wainHi: '#F3DFC4',
+    wainShadow: '#D4B28C',
+    woodHi: '#E8CBA8',     // 遠景檜木／淺橡木
+    wood: '#D4B088',
+    woodMid: '#C0986E',
+    woodLo: '#A67E56',
+    baseHi: '#D9AF85',     // 踢腳板
+    base: '#BF9065',
+    baseLo: '#996D45',
+    shojiHi: '#F0D7B8',
+    shoji: '#DEBFA0',
+    shojiLo: '#C4A07C',
+    kumiko: '#E2C7A8',
+    paperHi: '#FFFDF7',    // 障子紙：透著暖陽
+    paper: '#FCF4E4',
+    paperLo: '#F4E7D0',
+    paperLeaf: '#DFCDAE',  // 竹影
+    kick: '#D4B088',       // 障子腰板
+    kickLo: '#B8926A',
+    skyHi: '#88CFF5',      // 窗外晴空（三階漸層）
+    sky: '#ADE0FA',
+    skyLo: '#D9F2FE',
+    cloud: '#FFFFFF',
+    gardenHi: '#95DC89',   // 窗外翠綠庭園
+    garden: '#6EBD68',
+    gardenLo: '#509C52',
+    bamboo: '#7ACC70',
+    sakura: '#FF98B2',     // 庭院櫻花／紅梅
+    sakuraHi: '#FFC8D6',
+    back: '#E3C9AA',       // 書架內壁
+    backShade: '#CEB08E',
+    potHi: '#E89B7E',      // 赤陶與瓷器花盆
+    pot: '#D47D5E',
+    potBlue: '#6CA6C8',
+    potBlueHi: '#92C2DE',
+    leafHi: '#92D686',     // 室內鮮綠植栽
+    leaf: '#68B262',
+    leafLo: '#4B8E4A',
+    mat: '#FFFBF2',        // 畫框襯紙
+    ink: '#5E5852',        // 掛軸墨色與貓耳鐘框
+    inkLight: '#968D82',
+    silk: '#5A96A8',       // 掛軸青碧錦綾裱布
+    silkLo: '#43798A',
+    scrollPaper: '#FFF9EE',
+    face: '#FFFDF7',       // 時鐘面
+    tick: '#B89E82',
+    hand: '#6B5544',
+    brass: '#F5C84C',      // 黃銅鐘擺／金飾
+    brassLo: '#D4A238',
+    glass: '#C4E8F8',
+    glassHi: '#EEFAFF',
+    photoSky: '#98D6F6',
+    photoMount: '#6E92B8',
+    photoSnow: '#FFFFFF',
+    photoHill: '#74BF6C',
+    photoHillLo: '#549E52',
+    photoWarm: '#FFE5B8',
+    photoSun: '#F26B5B',   // 朱紅朝陽／赤富士
+    coral: '#E87A68',      // 暖珊瑚／布沙發／窗簾
+    coralHi: '#F79D8C',
+    coralLo: '#C95E4E',
+    apricot: '#F5A888',
+    apricotHi: '#FFC4AA',
+    mustard: '#F0BC4E',
+    mustardHi: '#FFE082',
+    indigo: '#3B6E9C',     // 日式暖簾靛藍
+    indigoHi: '#5288B8',
+    indigoLo: '#285078',
+    pinkBed: '#F498AE',    // 粉色貓窩
+    pinkBedHi: '#FCC2D0',
+    orangeCat: '#F2994A',  // 跳台午睡橘貓
+    orangeCatHi: '#F9BE7C',
+    mote: '#FFF8DC'        // 暖陽微塵
   });
 
-  // 書背：低彩度的亞麻、灰綠、灰粉、灰藍、麥稈色
-  const BG_BOOKS = Object.freeze(['#CABFAE', '#B7BFAB', '#CDB7A9', '#B5B9BC', '#D2C6A7', '#AE9F8E', '#C3B39B', '#BEC5BC']);
+  // 書背與雜貨：珊瑚紅、山吹黃、晴空藍、抹茶綠、薰衣草紫、奶油白、松石綠、暖杏色
+  const BG_BOOKS = Object.freeze([
+    '#E57A6E', '#F0C25E', '#68AEE0', '#78B870',
+    '#B088C0', '#F7EFE2', '#5CA8A6', '#E89C6C'
+  ]);
 
   const BG_FAR_RATE = 0.3;                       // 遠景捲動倍率（障礙物的 0.3×）
+  const BG_NAGESHI_AY = 32;                      // 日式長押（上牆橫木）32..34
   const BG_RAIL_AY = 224;                        // 腰壁見切（橫木）224..226
   const BG_WAIN_AY = BG_RAIL_AY + 3;             // 腰壁 227..281
   const BG_BASE_AY = GROUND_AY - BASEBOARD_AH;   // 踢腳板 282..289
@@ -3096,139 +3131,297 @@
     9, 44, 4, 1, 6, 45, 4, 1
   ]);
 
-  // --- 障子窗：兩扇拉門，上亮下暗的和紙、組子格、腰板；可能半開或映著竹影 --------------
+  // --- 場景 1：廣緣障子落地窗＋晴空翠竹櫻花＋江戶風鈴＋窗台苔玉茶席 -----------------------
   function bgShojiPanel(r, px, py, leaves) {
-    r.push(px, py, 28, 78, BG_C.shoji);
-    r.push(px + 2, py + 2, 24, 20, BG_C.paperHi);
-    r.push(px + 2, py + 22, 24, 21, BG_C.paper);
-    r.push(px + 2, py + 43, 24, 21, BG_C.paperLo);
+    r.push(px, py, 26, 82, BG_C.shoji);
+    r.push(px + 2, py + 2, 22, 22, BG_C.paperHi);
+    r.push(px + 2, py + 24, 22, 22, BG_C.paper);
+    r.push(px + 2, py + 46, 22, 20, BG_C.paperLo);
     if (leaves) {
-      // 窗外竹子的影子：一根竹竿＋幾片往下垂的葉子（階梯狀）
       const L = BG_LEAF_RECTS;
-      for (let i = 0; i < L.length; i += 4) r.push(px + L[i], py + L[i + 1], L[i + 2], L[i + 3], BG_C.paperLeaf);
+      for (let i = 0; i < L.length; i += 4) r.push(px + L[i] - 1, py + L[i + 1], L[i + 2], L[i + 3], BG_C.paperLeaf);
     }
-    for (let k = 8; k < 62; k += 9) r.push(px + 2, py + 2 + k, 24, 1, BG_C.kumiko);
-    r.push(px + 9, py + 2, 1, 62, BG_C.kumiko);
-    r.push(px + 18, py + 2, 1, 62, BG_C.kumiko);
-    r.push(px + 2, py + 66, 24, 10, BG_C.kick);
-    r.push(px + 2, py + 66, 24, 1, BG_C.kickLo);
-    r.push(px, py, 1, 78, BG_C.shojiHi);
-    r.push(px, py, 28, 1, BG_C.shojiHi);
-    r.push(px + 27, py, 1, 78, BG_C.shojiLo);
+    for (let k = 8; k < 64; k += 9) r.push(px + 2, py + 2 + k, 22, 1, BG_C.kumiko);
+    r.push(px + 9, py + 2, 1, 64, BG_C.kumiko);
+    r.push(px + 16, py + 2, 1, 64, BG_C.kumiko);
+    r.push(px + 2, py + 68, 22, 12, BG_C.kick);
+    r.push(px + 2, py + 68, 22, 1, BG_C.kickLo);
+    r.push(px + 6, py + 72, 14, 4, BG_C.woodHi);
+    r.push(px, py, 1, 82, BG_C.shojiHi);
+    r.push(px, py, 26, 1, BG_C.shojiHi);
+    r.push(px + 25, py, 1, 82, BG_C.shojiLo);
   }
 
   function bgBuildShoji(r, x, seed) {
-    const y = BG_RAIL_AY - 86;          // 窗台正好坐在腰壁橫木上
-    const open = hash01(seed + 1) < 0.4;
-    const leaves = !open && hash01(seed + 2) < 0.75;
-    r.push(x + 1, y + 1, 62, 86, BG_C.wallShadow);
-    r.push(x, y, 62, 86, BG_C.wood);
-    r.push(x, y, 62, 1, BG_C.woodHi);
-    r.push(x, y, 1, 86, BG_C.woodHi);
-    r.push(x + 61, y, 1, 86, BG_C.woodLo);
-    r.push(x + 3, y + 3, 56, 1, BG_C.woodLo);
-    r.push(x + 3, y + 82, 56, 1, BG_C.woodHi);
-    if (open) {
-      // 右扇拉到左扇前面，右側露出庭院：天空、竹子、樹籬
-      r.push(x + 47, y + 4, 12, 78, BG_C.sky);
-      r.push(x + 47, y + 36, 12, 46, BG_C.garden);
-      r.push(x + 47, y + 58, 12, 24, BG_C.gardenLo);
-      r.push(x + 53, y + 4, 2, 54, BG_C.bamboo);
-      r.push(x + 52, y + 20, 4, 1, BG_C.gardenLo);
-      bgShojiPanel(r, x + 3, y + 4, leaves);
-      bgShojiPanel(r, x + 19, y + 4, false);
-    } else {
-      bgShojiPanel(r, x + 3, y + 4, false);
-      bgShojiPanel(r, x + 31, y + 4, leaves);
-    }
-    return 62;
+    const y = BG_RAIL_AY - 90;          // 134..224
+    // 窗上方牆面：日式木層板＋小陶皿＋垂藤小盆栽（平衡上牆視覺）
+    r.push(x + 12, 86, 38, 3, BG_C.woodMid);
+    r.push(x + 12, 86, 38, 1, BG_C.woodHi);
+    r.push(x + 16, 89, 2, 3, BG_C.woodLo);
+    r.push(x + 44, 89, 2, 3, BG_C.woodLo);
+    bgDisc(r, x + 16, 74, 12, BG_C.potBlue);
+    bgDisc(r, x + 18, 76, 8, BG_C.mat);
+    r.push(x + 36, 79, 8, 7, BG_C.pot);
+    r.push(x + 35, 74, 10, 6, BG_C.leaf);
+    r.push(x + 37, 72, 6, 3, BG_C.leafHi);
+    r.push(x + 42, 85, 3, 12, BG_C.leaf);
+    r.push(x + 44, 92, 3, 8, BG_C.leafLo);
+
+    r.push(x - 2, y - 3, 70, 3, BG_C.woodMid);    // 窗楣橫樑
+    r.push(x - 2, y - 3, 70, 1, BG_C.woodHi);
+    r.push(x + 1, y + 1, 66, 90, BG_C.wallShadow);
+    r.push(x, y, 66, 90, BG_C.wood);
+    r.push(x, y, 66, 1, BG_C.woodHi);
+    r.push(x, y, 1, 90, BG_C.woodHi);
+    r.push(x + 65, y, 1, 90, BG_C.woodLo);
+    // 右側拉開露出晴空庭園：藍天、白雲、翠竹、櫻花叢與緣側木欄
+    r.push(x + 34, y + 4, 29, 26, BG_C.skyHi);
+    r.push(x + 34, y + 30, 29, 20, BG_C.sky);
+    r.push(x + 34, y + 50, 29, 14, BG_C.skyLo);
+    r.push(x + 40, y + 12, 12, 3, BG_C.cloud);
+    r.push(x + 43, y + 10, 7, 2, BG_C.cloud);
+    r.push(x + 34, y + 54, 29, 32, BG_C.garden);
+    r.push(x + 34, y + 54, 29, 6, BG_C.gardenHi);
+    r.push(x + 34, y + 68, 29, 18, BG_C.gardenLo);
+    // 庭院翠竹與櫻花點綴
+    r.push(x + 54, y + 6, 2, 68, BG_C.bamboo);
+    r.push(x + 59, y + 14, 2, 60, BG_C.gardenLo);
+    r.push(x + 53, y + 22, 4, 1, BG_C.gardenLo);
+    r.push(x + 53, y + 42, 4, 1, BG_C.gardenLo);
+    r.push(x + 38, y + 44, 11, 10, BG_C.sakura);
+    r.push(x + 40, y + 42, 7, 4, BG_C.sakuraHi);
+    r.push(x + 45, y + 48, 6, 5, BG_C.sakuraHi);
+    // 簷下玻璃風鈴＋粉紅短冊
+    r.push(x + 48, y + 4, 1, 6, BG_C.cord);
+    r.push(x + 46, y + 10, 5, 4, BG_C.glass);
+    r.push(x + 47, y + 10, 2, 2, BG_C.glassHi);
+    r.push(x + 48, y + 14, 1, 3, BG_C.cord);
+    r.push(x + 47, y + 17, 3, 7, BG_C.sakura);
+    // 左扇障子拉門
+    bgShojiPanel(r, x + 3, y + 4, hash01(seed + 2) < 0.7);
+    bgShojiPanel(r, x + 17, y + 4, false);
+    // 窗台上的苔玉小盆栽與白瓷茶杯
+    r.push(x + 46, y + 83, 10, 3, BG_C.potBlue);
+    bgDisc(r, x + 47, y + 76, 8, BG_C.leaf);
+    r.push(x + 49, y + 77, 3, 2, BG_C.leafHi);
+    r.push(x + 58, y + 81, 4, 5, BG_C.mat);
+    r.push(x + 58, y + 82, 4, 1, BG_C.potBlueHi);
+    return 68;
   }
 
-  // --- 書架：落地三層，書背低彩度，頂上擺小盆栽或花瓶 ------------------------------
+  // --- 場景 2：牆面貓跳台步道（橘貓午睡）＋木格柵矮櫃（黑膠唱機）＋龜背芋盆栽 ----------------
+  function bgBuildCatwalk(r, x, seed) {
+    // 左上牆小畫框（肉球印記）
+    bgPhoto(r, x + 3, 74, 18, 20, 2);
+    // 上半牆：三階交錯貓跳板＋劍麻抓柱＋午睡小橘貓＋垂掛羽毛逗貓棒
+    const steps = [[x + 2, 128, 22], [x + 22, 102, 24], [x + 44, 78, 26]];
+    r.push(x + 28, 105, 5, 26, BG_C.shoji);
+    for (let gy = 107; gy < 129; gy += 3) r.push(x + 28, gy, 5, 1, BG_C.woodLo);
+    for (let i = 0; i < steps.length; i++) {
+      const [sx, sy, sw] = steps[i];
+      r.push(sx + 1, sy + 1, sw, 4, BG_C.wallShadow);
+      r.push(sx, sy, sw, 3, BG_C.woodMid);
+      r.push(sx, sy, sw, 1, BG_C.woodHi);
+      r.push(sx + 3, sy + 3, 2, 3, BG_C.woodLo);
+      r.push(sx + sw - 5, sy + 3, 2, 3, BG_C.woodLo);
+    }
+    // 跳板下垂掛藍色羽毛玩具
+    r.push(x + 12, 131, 1, 8, BG_C.cord);
+    r.push(x + 10, 139, 5, 4, BG_C.potBlue);
+    r.push(x + 11, 138, 3, 2, BG_C.mustardHi);
+    // 最高處跳板上的圓潤蜷睡橘虎斑貓（圓背、立耳、垂尾）
+    r.push(x + 50, 72, 13, 6, BG_C.orangeCat);
+    r.push(x + 51, 70, 10, 3, BG_C.orangeCat);
+    r.push(x + 52, 70, 7, 1, BG_C.orangeCatHi);
+    r.push(x + 54, 72, 1, 2, BG_C.coralLo);       // 虎斑條紋
+    r.push(x + 57, 72, 1, 2, BG_C.coralLo);
+    r.push(x + 59, 68, 2, 2, BG_C.orangeCat);     // 橘貓小耳朵
+    r.push(x + 62, 68, 2, 2, BG_C.orangeCat);
+    r.push(x + 60, 71, 4, 5, BG_C.orangeCat);     // 圓頭
+    r.push(x + 61, 76, 3, 2, BG_C.mat);           // 雪白小前爪
+    r.push(x + 48, 76, 3, 5, BG_C.orangeCat);     // 垂在層板邊的尾巴
+    // 下半牆：日式木格柵矮櫃（y = 232..289）＋復古紅黑膠唱機＋龜背芋大盆栽
+    const cy = 232;
+    const cw = 48;
+    r.push(x + 2, cy + 1, cw, 50, BG_C.wallShadow);
+    r.push(x + 1, cy, cw, 48, BG_C.woodMid);
+    r.push(x + 1, cy, cw, 2, BG_C.woodHi);
+    r.push(x + 4, cy + 4, 20, 40, BG_C.wood);
+    r.push(x + 26, cy + 4, 20, 40, BG_C.wood);
+    for (let sx = x + 6; sx < x + 23; sx += 3) r.push(sx, cy + 6, 1, 36, BG_C.woodLo);
+    for (let sx = x + 28; sx < x + 45; sx += 3) r.push(sx, cy + 6, 1, 36, BG_C.woodLo);
+    r.push(x + 5, cy + 48, 3, 9, BG_C.woodLo);    // 櫃腳落地
+    r.push(x + 42, cy + 48, 3, 9, BG_C.woodLo);
+    // 矮櫃上的珊瑚紅黑膠唱機與書堆
+    r.push(x + 6, cy - 8, 18, 8, BG_C.coral);
+    r.push(x + 6, cy - 8, 18, 2, BG_C.coralHi);
+    r.push(x + 9, cy - 10, 12, 2, BG_C.ink);      // 黑膠唱片盤
+    r.push(x + 13, cy - 10, 4, 1, BG_C.mustard);
+    r.push(x + 29, cy - 3, 14, 3, BG_BOOKS[2]);
+    r.push(x + 30, cy - 6, 12, 3, BG_BOOKS[1]);
+    r.push(x + 31, cy - 8, 10, 2, BG_BOOKS[0]);
+    // 矮櫃右側的赤陶盆龜背芋
+    const px = x + 53;
+    r.push(px + 2, 266, 14, 23, BG_C.pot);
+    r.push(px + 1, 264, 16, 4, BG_C.potHi);
+    r.push(px + 8, 244, 2, 20, BG_C.leafLo);
+    bgDisc(r, px - 1, 236, 13, BG_C.leaf);
+    bgDisc(r, px + 8, 230, 14, BG_C.leafHi);
+    bgDisc(r, px + 5, 244, 12, BG_C.leafLo);
+    if (seed % 2 === 0) r.push(px + 11, 234, 3, 1, BG_C.wall); // 龜背芋裂葉孔
+    return 72;
+  }
+
+  // --- 場景 3：洋風陽光格窗＋珊瑚杏桃窗簾＋窗台花圃＋蓬鬆粉紅圓貓窩 ----------------------
+  function bgBuildCafeWindow(r, x, seed) {
+    const wy = 96;
+    const ww = 56;
+    const wh = 96;
+    // 窗外斜射暖陽
+    for (let s = 0; s < 4; s++) {
+      r.push(x + 8 + s * 6, wy + 12 + s * 18, 42, 12, BG_C.sunbeam);
+    }
+    // 窗框與晴空遠山風景
+    r.push(x + 5, wy + 1, ww, wh, BG_C.wallShadow);
+    r.push(x + 4, wy, ww, wh, BG_C.wood);
+    r.push(x + 8, wy + 4, ww - 8, 36, BG_C.skyHi);
+    r.push(x + 8, wy + 40, ww - 8, 28, BG_C.sky);
+    r.push(x + 16, wy + 14, 14, 4, BG_C.cloud);
+    r.push(x + 19, wy + 11, 8, 3, BG_C.cloud);
+    bgStepHill(r, x + 34, wy + 34, 24, 1.1, BG_C.photoMount, ww - 8);
+    bgStepHill(r, x + 34, wy + 34, 6, 1.1, BG_C.photoSnow, ww - 8);
+    r.push(x + 8, wy + 58, ww - 8, 30, BG_C.garden);
+    r.push(x + 8, wy + 56, 28, 6, BG_C.gardenHi);
+    r.push(x + 26, wy + 68, ww - 26, 20, BG_C.gardenLo);
+    // 白色木窗格線
+    r.push(x + 31, wy + 4, 2, wh - 12, BG_C.mat);
+    r.push(x + 8, wy + 34, ww - 8, 2, BG_C.mat);
+    r.push(x + 8, wy + 62, ww - 8, 2, BG_C.mat);
+    // 窗簾桿與左右束起的珊瑚杏桃色布簾
+    r.push(x, wy - 4, ww + 8, 2, BG_C.woodLo);
+    r.push(x + 2, wy - 2, 12, wh + 2, BG_C.apricot);
+    r.push(x + 2, wy - 2, 4, wh + 2, BG_C.apricotHi);
+    r.push(x + 11, wy - 2, 3, wh - 24, BG_C.coralLo);
+    r.push(x + ww - 6, wy - 2, 12, wh + 2, BG_C.apricot);
+    r.push(x + ww - 4, wy - 2, 4, wh + 2, BG_C.apricotHi);
+    r.push(x + 2, wy + 56, 11, 3, BG_C.mustard);  // 金色窗簾束帶
+    r.push(x + ww - 5, wy + 56, 11, 3, BG_C.mustard);
+    // 寬窗台與三盆繽紛小花＋天藍澆水壺
+    r.push(x + 1, wy + wh, ww + 6, 5, BG_C.woodMid);
+    r.push(x + 1, wy + wh, ww + 6, 1, BG_C.woodHi);
+    r.push(x + 16, wy + wh - 6, 7, 6, BG_C.pot);
+    r.push(x + 15, wy + wh - 12, 9, 6, BG_C.leaf);
+    r.push(x + 16, wy + wh - 15, 3, 3, BG_C.mustardHi);
+    r.push(x + 20, wy + wh - 14, 3, 3, BG_C.mustard);
+    r.push(x + 27, wy + wh - 6, 7, 6, BG_C.mat);
+    r.push(x + 26, wy + wh - 11, 9, 5, BG_C.leafHi);
+    r.push(x + 28, wy + wh - 14, 5, 4, BG_C.sakura);
+    r.push(x + 39, wy + wh - 7, 8, 7, BG_C.potBlue);
+    r.push(x + 47, wy + wh - 5, 4, 2, BG_C.potBlueHi); // 澆水壺嘴
+    // 窗下地板：蓬鬆粉紅甜甜圈貓窩＋松石藍毛線球
+    const by = 266;
+    r.push(x + 10, by + 4, 34, 18, BG_C.pinkBed);
+    r.push(x + 12, by, 30, 6, BG_C.pinkBedHi);
+    r.push(x + 16, by + 3, 22, 8, BG_C.mat);      // 貓窩柔軟內墊
+    r.push(x + 10, by + 19, 34, 4, BG_C.coralLo);
+    if (hash01(seed + 3) < 0.8) {
+      bgDisc(r, x + 48, 278, 9, BG_C.potBlue);
+      r.push(x + 50, 280, 4, 1, BG_C.potBlueHi);
+    }
+    return 66;
+  }
+
+  // --- 場景 4：落地三層木書櫃（招財貓＋地球儀＋常春藤）＋浮世繪畫框＋暖光落地立燈 ------------
   function bgBuildShelf(r, x, seed) {
     const W = 44;
-    const y0 = GROUND_AY - 84;          // 206
-    r.push(x + W, y0 + 1, 1, BG_RAIL_AY - y0 - 1, BG_C.wallShadow);
-    r.push(x + W, BG_WAIN_AY, 1, BG_BASE_AY - BG_WAIN_AY, BG_C.wainShadow);
-    r.push(x, y0, W, 84, BG_C.wood);
-    const tiers = [[y0 + 3, 24], [y0 + 29, 23], [y0 + 54, 24]];
+    const y0 = GROUND_AY - 88;          // 202..289
+    r.push(x + W, y0 + 1, 2, BG_RAIL_AY - y0 - 1, BG_C.wallShadow);
+    r.push(x + W, BG_WAIN_AY, 2, BG_BASE_AY - BG_WAIN_AY, BG_C.wainShadow);
+    r.push(x, y0, W, 88, BG_C.woodMid);
+    const tiers = [[y0 + 3, 25], [y0 + 31, 25], [y0 + 59, 25]];
     for (let t = 0; t < 3; t++) {
       const ty = tiers[t][0];
       const th = tiers[t][1];
       r.push(x + 3, ty, 38, th, BG_C.back);
       r.push(x + 3, ty, 38, 2, BG_C.backShade);
       r.push(x + 3, ty, 2, th, BG_C.backShade);
-      bgShelfTier(r, x + 3, ty, th, seed * 7 + t * 31);
-      r.push(x + 3, ty + th, 38, 1, BG_C.woodHi);
+      bgShelfTier(r, x + 3, ty, th, seed * 7 + t * 31, t);
+      r.push(x + 3, ty + th, 38, 2, BG_C.woodHi);
     }
-    r.push(x, y0, W, 1, BG_C.woodHi);
-    r.push(x, y0, 1, 84, BG_C.woodHi);
-    r.push(x + W - 1, y0, 1, 84, BG_C.woodLo);
-    r.push(x, GROUND_AY - 1, W, 1, BG_C.woodLo);
-    // 頂上：小盆栽／花瓶＋枝條／平放的書
-    const top = Math.floor(hash01(seed + 5) * 3);
-    if (top === 0) {
-      r.push(x + 30, y0 - 6, 8, 6, BG_C.pot);
-      r.push(x + 30, y0 - 6, 8, 1, BG_C.potHi);
-      r.push(x + 29, y0 - 11, 6, 5, BG_C.leaf);
-      r.push(x + 33, y0 - 14, 6, 8, BG_C.leaf);
-      r.push(x + 27, y0 - 9, 3, 2, BG_C.leafLo);
-      r.push(x + 37, y0 - 11, 4, 3, BG_C.leafLo);
-      r.push(x + 35, y0 - 14, 2, 3, BG_C.leafLo);
-    } else if (top === 1) {
-      r.push(x + 8, y0 - 9, 5, 9, BG_C.photoSky);
-      r.push(x + 9, y0 - 11, 3, 2, BG_C.photoSky);
-      r.push(x + 8, y0 - 9, 1, 9, BG_C.mat);
-      r.push(x + 10, y0 - 20, 1, 9, BG_C.woodMid);
-      r.push(x + 11, y0 - 24, 1, 5, BG_C.woodMid);
-      r.push(x + 7, y0 - 17, 3, 1, BG_C.woodMid);
-      r.push(x + 12, y0 - 22, 2, 2, BG_C.photoSun);
-      r.push(x + 8, y0 - 19, 2, 2, BG_C.photoSun);
-    } else {
-      r.push(x + 6, y0 - 2, 14, 2, BG_BOOKS[1]);
-      r.push(x + 7, y0 - 4, 12, 2, BG_BOOKS[4]);
-      r.push(x + 6, y0 - 6, 13, 2, BG_BOOKS[2]);
+    r.push(x, y0, W, 2, BG_C.woodHi);
+    r.push(x, y0, 2, 88, BG_C.woodHi);
+    r.push(x + W - 2, y0, 2, 88, BG_C.woodLo);
+    // 櫃頂：赤陶盆垂吊常春藤＋黃花瓷瓶
+    r.push(x + 28, y0 - 7, 10, 7, BG_C.pot);
+    r.push(x + 27, y0 - 8, 12, 2, BG_C.potHi);
+    r.push(x + 26, y0 - 14, 14, 7, BG_C.leaf);
+    r.push(x + 28, y0 - 16, 9, 4, BG_C.leafHi);
+    // 沿著書櫃右側垂下的常春藤葉串
+    for (let vy = y0 - 6; vy < y0 + 32; vy += 5) {
+      r.push(x + 39, vy, 4, 4, vy % 10 === 0 ? BG_C.leafHi : BG_C.leaf);
+      r.push(x + 41, vy + 2, 3, 3, BG_C.leafLo);
     }
-    return W + 1;
+    r.push(x + 8, y0 - 9, 6, 9, BG_C.potBlue);
+    r.push(x + 9, y0 - 15, 2, 6, BG_C.leafLo);
+    r.push(x + 7, y0 - 17, 4, 4, BG_C.mustardHi);
+    r.push(x + 12, y0 - 15, 4, 4, BG_C.mustard);
+    return W;
   }
 
-  function bgShelfTier(r, x, ty, th, seed) {
+  function bgShelfTier(r, x, ty, th, seed, tierIdx) {
     const floorY = ty + th;
+    // 上層擺小地球儀、中層擺白瓷招財貓
+    if (tierIdx === 0) {
+      bgDisc(r, x + 24, floorY - 14, 10, BG_C.potBlue);
+      r.push(x + 26, floorY - 12, 4, 4, BG_C.leafHi);
+      r.push(x + 28, floorY - 4, 2, 4, BG_C.brass);
+      r.push(x + 25, floorY - 2, 8, 2, BG_C.woodLo);
+    } else if (tierIdx === 1) {
+      // 招財貓（白身、紅項圈、舉右爪、金小判）
+      r.push(x + 25, floorY - 11, 9, 11, BG_C.mat);
+      r.push(x + 25, floorY - 13, 3, 2, BG_C.mat);
+      r.push(x + 31, floorY - 13, 3, 2, BG_C.mat);
+      r.push(x + 26, floorY - 12, 1, 1, BG_C.coral);
+      r.push(x + 32, floorY - 12, 1, 1, BG_C.coral);
+      r.push(x + 25, floorY - 7, 9, 1, BG_C.coral);
+      r.push(x + 28, floorY - 6, 3, 4, BG_C.mustardHi);
+    }
     let bx = x + 2;
-    const stop = x + 38 - Math.floor(hash01(seed) * 3) * 5 - 4;
+    const stop = tierIdx < 2 ? x + 22 : x + 36;
     let i = 0;
-    // 隨機（決定性）留一個空位，擺橫放的書堆或收納盒
-    const gapAt = 2 + Math.floor(hash01(seed + 1) * 5);
     while (bx < stop) {
-      if (i === gapAt) {
-        const kind = hash01(seed + 2) < 0.5;
-        if (kind) {
-          r.push(bx + 1, floorY - 2, 9, 2, BG_BOOKS[(seed + 3) % 8]);
-          r.push(bx + 2, floorY - 4, 8, 2, BG_BOOKS[(seed + 5) % 8]);
-        } else {
-          r.push(bx + 1, floorY - 8, 9, 8, BG_C.pot);
-          r.push(bx + 1, floorY - 8, 9, 1, BG_C.potHi);
-          r.push(bx + 1, floorY - 5, 9, 1, BG_C.woodLo);
-        }
-        bx += 11;
-        i++;
-        continue;
-      }
-      const h = Math.max(9, th - 3 - Math.floor(hash01(seed + i * 13 + 7) * 8));
-      const w = 2 + Math.floor(hash01(seed + i * 13 + 8) * 3);
-      if (bx + w > x + 38) break;
-      const c = BG_BOOKS[Math.floor(hash01(seed + i * 13 + 9) * BG_BOOKS.length)];
+      const h = Math.max(10, th - 3 - Math.floor(hash01(seed + i * 13 + 7) * 8));
+      const w = 3 + Math.floor(hash01(seed + i * 13 + 8) * 3);
+      if (bx + w > stop) break;
+      const c = BG_BOOKS[(tierIdx * 3 + i) % BG_BOOKS.length];
       r.push(bx, floorY - h, w, h, c);
-      if (w >= 3) r.push(bx, floorY - h + 3, w, 1, BG_C.mat);
+      r.push(bx, floorY - h + 2, w, 1, BG_C.mat);
       bx += w;
       i++;
     }
   }
 
-  // --- 畫框：淺木框＋襯紙＋小風景（富士山／丘陵與夕陽／圓相） --------------------------
+  function bgBuildShelfSet(r, x, seed) {
+    bgBuildShelf(r, x, seed);
+    // 書櫃上方掛兩幅彩色小畫框
+    bgPhoto(r, x + 2, 116, 22, 28, 0);
+    bgPhoto(r, x + 27, 124, 18, 20, 1);
+    // 書櫃右側：暖光落地立燈（y = 186..289）
+    const lx = x + 52;
+    r.push(lx - 4, 182, 22, 22, BG_C.lampHalo);
+    r.push(lx, 186, 14, 14, BG_C.mustardHi);
+    r.push(lx + 2, 184, 10, 2, BG_C.mustard);
+    r.push(lx, 186, 4, 14, BG_C.lampHi);
+    r.push(lx, 199, 14, 1, BG_C.brassLo);
+    r.push(lx + 6, 200, 2, 86, BG_C.woodMid);
+    r.push(lx + 1, 286, 12, 3, BG_C.woodLo);
+    return 68;
+  }
+
+  // --- 畫框：淺木框＋白襯紙＋繽紛風景（晴空富士／紅日夕照／珊瑚小魚／翠綠植物） ----------
   function bgPhoto(r, x, y, w, h, kind) {
     r.push(x + 1, y + 1, w, h, BG_C.wallShadow);
-    r.push(x, y, w, h, BG_C.wood);
+    r.push(x, y, w, h, BG_C.woodMid);
     r.push(x, y, w, 1, BG_C.woodHi);
     r.push(x, y, 1, h, BG_C.woodHi);
     r.push(x + 2, y + 2, w - 4, h - 4, BG_C.mat);
@@ -3241,131 +3434,178 @@
       const cx = px + Math.floor(pw / 2);
       const rows = Math.min(ph - 2, Math.floor(pw / 2));
       bgStepHill(r, cx, py + ph - 2 - rows, rows, 1, BG_C.photoMount, pw);
-      bgStepHill(r, cx, py + ph - 2 - rows, 2, 1, BG_C.photoSnow, pw);
+      bgStepHill(r, cx, py + ph - 2 - rows, Math.max(2, Math.floor(rows * 0.35)), 1, BG_C.photoSnow, pw);
       r.push(px, py + ph - 2, pw, 2, BG_C.photoHill);
     } else if (kind === 1) {
       r.push(px, py, pw, ph, BG_C.photoWarm);
-      r.push(px + pw - 5, py + 2, 2, 2, BG_C.photoSun);
-      r.push(px, py + ph - 4, Math.ceil(pw * 0.6), 4, BG_C.photoHill);
-      r.push(px + 2, py + ph - 5, Math.ceil(pw * 0.35), 1, BG_C.photoHill);
-      r.push(px + Math.floor(pw * 0.4), py + ph - 3, pw - Math.floor(pw * 0.4), 3, BG_C.photoHillLo);
+      bgDisc(r, px + pw - 7, py + 2, 5, BG_C.photoSun);
+      r.push(px, py + ph - 4, Math.ceil(pw * 0.65), 4, BG_C.photoHill);
+      r.push(px + Math.floor(pw * 0.35), py + ph - 3, pw - Math.floor(pw * 0.35), 3, BG_C.photoHillLo);
     } else {
-      const d = Math.min(pw, ph) - 2;
-      const ex = px + Math.floor((pw - d) / 2);
-      const ey = py + Math.floor((ph - d) / 2);
-      bgDisc(r, ex, ey, d, BG_C.ink);
-      bgDisc(r, ex + 2, ey + 2, d - 4, BG_C.mat);
-      r.push(ex + d - 3, ey, 3, 3, BG_C.mat);
+      r.push(px, py, pw, ph, BG_C.skyLo);
+      // 珊瑚紅小魚插畫
+      r.push(px + 3, py + Math.floor(ph / 2) - 2, pw - 6, 4, BG_C.coral);
+      r.push(px + 2, py + Math.floor(ph / 2) - 3, 3, 6, BG_C.coralHi);
     }
   }
 
-  function bgBuildFrames(r, x, seed) {
-    const v = Math.floor(hash01(seed + 1) * 3);
-    const line = 120 + Math.floor(hash01(seed + 2) * 16);   // 掛畫的中心線
-    const k = Math.floor(hash01(seed + 3) * 3);
-    if (v === 0) {
-      bgPhoto(r, x, line - 13, 36, 26, k);
-      return 37;
-    }
-    if (v === 1) {
-      bgPhoto(r, x, line - 14, 20, 28, (k + 1) % 3);
-      bgPhoto(r, x + 26, line - 9, 18, 18, (k + 2) % 3);
-      return 45;
-    }
-    bgPhoto(r, x, line - 10, 16, 20, k);
-    bgPhoto(r, x + 21, line - 8, 24, 16, (k + 1) % 3);
-    bgPhoto(r, x + 50, line - 10, 16, 20, (k + 2) % 3);
-    return 67;
-  }
-
-  // --- 掛軸：天地軸、風帶、裱布與水墨畫 -------------------------------------------
-  function bgBuildScroll(r, x, seed) {
-    const y = 66 + Math.floor(hash01(seed + 1) * 10);
-    const kind = Math.floor(hash01(seed + 2) * 3);
-    // 掛繩：從釘子往兩端軸頭斜下（階梯）
-    r.push(x + 8, y - 9, 2, 1, BG_C.woodLo);
+  // --- 場景 5：青碧錦綾掛軸＋圓形博古壁架＋紅梅花瓶几＋雙色座布團 -------------------------
+  function bgBuildTokonoma(r, x, seed) {
+    const y = 70;
+    // 掛繩與青碧錦綾掛軸
+    r.push(x + 9, y - 9, 2, 1, BG_C.woodLo);
     for (let k = 1; k <= 8; k++) {
-      r.push(x + 8 - k, y - 9 + k, 1, 1, BG_C.cord);
-      r.push(x + 9 + k, y - 9 + k, 1, 1, BG_C.cord);
+      r.push(x + 9 - k, y - 9 + k, 1, 1, BG_C.cord);
+      r.push(x + 10 + k, y - 9 + k, 1, 1, BG_C.cord);
     }
-    r.push(x + 2, y + 1, 15, 74, BG_C.wallShadow);
-    r.push(x + 1, y, 16, 74, BG_C.silk);
-    r.push(x + 1, y, 1, 74, BG_C.silkLo);
-    r.push(x + 16, y, 1, 74, BG_C.silkLo);
-    r.push(x + 1, y + 7, 16, 1, BG_C.silkLo);
-    r.push(x + 1, y + 63, 16, 1, BG_C.silkLo);
-    r.push(x + 5, y + 2, 1, 14, BG_C.silkLo);   // 風帶
-    r.push(x + 12, y + 2, 1, 14, BG_C.silkLo);
+    r.push(x + 2, y + 1, 18, 78, BG_C.wallShadow);
+    r.push(x + 1, y, 18, 78, BG_C.silk);
+    r.push(x + 1, y, 1, 78, BG_C.silkLo);
+    r.push(x + 18, y, 1, 78, BG_C.silkLo);
+    r.push(x + 6, y + 2, 1, 14, BG_C.mustard);   // 金色風帶
+    r.push(x + 13, y + 2, 1, 14, BG_C.mustard);
     const px = x + 3;
     const py = y + 10;
-    r.push(px, py, 12, 51, BG_C.scrollPaper);
-    if (kind === 0) {
-      // 墨竹
-      r.push(px + 5, py + 4, 1, 45, BG_C.ink);
-      r.push(px + 4, py + 17, 3, 1, BG_C.ink);
-      r.push(px + 4, py + 32, 3, 1, BG_C.ink);
-      r.push(px + 6, py + 10, 3, 1, BG_C.ink);
-      r.push(px + 8, py + 11, 3, 1, BG_C.ink);
-      r.push(px + 1, py + 22, 4, 1, BG_C.ink);
-      r.push(px, py + 23, 2, 1, BG_C.ink);
-      r.push(px + 6, py + 26, 4, 1, BG_C.inkLight);
-      r.push(px + 9, py + 27, 2, 1, BG_C.inkLight);
-    } else if (kind === 1) {
-      // 遠山：兩層淡墨
-      bgStepHill(r, px + 4, py + 26, 12, 0.5, BG_C.inkLight, 12);
-      bgStepHill(r, px + 8, py + 32, 10, 0.6, BG_C.ink, 12);
-      r.push(px + 8, py + 6, 2, 2, BG_C.inkLight);
-    } else {
-      // 圓相
-      bgDisc(r, px + 1, py + 14, 10, BG_C.ink);
-      bgDisc(r, px + 3, py + 16, 6, BG_C.scrollPaper);
-      r.push(px + 8, py + 14, 3, 3, BG_C.scrollPaper);
-      r.push(px + 5, py + 30, 2, 1, BG_C.inkLight);
-      r.push(px + 5, py + 33, 2, 1, BG_C.inkLight);
-      r.push(px + 5, py + 36, 2, 1, BG_C.inkLight);
-    }
-    // 天軸與地軸（地軸兩端的軸頭略深）
-    r.push(x, y - 1, 18, 2, BG_C.woodMid);
-    r.push(x, y - 1, 18, 1, BG_C.woodHi);
-    r.push(x - 1, y + 73, 20, 3, BG_C.woodMid);
-    r.push(x - 1, y + 73, 20, 1, BG_C.woodHi);
-    r.push(x - 2, y + 73, 2, 3, BG_C.woodLo);
-    r.push(x + 18, y + 73, 2, 3, BG_C.woodLo);
-    return 20;
+    r.push(px, py, 14, 56, BG_C.scrollPaper);
+    // 掛軸畫心：朱紅旭日＋遠山翠竹
+    bgDisc(r, px + 6, py + 8, 6, BG_C.photoSun);
+    bgStepHill(r, px + 5, py + 30, 14, 0.5, BG_C.photoMount, 14);
+    bgStepHill(r, px + 9, py + 36, 12, 0.6, BG_C.leaf, 14);
+    r.push(px, py + 48, 14, 8, BG_C.gardenHi);
+    r.push(x, y - 1, 20, 2, BG_C.woodMid);
+    r.push(x - 1, y + 77, 22, 3, BG_C.woodMid);
+    r.push(x - 2, y + 77, 2, 3, BG_C.brass);
+    r.push(x + 20, y + 77, 2, 3, BG_C.brass);
+
+    // 右側上牆：圓形博古木架（直徑 28，內擺達摩與青瓷壺）
+    const cx = x + 28;
+    const cy = 98;
+    bgDisc(r, cx + 1, cy + 1, 28, BG_C.wallShadow);
+    bgDisc(r, cx, cy, 28, BG_C.woodMid);
+    bgDisc(r, cx + 3, cy + 3, 22, BG_C.back);
+    r.push(cx + 3, cy + 14, 22, 2, BG_C.woodHi);
+    r.push(cx + 14, cy + 3, 2, 11, BG_C.woodHi);
+    r.push(cx + 7, cy + 9, 5, 5, BG_C.photoSun);  // 紅達摩
+    r.push(cx + 8, cy + 10, 3, 2, BG_C.mat);
+    r.push(cx + 17, cy + 8, 5, 6, BG_C.leaf);     // 小盆松
+    r.push(cx + 10, cy + 18, 8, 5, BG_C.lampMint); // 青瓷茶壺
+
+    // 下半牆：花台紅梅瓶＋抹茶綠與山吹黃座布團（y = 228..289）
+    r.push(x + 4, 266, 26, 4, BG_C.woodLo);
+    r.push(x + 7, 270, 3, 19, BG_C.woodLo);
+    r.push(x + 24, 270, 3, 19, BG_C.woodLo);
+    r.push(x + 12, 248, 10, 18, BG_C.potBlue);
+    r.push(x + 13, 248, 3, 16, BG_C.potBlueHi);
+    r.push(x + 16, 228, 2, 20, BG_C.woodLo);
+    r.push(x + 11, 232, 5, 2, BG_C.woodLo);
+    r.push(x + 18, 235, 6, 2, BG_C.woodLo);
+    r.push(x + 9, 228, 5, 5, BG_C.sakura);
+    r.push(x + 15, 224, 6, 5, BG_C.sakuraHi);
+    r.push(x + 21, 231, 5, 5, BG_C.sakura);
+    // 地板座布團兩疊
+    r.push(x + 34, 281, 22, 8, BG_C.leaf);
+    r.push(x + 35, 281, 20, 2, BG_C.leafHi);
+    r.push(x + 35, 273, 20, 8, BG_C.mustard);
+    r.push(x + 36, 273, 18, 2, BG_C.mustardHi);
+    if (seed % 2 === 0) r.push(x + 43, 276, 4, 2, BG_C.mat);
+    return 60;
   }
 
-  // --- 時鐘：圓形壁鐘（可能指著不同時間）或木製柱時計 ------------------------------
-  function bgRoundClock(r, x, y, seed) {
-    bgDisc(r, x + 1, y + 1, 15, BG_C.wallShadow);
-    bgDisc(r, x, y, 15, BG_C.woodMid);
-    bgDisc(r, x + 2, y + 2, 11, BG_C.face);
-    r.push(x + 4, y + 1, 3, 1, BG_C.woodHi);
-    r.push(x + 2, y + 2, 1, 2, BG_C.woodHi);
-    r.push(x + 1, y + 4, 1, 2, BG_C.woodHi);
-    r.push(x + 7, y + 3, 1, 1, BG_C.tick);
-    r.push(x + 11, y + 7, 1, 1, BG_C.tick);
-    r.push(x + 7, y + 11, 1, 1, BG_C.tick);
-    r.push(x + 3, y + 7, 1, 1, BG_C.tick);
-    const t = Math.floor(hash01(seed + 9) * 3);
-    if (t === 0) {
-      r.push(x + 7, y + 4, 1, 4, BG_C.hand);      // 3 點
-      r.push(x + 7, y + 7, 3, 1, BG_C.hand);
-    } else if (t === 1) {
-      r.push(x + 7, y + 4, 1, 4, BG_C.hand);      // 9 點
-      r.push(x + 5, y + 7, 3, 1, BG_C.hand);
-    } else {
-      r.push(x + 5, y + 5, 1, 1, BG_C.hand);      // 10 點 10 分
-      r.push(x + 6, y + 6, 1, 1, BG_C.hand);
-      r.push(x + 7, y + 7, 1, 1, BG_C.hand);
-      r.push(x + 8, y + 6, 1, 1, BG_C.hand);
-      r.push(x + 9, y + 5, 1, 1, BG_C.hand);
-      r.push(x + 10, y + 4, 1, 1, BG_C.hand);
-    }
+  // --- 場景 6：黑貓耳造型壁鐘＋繽紛插畫廊牆＋日系暖橘雙人布沙發＋薄荷綠抱枕 ------------------
+  function bgCatClock(r, x, y) {
+    // 貓耳黑框圓鐘
+    r.push(x + 2, y - 3, 3, 4, BG_C.ink);
+    r.push(x + 11, y - 3, 3, 4, BG_C.ink);
+    r.push(x + 3, y - 2, 1, 2, BG_C.sakura);
+    r.push(x + 12, y - 2, 1, 2, BG_C.sakura);
+    bgDisc(r, x + 1, y + 1, 16, BG_C.wallShadow);
+    bgDisc(r, x, y, 16, BG_C.ink);
+    bgDisc(r, x + 2, y + 2, 12, BG_C.face);
+    r.push(x + 7, y + 4, 1, 4, BG_C.hand);
+    r.push(x + 7, y + 7, 4, 1, BG_C.coral);
   }
 
+  function bgBuildSofaGallery(r, x, seed) {
+    // 上半牆：貓耳壁鐘＋三幅繽紛插畫框
+    bgCatClock(r, x + 4, 84);
+    bgPhoto(r, x + 25, 78, 24, 20, 1);
+    bgPhoto(r, x + 6, 108, 20, 24, 2);
+    bgPhoto(r, x + 30, 104, 26, 26, 0);
+    // 下半牆：日系暖珊瑚橘雙人布沙發（y = 234..289）
+    const sy = 234;
+    const sw = 58;
+    r.push(x + 3, sy + 2, sw, 48, BG_C.wallShadow);
+    // 靠背（兩塊飽滿軟墊）
+    r.push(x + 5, sy, 24, 26, BG_C.coral);
+    r.push(x + 31, sy, 24, 26, BG_C.coral);
+    r.push(x + 6, sy + 1, 22, 4, BG_C.coralHi);
+    r.push(x + 32, sy + 1, 22, 4, BG_C.coralHi);
+    r.push(x + 16, sy + 11, 2, 2, BG_C.coralLo);  // 靠背拉釦
+    r.push(x + 42, sy + 11, 2, 2, BG_C.coralLo);
+    // 坐墊與木扶手
+    r.push(x + 4, sy + 24, 52, 14, BG_C.apricot);
+    r.push(x + 5, sy + 24, 50, 3, BG_C.apricotHi);
+    r.push(x + 4, sy + 38, 52, 6, BG_C.coralLo);
+    r.push(x + 1, sy + 16, 4, 30, BG_C.woodMid);
+    r.push(x + 1, sy + 16, 4, 2, BG_C.woodHi);
+    r.push(x + 55, sy + 16, 4, 30, BG_C.woodMid);
+    r.push(x + 55, sy + 16, 4, 2, BG_C.woodHi);
+    r.push(x + 5, sy + 44, 3, 11, BG_C.woodLo);   // 沙發木腳
+    r.push(x + 52, sy + 44, 3, 11, BG_C.woodLo);
+    // 薄荷綠與奶油白拼色抱枕
+    r.push(x + 9, sy + 10, 12, 14, BG_C.lampMint);
+    r.push(x + 10, sy + 11, 10, 4, BG_C.lampMintHi);
+    if (seed % 2 === 0) r.push(x + 38, sy + 12, 11, 12, BG_C.mustardHi);
+    return 64;
+  }
+
+  // --- 場景 7：日式靛藍三連暖簾門廊＋茶具馬克杯壁架＋小圓凳金魚鉢 --------------------------
+  function bgBuildNorenTea(r, x, seed) {
+    // 左側：木門框與靛藍三連暖簾（y = 128..289）
+    const dy = 128;
+    const dw = 40;
+    r.push(x + 1, dy, dw, 161, BG_C.woodMid);
+    r.push(x + 1, dy, dw, 2, BG_C.woodHi);
+    // 暖簾後方透出溫暖走廊光景
+    r.push(x + 4, dy + 3, dw - 6, 158, BG_C.photoWarm);
+    r.push(x + 4, dy + 110, dw - 6, 51, BG_C.wood);
+    // 三片靛藍暖簾（印有白色青海波與小貓剪影）
+    for (let p = 0; p < 3; p++) {
+      const nx = x + 4 + p * 12;
+      r.push(nx, dy + 4, 11, 76, BG_C.indigo);
+      r.push(nx, dy + 4, 3, 76, BG_C.indigoHi);
+      r.push(nx + 9, dy + 4, 2, 76, BG_C.indigoLo);
+      r.push(nx + 2, dy + 62, 7, 2, BG_C.mat);
+      r.push(nx + 3, dy + 59, 5, 2, BG_C.mat);
+    }
+    r.push(x + 18, dy + 36, 6, 6, BG_C.mustardHi); // 中央金月紋
+    // 右側上牆：雙層木茶具架（y = 102..154）
+    const rx = x + 46;
+    r.push(rx + 1, 103, 28, 48, BG_C.wallShadow);
+    r.push(rx, 102, 28, 46, BG_C.woodMid);
+    r.push(rx + 2, 104, 24, 19, BG_C.back);
+    r.push(rx + 2, 126, 24, 19, BG_C.back);
+    r.push(rx + 5, 112, 6, 11, BG_C.leaf);         // 抹茶罐
+    r.push(rx + 14, 110, 8, 13, BG_C.coral);       // 銅壺
+    r.push(rx + 4, 136, 5, 9, BG_C.mustard);       // 三色馬克杯
+    r.push(rx + 12, 136, 5, 9, BG_C.potBlue);
+    r.push(rx + 20, 136, 5, 9, BG_C.coralHi);
+    // 右側下牆：小木圓凳＋玻璃金魚鉢（y = 244..289）
+    r.push(rx + 6, 266, 18, 4, BG_C.woodMid);
+    r.push(rx + 8, 270, 3, 19, BG_C.woodLo);
+    r.push(rx + 19, 270, 3, 19, BG_C.woodLo);
+    bgDisc(r, rx + 8, 250, 14, BG_C.glass);
+    r.push(rx + 10, 250, 10, 2, BG_C.glassHi);
+    r.push(rx + 12, 258, 3, 5, BG_C.leaf);         // 水草
+    r.push(rx + 15, 256, 4, 3, BG_C.photoSun);     // 紅金魚
+    if (seed % 2 === 0) r.push(rx + 18, 257, 2, 1, BG_C.mat);
+    return 76;
+  }
+
+  // --- 場景 8：復古柱時計＋壁掛常春藤花袋＋長腳邊桌（玻璃生態瓶＋三花貓擺飾＋藤籃） ------------
   function bgPendulumClock(r, x, y, seed) {
     r.push(x + 1, y + 1, 18, 44, BG_C.wallShadow);
-    r.push(x + 1, y - 2, 16, 2, BG_C.woodMid);       // 屋頂狀的頂飾
+    r.push(x + 1, y - 2, 16, 2, BG_C.woodMid);
     r.push(x + 4, y - 4, 10, 2, BG_C.woodMid);
     r.push(x + 4, y - 4, 10, 1, BG_C.woodHi);
     r.push(x + 1, y - 2, 16, 1, BG_C.woodHi);
@@ -3380,40 +3620,65 @@
     const t = Math.floor(hash01(seed + 9) * 2);
     r.push(x + 8, y + 4, 1, 5, BG_C.hand);
     r.push(t ? x + 9 : x + 6, y + 8, 3, 1, BG_C.hand);
-    r.push(x + 4, y + 17, 10, 21, BG_C.glass);         // 玻璃門＋鐘擺
+    r.push(x + 4, y + 17, 10, 21, BG_C.glass);
     r.push(x + 4, y + 17, 10, 1, BG_C.woodLo);
     r.push(x + 4, y + 17, 1, 21, BG_C.woodLo);
     r.push(x + 9, y + 18, 1, 13, BG_C.brassLo);
     r.push(x + 7, y + 31, 5, 4, BG_C.brass);
     r.push(x + 7, y + 34, 5, 1, BG_C.brassLo);
-    r.push(x + 12, y + 19, 1, 6, BG_C.mat);            // 玻璃反光
-    r.push(x + 2, y + 44, 14, 2, BG_C.woodLo);         // 底座
+    r.push(x + 12, y + 19, 1, 6, BG_C.glassHi);
+    r.push(x + 2, y + 44, 14, 2, BG_C.woodLo);
   }
 
-  function bgBuildClock(r, x, seed) {
-    if (hash01(seed + 1) < 0.5) {
-      bgRoundClock(r, x, 92 + Math.floor(hash01(seed + 2) * 20), seed);
-      return 16;
+  function bgBuildClockTerrarium(r, x, seed) {
+    // 上半牆：復古擺鐘＋左右壁掛植物木盒
+    bgPendulumClock(r, x + 20, 88, seed);
+    for (const wx of [x + 2, x + 44]) {
+      r.push(wx + 1, 105, 12, 12, BG_C.wallShadow);
+      r.push(wx, 104, 12, 12, BG_C.pot);
+      r.push(wx, 104, 12, 2, BG_C.potHi);
+      r.push(wx + 1, 98, 10, 7, BG_C.leaf);
+      r.push(wx + 3, 96, 6, 4, BG_C.leafHi);
+      r.push(wx + 4, 95, 3, 2, BG_C.sakuraHi);
+      // 垂掛藤蔓
+      r.push(wx + 2, 116, 3, 10, BG_C.leaf);
+      r.push(wx + 7, 116, 3, 14, BG_C.leafLo);
+      r.push(wx + 6, 122, 3, 5, BG_C.leafHi);
     }
-    bgPendulumClock(r, x + 1, 96 + Math.floor(hash01(seed + 2) * 10), seed);
-    return 20;
+    // 下半牆：長腳木邊桌（y = 238..289）＋玻璃生態罩＋三花貓公仔＋桌下藤籃
+    const ty = 240;
+    const tw = 48;
+    r.push(x + 6, ty, tw, 5, BG_C.woodMid);
+    r.push(x + 6, ty, tw, 1, BG_C.woodHi);
+    r.push(x + 9, ty + 5, 3, 44, BG_C.woodLo);
+    r.push(x + 48, ty + 5, 3, 44, BG_C.woodLo);
+    // 桌上的玻璃罩微景觀
+    r.push(x + 14, ty - 14, 14, 14, BG_C.glass);
+    r.push(x + 16, ty - 16, 10, 2, BG_C.glassHi);
+    r.push(x + 15, ty - 6, 12, 5, BG_C.leaf);
+    r.push(x + 18, ty - 10, 5, 5, BG_C.leafHi);
+    r.push(x + 22, ty - 8, 3, 3, BG_C.photoSun);
+    r.push(x + 13, ty - 2, 16, 2, BG_C.woodLo);
+    // 桌上的三花貓小擺飾
+    r.push(x + 35, ty - 9, 8, 9, BG_C.mat);
+    r.push(x + 35, ty - 11, 2, 2, BG_C.orangeCat);
+    r.push(x + 41, ty - 11, 2, 2, BG_C.ink);
+    r.push(x + 38, ty - 6, 4, 4, BG_C.orangeCat);
+    // 桌下收納藤籃
+    r.push(x + 18, 272, 24, 17, BG_C.shoji);
+    r.push(x + 18, 272, 24, 3, BG_C.mat);
+    for (let by = 277; by < 288; by += 3) r.push(x + 19, by, 22, 1, BG_C.woodLo);
+    return 60;
   }
 
-  // 書架上方的牆面也偶爾掛個小鐘或小畫，但不要每個都掛
-  function bgBuildShelfSet(r, x, seed) {
-    const w = bgBuildShelf(r, x, seed);
-    const above = Math.floor(hash01(seed + 11) * 3);
-    if (above === 0) bgRoundClock(r, x + 14, 150, seed);
-    else if (above === 1) bgPhoto(r, x + 12, 146, 20, 16, Math.floor(hash01(seed + 12) * 3));
-    return w;
-  }
-
-  // --- 和紙吊燈：從天花板垂下的細繩＋圓燈籠（有橫向竹骨）或筒形燈罩 ---------------------
+  // --- 和紙與復古吊燈：圓燈籠、暖黃百褶燈罩、復古青綠玻璃燈罩＋柔和光暈 ---------------------
   const BG_LAMP_ROUND = Object.freeze([6, 10, 12, 14, 14, 14, 14, 14, 14, 12, 10, 6]);
   function bgBuildLamp(r, cx, seed) {
-    const top = 22 + Math.floor(hash01(seed + 1) * 12);
-    r.push(cx, 5, 1, top - 5, BG_C.cord);
-    if (hash01(seed + 2) < 0.5) {
+    const top = 18 + Math.floor(hash01(seed + 1) * 10);
+    const kind = seed % 3;
+    r.push(cx - 10, top, 21, 18, BG_C.lampHalo);
+    r.push(cx, 4, 1, top - 4, BG_C.cord);
+    if (kind === 0) {
       const rows = BG_LAMP_ROUND;
       r.push(cx - 2, top, 5, 2, BG_C.woodMid);
       for (let i = 0; i < rows.length; i++) {
@@ -3421,54 +3686,52 @@
         r.push(cx - w / 2 + 1, top + 2 + i, w - 1, 1, i % 3 === 2 ? BG_C.lampRib : (i < 5 ? BG_C.lampHi : BG_C.lamp));
       }
       r.push(cx - 5, top + 3, 2, 1, BG_C.lampHi);
+    } else if (kind === 1) {
+      // 復古青綠玻璃傘燈
+      r.push(cx - 2, top, 5, 2, BG_C.brassLo);
+      bgStepHill(r, cx, top + 2, 7, 1.3, BG_C.lampMint, 17);
+      r.push(cx - 4, top + 4, 3, 3, BG_C.lampMintHi);
+      r.push(cx - 2, top + 9, 5, 3, BG_C.lampHi);
     } else {
+      // 暖黃百褶木框燈罩
       r.push(cx - 5, top, 11, 2, BG_C.woodMid);
-      r.push(cx - 5, top + 2, 11, 12, BG_C.lamp);
-      r.push(cx - 5, top + 2, 3, 12, BG_C.lampHi);
-      r.push(cx - 5, top + 6, 11, 1, BG_C.lampRib);
-      r.push(cx - 5, top + 10, 11, 1, BG_C.lampRib);
-      r.push(cx - 5, top + 14, 11, 1, BG_C.woodMid);
+      r.push(cx - 6, top + 2, 13, 11, BG_C.lamp);
+      r.push(cx - 6, top + 2, 4, 11, BG_C.lampHi);
+      r.push(cx - 6, top + 6, 13, 1, BG_C.lampRib);
+      r.push(cx - 6, top + 10, 13, 1, BG_C.lampRib);
+      r.push(cx - 6, top + 13, 13, 1, BG_C.woodMid);
     }
   }
 
   const BG_BUILDERS = Object.freeze({
     shoji: bgBuildShoji,
+    catwalk: bgBuildCatwalk,
+    cafeWindow: bgBuildCafeWindow,
     shelf: bgBuildShelfSet,
-    frames: bgBuildFrames,
-    scroll: bgBuildScroll,
-    clock: bgBuildClock
+    tokonoma: bgBuildTokonoma,
+    sofaGallery: bgBuildSofaGallery,
+    norenTea: bgBuildNorenTea,
+    clockTerrarium: bgBuildClockTerrarium
   });
 
-  // 擺設順序：固定的組合用雜湊洗牌，再把相鄰（含頭尾相接）重複的拆開
+  // 8 種截然不同的場景依序鋪開，完全不重複，頭尾相接也不同款
   function bgSlotKinds() {
-    const kinds = ['shoji', 'shoji', 'shoji', 'shelf', 'shelf', 'shelf', 'frames', 'frames', 'scroll', 'scroll', 'clock', 'clock'];
-    for (let i = kinds.length - 1; i > 0; i--) {
-      const j = Math.floor(hash01(4099 + i * 17) * (i + 1));
-      const t = kinds[i];
-      kinds[i] = kinds[j];
-      kinds[j] = t;
-    }
-    const n = kinds.length;
-    for (let pass = 0; pass < 4; pass++) {
-      for (let i = 0; i < n; i++) {
-        const a = (i + 1) % n;
-        if (kinds[i] !== kinds[a]) continue;
-        for (let j = 0; j < n; j++) {
-          const t = kinds[j];
-          if (t === kinds[i] || kinds[(j + n - 1) % n] === kinds[a] || kinds[(j + 1) % n] === kinds[a]) continue;
-          kinds[j] = kinds[a];
-          kinds[a] = t;
-          break;
-        }
-      }
-    }
-    return kinds;
+    return [
+      'shoji',
+      'catwalk',
+      'shelf',
+      'cafeWindow',
+      'tokonoma',
+      'sofaGallery',
+      'norenTea',
+      'clockTerrarium'
+    ];
   }
 
   // 遠景：{ period, items: [{ x0, x1, r }], tex }，全部在載入時算好
   const BG_FAR = (() => {
     const kinds = bgSlotKinds();
-    const widths = kinds.map((k, i) => 104 + 8 * Math.floor(hash01(i * 7 + 3) * 4) + (k === 'shoji' ? 16 : 0));
+    const widths = kinds.map((k, i) => 92 + 6 * Math.floor(hash01(i * 7 + 3) * 3) + (k === 'norenTea' ? 10 : 0));
     let total = widths.reduce((a, b) => a + b, 0);
     // 週期取 48 的倍數：腰壁木板與斑點格（都是 24）都能整除，且 0.3× 換算回捲動距離是整數
     widths[widths.length - 1] += (48 - (total % 48)) % 48;
@@ -3478,9 +3741,8 @@
     for (let i = 0; i < kinds.length; i++) {
       const r = [];
       const seed = 101 + i * 37;
-      // 先量寬度再置中（抖動一點，避免間距太規律）
       const w = BG_BUILDERS[kinds[i]]([], 0, seed);
-      const mx = sx + 6 + Math.floor((widths[i] - w - 12) * (0.3 + 0.4 * hash01(seed + 77)));
+      const mx = sx + 4 + Math.floor(Math.max(0, widths[i] - w - 8) * (0.3 + 0.4 * hash01(seed + 77)));
       BG_BUILDERS[kinds[i]](r, mx, seed);
       let x0 = Infinity;
       let x1 = -Infinity;
@@ -3491,19 +3753,19 @@
       items.push({ kind: kinds[i], x0, x1, r });
       sx += widths[i];
     }
-    // 吊燈：另外一組比擺設更疏的節奏（每個循環 4 盞），打破格子的規律感
-    for (let k = 0; k < 4; k++) {
+    // 吊燈：每個循環 6 盞，三種造型交錯
+    for (let k = 0; k < 6; k++) {
       const r = [];
-      const cx = Math.floor((k + 0.25 + 0.5 * hash01(907 + k * 13)) * total / 4);
-      bgBuildLamp(r, cx, 911 + k * 29);
-      items.push({ kind: 'lamp', x0: cx - 7, x1: cx + 8, r });
+      const cx = Math.floor((k + 0.28 + 0.44 * hash01(907 + k * 13)) * total / 6);
+      bgBuildLamp(r, cx, k);
+      items.push({ kind: 'lamp', x0: cx - 11, x1: cx + 12, r });
     }
     // 砂壁斑點：每格最多一點，亮暗成對，像珪藻土牆上的細砂
     const tex = [];
     for (let gx = 0; gx < total; gx += BG_TEX_CELL) {
-      for (let gy = 8; gy + BG_TEX_CELL <= BG_RAIL_AY - 4; gy += BG_TEX_CELL) {
+      for (let gy = 38; gy + BG_TEX_CELL <= BG_RAIL_AY - 4; gy += BG_TEX_CELL) {
         const h = hash01(gx * 131 + gy * 7919 + 17);
-        if (h > 0.55) continue;
+        if (h > 0.5) continue;
         const x = gx + Math.floor(hash01(gx * 31 + gy * 17 + 5) * (BG_TEX_CELL - 3));
         const y = gy + Math.floor(hash01(gx * 13 + gy * 29 + 9) * (BG_TEX_CELL - 2));
         if (h < 0.12) {
@@ -3530,29 +3792,40 @@
     }
   }
 
-  // 畫滿 [0, GROUND_AY) 每一列：牆、腰壁、踢腳板＋ 0.3× 捲動的擺設
+  // 畫滿 [0, GROUND_AY) 每一列：暖陽牆面、長押橫木、檜木框組腰壁、踢腳板＋ 0.3× 捲動的 8 組生活場景
   function pixelDrawBackground(pix, scroll) {
     const period = BG_FAR.period;
     const off = bgWrap(Math.floor(scroll * BG_FAR_RATE / PX), period);
 
     pix.rect(0, 0, LOW_W, BG_RAIL_AY, BG_C.wall);
     pix.rect(0, 5, LOW_W, 8, BG_C.wallTop);
-    pix.rect(0, 13, LOW_W, 12, BG_C.wallMid);
-    pix.rect(0, 25, LOW_W, 16, BG_C.wallLow);
+    pix.rect(0, 13, LOW_W, 10, BG_C.wallMid);
+    pix.rect(0, 23, LOW_W, 9, BG_C.wallLow);
+    // 長押（上牆日式裝飾橫樑）
+    pix.rect(0, BG_NAGESHI_AY, LOW_W, 2, BG_C.wood);
+    pix.rect(0, BG_NAGESHI_AY, LOW_W, 1, BG_C.woodHi);
+    pix.rect(0, BG_NAGESHI_AY + 2, LOW_W, 1, BG_C.ceilShadow);
+
     for (let k = 0; k < 2; k++) bgDrawRects(pix, BG_FAR.tex, k * period - off);
-    // 天花板迴緣（不捲動也看不出來，因為是整條橫木）
-    pix.rect(0, 0, LOW_W, 3, BG_C.wood);
+    // 天花板迴緣
+    pix.rect(0, 0, LOW_W, 3, BG_C.woodMid);
     pix.rect(0, 2, LOW_W, 1, BG_C.woodLo);
     pix.rect(0, 3, LOW_W, 2, BG_C.ceilShadow);
 
-    // 腰壁：亞麻灰直板＋接縫（跟著遠景捲動）
-    pix.rect(0, BG_WAIN_AY, LOW_W, BG_BASE_AY - BG_WAIN_AY, BG_C.wain);
+    // 腰壁：檜木暖杏色框組壁板＋接縫（跟著遠景捲動）
+    const wainH = BG_BASE_AY - BG_WAIN_AY;
+    pix.rect(0, BG_WAIN_AY, LOW_W, wainH, BG_C.wain);
     pix.rect(0, BG_WAIN_AY, LOW_W, 1, BG_C.wainShadow);
-    for (let x = bgWrap(-off, BG_WAIN_STEP); x < LOW_W; x += BG_WAIN_STEP) {
-      pix.rect(x, BG_WAIN_AY + 1, 1, BG_BASE_AY - BG_WAIN_AY - 1, BG_C.wainSeam);
-      pix.rect(x + 1, BG_WAIN_AY + 1, 1, BG_BASE_AY - BG_WAIN_AY - 1, BG_C.wainHi);
+    for (let x = bgWrap(-off, BG_WAIN_STEP) - BG_WAIN_STEP; x < LOW_W; x += BG_WAIN_STEP) {
+      if (x >= 0) {
+        pix.rect(x, BG_WAIN_AY + 1, 1, wainH - 1, BG_C.wainSeam);
+        pix.rect(x + 1, BG_WAIN_AY + 1, 1, wainH - 1, BG_C.wainHi);
+      }
+      pix.rect(x + 4, BG_WAIN_AY + 5, BG_WAIN_STEP - 6, wainH - 10, BG_C.wainPanel);
+      pix.rect(x + 4, BG_WAIN_AY + 5, BG_WAIN_STEP - 6, 1, BG_C.wainShadow);
+      pix.rect(x + 4, BG_WAIN_AY + wainH - 6, BG_WAIN_STEP - 6, 1, BG_C.wainHi);
     }
-    pix.rect(0, BG_RAIL_AY, LOW_W, 3, BG_C.wood);
+    pix.rect(0, BG_RAIL_AY, LOW_W, 3, BG_C.woodMid);
     pix.rect(0, BG_RAIL_AY, LOW_W, 1, BG_C.woodHi);
     pix.rect(0, BG_RAIL_AY + 2, LOW_W, 1, BG_C.woodLo);
 
@@ -4344,18 +4617,19 @@
 
   // #region pixel:cat
   // --- 像素黑貓（pixel:cat）：姿勢 × 心情 × 尾巴在載入時烘焙成 sprite，逐幀只做查表 ---------
-  // 字元：k 身體、s 暗部、r 輪廓光、e 眼、p 瞳孔、g 白手套、d 肉球、i 耳內、n 鼻子、w 亮點
-  // 零件裡的 '#' 是「自動上光」：依該圖層輪廓，上緣／左緣 → r（光從左上來）、下緣 → s、其餘 → k
+  // 字元：# / k 身體、s 暗部、r 輪廓光、e 眼、p 瞳孔、g 白手套、d 肉球、i 耳內、n 鼻子、w 亮點、c 紅項圈、b 金鈴鐺
   const PIXEL_CAT_PALETTE = Object.freeze({
     body: PAL.catBody,  // 墨黑
     shade: '#131317',   // 腹側暗部
     rim: '#4A4A59',     // 左上輪廓光：讓剪影在亮牆與木頭上都讀得出形狀
     eye: PAL.catEye,    // 亮黃綠
     pupil: '#0C0C10',
-    glove: '#F3EFE7',   // 白手套（略帶米色，跟牆面同一個色溫）
+    glove: '#FFFBF5',   // 雪白手套（微暖米白）
     pad: PAL.catPad,    // 粉嫩肉球
-    earIn: '#C97990',   // 耳內：比肉球暗一階，免得在黑臉上太跳
+    earIn: '#F498B2',   // 櫻花粉耳內
     nose: PAL.catPad,
+    collar: '#E5534B',  // 朱紅項圈
+    bell: '#FFD54F',    // 金色鈴鐺
     white: '#FFFFFF'    // 眼睛亮點
   });
 
@@ -4366,375 +4640,260 @@
   const CATPIX_TAIL_STEP = 5; // 尾巴彈簧值超過 ±5 就換「上揚／下垂」幀
   const CATPIX_BALL_KEEP = 0.35; // 球：核心給的形變只保留 35%，維持圓滾滾的球形
 
-  // ===== 待機（設計比例 1 × 1）=====
-  // 身體水平、頭在右前方、雙耳豎起、尾巴從臀部往後上方彎、四腳收在肚子下露出白手套
-  // 豎耳的頭：14×15，眼睛在第 7～9 列、鼻子第 10 列、嘴第 11 列（第 10～11 列右緣是臉頰）
-  const CATPIX_HEAD_UP = [
-    '..#........#..',
-    '..##......##..',
-    '..#i#....#i#..',
-    '.##ii#..#ii##.',
-    '.############.',
-    '.############.',
-    '#############.',
-    '#############.',
-    '#############.',
-    '#############.',
-    '##############',
-    '##############',
-    '.############.',
-    '..##########..',
-    '...########...'
+  // ===== 1. 待機與平飛（設計比例 1 × 1）=====
+  // 二頭身可愛比例：飽滿成對三角貓耳（2px 圓潤耳尖＋45° 斜坡＋櫻花粉耳內）、3×3 圓亮大眼、
+  // 圓臉頰、朱紅項圈配金鈴鐺、圓潤豆子身與四隻小巧白手套；全身一體成形，頸部與身體不留灰線接縫
+  const CATPIX_IDLE_BODY = [
+    '..........r#.......#r....',
+    '.........r###.....###r...',
+    '.........r#ii#...#ii#r...',
+    '........r##ii#rrr#ii##r..',
+    '........r##############r.',
+    '.......r################.',
+    '.......####wee###wee####.',
+    '.......####epe###epe####.',
+    '...rrrr####eee#nneee###rr',
+    '..r####################..',
+    '.r####################rr.',
+    'r##########ccccbbccccc...',
+    'r#############sbbss###...',
+    '###############ss#####...',
+    '######################...',
+    '.####################....',
+    '..###ssssssssss####ss....',
+    '..ggg.ggg......ggg.ggg...',
+    '..gdg..........gdg.......'
   ];
-  const CATPIX_BODY_IDLE = [
-    '.....####.......',
-    '...#########....',
-    '..############..',
-    '.##############.',
-    '################',
-    '################',
-    '################',
-    '################',
-    '.###############',
-    '..##############',
-    '....##########..'
-  ];
-  // 尾巴三幀：上揚／中間／下垂（2px 粗，細長）
   const CATPIX_TAIL_UP = [
-    '....##',
-    '...##.',
-    '..##..',
-    '..##..',
-    '..##..',
-    '..##..',
-    '..##..',
-    '..##..',
-    '..##..',
-    '..##..',
-    '...##.',
-    '...##.'
+    '.rr....',
+    'r##....',
+    '##.....',
+    '##.....',
+    '.##....',
+    '.###...',
+    '..####.',
+    '....###'
   ];
   const CATPIX_TAIL_MID = [
-    '..##.',
-    '.##..',
-    '##...',
-    '##...',
-    '##...',
-    '##...',
-    '##...',
-    '.##..',
-    '.##..',
-    '..##.',
-    '..###',
-    '...##'
+    '..rr....',
+    '.r##....',
+    '.##.....',
+    '..##....',
+    '...###..',
+    '....####',
+    '.....###'
   ];
   const CATPIX_TAIL_DOWN = [
-    '..##',
-    '.##.',
-    '##..',
-    '##..',
-    '##..',
-    '##..',
-    '##..',
-    '##..',
-    '.##.'
+    '.....##',
+    '...r###',
+    '..r##..',
+    '.r##...',
+    'r##....',
+    '##.....',
+    '.ss....'
   ];
-  // 腳：遠側（畫在身體後面，用暗部色）與近側（自動上光）
-  // 白手套露在剪影外緣的部分，烘焙時會自動補暗部色描邊（catPixOutline）
-  const CATPIX_LEG_FAR = ['ss', 'gg'];
-  const CATPIX_LEG_NEAR = ['###', '###', '###', 'ggg', 'ggg'];
 
-  // ===== 跳躍拉長（設計比例 0.8 × 1.25：直接畫成拉到底的樣子）=====
-  // 身體斜向右上、頭在最前上方領路；頭本身只拉長一點點（太瘦長的頭在 2 倍顯示時讀不出貓臉）
-  // 頭：飛機耳——耳朵往後平貼在後腦勺，耳尖朝左後方；遠側那隻貼在頭後面被擋住，
-  // 所以頭頂輪廓上沒有任何往上翹或斷開的殘塊
-  const CATPIX_HEAD_FLAT = [
-    '...######',
-    '.##########',
-    '############',
-    '############',
-    '############',
-    '############',
-    '############',
-    '############',
-    '############',
-    '#############',
-    '#############',
-    '.###########',
-    '..#########',
-    '....#####'
+  // ===== 2. 跳躍仰躍（設計比例 0.8 × 1.25）=====
+  // 雙耳微向後揚但仍成對飽滿、大眼往上前方看、胸口微揚露出紅項圈金鈴鐺，
+  // 兩隻白手套前爪在胸前可愛上撲、小短後腿往左下方輕蹬，尾巴三幀隨彈簧擺動
+  const CATPIX_STRETCH_BODY = [
+    '.........r#.......#r.....',
+    '........r###.....###r....',
+    '........r#ii#...#ii#r....',
+    '........r##ii#rrr#ii##r..',
+    '........r##############r.',
+    '.......r################.',
+    '.......####wee###wee####.',
+    '.......####epe###epe####.',
+    '.......####eee#nneee###rr',
+    '.....rr################..',
+    '...rr#################rr.',
+    '..r########ccccbbccccc...',
+    '.r############sbbssggg...',
+    '.r#############ss##ggd...',
+    'r##################......',
+    '#################ssggg...',
+    '###############....ggd...',
+    '.#############...........',
+    '.####..ss####............',
+    'gggg..ggg................',
+    'gdgg.....................'
   ];
-  // 近側耳朵：疊在頭上的低矮三角形，上緣接著頭頂的輪廓光往左下斜、耳尖只超出後腦勺 4 格；
-  // 耳內粉紅只留在耳根的折角，下緣背光、耳尖下面留缺口，才讀得出「往後貼平的耳朵」
-  const CATPIX_EAR_FLAT = [
-    '....####',
-    '..####i#',
-    '####iii.',
-    '.ss.....'
+  const CATPIX_TAIL_STRETCH_UP = [
+    '....##',
+    '..r###',
+    '.r##..',
+    'r##...',
+    '##....',
+    'ss....'
   ];
-  const CATPIX_BODY_STRETCH = [
-    '...............#####',
-    '..............#######',
-    '............##########',
-    '...........############',
-    '..........#############',
-    '.........##############',
-    '........##############',
-    '.......##############',
-    '......##############',
-    '.....##############',
-    '....#############',
-    '...#############',
-    '..#############',
-    '..############',
-    '.#############',
-    '.#############',
-    '##############',
-    '#############',
-    '#############',
-    '.###########',
-    '..#########',
-    '....#####'
+  const CATPIX_TAIL_STRETCH_MID = [
+    '....##',
+    '...###',
+    '..r##.',
+    '.r##..',
+    'r##...',
+    'ss....'
   ];
-  const CATPIX_TAIL_TAUT = [ // 尾巴從臀部垂直往下繃直
-    '##', '##', '##', '##', '##', '##', '##', '##', '##', '##', '##', '#.'
+  const CATPIX_TAIL_STRETCH_DOWN = [
+    '...##',
+    '...##',
+    '..r##',
+    '.r##.',
+    'r##..',
+    'ss...'
   ];
-  const CATPIX_LEG_REACH = [ // 前腳往右上伸到下巴前面（遠側那隻在後面、低一點）
-    '......ggg',
-    '...###ggg',
-    '.#####...',
-    '####.....'
-  ];
-  const CATPIX_LEG_REACH_FAR = [
-    '...ssgg',
-    'sssssgg'
-  ];
-  // 後腿往左下拖直：大腿是一道弧形的輪廓光；大腿左緣在臀部裡面，寫死成 k 免得多出一條直線
-  const CATPIX_LEG_TRAIL = [
-    '........###',
-    '......######',
-    '.....#######',
-    '....########',
-    '...#########',
-    '...k########',
-    '...k#######',
-    '...k######',
-    '...k#####',
-    '..k####',
-    '..####',
-    '.####',
-    '.###',
-    '.###',
-    'ggg',
-    'gdg'
-  ];
-  const CATPIX_LEG_TRAIL_FAR = ['.sss', '.sss', 'sss.', 'sss.', 'ss..'];
 
-  // ===== 下墜蜷縮（設計比例 1.25 × 0.8：直接畫成壓到底的樣子）=====
-  // 身體低而寬、前腳撐直、腳掌張開、雙耳豎起、尾巴水平拖在後面
-  // 頭：耳朵豎起但矮一截、臉橫向放寬（頭只壓一點點，五官才不會擠成一團）
-  const CATPIX_HEAD_WIDE = [
-    '..#.........#..',
-    '..#i#.....#i#..',
-    '.##ii#...#ii##.',
-    '.#############.',
-    '###############',
-    '###############',
-    '###############',
-    '###############',
-    '###############',
-    '.#############.',
-    '..###########..',
-    '....#######....'
+  // ===== 3. 下墜滑翔（設計比例 1.25 × 0.8）=====
+  // 雙耳向兩側微展成可愛飛機耳（仍維持成對飽滿耳型與粉紅耳內）、背部圓潤蓬鬆、
+  // 四隻小短腿往斜下方微張準備踩墊子，尾巴三幀在身後輕擺保持平衡
+  const CATPIX_SQUASH_BODY = [
+    '..........r#.........#r...',
+    '.........r####.....####r..',
+    '.........##ii##rrr##ii##r.',
+    '.........r##############r.',
+    '........r################.',
+    '........####wee###wee####.',
+    '........####epe###epe####.',
+    '....rrrr####eee#nneee###rr',
+    '..rr####################..',
+    '.r#####################rr.',
+    'r###########ccccbbccccc...',
+    '##############sbbss###...',
+    '################ss#####...',
+    '.#####################....',
+    '.###..ss########ss..###...',
+    'gggg..ggg......ggg..gggg..',
+    'gdgg................ggdg..'
   ];
-  const CATPIX_BODY_SQUASH = [
-    '.....###########.....',
-    '..#################..',
-    '.###################.',
-    '#####################',
-    '#####################',
-    '#####################',
-    '#####################',
-    '.###################.',
-    '...###############...'
-  ];
-  // 尾巴水平拖在後面：上揚／中間／下垂三幀只差在尾尖
   const CATPIX_TAIL_FLAT_UP = [
-    '#........',
-    '##.......',
-    '.##......',
-    '..####...',
-    '...######',
-    '.....####'
+    'rr.....',
+    '###....',
+    '.###...',
+    '..####.',
+    '....###'
   ];
   const CATPIX_TAIL_FLAT_MID = [
-    '##.......',
-    '.########',
-    '...######'
+    '..rrr..',
+    '.#####.',
+    'ss..###'
   ];
   const CATPIX_TAIL_FLAT_DOWN = [
-    '...######',
-    '.########',
-    '##.......',
-    '#........'
-  ];
-  // 前腳撐直、腳掌張開準備著地；遠側那隻在後面、腳掌高一格；後腳短短平貼
-  const CATPIX_LEG_BRACE = ['.###.', '.###.', '.###.', '.###.', '.###.', '.###.', '.ggg.', 'ggggg'];
-  const CATPIX_LEG_BRACE_FAR = ['sss.', 'sss.', 'sss.', 'sss.', 'sss.', 'ggg.', 'gggg'];
-  const CATPIX_FOOT_FLAT = ['.###.', '.###.', '####.', '#####', 'ggggg'];
-
-  // ===== 縮成球（設計比例 = 壓扁到底再只保留 35%，約 1.09 × 0.93）=====
-  // 圓滾滾的緊實球形；頭疊在右上，自己的輪廓光畫出「頭埋進身體」的那道弧線
-  const CATPIX_BALL = [
-    '......########',
-    '....############',
-    '...##############',
-    '..################',
-    '.##################',
-    '.##################',
-    '####################',
-    '####################',
-    '####################',
-    '####################',
-    '####################',
-    '.##################',
-    '.##################',
-    '..################',
-    '...##############',
-    '....############',
-    '......########'
-  ];
-  // 頭埋在右前方：只看得到右上兩隻小耳朵與閉著的眼睛
-  const CATPIX_BALL_HEAD = [
-    '...#......#...',
-    '...##....##...',
-    '...#i#..#i#...',
-    '..##ii##ii##..',
-    '..##########..',
-    '.############.',
-    '.############.',
-    '##############',
-    '##############',
-    '##############',
-    '.############.',
-    '.############.',
-    '..##########..',
-    '...########...'
-  ];
-  // 尾巴從後下方貼著球底繞到前面，尾尖在前掌下面往上捲；下緣比球多凸出一格，剪影上也看得到尾巴
-  const CATPIX_TAIL_CURL = [
-    '##................##',
-    '###..............###',
-    '.####..........####',
-    '...####.....#####',
-    '.....#########'
-  ];
-  const CATPIX_BALL_PAWS = [ // 後腳肉球從左側探出來，前掌從臉頰下方的球緣露一點
-    '....................gg',
-    '...................ggg',
-    'gg....................',
-    'dg....................'
+    '....###',
+    '..r###.',
+    '.r##...',
+    'ss.....'
   ];
 
-  // 眼睛補丁（'.' 代表不動底圖）。睜眼款寬 2；寬 3 的補丁左眼往左多佔 1 格
+  // ===== 4. 縮成毛球（設計比例 = 壓扁到底再只保留 35%，約 1.09 × 0.93）=====
+  // 圓滾滾的蓬鬆毛球：成對三角貓耳在球頂對稱探出（無內側灰線割裂）、彎彎笑眼 ^ ^、
+  // 紅項圈金鈴鐺點綴胸口，兩隻雪白小手套收在球底兩側（不貼在下巴正下方以免像牙齒），尾巴貼著球底捲起
+  const CATPIX_BALL_BODY = [
+    '.......r#.......#r....',
+    '......r###.....###r...',
+    '......r#ii#...#ii#r...',
+    '....rr##ii#rrr#ii##r..',
+    '..rr#################.',
+    '.r####################',
+    '.r####################',
+    'r#####################',
+    'r#####################',
+    'r#####################',
+    '######################',
+    '#########ccccbbcccc###',
+    '###########ssbbss#####',
+    '.####################.',
+    '.###ggg#########ggg##.',
+    '..##gdgsssssssssgdg#..',
+    '....ssssssssssssss....'
+  ];
+  const CATPIX_TAIL_CURL_UP = [
+    'r##.........',
+    '.###........',
+    '..#########.'
+  ];
+  const CATPIX_TAIL_CURL_MID = [
+    '.##.........',
+    '.####.......',
+    '...########.'
+  ];
+  const CATPIX_TAIL_CURL_DOWN = [
+    '..##........',
+    '..#####.....',
+    '....#######.'
+  ];
+
+  // 眼睛補丁（寬 3 × 高 3）：2×2 圓潤大黑瞳孔配左上白星光，外緣亮黃綠新月虹膜包覆，水汪汪不呆滯
   const CATPIX_EYES_OPEN = Object.freeze({
-    normal: [['we', 'ep', 'ee'], ['we', 'ep', 'ee']],
+    normal: [['wpe', 'ppe', 'eee'], ['wpe', 'ppe', 'eee']],
     scared: [['e..', '.ee', 'e..'], ['..e', 'ee.', '..e']],
     dizzy: [['e.e', '.e.', 'e.e'], ['e.e', '.e.', 'e.e']]
   });
-  const CATPIX_EYES_SHUT = Object.freeze({ // 球：平常閉眼 ^ ^，受驚／暈眩照樣換成 > < 與 X X
+  const CATPIX_EYES_SHUT = Object.freeze({ // 毛球：平常彎彎笑眼 ^ ^，受驚／暈眩換成 > < 與 X X
     normal: [['.e.', 'e.e'], ['.e.', 'e.e']],
     scared: [['e..', '.ee', 'e..'], ['..e', 'ee.', '..e']],
     dizzy: [['e.e', '.e.', 'e.e'], ['e.e', '.e.', 'e.e']]
   });
-  // 嘴巴補丁：平常是鼻子加一撇嘴，受驚／暈眩張嘴；鼻子與張開的嘴之間一定隔一格，不會連成一條粉紅直線
+  // 鼻嘴補丁：平常是粉紅小鼻，受驚／暈眩時張開小嘴（與鼻子隔一格黑毛）
   const CATPIX_MOUTH = Object.freeze({
-    normal: ['nn', 'rr'],
-    scared: ['nn', 'kk', 'dd'],
-    dizzy: ['nn', 'kk', 'dd']
+    normal: ['nn'],
+    scared: ['nn', '##', 'dd'],
+    dizzy: ['nn', '##', 'dd']
   });
   const CATPIX_MOUTH_SMALL = Object.freeze({
-    normal: ['n'],
-    scared: ['n', '.', 'd'],
-    dizzy: ['n', '.', 'd']
+    normal: ['nn'],
+    scared: ['nn', '##', 'dd'],
+    dizzy: ['nn', '##', 'dd']
   });
-  const CATPIX_WHISKERS = ['.rr', '...', 'rr.'];
 
   // 姿勢表：依序疊圖層 [零件, x, y]；null 是尾巴的位置，烘焙時換成對應尾巴幀
-  // design：這張 sprite 畫成的形變比例（該姿勢最常出現、也就是形變飽和時的比例），繪製時只套殘差
-  // face：eyes [左 x, y, 右 x, y]（以寬 2 的睜眼為準）、nose [x, y]、shut 閉眼、whisk 鬍鬚位置
-  // keep：核心給的 Squash & Stretch 形變保留多少（預設 1＝全部）；球本身就畫成圓的，全壓扁會變成扁麵包
   const CATPIX_POSES = Object.freeze({
     idle: {
       design: [1, 1],
-      tails: [[CATPIX_TAIL_UP, 4, 7], [CATPIX_TAIL_MID, 4, 9], [CATPIX_TAIL_DOWN, 4, 19]],
+      tails: [[CATPIX_TAIL_UP, 3, 12], [CATPIX_TAIL_MID, 3, 14], [CATPIX_TAIL_DOWN, 3, 17]],
       layers: [
         null,
-        [CATPIX_LEG_FAR, 19, 25],
-        [CATPIX_BODY_IDLE, 7, 15],
-        [CATPIX_LEG_NEAR, 8, 23], [CATPIX_LEG_NEAR, 22, 23],
-        [CATPIX_HEAD_UP, 17, 7]
+        [CATPIX_IDLE_BODY, 8, 6]
       ],
-      face: { eyes: [21, 14, 26, 14], nose: [24, 17], shut: false, mouth: CATPIX_MOUTH, whisk: [30, 17] }
+      face: { eyes: [19, 12, 25, 12], nose: [23, 14], shut: false, mouth: CATPIX_MOUTH }
     },
     stretch: {
-      design: [SQUASH.stretchX, SQUASH.stretchY],
-      tails: [[CATPIX_TAIL_TAUT, 7, 28]],
+      design: [0.9, 1.1],
+      tails: [[CATPIX_TAIL_STRETCH_UP, 4, 20], [CATPIX_TAIL_STRETCH_MID, 4, 21], [CATPIX_TAIL_STRETCH_DOWN, 5, 21]],
       layers: [
         null,
-        [CATPIX_LEG_TRAIL_FAR, 17, 30], [CATPIX_LEG_REACH_FAR, 26, 18],
-        [CATPIX_BODY_STRETCH, 8, 11],
-        [CATPIX_LEG_TRAIL, 11, 22],
-        [CATPIX_HEAD_FLAT, 22, 2],
-        [CATPIX_EAR_FLAT, 17, 3],
-        [CATPIX_LEG_REACH, 26, 15]
+        [CATPIX_STRETCH_BODY, 8, 5]
       ],
-      face: { eyes: [25, 6, 30, 6], nose: [28, 10], shut: false, mouth: CATPIX_MOUTH, whisk: null }
+      face: { eyes: [19, 11, 25, 11], nose: [23, 13], shut: false, mouth: CATPIX_MOUTH }
     },
     squash: {
-      design: [SQUASH.squashX, SQUASH.squashY],
-      tails: [[CATPIX_TAIL_FLAT_UP, 0, 14], [CATPIX_TAIL_FLAT_MID, 0, 17], [CATPIX_TAIL_FLAT_DOWN, 0, 18]],
+      design: [1.1, 0.9],
+      tails: [[CATPIX_TAIL_FLAT_UP, 2, 13], [CATPIX_TAIL_FLAT_MID, 2, 16], [CATPIX_TAIL_FLAT_DOWN, 2, 17]],
       layers: [
         null,
-        [CATPIX_LEG_BRACE_FAR, 22, 21],
-        [CATPIX_BODY_SQUASH, 7, 16],
-        [CATPIX_FOOT_FLAT, 7, 23], [CATPIX_LEG_BRACE, 24, 21],
-        [CATPIX_HEAD_WIDE, 21, 9]
+        [CATPIX_SQUASH_BODY, 7, 7]
       ],
-      face: { eyes: [25, 13, 31, 13], nose: [29, 17], shut: false, mouth: CATPIX_MOUTH, whisk: [34, 16] }
+      face: { eyes: [19, 12, 25, 12], nose: [23, 14], shut: false, mouth: CATPIX_MOUTH }
     },
     ball: {
       design: [1 + (SQUASH.squashX - 1) * CATPIX_BALL_KEEP, 1 + (SQUASH.squashY - 1) * CATPIX_BALL_KEEP],
-      tails: [[CATPIX_TAIL_CURL, 10, 25]],
+      tails: [[CATPIX_TAIL_CURL_UP, 8, 22], [CATPIX_TAIL_CURL_MID, 8, 22], [CATPIX_TAIL_CURL_DOWN, 8, 22]],
       layers: [
-        [CATPIX_BALL, 9, 12],
-        [CATPIX_BALL_HEAD, 18, 9],
-        [CATPIX_BALL_PAWS, 8, 22],
+        [CATPIX_BALL_BODY, 9, 7],
         null
       ],
-      face: { eyes: [22, 16, 27, 16], nose: [25, 18], shut: true, mouth: CATPIX_MOUTH_SMALL, whisk: null },
+      face: { eyes: [19, 14, 25, 14], nose: [23, 16], shut: true, mouth: CATPIX_MOUTH_SMALL },
       keep: CATPIX_BALL_KEEP
     }
   });
 
   // 烘焙 ------------------------------------------------------------------------------
-  function catPixFilled(rows, x, y) {
-    return y >= 0 && y < rows.length && x >= 0 && x < rows[y].length && rows[y][x] !== '.';
-  }
-
-  // '#' 依圖層自己的輪廓上光：左上受光、下緣背光
-  function catPixAutoShade(rows, x, y) {
-    if (!catPixFilled(rows, x, y - 1) || !catPixFilled(rows, x - 1, y)) return 'r';
-    if (!catPixFilled(rows, x, y + 1)) return 's';
-    return 'k';
-  }
-
   function catPixStamp(grid, rows, ox, oy) {
     for (let y = 0; y < rows.length; y++) {
       for (let x = 0; x < rows[y].length; x++) {
         let ch = rows[y][x];
         if (ch === '.') continue;
-        if (ch === '#') ch = catPixAutoShade(rows, x, y);
+        if (ch === '#') ch = 'k';
         const gx = ox + x;
         const gy = oy + y;
         if (gx >= 0 && gx < CATPIX_W && gy >= 0 && gy < CATPIX_H) grid[gy][gx] = ch;
@@ -4764,21 +4923,16 @@
     const face = pose.face;
     const [lx, ly, rx, ry] = face.eyes;
     const eyes = (face.shut ? CATPIX_EYES_SHUT : CATPIX_EYES_OPEN)[mood];
-    catPixStamp(grid, eyes[0], eyes[0][0].length > 2 ? lx - 1 : lx, ly);
+    catPixStamp(grid, eyes[0], lx, ly);
     catPixStamp(grid, eyes[1], rx, ry);
     catPixStamp(grid, face.mouth[mood], face.nose[0], face.nose[1]);
-    if (face.whisk) catPixStamp(grid, CATPIX_WHISKERS, face.whisk[0], face.whisk[1]);
     catPixOutline(grid);
     return grid.map((row) => row.join(''));
   }
 
   // --- 殘差縮放的「刪／補哪幾條」：烘焙時就排好優先順序 ----------------------------------
-  // sprite 已經畫成該姿勢最常見的形變比例，逐幀只需要套「殘差」＝實際形變 ÷ 設計比例；形變飽和時殘差是 1，
-  // 一格都不重取樣。過渡的那幾幀才要刪掉或重複幾列（欄），這時挑「跟隔壁幾乎一樣」的列先動，
-  // 眼睛、鼻子所在的列最後才輪到——等於把縮放的鋸齒藏進身體中段，臉永遠完整；
-  // 而且順序固定，形變慢慢變化時一次只多（少）一列，不會整隻貓的列在那邊跳來跳去
   const CATPIX_FACE_CHARS = 'epwn';
-  const CATPIX_DETAIL_CHARS = 'gdi';
+  const CATPIX_DETAIL_CHARS = 'gdicb';
   // 臉的加價比「連動兩條相鄰的」還貴：寧可身體連刪兩列，也不能讓眼睛少一欄
   const CATPIX_FACE_COST = 10000;
   const CATPIX_NEIGHBOR_COST = 1000;
@@ -4898,10 +5052,11 @@
     return Object.freeze(out);
   })();
 
-  // 字元 → 調色盤鍵；對照表物件重複使用，每次呼叫只覆寫 10 個值，不配置新物件
+  // 字元 → 調色盤鍵；對照表物件重複使用，每次呼叫只覆寫對應值，不配置新物件
   const CATPIX_KEYS = Object.freeze([
     ['k', 'body'], ['s', 'shade'], ['r', 'rim'], ['e', 'eye'], ['p', 'pupil'],
-    ['g', 'glove'], ['d', 'pad'], ['i', 'earIn'], ['n', 'nose'], ['w', 'white']
+    ['g', 'glove'], ['d', 'pad'], ['i', 'earIn'], ['n', 'nose'], ['w', 'white'],
+    ['c', 'collar'], ['b', 'bell']
   ]);
   const CATPIX_MAP = {};
   const CATPIX_DEFAULT_LOOK = Object.freeze({ pose: 'idle', mood: 'normal', sx: 1, sy: 1, tail: 0, palette: null });
