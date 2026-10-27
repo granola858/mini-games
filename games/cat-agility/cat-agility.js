@@ -1306,7 +1306,7 @@
 
   // #region theme:classic
   // ===========================================================================
-  // 經典主題：原本的純向量繪製（漸層、圓角、曲線）；黑貓依 catPose() 換姿勢，跟像素貓同步
+  // 經典主題：純向量繪製（漸層、圓角、曲線）；黑貓依 catPose() 換姿勢，跟像素貓同步
   // ===========================================================================
 
   // 漸層只建一次；各自以「繪製當下的區域座標」定義，使用前先 translate 到對應位置
@@ -1319,14 +1319,15 @@
     const linear = (x0, y0, x1, y1, stops) => addStops(ctx.createLinearGradient(x0, y0, x1, y1), stops);
     const radial = (x0, y0, r0, x1, y1, r1, stops) => addStops(ctx.createRadialGradient(x0, y0, r0, x1, y1, r1), stops);
     return {
-      wall: linear(0, 0, 0, GROUND_Y, [[0, '#FFDCCB'], [0.5, '#FFE9D8'], [1, '#FFF4E4']]),
-      floor: linear(0, GROUND_Y, 0, VIEW_H, [[0, '#C68A55'], [1, '#9E6538']]),
-      post: linear(0, 0, PIPE.postWidth, 0, [[0, '#E6CFA8'], [0.4, SISAL], [1, '#B48F62']]),
-      cap: linear(0, 0, 0, PIPE.capHeight, [[0, '#A5733F'], [1, '#76481F']]),
-      sky: linear(0, 0, 0, 120, [[0, '#BFE3FF'], [1, '#EAF6FF']]),
-      body: radial(-4, -6.5, 1, 0, -0.5, 18, [[0, '#474747'], [0.55, '#1A1A1A'], [1, '#050505']]),
-      head: radial(-4.5, -5.5, 1, 0, 0, 13, [[0, '#4C4C4C'], [0.5, '#1C1C1C'], [1, '#060606']]),
-      eye: radial(-0.8, -1.2, 0.3, 0, 0, 4.4, [[0, EYE_GOLD], [1, EYE_GREEN]])
+      wall: linear(0, 0, 0, GROUND_Y, [[0, '#FCEAD7'], [0.52, '#FAF0E2'], [1, '#F5E3CB']]),
+      wainscot: linear(0, GROUND_Y - 124, 0, GROUND_Y, [[0, '#EAD2B5'], [1, '#DEC09C']]),
+      floor: linear(0, GROUND_Y, 0, VIEW_H, [[0, '#C88E5B'], [0.5, '#B37846'], [1, '#986034']]),
+      post: linear(0, 0, PIPE.postWidth, 0, [[0, '#DFC496'], [0.35, '#F0DEC0'], [0.7, SISAL], [1, '#B08A5B']]),
+      cap: linear(0, 0, 0, PIPE.capHeight, [[0, '#B07B46'], [0.55, '#8F5D2E'], [1, '#6E431C']]),
+      sky: linear(0, 0, 0, 120, [[0, '#8AD0F8'], [0.65, '#C6EAFF'], [1, '#EAF7FF']]),
+      body: radial(-4, -5, 1, 0, 0, 18, [[0, '#32323E'], [0.6, '#1E1E26'], [1, '#121217']]),
+      head: radial(-4, -5, 1, 0, 0, 15, [[0, '#353542'], [0.58, '#1E1E26'], [1, '#121217']]),
+      eye: radial(-0.6, -1.2, 0.4, 0, 0, 4.4, [[0, '#FFF59E'], [0.55, '#F2CC44'], [1, '#D69624']])
     };
   })();
 
@@ -1344,27 +1345,55 @@
     ctx.closePath();
   }
 
-  // --- 背景：客廳牆面、壁紙、窗戶與踢腳板 ------------------------------------
+  // --- 背景：日系暖光客廳牆面、木長押、腰壁與四款居家風景 -------------------------
   function drawWall(scroll) {
     const bleed = SHAKE.amplitude * 2;
     ctx.fillStyle = paint.wall;
     ctx.fillRect(-bleed, -bleed, VIEW_W + bleed * 2, GROUND_Y + bleed);
 
-    // 壁紙與擺設以 1/4 速度移動，做出遠景視差
+    // 壁紙暗紋與擺設以 1/4 速度移動，做出柔和遠景視差
     const drift = scroll * 0.25;
     const stripe = 36;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.fillStyle = 'rgba(255, 252, 246, 0.34)';
     for (let x = -(drift % stripe) - stripe; x < VIEW_W + stripe; x += stripe) {
-      ctx.fillRect(x, -bleed, 14, GROUND_Y + bleed);
+      ctx.fillRect(x, -bleed, 14, GROUND_Y - 120 + bleed);
     }
+
+    // 頂部日系木長押（裝飾橫木軌）
+    ctx.fillStyle = '#C99B6E';
+    ctx.fillRect(-bleed, 62, VIEW_W + bleed * 2, 5);
+    ctx.fillStyle = '#DFB78C';
+    ctx.fillRect(-bleed, 62, VIEW_W + bleed * 2, 2);
+    ctx.fillStyle = 'rgba(104, 64, 32, 0.14)';
+    ctx.fillRect(-bleed, 67, VIEW_W + bleed * 2, 2);
+
+    // 下半牆暖木腰壁（Wainscoting）與立體線板框
+    const wainscotTop = GROUND_Y - 122;
+    ctx.fillStyle = paint.wainscot;
+    ctx.fillRect(-bleed, wainscotTop, VIEW_W + bleed * 2, 122);
+    ctx.fillStyle = '#C6976A';
+    ctx.fillRect(-bleed, wainscotTop, VIEW_W + bleed * 2, 5);
+    ctx.fillStyle = '#F7E6CE';
+    ctx.fillRect(-bleed, wainscotTop + 5, VIEW_W + bleed * 2, 2);
+
+    const panelSpan = 72;
+    for (let x = -(drift % panelSpan) - panelSpan; x < VIEW_W + panelSpan; x += panelSpan) {
+      ctx.fillStyle = 'rgba(148, 102, 58, 0.22)';
+      roundRectPath(x + 8, wainscotTop + 14, panelSpan - 16, 84, 4);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255, 245, 230, 0.45)';
+      roundRectPath(x + 11, wainscotTop + 17, panelSpan - 22, 78, 3);
+      ctx.fill();
+    }
+
     drawDecor(drift);
 
     const top = GROUND_Y - BASEBOARD_H;
-    ctx.fillStyle = '#FFF8EF';
+    ctx.fillStyle = '#FFF6EA';
     ctx.fillRect(-bleed, top, VIEW_W + bleed * 2, BASEBOARD_H);
-    ctx.fillStyle = '#E9CFB8';
+    ctx.fillStyle = '#DEC09E';
     ctx.fillRect(-bleed, top, VIEW_W + bleed * 2, 3);
-    ctx.fillStyle = 'rgba(120, 72, 36, 0.12)';
+    ctx.fillStyle = 'rgba(110, 66, 30, 0.16)';
     ctx.fillRect(-bleed, GROUND_Y - 3, VIEW_W + bleed * 2, 3);
   }
 
@@ -1372,57 +1401,265 @@
     const first = Math.floor(drift / DECOR_GAP) - 1;
     for (let i = first; i <= first + 3; i++) {
       const x = i * DECOR_GAP - drift + 200;
-      if (x > VIEW_W + 20 || x < -130) continue;
-      if (((i % 2) + 2) % 2 === 0) drawWindow(x, 226);
-      else drawPicture(x + 16, 118);
+      if (x > VIEW_W + 40 || x < -150) continue;
+      const kind = ((i % 4) + 4) % 4;
+      if (kind === 0) drawWindow(x, 198);
+      else if (kind === 1) drawCatWalkDecor(x + 6, 132);
+      else if (kind === 2) drawShelfDecor(x + 8, 142);
+      else drawGalleryDecor(x + 10, 126);
     }
   }
 
   function drawWindow(x, y) {
     ctx.save();
     ctx.translate(x, y);
-    ctx.globalAlpha = 0.8;
-    ctx.fillStyle = '#C99A70';
-    ctx.fillRect(-16, -16, 128, 4);
-    ctx.fillStyle = '#FFFFFF';
-    roundRectPath(-6, -6, 108, 132, 10);
+    ctx.globalAlpha = 0.9;
+    // 窗簾橫桿與木掛頭
+    ctx.fillStyle = '#B88356';
+    roundRectPath(-18, -16, 132, 5, 2.5);
+    ctx.fill();
+    // 窗框與晴空玻璃
+    ctx.fillStyle = '#FFFBF5';
+    roundRectPath(-6, -6, 108, 136, 10);
     ctx.fill();
     ctx.fillStyle = paint.sky;
-    roundRectPath(0, 0, 96, 120, 6);
+    roundRectPath(0, 0, 96, 124, 6);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    // 窗外遠山綠意與粉櫻樹冠
+    ctx.fillStyle = '#9ED89B';
     ctx.beginPath();
-    ctx.moveTo(35, 34);
-    ctx.arc(26, 34, 9, 0, TAU);
-    ctx.moveTo(50, 30);
-    ctx.arc(38, 30, 12, 0, TAU);
-    ctx.moveTo(60, 35);
-    ctx.arc(52, 35, 8, 0, TAU);
+    ctx.moveTo(0, 124);
+    ctx.quadraticCurveTo(32, 92, 68, 106);
+    ctx.quadraticCurveTo(84, 98, 96, 104);
+    ctx.lineTo(96, 124);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#FFBDD0';
+    ctx.beginPath();
+    ctx.arc(22, 96, 15, 0, TAU);
+    ctx.arc(36, 101, 12, 0, TAU);
     ctx.fill();
 
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(46, 0, 4, 120);
-    ctx.fillRect(0, 58, 96, 4);
-
-    ctx.fillStyle = '#FFC4B0';
+    // 蓬鬆白雲
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
     ctx.beginPath();
-    ctx.moveTo(-12, -12);
-    ctx.lineTo(22, -12);
-    ctx.quadraticCurveTo(8, 60, 18, 126);
-    ctx.lineTo(-12, 126);
+    ctx.arc(28, 34, 9, 0, TAU);
+    ctx.arc(40, 30, 12, 0, TAU);
+    ctx.arc(54, 35, 8, 0, TAU);
+    ctx.fill();
+
+    // 窗格十字木條
+    ctx.fillStyle = '#FFFBF5';
+    ctx.fillRect(46, 0, 4, 124);
+    ctx.fillRect(0, 60, 96, 4);
+
+    // 玻璃風鈴（右上窗格）
+    ctx.strokeStyle = '#9C7A54';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(70, 0);
+    ctx.lineTo(70, 26);
+    ctx.stroke();
+    ctx.fillStyle = '#E6F7FF';
+    ctx.beginPath();
+    ctx.arc(70, 16, 5.5, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#FF8FA3';
+    roundRectPath(68.2, 23, 3.6, 10, 1);
+    ctx.fill();
+
+    // 雙側珊瑚粉窗簾
+    ctx.fillStyle = '#F7B29E';
+    ctx.beginPath();
+    ctx.moveTo(-12, -11);
+    ctx.lineTo(22, -11);
+    ctx.quadraticCurveTo(6, 58, 16, 128);
+    ctx.lineTo(-12, 128);
     ctx.closePath();
     ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(108, -12);
-    ctx.lineTo(74, -12);
-    ctx.quadraticCurveTo(88, 60, 78, 126);
-    ctx.lineTo(108, 126);
+    ctx.moveTo(108, -11);
+    ctx.lineTo(74, -11);
+    ctx.quadraticCurveTo(90, 58, 80, 128);
+    ctx.lineTo(108, 128);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#F1D6BF';
-    roundRectPath(-14, 122, 124, 9, 4);
+    // 窗台與小多肉盆栽
+    ctx.fillStyle = '#E8C5A0';
+    roundRectPath(-14, 124, 124, 10, 4);
+    ctx.fill();
+    ctx.fillStyle = '#68B678';
+    ctx.beginPath();
+    ctx.arc(34, 114, 6, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#D97B59';
+    roundRectPath(28, 115, 12, 9, 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 牆面木貓跳台＋熟睡小橘貓＋垂吊毛球
+  function drawCatWalkDecor(x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.globalAlpha = 0.88;
+
+    // 左上小畫框
+    ctx.fillStyle = '#C68F63';
+    roundRectPath(2, 10, 42, 48, 4);
+    ctx.fill();
+    ctx.fillStyle = '#FFF9F0';
+    ctx.fillRect(6, 14, 34, 40);
+    ctx.fillStyle = '#F48B7B';
+    ctx.beginPath();
+    ctx.arc(23, 34, 9, 0, TAU);
+    ctx.fill();
+
+    // 上層跳台與熟睡小橘貓
+    ctx.fillStyle = '#C99668';
+    roundRectPath(52, 22, 56, 7, 3);
+    ctx.fill();
+    ctx.fillStyle = '#F29B4B';
+    ctx.beginPath();
+    ctx.ellipse(80, 16, 13, 8, 0, 0, TAU);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(90, 14, 6.5, 0, TAU);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(86, 9);
+    ctx.lineTo(89, 4);
+    ctx.lineTo(92, 9);
+    ctx.moveTo(91, 9);
+    ctx.lineTo(95, 5);
+    ctx.lineTo(96, 10);
+    ctx.fill();
+
+    // 中層劍麻短柱與下層跳台＋藍毛球
+    ctx.fillStyle = '#DFC49A';
+    roundRectPath(62, 74, 10, 46, 3);
+    ctx.fill();
+    ctx.fillStyle = '#C99668';
+    roundRectPath(44, 68, 48, 7, 3);
+    ctx.fill();
+    ctx.fillStyle = '#C99668';
+    roundRectPath(8, 116, 52, 7, 3);
+    ctx.fill();
+    ctx.strokeStyle = '#9C7A54';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(28, 123);
+    ctx.lineTo(28, 140);
+    ctx.stroke();
+    ctx.fillStyle = '#68B5E8';
+    ctx.beginPath();
+    ctx.arc(28, 143, 5, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 雙層木書架＋招財貓＋垂藤盆栽
+  function drawShelfDecor(x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.globalAlpha = 0.88;
+
+    // 上層書架：彩色書本與垂藤
+    ctx.fillStyle = '#C69264';
+    roundRectPath(0, 42, 96, 7, 3);
+    ctx.fill();
+    const books = [['#E86F5C', 8, 18, 8, 24], ['#F2B84B', 17, 22, 7, 20], ['#5CA4D8', 25, 15, 9, 27], ['#7BC496', 35, 20, 7, 22]];
+    for (const [col, bx, by, bw, bh] of books) {
+      ctx.fillStyle = col;
+      roundRectPath(bx, by, bw, bh, 1.5);
+      ctx.fill();
+    }
+    // 右側盆栽與綠色垂藤
+    ctx.fillStyle = '#D97E5A';
+    roundRectPath(66, 26, 16, 16, 2);
+    ctx.fill();
+    ctx.fillStyle = '#5BAE72';
+    ctx.beginPath();
+    ctx.arc(74, 22, 9, 0, TAU);
+    ctx.arc(82, 28, 6, 0, TAU);
+    ctx.arc(84, 38, 4.5, 0, TAU);
+    ctx.arc(83, 48, 4, 0, TAU);
+    ctx.arc(85, 57, 3.2, 0, TAU);
+    ctx.fill();
+
+    // 下層書架：小招財貓與馬克杯
+    ctx.fillStyle = '#C69264';
+    roundRectPath(12, 108, 84, 7, 3);
+    ctx.fill();
+    ctx.fillStyle = '#FFFDF9';
+    ctx.beginPath();
+    ctx.ellipse(36, 98, 9, 10, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#E5534B';
+    ctx.fillRect(30, 99, 12, 3);
+    ctx.fillStyle = '#FFD54F';
+    ctx.beginPath();
+    ctx.arc(36, 101, 2, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#6AB2D8';
+    roundRectPath(58, 94, 14, 14, 3);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 咕咕掛鐘＋雙幅畫框與琴葉榕
+  function drawGalleryDecor(x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.globalAlpha = 0.88;
+
+    // 木屋咕咕鐘
+    ctx.fillStyle = '#9E683C';
+    ctx.beginPath();
+    ctx.moveTo(26, 2);
+    ctx.lineTo(48, 18);
+    ctx.lineTo(4, 18);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#C48B5C';
+    roundRectPath(8, 16, 36, 38, 4);
+    ctx.fill();
+    ctx.fillStyle = '#FFFDF8';
+    ctx.beginPath();
+    ctx.arc(26, 35, 11, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = '#5A3A22';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(26, 35);
+    ctx.lineTo(26, 28);
+    ctx.moveTo(26, 35);
+    ctx.lineTo(32, 35);
+    ctx.stroke();
+    // 鐘擺
+    ctx.strokeStyle = '#B07D4F';
+    ctx.beginPath();
+    ctx.moveTo(26, 54);
+    ctx.lineTo(26, 72);
+    ctx.stroke();
+    ctx.fillStyle = '#F2C14E';
+    ctx.beginPath();
+    ctx.arc(26, 74, 4.5, 0, TAU);
+    ctx.fill();
+
+    // 右側風景畫框與下方植物畫框
+    drawPicture(54, 12);
+    ctx.fillStyle = '#C8956B';
+    roundRectPath(44, 78, 52, 62, 4);
+    ctx.fill();
+    ctx.fillStyle = '#FFF7EA';
+    ctx.fillRect(49, 83, 42, 52);
+    ctx.fillStyle = '#5FA876';
+    ctx.beginPath();
+    ctx.ellipse(70, 108, 11, 16, -0.25, 0, TAU);
     ctx.fill();
     ctx.restore();
   }
@@ -1430,29 +1667,34 @@
   function drawPicture(x, y) {
     ctx.save();
     ctx.translate(x, y);
-    ctx.globalAlpha = 0.8;
     ctx.fillStyle = '#C8956B';
-    roundRectPath(0, 0, 64, 52, 4);
+    roundRectPath(0, 0, 58, 48, 4);
     ctx.fill();
-    ctx.fillStyle = '#FFF3E1';
-    ctx.fillRect(5, 5, 54, 42);
-    ctx.fillStyle = '#FFD27A';
+    ctx.fillStyle = '#FFF5E6';
+    ctx.fillRect(5, 5, 48, 38);
+    ctx.fillStyle = '#FF9E6D';
     ctx.beginPath();
-    ctx.arc(20, 18, 6, 0, TAU);
+    ctx.arc(19, 17, 6, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = '#A9D3A0';
+    ctx.fillStyle = '#6EA4BF';
     ctx.beginPath();
-    ctx.moveTo(5, 47);
-    ctx.quadraticCurveTo(24, 26, 40, 40);
-    ctx.quadraticCurveTo(50, 30, 59, 38);
-    ctx.lineTo(59, 47);
+    ctx.moveTo(5, 43);
+    ctx.lineTo(26, 22);
+    ctx.lineTo(44, 43);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.moveTo(26, 22);
+    ctx.lineTo(20, 28);
+    ctx.lineTo(31, 28);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
 
   function drawMotes() {
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = '#FFFDF6';
     for (const mote of game.motes) {
       ctx.globalAlpha = mote.alpha;
       ctx.beginPath();
@@ -1462,16 +1704,27 @@
     ctx.globalAlpha = 1;
   }
 
-  // --- 木地板：條紋與接縫跟著障礙物等速捲動 ---------------------------------------
+  // --- 木地板：深淺交替的溫潤橡木地板與木紋 -------------------------------------
   function drawFloor(scroll) {
     const bleed = SHAKE.amplitude * 2;
     ctx.fillStyle = paint.floor;
     ctx.fillRect(-bleed, GROUND_Y, VIEW_W + bleed * 2, GROUND_H + bleed);
-    ctx.fillStyle = 'rgba(255, 226, 190, 0.35)';
-    ctx.fillRect(-bleed, GROUND_Y, VIEW_W + bleed * 2, 2);
 
     const rowH = GROUND_H / 3;
     const plank = 96;
+
+    // 交替木板色差，增加木地板層次感
+    for (let row = 0; row < 3; row++) {
+      const y0 = GROUND_Y + row * rowH;
+      const offset = (scroll + row * 37) % (plank * 2);
+      ctx.fillStyle = row % 2 === 0 ? 'rgba(255, 228, 196, 0.08)' : 'rgba(70, 36, 12, 0.08)';
+      for (let x = -offset - plank * 2; x < VIEW_W + bleed; x += plank * 2) {
+        ctx.fillRect(x, y0, plank, rowH);
+      }
+    }
+
+    ctx.fillStyle = 'rgba(255, 232, 202, 0.42)';
+    ctx.fillRect(-bleed, GROUND_Y, VIEW_W + bleed * 2, 2);
 
     ctx.beginPath();
     for (let row = 1; row < 3; row++) {
@@ -1487,7 +1740,7 @@
         ctx.lineTo(x, y0 + rowH - 4);
       }
     }
-    ctx.strokeStyle = 'rgba(84, 48, 20, 0.4)';
+    ctx.strokeStyle = 'rgba(76, 42, 16, 0.45)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
@@ -1502,12 +1755,12 @@
         ctx.lineTo(x + 82, y + 3);
       }
     }
-    ctx.strokeStyle = 'rgba(255, 230, 200, 0.2)';
+    ctx.strokeStyle = 'rgba(255, 234, 206, 0.24)';
     ctx.lineWidth = 1;
     ctx.stroke();
   }
 
-  // --- 貓抓柱（經典主題不分家具組合，一律畫劍麻柱；被撞散的半截不畫） -------------
+  // --- 貓抓柱（經典主題：立體劍麻繩柱＋胡桃木絨墊頂蓋；被撞散的半截不畫） -------
   function drawPipes(alpha) {
     for (const pipe of game.pipes) {
       const x = lerp(pipe.prevX, pipe.x, alpha);
@@ -1515,11 +1768,11 @@
       const bottom = pipe.gapY + PIPE.gap / 2;
       if (!pipe.brokenTop) {
         drawPost(x, -SHAKE.amplitude * 3, top - PIPE.capHeight);
-        drawCap(x, top - PIPE.capHeight);
+        drawCap(x, top - PIPE.capHeight, true);
       }
       if (!pipe.brokenBottom) {
         drawPost(x, bottom + PIPE.capHeight, GROUND_Y);
-        drawCap(x, bottom);
+        drawCap(x, bottom, false);
       }
     }
   }
@@ -1534,31 +1787,43 @@
     roundRectPath(0, y0, w, h, 6);
     ctx.fill();
 
-    // 每 8px 一圈深褐細線，模擬劍麻繩纏繞
+    // 每 8px 一圈深褐細線＋斜向麻繩紋理，模擬劍麻繩緊密纏繞
     ctx.beginPath();
     for (let y = y0 + 4; y < y1; y += PIPE.ropeSpacing) {
       ctx.moveTo(1, y + 0.5);
       ctx.lineTo(w - 1, y + 0.5);
+      ctx.moveTo(14, y - 3);
+      ctx.lineTo(18, y + 0.5);
+      ctx.moveTo(30, y - 3);
+      ctx.lineTo(34, y + 0.5);
     }
-    ctx.strokeStyle = 'rgba(101, 67, 33, 0.5)';
+    ctx.strokeStyle = 'rgba(101, 67, 33, 0.46)';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.24)';
     ctx.fillRect(5, y0, 4, h);
-    ctx.fillStyle = 'rgba(90, 55, 25, 0.18)';
+    ctx.fillStyle = 'rgba(84, 50, 22, 0.2)';
     ctx.fillRect(w - 7, y0, 7, h);
     ctx.restore();
   }
 
-  function drawCap(x, y) {
+  function drawCap(x, y, isTop) {
     ctx.save();
     ctx.translate(x, y);
     ctx.fillStyle = paint.cap;
     roundRectPath(0, 0, PIPE.width, PIPE.capHeight, 6);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255, 220, 170, 0.3)';
-    roundRectPath(4, 3, PIPE.width - 8, 4, 2);
+    // 頂蓋邊緣米白軟絨布墊裝飾
+    ctx.fillStyle = '#F7EBD9';
+    if (isTop) {
+      roundRectPath(3, PIPE.capHeight - 5, PIPE.width - 6, 3.5, 1.5);
+    } else {
+      roundRectPath(3, 1.5, PIPE.width - 6, 3.5, 1.5);
+    }
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 224, 180, 0.28)';
+    roundRectPath(4, isTop ? 3 : 6, PIPE.width - 8, 3.5, 2);
     ctx.fill();
     ctx.strokeStyle = 'rgba(60, 32, 12, 0.35)';
     ctx.lineWidth = 1;
@@ -1585,26 +1850,22 @@
     }
   }
 
-  // --- 黑貓（區域座標以碰撞中心為原點、面向右） ----------------------------------
+  // --- 黑貓（區域座標以碰撞中心為原點、面向右；全新二頭身 Q 版向量設計） ------------
   // 跟像素貓共用同一份姿勢規格：catPose() 給 idle／stretch／squash／ball，catMood() 給 normal／scared／dizzy。
   // 不再拿 cat.rot 旋轉整隻貓，傾斜由姿勢本身表現；Squash & Stretch 以碰撞中心為錨點 ctx.scale(sx, sy)，
   // 頭與腳掌再各自反向抵銷一半形變（classicRig），五官與白手套不會被拉成細長條
-  const CLASSIC_FUR = '#141414';
-  const CLASSIC_EAR = '#121212';
-  const CLASSIC_RIM = 'rgba(255, 255, 255, 0.28)';
-  const CLASSIC_WHISKER = 'rgba(255, 255, 255, 0.55)';
+  const CLASSIC_FUR = '#1A1A22';
+  const CLASSIC_FUR_DARK = '#111116';
+  const CLASSIC_RIM = 'rgba(132, 136, 166, 0.42)';
+  const CLASSIC_PINK = '#F498B2';
+  const CLASSIC_COLLAR = '#E5534B';
+  const CLASSIC_BELL = '#FFD54F';
+  const CLASSIC_PAW = '#FAF5EE';
+  const CLASSIC_WHISKER = 'rgba(255, 250, 244, 0.65)';
   const CLASSIC_BALL_KEEP = 0.35;
   const CLASSIC_DEFAULT_LOOK = Object.freeze({ pose: 'idle', mood: 'normal', sx: 1, sy: 1, tail: 0 });
-  // 豎起的耳朵（頭部區域座標，頭心為原點、半徑 12）：遠側在左後、近側在右前；粉紅耳內在載入時算好
-  const classicEar = (outer) => {
-    const cx = (outer[0][0] + outer[1][0] + outer[2][0]) / 3;
-    const cy = (outer[0][1] + outer[1][1] + outer[2][1]) / 3;
-    const inner = outer.map(([px, py]) => [cx + (px - cx) * 0.58, cy + (py - cy) * 0.58]);
-    return Object.freeze({ outer, inner });
-  };
-  const CLASSIC_EAR_FAR = classicEar([[-10, -6], [-8.5, -18.5], [-1.5, -10.5]]);
-  const CLASSIC_EAR_NEAR = classicEar([[1.5, -11.5], [9, -18], [11, -4.5]]);
-  const CLASSIC_EYES = [[-4.5, -1], [5, -1]];
+  // 雙眼座標偏右前（3/4 側面朝右看），讓整張臉與視線自然朝向前方障礙物
+  const CLASSIC_EYES = Object.freeze([[-2.4, -0.6], [6.4, -0.6]]);
   // 頭與腳掌的反向縮放：每次 drawCat 覆寫，不在熱路徑上配置物件
   const classicRig = { kx: 1, ky: 1 };
 
@@ -1634,126 +1895,107 @@
     ctx.restore();
   }
 
-  // 待機滑翔：身體水平、尾巴從臀部往後上方彎、四腳收在肚子下（READY 畫面的主角，維持原本的樣子）
+  // 1. 待機與平飛：二頭身圓潤比例、S 型蓬鬆長尾、四隻小巧白手套輕踏、大頭朝右前微笑注視
   function drawCatIdle(tail, mood) {
     strokeTail(idleTailPath, tail);
 
-    drawPaw(-12, 12.5, 5, 4.2, 0);
-    drawBody(-5, 3.5, 15.5, 12, 0);
-    drawPaw(4.5, 13.5, 3.8, 3.2, 0);
-    drawPaw(11, 12.5, 3.8, 3.2, 0);
-    drawCatHead(9.5, -4.5, 1, 0, 'up', mood, false);
+    drawMittenPaw(-11.5, 11.8, 3.6, 2.8, 8, false);
+    drawMittenPaw(3.2, 12.2, 3.4, 2.6, 0, false);
+    drawPlumpBody(-4.5, 3.8, 13.8, 10.2, 0);
+    drawMittenPaw(-5.5, 12.8, 3.8, 2.9, 4, false);
+    drawMittenPaw(9.2, 11.8, 3.8, 2.9, -6, false);
+    drawCatHead(6.8, -3.2, 1.04, 0, 'up', mood, false);
   }
 
-  // 上升拉長：身體斜向右上、頭在最前上方領路、雙耳往後平貼；近側前腳伸到下巴前、遠側前腳收在胸口，
-  // 後腿往左下拖直，尾巴從臀部往下繃直（剛起跳時尾巴還甩在後面，彈簧追上後才垂直）。
-  // 身體在區域座標只斜 18°，套上 0.8 × 1.25 的拉長後畫面上約 35°
+  // 2. 跳躍仰躍：身體輕盈往右上揚起、雙耳微向後揚但保持飽滿成對（不禿頭）、
+  // 兩隻白手套前爪在胸前可愛上撲露出粉紅肉球、後腿往左下輕蹬
   function drawCatStretch(tail, mood) {
     strokeTail(stretchTailPath, tail);
 
-    drawLeg(-10.5, 7, -14, 14, 4.5);
-    drawPaw(-14.4, 14.6, 3.4, 2.8, 30);
-    drawBody(-3, 3, 17.5, 9.5, -18);
-    drawPaw(7.5, 9.6, 3.3, 2.7, -25);
-    drawLeg(-5.5, 9, -9.5, 16.5, 5.5);
-    drawPaw(-9.9, 17.1, 3.8, 3.1, 30);
-    // 伸出去的前腳先畫、頭後蓋：腳根藏在項圈下，鈴鐺不會被手臂擋住
-    drawLeg(7, 8, 22, 5, 5);
-    drawPaw(23, 4.7, 3.7, 3.1, -100);
-    drawCatHead(14, -6.5, 1, -15, 'back', mood, false);
+    drawShortLimb(-9.5, 7.5, -13.5, 13.2, 4.4);
+    drawMittenPaw(-14, 13.8, 3.5, 2.7, 28, false);
+    drawPlumpBody(-3.2, 3.5, 14.6, 9.4, -16);
+    drawShortLimb(-4.5, 9.2, -8.5, 15.2, 4.8);
+    drawMittenPaw(-9, 15.8, 3.8, 2.9, 24, false);
+
+    drawCatHead(8.2, -4.8, 1.02, -8, 'back', mood, false);
+    // 胸前雙手可愛上撲，露出小粉紅掌墊
+    drawMittenPaw(11.5, 5.8, 3.4, 2.8, -28, true);
+    drawMittenPaw(15.2, 3.6, 3.6, 2.9, -38, true);
   }
 
-  // 下墜蜷縮：身體低而寬、前腳往前下方撐直、腳掌往外張開、雙耳豎起、尾巴水平在後
+  // 3. 下墜滑翔：背部蓬鬆拱起、雙耳向兩側微展成可愛飛機耳、四隻白手套往外下方微張準備踩墊子
   function drawCatSquash(tail, mood) {
     strokeTail(squashTailPath, tail);
 
-    drawLeg(5, 5, 9.5, 14, 4.5);
-    drawPaw(9.8, 14.6, 4, 3, 12);
-    drawBody(-4, 4.5, 17, 10.5, 0);
-    drawPaw(-11.5, 13.4, 5, 3.6, 0);
-    drawLeg(12, 5, 18.5, 13.8, 5);
-    drawPaw(19.2, 14.6, 4.4, 3.2, -18);
-    drawCatHead(9.5, -3, 1, 0, 'up', mood, false);
+    drawShortLimb(-9.5, 6.5, -12.8, 12, 4.4);
+    drawMittenPaw(-13.2, 12.5, 3.8, 2.8, 18, false);
+    drawShortLimb(4.5, 6.5, 6.8, 12.5, 4.4);
+    drawMittenPaw(7.2, 13, 3.6, 2.7, -8, false);
+
+    drawPlumpBody(-4.2, 4, 15, 9.8, 0);
+
+    drawShortLimb(-4, 7.5, -6.2, 13.2, 4.8);
+    drawMittenPaw(-6.5, 13.6, 4, 2.9, 12, false);
+    drawShortLimb(9.2, 6.5, 12.8, 12, 4.8);
+    drawMittenPaw(13.4, 12.4, 4, 2.9, -20, false);
+
+    drawCatHead(7.2, -2.2, 1.04, 3, 'airplane', mood, false);
   }
 
-  // 縮成肉球：圓滾滾的球，頭埋在右前方只露出兩隻小耳朵，尾巴從後下方繞到前面捲起，
-  // 白手套從球邊露出一點點（後腳在左下、前腳縮在下巴底下）；平常閉著眼（^ ^）
+  // 4. 縮成毛球：圓滾滾的蓬鬆黑毛球，成對三角貓耳在球頂探出、彎彎笑眼 ^ ^、
+  // 紅項圈金鈴鐺點綴胸前，兩隻雪白小手套收在球底兩側，長尾貼著球底捲起
   function drawCatBall(tail, mood) {
-    drawBody(-0.5, 0.5, 14.5, 14.5, 0);
-    drawPaw(-9.5, 12.2, 3.4, 2.8, 35);
-    drawCatHead(5.5, -3, 0.84, 0, 'up', mood, true);
-
-    drawMitt(5, 10.6, 2.6, -10);
-    drawMitt(10, 8.8, 2.6, -30);
+    drawPlumpBody(0, 1.2, 14.5, 13.8, 0);
+    drawCatHead(2.2, -1.6, 0.96, 0, 'up', mood, true);
+    drawMittenPaw(-7.2, 11.4, 3.5, 2.7, 18, true);
+    drawMittenPaw(8.8, 11.2, 3.5, 2.7, -20, true);
     strokeTail(ballTailPath, tail);
   }
 
-  // 從球邊露出來的白手套：整片白、深色細框，再兩道趾縫
-  function drawMitt(x, y, r, angle) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(classicRig.kx, classicRig.ky);
-    ctx.rotate(angle * DEG);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, r, r * 0.78, 0, 0, TAU);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fill();
-    ctx.strokeStyle = '#111111';
-    ctx.lineWidth = 0.8;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-r * 0.3, r * 0.15);
-    ctx.lineTo(-r * 0.3, r * 0.75);
-    ctx.moveTo(r * 0.3, r * 0.15);
-    ctx.lineTo(r * 0.3, r * 0.75);
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // 尾巴：同一條路徑描兩次，先往左上偏一點描輪廓光、再描黑毛，疊在黑色身體上也分得出來
+  // 尾巴：先描柔和藍灰輪廓光、再描深黑毛色，圓頭收尾更蓬鬆
   function strokeTail(pathOf, tail) {
     pathOf(tail, -0.5, -0.8);
     ctx.strokeStyle = CLASSIC_RIM;
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 5.4;
     ctx.stroke();
     pathOf(tail, 0, 0);
     ctx.strokeStyle = CLASSIC_FUR;
+    ctx.lineWidth = 4.8;
     ctx.stroke();
   }
 
-  // 待機：從臀部往後上方彎，尾巴彈簧值讓尾尖上下擺
+  // 待機：從臀部往後上方彎出優雅 S 弧線，隨彈簧擺動
   function idleTailPath(tail, ox, oy) {
     ctx.beginPath();
-    ctx.moveTo(-16 + ox, 6 + oy);
-    ctx.quadraticCurveTo(-31 + ox, 8 + tail * 0.45 + oy, -28 + ox, -8 + tail + oy);
+    ctx.moveTo(-15.5 + ox, 4.5 + oy);
+    ctx.bezierCurveTo(-24 + ox, 6 + tail * 0.25 + oy, -27 + ox, -3 + tail * 0.55 + oy, -22.5 + ox, -9.5 + tail * 0.85 + oy);
   }
 
-  // 拉長：從臀部垂直往下繃直；剛起跳時彈簧值還沒追上（tail < 18），尾尖先甩在左後方
+  // 仰躍：從臀部往左下方柔順擺動
   function stretchTailPath(tail, ox, oy) {
-    const lag = (18 - tail) * 0.45;
+    const lag = (18 - tail) * 0.35;
     ctx.beginPath();
-    ctx.moveTo(-18.5 + ox, 5 + oy);
-    ctx.quadraticCurveTo(-19.5 + ox, 15 + oy, -20 - lag * 0.6 + ox, 25 - lag * 0.2 + oy);
+    ctx.moveTo(-15.5 + ox, 6.5 + oy);
+    ctx.quadraticCurveTo(-21 + ox, 13 + oy, -20 - lag * 0.55 + ox, 21 - lag * 0.18 + oy);
   }
 
-  // 壓扁：水平拖在身後，下墜越快尾尖翹越高
+  // 下墜：在身後微翹擺動保持平衡
   function squashTailPath(tail, ox, oy) {
     ctx.beginPath();
-    ctx.moveTo(-18 + ox, 3.5 + oy);
-    ctx.quadraticCurveTo(-27 + ox, 3.5 + tail * 0.12 + oy, -34 + ox, tail * 0.4 + oy);
+    ctx.moveTo(-16.5 + ox, 3.5 + oy);
+    ctx.bezierCurveTo(-24 + ox, 3 + tail * 0.15 + oy, -29 + ox, -2 + tail * 0.3 + oy, -31 + ox, -5 + tail * 0.4 + oy);
   }
 
-  // 肉球：從後下方沿著球底繞到前面，尾尖在下巴前捲起
+  // 毛球：沿著球底弧線柔順收捲
   function ballTailPath(tail, ox, oy) {
-    const curl = tail * 0.1;
+    const curl = tail * 0.08;
     ctx.beginPath();
-    ctx.moveTo(-11 + ox, 6.5 + oy);
-    ctx.bezierCurveTo(-9 + ox, 15 + oy, 4 + ox, 16.5 + oy, 11 + ox, 12 + oy);
-    ctx.quadraticCurveTo(16 + ox, 8.5 + curl + oy, 14.5 + ox, 4.5 + curl + oy);
+    ctx.moveTo(-11.5 + ox, 7.5 + oy);
+    ctx.bezierCurveTo(-8 + ox, 15.2 + oy, 3 + ox, 16 + oy, 10.5 + ox, 12.2 + curl + oy);
   }
 
-  function drawLeg(x0, y0, x1, y1, width) {
+  function drawShortLimb(x0, y0, x1, y1, width) {
     ctx.strokeStyle = CLASSIC_FUR;
     ctx.lineWidth = width;
     ctx.beginPath();
@@ -1762,224 +2004,244 @@
     ctx.stroke();
   }
 
-  // 身體橢圓：路徑先建好，填色時才 translate，漸層只跟著身體中心走、不跟著旋轉，光一律從左上來。
-  // 左上緣的輪廓光以待機身體（15.5 × 12）為準，依橢圓比例縮放；線寬反向補回，維持約 2px
-  function drawBody(cx, cy, rx, ry, angle) {
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, rx, ry, angle * DEG, 0, TAU);
+  // 圓潤豆子身體：以柔和漸層填滿，左上背部邊緣帶一抹貼邊微光（不再在身體正中央畫突兀白弧）
+  function drawPlumpBody(cx, cy, rx, ry, angle) {
     ctx.save();
     ctx.translate(cx, cy);
+    if (angle) ctx.rotate(angle * DEG);
     ctx.fillStyle = paint.body;
-    ctx.fill();
-    ctx.restore();
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(angle * DEG);
-    ctx.scale(rx / 15.5, ry / 12);
-    ctx.strokeStyle = CLASSIC_RIM;
-    ctx.lineWidth = 2 * Math.min(15.5 / rx, 12 / ry);
     ctx.beginPath();
-    ctx.arc(-1, -0.5, 10, 1.05 * Math.PI, 1.38 * Math.PI);
+    ctx.ellipse(0, 0, rx, ry, 0, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = CLASSIC_RIM;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx - 0.8, ry - 0.8, 0, 1.08 * Math.PI, 1.52 * Math.PI);
     ctx.stroke();
     ctx.restore();
   }
 
-  // 腳掌：黑色肉墊外加白手套；angle 是手套朝向（0＝朝下），頭與腳掌只吃一半形變
-  function drawPaw(x, y, rx, ry, angle) {
+  // 白手套小腳掌：溫潤奶白圓爪、深色外框與精緻趾線，showPad 時露出櫻花粉小肉球
+  function drawMittenPaw(x, y, rx, ry, angle, showPad) {
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(classicRig.kx, classicRig.ky);
     if (angle) ctx.rotate(angle * DEG);
-    ctx.fillStyle = '#111111';
+    ctx.fillStyle = CLASSIC_PAW;
     ctx.beginPath();
     ctx.ellipse(0, 0, rx, ry, 0, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.ellipse(0, ry * 0.45, rx * 0.72, ry * 0.5, 0, 0, Math.PI);
-    ctx.fill();
+    ctx.strokeStyle = CLASSIC_FUR_DARK;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    if (showPad) {
+      ctx.fillStyle = CLASSIC_PINK;
+      ctx.beginPath();
+      ctx.ellipse(0, ry * 0.15, rx * 0.42, ry * 0.36, 0, 0, TAU);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = 'rgba(90, 72, 60, 0.45)';
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(-rx * 0.28, -ry * 0.1);
+      ctx.lineTo(-rx * 0.28, ry * 0.72);
+      ctx.moveTo(rx * 0.28, -ry * 0.1);
+      ctx.lineTo(rx * 0.28, ry * 0.72);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
-  // 頭部群組（頭心 (hx, hy)、半徑 12 × size）：耳朵 → 頭 → 輪廓光 → 項圈鈴鐺 → 五官
-  // tilt：抬頭角度（度，負值往上看）；ears：'up' 豎起、'back' 往後平貼；shut：閉眼（肉球）
+  // 飽滿圓潤的貓頭輪廓（下半臉頰微澎的 Q 版貓臉，不是死板正圓）
+  function traceHeadShape(rx, ry) {
+    ctx.beginPath();
+    ctx.moveTo(0, -ry);
+    ctx.bezierCurveTo(rx * 0.68, -ry, rx * 1.04, -ry * 0.42, rx * 1.04, ry * 0.14);
+    ctx.bezierCurveTo(rx * 1.04, ry * 0.72, rx * 0.58, ry, 0, ry);
+    ctx.bezierCurveTo(-rx * 0.62, ry, -rx * 1.02, ry * 0.7, -rx * 1.02, ry * 0.12);
+    ctx.bezierCurveTo(-rx * 1.02, -ry * 0.44, -rx * 0.66, -ry, 0, -ry);
+    ctx.closePath();
+  }
+
+  // 飽滿微弧三角貓耳：用二次曲線畫出圓潤耳尖與澎澎外緣，絕不畫成尖刺或禿頭
+  function drawPlumpEar(bx0, by0, tx, ty, bx1, by1, px0, py0, ptx, pty, px1, py1) {
+    ctx.fillStyle = CLASSIC_FUR;
+    ctx.beginPath();
+    ctx.moveTo(bx0, by0);
+    ctx.quadraticCurveTo((bx0 + tx) * 0.5 - 1.2, (by0 + ty) * 0.5, tx, ty);
+    ctx.quadraticCurveTo((tx + bx1) * 0.5 + 1.2, (ty + by1) * 0.5, bx1, by1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = CLASSIC_RIM;
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(bx0, by0);
+    ctx.quadraticCurveTo((bx0 + tx) * 0.5 - 1.2, (by0 + ty) * 0.5, tx, ty);
+    ctx.stroke();
+
+    ctx.fillStyle = CLASSIC_PINK;
+    ctx.beginPath();
+    ctx.moveTo(px0, py0);
+    ctx.quadraticCurveTo((px0 + ptx) * 0.5 - 0.5, (py0 + pty) * 0.5, ptx, pty);
+    ctx.quadraticCurveTo((ptx + px1) * 0.5 + 0.5, (pty + py1) * 0.5, px1, py1);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 依姿勢繪製成對飽滿貓耳：'up' 直立、'back' 跳躍微向後揚（仍成對立體）、'airplane' 下墜可愛飛機耳
+  function drawCatEars(mode) {
+    if (mode === 'back') {
+      drawPlumpEar(-11.2, -4.5, -11.8, -16.2, -1.8, -9.8, -9.2, -6.2, -9.8, -13.2, -3.5, -9.2);
+      drawPlumpEar(1.2, -9.8, 6.2, -16.5, 11.4, -4.5, 2.8, -9.2, 6.2, -13.6, 9.4, -6.2);
+    } else if (mode === 'airplane') {
+      drawPlumpEar(-11.5, -3.2, -14.8, -13.5, -2.5, -9.5, -9.6, -5.2, -12, -11.2, -4.2, -8.8);
+      drawPlumpEar(2.5, -9.5, 14.5, -13.2, 11.8, -3, 4.2, -8.8, 11.8, -11, 9.8, -5);
+    } else {
+      drawPlumpEar(-10.8, -4.8, -8.8, -17.2, -1.4, -10.2, -8.8, -6.5, -7.6, -13.8, -3.2, -9.5);
+      drawPlumpEar(1.6, -10.2, 8.8, -17.2, 11.2, -4.6, 3.2, -9.5, 7.6, -13.8, 9.2, -6.4);
+    }
+  }
+
+  // 頭部群組：成對飽滿貓耳 → 圓臉頰貓頭 → 貼邊微光 → 朱紅項圈與金鈴鐺 → 朝右看的大眼五官
   function drawCatHead(hx, hy, size, tilt, ears, mood, shut) {
     ctx.save();
     ctx.translate(hx, hy);
     ctx.scale(classicRig.kx * size, classicRig.ky * size);
     if (tilt) ctx.rotate(tilt * DEG);
-    if (ears === 'back') {
-      drawEarsBack();
-    } else {
-      drawEar(CLASSIC_EAR_FAR);
-      drawEar(CLASSIC_EAR_NEAR);
-    }
 
-    ctx.fillStyle = paint.head;
+    drawCatEars(ears);
+
+    // 朱紅項圈（畫在下巴與胸口交界，弧度飽滿）
+    ctx.strokeStyle = CLASSIC_COLLAR;
+    ctx.lineWidth = 3.8;
     ctx.beginPath();
-    ctx.arc(0, 0, 12, 0, TAU);
+    ctx.arc(0.4, 2.4, 11.2, 0.18 * Math.PI, 0.84 * Math.PI);
+    ctx.stroke();
+
+    // 圓潤澎臉頰貓頭
+    traceHeadShape(12.6, 11.2);
+    ctx.fillStyle = paint.head;
     ctx.fill();
     ctx.strokeStyle = CLASSIC_RIM;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.3;
     ctx.beginPath();
-    ctx.arc(-1, -0.5, 8.5, 1.08 * Math.PI, 1.42 * Math.PI);
+    ctx.arc(-0.5, -0.5, 11.2, 1.08 * Math.PI, 1.48 * Math.PI);
     ctx.stroke();
 
-    ctx.strokeStyle = '#E4574B';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, 11.2, 0.3 * Math.PI, 0.92 * Math.PI);
-    ctx.stroke();
-    drawBell(-4.7, 12.1);
+    drawBell(1.8, 12.8);
     drawFace(mood, shut);
     ctx.restore();
   }
 
-  function trianglePath(points) {
-    ctx.beginPath();
-    ctx.moveTo(points[0][0], points[0][1]);
-    ctx.lineTo(points[1][0], points[1][1]);
-    ctx.lineTo(points[2][0], points[2][1]);
-    ctx.closePath();
-  }
-
-  // 豎起的耳朵：黑色三角形，裡面再一個往重心縮成 58% 的粉紅耳內（ear = { outer, inner }）
-  function drawEar(ear) {
-    ctx.fillStyle = CLASSIC_EAR;
-    trianglePath(ear.outer);
-    ctx.fill();
-    ctx.fillStyle = EAR_PINK;
-    trianglePath(ear.inner);
-    ctx.fill();
-  }
-
-  // 往後平貼的耳朵：耳根埋在頭殼裡（頭稍後蓋上去），只露出沿頭頂後緣往左後方伸的流線一片，
-  // 上緣順著頭頂的弧線延伸出去、耳尖朝左後方，不會有斷開或往上翹的殘塊；
-  // 遠側耳朵（較暗）只從近側耳朵下方露出一個小尖，近側耳朵沿下緣露一小片粉紅耳內
-  function drawEarsBack() {
-    ctx.fillStyle = '#0A0A0A';
-    ctx.beginPath();
-    ctx.moveTo(-9, -8);
-    ctx.quadraticCurveTo(-13, -7.6, -15, -4.6);
-    ctx.quadraticCurveTo(-13, -4, -11.6, -3);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#1A1A1A';
-    ctx.beginPath();
-    ctx.moveTo(2, -11.8);
-    ctx.quadraticCurveTo(-8, -14.6, -17, -9.2);
-    ctx.quadraticCurveTo(-12.5, -8.6, -10.8, -5.2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = EAR_PINK;
-    ctx.beginPath();
-    ctx.moveTo(-8.5, -10.8);
-    ctx.quadraticCurveTo(-12, -10.8, -14.6, -9);
-    ctx.quadraticCurveTo(-11.8, -9.3, -10, -8.4);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  // 金色鈴鐺：中間一道開口、左上一點反光
+  // 金色鈴鐺：立體金黃圓鈴、深褐一字孔與左上星光
   function drawBell(x, y) {
-    ctx.fillStyle = EYE_GOLD;
+    ctx.fillStyle = CLASSIC_BELL;
     ctx.beginPath();
-    ctx.arc(x, y, 2.3, 0, TAU);
+    ctx.arc(x, y, 2.6, 0, TAU);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(122, 82, 0, 0.7)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(x - 0.9, y + 1.1);
-    ctx.lineTo(x + 0.9, y + 1.1);
+    ctx.strokeStyle = '#8C5A10';
+    ctx.lineWidth = 0.7;
     ctx.stroke();
-    ctx.fillStyle = '#FFF6C8';
     ctx.beginPath();
-    ctx.arc(x - 0.8, y - 0.9, 0.6, 0, TAU);
+    ctx.moveTo(x - 1, y + 0.9);
+    ctx.lineTo(x + 1, y + 0.9);
+    ctx.stroke();
+    ctx.fillStyle = '#FFF9D6';
+    ctx.beginPath();
+    ctx.arc(x - 0.8, y - 0.8, 0.7, 0, TAU);
     ctx.fill();
   }
 
-  // 五官（頭部區域座標）：normal 睜眼、scared 緊閉的 > <、dizzy 打叉；shut 是肉球的 ^ ^ 閉眼
+  // 五官（頭部區域座標）：圓亮琥珀大眼＋朝右前看的圓潤大瞳孔與雙重星光；scared 為 > <、dizzy 為 X X、shut 為 ^ ^
   function drawFace(mood, shut) {
     if (mood === 'normal' && !shut) {
       for (const [ex, ey] of CLASSIC_EYES) {
         ctx.save();
         ctx.translate(ex, ey);
+        // 圓潤琥珀色眼底
         ctx.fillStyle = paint.eye;
         ctx.beginPath();
-        ctx.arc(0, 0, 4.3, 0, TAU);
+        ctx.ellipse(0, 0, 3.6, 3.9, 0, 0, TAU);
         ctx.fill();
-        ctx.fillStyle = '#050505';
+        // 朝右前方看的大圓黑瞳孔（不再是兇巴巴的細縫）
+        ctx.fillStyle = '#121217';
         ctx.beginPath();
-        ctx.ellipse(0.7, 0.2, 1.3, 3.2, 0, 0, TAU);
+        ctx.ellipse(0.95, 0.1, 2.05, 2.45, 0, 0, TAU);
         ctx.fill();
+        // 主星光高光（右上）＋副反光點（左下），眼神清澈水汪汪且明確朝右前看
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
-        ctx.arc(-1.4, -1.7, 1.1, 0, TAU);
+        ctx.arc(1.15, -1.05, 1.1, 0, TAU);
+        ctx.arc(-0.85, 1.15, 0.5, 0, TAU);
         ctx.fill();
         ctx.restore();
       }
     } else {
-      ctx.strokeStyle = EYE_GREEN;
-      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = '#FFE074';
+      ctx.lineWidth = 1.9;
       ctx.beginPath();
       if (mood === 'scared') {
-        // 緊閉的 > < 眼
-        ctx.moveTo(-6.7, -3.7);
-        ctx.lineTo(-2.9, -1);
-        ctx.lineTo(-6.7, 1.7);
-        ctx.moveTo(7.2, -3.7);
-        ctx.lineTo(3.4, -1);
-        ctx.lineTo(7.2, 1.7);
+        const [lx, ly] = CLASSIC_EYES[0];
+        const [rx, ry] = CLASSIC_EYES[1];
+        ctx.moveTo(lx - 2.4, ly - 2.2);
+        ctx.lineTo(lx + 1.8, ly);
+        ctx.lineTo(lx - 2.4, ly + 2.2);
+        ctx.moveTo(rx + 2.4, ry - 2.2);
+        ctx.lineTo(rx - 1.8, ry);
+        ctx.lineTo(rx + 2.4, ry + 2.2);
       } else if (mood === 'dizzy') {
         for (const [ex, ey] of CLASSIC_EYES) {
-          ctx.moveTo(ex - 2.5, ey - 2.5);
-          ctx.lineTo(ex + 2.5, ey + 2.5);
-          ctx.moveTo(ex + 2.5, ey - 2.5);
-          ctx.lineTo(ex - 2.5, ey + 2.5);
+          ctx.moveTo(ex - 2.3, ey - 2.3);
+          ctx.lineTo(ex + 2.3, ey + 2.3);
+          ctx.moveTo(ex + 2.3, ey - 2.3);
+          ctx.lineTo(ex - 2.3, ey + 2.3);
         }
       } else {
-        // 肉球瞇成 ^ ^ 的笑眼
         for (const [ex, ey] of CLASSIC_EYES) {
-          ctx.moveTo(ex - 2.8, ey + 0.8);
-          ctx.quadraticCurveTo(ex, ey - 2.6, ex + 2.8, ey + 0.8);
+          ctx.moveTo(ex - 2.6, ey + 0.8);
+          ctx.quadraticCurveTo(ex, ey - 2.5, ex + 2.6, ey + 0.8);
         }
       }
       ctx.stroke();
     }
 
-    ctx.fillStyle = EAR_PINK;
+    // 櫻花粉小巧倒三角鼻
+    ctx.fillStyle = CLASSIC_PINK;
     ctx.beginPath();
-    ctx.moveTo(0.9, 2.9);
-    ctx.lineTo(3.5, 2.9);
-    ctx.lineTo(2.2, 4.4);
+    ctx.moveTo(0.8, 2.4);
+    ctx.lineTo(3.4, 2.4);
+    ctx.lineTo(2.1, 3.9);
     ctx.closePath();
     ctx.fill();
 
-    if (mood === 'normal') {
+    // 貓咪 ω 小嘴（受驚／暈眩時換成可愛小小驚呼嘴，不壓到項圈）
+    if (mood === 'normal' || shut) {
       ctx.strokeStyle = CLASSIC_WHISKER;
-      ctx.lineWidth = 0.9;
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(0.5, 5.4);
-      ctx.quadraticCurveTo(1.4, 6.7, 2.2, 5);
-      ctx.quadraticCurveTo(3, 6.7, 3.9, 5.4);
+      ctx.moveTo(0.2, 4.9);
+      ctx.quadraticCurveTo(1.2, 6.2, 2.1, 4.5);
+      ctx.quadraticCurveTo(3, 6.2, 4, 4.9);
       ctx.stroke();
     } else {
+      ctx.fillStyle = CLASSIC_PINK;
       ctx.beginPath();
-      ctx.ellipse(2.2, 7.3, 1.7, 2.2, 0, 0, TAU);
+      ctx.ellipse(2.1, 5.8, 1.4, 1.6, 0, 0, TAU);
       ctx.fill();
     }
 
+    // 兩頰輕巧鬍鬚
     ctx.strokeStyle = CLASSIC_WHISKER;
     ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.moveTo(8, 4);
-    ctx.lineTo(16.5, 2);
-    ctx.moveTo(8, 6);
-    ctx.lineTo(16.5, 7);
-    ctx.moveTo(-5.5, 4.3);
-    ctx.lineTo(-12.5, 2.7);
-    ctx.moveTo(-5.5, 6.1);
-    ctx.lineTo(-12.5, 6.9);
+    ctx.moveTo(8.5, 3.2);
+    ctx.lineTo(15.2, 1.8);
+    ctx.moveTo(8.5, 5.2);
+    ctx.lineTo(15.2, 6);
+    ctx.moveTo(-6.2, 3.5);
+    ctx.lineTo(-12.5, 2.2);
+    ctx.moveTo(-6.2, 5.3);
+    ctx.lineTo(-12.5, 6.2);
     ctx.stroke();
   }
 
@@ -4650,9 +4912,9 @@
     '........r##ii#rrr#ii##r..',
     '........r##############r.',
     '.......r################.',
-    '.......####wee###wee####.',
-    '.......####epe###epe####.',
-    '...rrrr####eee#nneee###rr',
+    '.......#################.',
+    '.......#################.',
+    '...rrrr################rr',
     '..r####################..',
     '.r####################rr.',
     'r##########ccccbbccccc...',
@@ -4703,9 +4965,9 @@
     '........r##ii#rrr#ii##r..',
     '........r##############r.',
     '.......r################.',
-    '.......####wee###wee####.',
-    '.......####epe###epe####.',
-    '.......####eee#nneee###rr',
+    '.......#################.',
+    '.......#################.',
+    '.......################rr',
     '.....rr################..',
     '...rr#################rr.',
     '..r########ccccbbccccc...',
@@ -4753,9 +5015,9 @@
     '.........##ii##rrr##ii##r.',
     '.........r##############r.',
     '........r################.',
-    '........####wee###wee####.',
-    '........####epe###epe####.',
-    '....rrrr####eee#nneee###rr',
+    '........#################.',
+    '........#################.',
+    '....rrrr################rr',
     '..rr####################..',
     '.r#####################rr.',
     'r###########ccccbbccccc...',
@@ -4823,9 +5085,9 @@
     '....#######.'
   ];
 
-  // 眼睛補丁（寬 3 × 高 3）：2×2 圓潤大黑瞳孔配左上白星光，外緣亮黃綠新月虹膜包覆，水汪汪不呆滯
+  // 眼睛補丁（寬 3 × 高 3）：右側中段為深黑瞳孔、右上角配純白高光點，完整保留 3×3 圓亮大眼輪廓並明確朝右前方看
   const CATPIX_EYES_OPEN = Object.freeze({
-    normal: [['wpe', 'ppe', 'eee'], ['wpe', 'ppe', 'eee']],
+    normal: [['eew', 'epp', 'eee'], ['eew', 'epp', 'eee']],
     scared: [['e..', '.ee', 'e..'], ['..e', 'ee.', '..e']],
     dizzy: [['e.e', '.e.', 'e.e'], ['e.e', '.e.', 'e.e']]
   });
@@ -4855,7 +5117,7 @@
         null,
         [CATPIX_IDLE_BODY, 8, 6]
       ],
-      face: { eyes: [19, 12, 25, 12], nose: [23, 14], shut: false, mouth: CATPIX_MOUTH }
+      face: { eyes: [20, 12, 26, 12], nose: [24, 14], shut: false, mouth: CATPIX_MOUTH }
     },
     stretch: {
       design: [0.9, 1.1],
@@ -4864,7 +5126,7 @@
         null,
         [CATPIX_STRETCH_BODY, 8, 5]
       ],
-      face: { eyes: [19, 11, 25, 11], nose: [23, 13], shut: false, mouth: CATPIX_MOUTH }
+      face: { eyes: [20, 11, 26, 11], nose: [24, 13], shut: false, mouth: CATPIX_MOUTH }
     },
     squash: {
       design: [1.1, 0.9],
@@ -4873,7 +5135,7 @@
         null,
         [CATPIX_SQUASH_BODY, 7, 7]
       ],
-      face: { eyes: [19, 12, 25, 12], nose: [23, 14], shut: false, mouth: CATPIX_MOUTH }
+      face: { eyes: [20, 12, 26, 12], nose: [24, 14], shut: false, mouth: CATPIX_MOUTH }
     },
     ball: {
       design: [1 + (SQUASH.squashX - 1) * CATPIX_BALL_KEEP, 1 + (SQUASH.squashY - 1) * CATPIX_BALL_KEEP],
@@ -4882,7 +5144,7 @@
         [CATPIX_BALL_BODY, 9, 7],
         null
       ],
-      face: { eyes: [19, 14, 25, 14], nose: [23, 16], shut: true, mouth: CATPIX_MOUTH_SMALL },
+      face: { eyes: [20, 14, 26, 14], nose: [24, 16], shut: true, mouth: CATPIX_MOUTH_SMALL },
       keep: CATPIX_BALL_KEEP
     }
   });
