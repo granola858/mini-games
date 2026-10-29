@@ -122,7 +122,7 @@ printf 'goto /games/reversi/\nprobe\n' | node .claude/skills/run-mini-games/driv
 
 ```js
 // Windows 上絕對路徑一定要寫成 file:/// URL，否則 Node 會噴 ERR_UNSUPPORTED_ESM_URL_SCHEME
-import { Driver } from 'file:///D:/Workspace/Frontend/mini-games/.claude/skills/run-mini-games/driver.mjs';
+import { Driver } from 'file:///W:/Frontend/mini-games/.claude/skills/run-mini-games/driver.mjs';
 
 const d = new Driver({ quiet: true });
 await d.start();                 // 起靜態站 + 開 Chrome，d.base 是 http://127.0.0.1:<隨機port>
