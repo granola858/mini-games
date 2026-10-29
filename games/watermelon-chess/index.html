@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f8ef" data-theme-color-dark="#14221d" data-theme-color-light="#f7f8ef">
+  <meta name="description" content="懷念的西瓜棋，點點走子、封路圍捕！支援雙人同機與三種難度電腦對手，自動儲存對局，手機也好玩。">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>西瓜棋 - 波波小遊戲</title>
+  <script>
+    (() => {
+      try {
+        const homePref = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
+        const theme = ['dark', 'light'].includes(homePref.theme)
+          ? homePref.theme
+          : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+      } catch (_) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="watermelon-chess.css">
+</head>
+<body>
+  <a class="skip-link" href="#board">跳到棋盤</a>
+  <header class="topbar">
+    <a class="back-link" href="../../index.html">← 回首頁</a>
+    <a class="wordmark" href="../../index.html">波波<span>小遊戲</span></a>
+    <div class="top-actions">
+      <button class="icon-button" id="sound-button" type="button" aria-label="音效" aria-pressed="true" title="音效">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5V4Z"/><path class="sound-waves" d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg>
+      </button>
+      <button class="icon-button" id="theme-button" type="button" aria-label="切換深淺主題" title="切換深淺主題">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 13A9 9 0 0 1 11 3a9 9 0 1 0 10 10Z"/></svg>
+      </button>
+      <button class="button button-quiet" id="rules-button" type="button">怎麼玩</button>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">A LITTLE NOSTALGIA, A LITTLE STRATEGY</p>
+      <h1 id="page-title">西瓜棋<span class="title-dot" aria-hidden="true"></span></h1>
+      <p>不用搶快，慢慢想。沿著瓜紋走一步，把對手圍起來。</p>
+    </section>
+    <p class="storage-notice" id="storage-notice" role="status" hidden></p>
+
+    <div class="game-layout">
+      <section class="match-panel" aria-label="西瓜棋對局">
+        <div class="match-heading">
+          <span class="match-tag" id="match-tag">人機對戰</span>
+          <span class="move-count">第 <strong id="move-count">0</strong> 步</span>
+        </div>
+        <div class="players">
+          <div class="player-card red-player" id="red-player">
+            <span class="player-piece" aria-hidden="true">紅</span>
+            <div><strong id="red-name">紅方 · 你</strong><span>剩餘 <b id="red-count">6</b> 顆</span></div>
+            <span class="turn-badge" id="red-turn">行棋</span>
+          </div>
+          <div class="player-card green-player" id="green-player">
+            <span class="player-piece" aria-hidden="true">綠</span>
+            <div><strong id="green-name">綠方 · 電腦</strong><span>剩餘 <b id="green-count">6</b> 顆</span></div>
+            <span class="turn-badge" id="green-turn" hidden>行棋</span>
+          </div>
+        </div>
+
+        <div class="board-wrap">
+          <div class="board" id="board" role="group" aria-label="西瓜棋盤，共 21 個棋點" aria-describedby="board-help">
+            <svg class="board-art" viewBox="0 0 600 600" aria-hidden="true">
+              <circle class="rind-outer" cx="300" cy="300" r="262"/>
+              <circle class="rind-inner" cx="300" cy="300" r="251"/>
+              <circle class="melon-flesh" cx="300" cy="300" r="240"/>
+              <g class="board-lines">
+                <circle cx="300" cy="300" r="240"/>
+                <path d="M300 60V540M60 300H540"/>
+                <circle cx="300" cy="300" r="80"/>
+                <path d="M221.119 73.333A80 80 0 0 0 378.881 73.333M526.667 221.119A80 80 0 0 0 526.667 378.881M378.881 526.667A80 80 0 0 0 221.119 526.667M73.333 378.881A80 80 0 0 0 73.333 221.119"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+        <p class="board-help" id="board-help">點自己的棋子，再點有圓環的空點。也能用 Tab、方向鍵與 Enter 操作。</p>
+        <div class="turn-status" id="turn-status" role="status" aria-live="polite"></div>
+        <p class="last-move" id="last-move">紅方先手，先選一顆棋子吧。</p>
+        <div class="match-actions">
+          <button class="button button-secondary" id="undo-button" type="button" disabled>↶ 悔棋</button>
+          <button class="button button-primary" id="again-button" type="button">再來一局</button>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="panel setup-panel" aria-labelledby="setup-title">
+          <p class="eyebrow">MAKE YOUR MATCH</p>
+          <h2 id="setup-title">今天跟誰下？</h2>
+          <form id="settings-form">
+            <label class="field"><span>對戰模式</span>
+              <select id="mode"><option value="ai">和電腦下棋</option><option value="local">雙人同機</option></select>
+            </label>
+            <div id="ai-settings">
+              <label class="field"><span>電腦難度</span>
+                <select id="difficulty"><option value="easy">簡單 · 輕鬆暖身</option><option value="normal" selected>普通 · 想想再走</option><option value="hard">困難 · 步步為營</option></select>
+              </label>
+              <label class="field"><span>你執哪一方</span>
+                <select id="human"><option value="1">紅方 · 先手</option><option value="-1">綠方 · 後手</option></select>
+              </label>
+            </div>
+            <button class="button button-primary start-button" type="submit">開始新局</button>
+          </form>
+          <p class="small-copy">設定在新局生效。對局自動儲存，離開再回來也能接著下。</p>
+        </section>
+
+        <section class="panel quick-rules" aria-labelledby="quick-title">
+          <h2 id="quick-title">三件事，記起來</h2>
+          <ol>
+            <li><span>01</span><div><strong>沿線，一次一步</strong><p>只能走到相鄰空點，不能跳過棋子。</p></div></li>
+            <li><span>02</span><div><strong>封住整組的出路</strong><p>相連同色棋子沒有任何相鄰空點，就被吃掉。</p></div></li>
+            <li><span>03</span><div><strong>讓對手剩下 2 顆</strong><p>對方剩 2 顆或更少，你就獲勝。</p></div></li>
+          </ol>
+          <button class="text-button" id="demo-button" type="button">看看包圍示範 →</button>
+        </section>
+
+        <section class="panel records-panel" aria-labelledby="records-title">
+          <div class="record-heading"><h2 id="records-title">你的棋桌紀錄</h2><span>本機保存</span></div>
+          <div class="records" id="records"></div>
+          <p class="small-copy" id="best-record"></p>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <footer>一顆西瓜，一場好棋。<span>波波小遊戲</span></footer>
+
+  <dialog class="rules-dialog" id="rules-dialog" aria-labelledby="rules-title">
+    <div class="dialog-heading"><div><p class="eyebrow">HOW TO PLAY</p><h2 id="rules-title">西瓜棋，慢慢下就會了</h2></div>
+      <form method="dialog"><button class="icon-button" aria-label="關閉玩法">✕</button></form>
+    </div>
+    <p>雙方各 6 顆，紅方先走。在 21 個棋點之間輪流移動，每次只走一顆、沿線一步，目的地必須是空點。</p>
+    <h3>怎樣才算包圍？</h3>
+    <p>沿線相連的同色棋子算一組。整組只要還有任何相鄰空點（「氣」），就不會被吃；所有出路被封住才整組移除。不是看畫面上有沒有圍成一個圈。</p>
+    <div class="capture-demo">
+      <svg viewBox="0 0 280 150" role="img" aria-label="包圍示範：紅方封住綠棋的最後一個空點">
+        <path class="demo-line" d="M45 75H235M140 75V130"/>
+        <circle class="demo-red" cx="45" cy="75" r="21"/>
+        <circle class="demo-red" cx="140" cy="130" r="19"/>
+        <circle class="demo-target" id="demo-target" cx="235" cy="75" r="21"/>
+        <g id="demo-victim"><circle class="demo-green" cx="140" cy="75" r="22"/><text x="140" y="81">綠</text></g>
+        <text x="45" y="81">紅</text><text x="140" y="136">紅</text>
+        <text id="demo-arrival" x="235" y="81" hidden>紅</text>
+      </svg>
+      <p id="demo-copy" aria-live="polite"></p>
+      <button class="button button-secondary" id="demo-next" type="button">下一步 →</button>
+    </div>
+    <h3>這個版本的約定</h3>
+    <ul>
+      <li>走完先移除無氣的敵棋，再檢查自己；不能走成自己那組仍無氣的步。</li>
+      <li>對手剩 2 顆或更少，或輪到對手卻沒有合法步可走，就獲勝。</li>
+      <li>同樣盤面、同一方行棋出現第三次，判和局。</li>
+      <li>人機悔棋會退回你上次行棋之前；雙人則退一步。結束後不可悔棋。</li>
+      <li>棋桌紀錄中的勝敗、連勝與最少步數只計人機對戰；和局中斷連勝。雙人另外累計局數。</li>
+    </ul>
+  </dialog>
+
+  <dialog class="confirm-dialog" id="confirm-dialog" aria-labelledby="confirm-title">
+    <h2 id="confirm-title">重新開一局嗎？</h2><p>目前這局的進度會被新的對局取代。</p>
+    <div class="dialog-actions"><button class="button button-secondary" id="cancel-new" type="button">繼續這局</button><button class="button button-primary" id="confirm-new" type="button">確定開新局</button></div>
+  </dialog>
+  <script src="../../assets/js/bobo-theme.js"></script>
+  <script src="../../assets/js/bobo-audio.js"></script>
+  <script src="../../assets/js/stats.js"></script>
+  <script src="watermelon-chess-core.js"></script>
+  <script src="watermelon-chess.js"></script>
+  <script>if (typeof Stats !== 'undefined') Stats.recordGamePlay('watermelon-chess');</script>
+</body>
+</html>
