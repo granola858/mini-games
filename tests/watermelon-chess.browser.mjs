@@ -151,6 +151,31 @@ try {
   assert.equal((await savedGame()).moves.length, 1);
   console.log('PASS real touch, invalid moves, selected-piece restore, local undo and keyboard');
 
+  const pos = id => driver.eval(`(() => {
+    const b = document.getElementById('board').getBoundingClientRect();
+    const r = document.getElementById('${id}').getBoundingClientRect();
+    return { x: r.x - b.x, y: r.y - b.y };
+  })()`);
+  const top = await pos('point-0');
+  const bottom = await pos('point-6');
+  await driver.click('#rotate-button');
+  assert.equal(await driver.eval(`document.getElementById('rotate-button').getAttribute('aria-pressed')`), 'true');
+  assert.equal(await driver.eval(`localStorage.getItem('watermelon_chess_rotated')`), 'true');
+  await driver.sleep(500);
+  const rotatedTop = await pos('point-0');
+  assert.ok(Math.abs(rotatedTop.y - bottom.y) < 1 && Math.abs(rotatedTop.x - bottom.x) < 1, 'point 0 moves to the bottom');
+  await driver.goto(gamePath);
+  assert.equal(await driver.eval(`document.getElementById('rotate-button').getAttribute('aria-pressed')`), 'true');
+  assert.ok(Math.abs((await pos('point-0')).y - bottom.y) < 1, 'rotation persists after reload');
+  await driver.eval(`document.getElementById('point-16').focus()`);
+  await driver.key('ArrowDown');
+  assert.equal(await driver.eval('document.activeElement.id'), 'point-12', 'arrow keys follow the rotated layout');
+  await driver.screenshot(shots + 'watermelon-chess-rotated.png');
+  await driver.click('#rotate-button');
+  await driver.sleep(500);
+  assert.ok(Math.abs((await pos('point-0')).y - top.y) < 1);
+  console.log('PASS 180° rotation, persistence and rotated keyboard navigation');
+
   await driver.click('#again-button');
   assert.equal(await driver.eval(`document.getElementById('confirm-dialog').open`), true);
   await driver.click('#cancel-new');
@@ -206,11 +231,13 @@ try {
   await loadGame(beforeLast(repeated, localSettings));
   await play(repeated.moves.at(-1), true);
   assert.match(await driver.text('#turn-status'), /平手/);
-  assert.equal(await savedGame(), null);
+  assert.equal(Core.current(Core.restore(await savedGame()).game).status, 'finished', 'finished game stays saved');
   assert.equal(await driver.eval(`document.getElementById('undo-button').disabled`), true);
   const afterDraw = await driver.eval(`JSON.parse(localStorage.getItem('${statsKey}'))`);
   assert.equal(afterDraw.localGames, 1);
   await driver.goto(gamePath);
+  assert.match(await driver.text('#turn-status'), /平手/, 'finished board restored after reload');
+  assert.equal(await driver.text('#again-button'), '再來一局');
   assert.equal(await driver.eval(`JSON.parse(localStorage.getItem('${statsKey}')).localGames`), 1);
 
   const winningMatch = completeMatch(2);
@@ -220,9 +247,13 @@ try {
   await play(winningMatch.moves.at(-1));
   assert.match(await driver.text('#turn-status'), /你獲勝/);
   assert.equal(await driver.eval(`JSON.parse(localStorage.getItem('${statsKey}')).wins`), 1);
-  assert.equal(await savedGame(), null);
+  assert.equal(Core.current(Core.restore(await savedGame()).game).status, 'finished');
   await driver.goto(gamePath);
+  assert.match(await driver.text('#turn-status'), /你獲勝/);
   assert.equal(await driver.eval(`JSON.parse(localStorage.getItem('${statsKey}')).wins`), 1);
+  await driver.click('#again-button');
+  assert.equal(await driver.eval(`document.getElementById('confirm-dialog').open`), false);
+  assert.equal((await savedGame()).moves.length, 0, 'new game replaces finished save');
   await loadGame(beforeLast(winningMatch, { mode: 'ai', difficulty: 'normal', human: -winner }));
   await driver.wait('#turn-status.is-finished');
   assert.match(await driver.text('#turn-status'), /電腦獲勝/);

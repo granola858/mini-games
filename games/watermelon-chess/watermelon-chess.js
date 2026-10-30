@@ -6,6 +6,7 @@
   const PREF_KEY = 'watermelon_chess_pref_v1';
   const STATS_KEY = 'watermelon_chess_stats_v1';
   const SOUND_KEY = 'watermelon_chess_sound';
+  const ROTATE_KEY = 'watermelon_chess_rotated';
   const $ = id => document.getElementById(id);
   const theme = typeof BoboTheme !== 'undefined' ? BoboTheme : null;
   const audio = typeof BoboAudio !== 'undefined' ? BoboAudio.create() : null;
@@ -18,6 +19,7 @@
   let pendingSettings = null;
   let demoStep = 0;
   let sound = true;
+  let rotated = false;
   let stats = Object.fromEntries(statFields.map(field => [field, 0]));
   const pointButtons = [];
 
@@ -45,7 +47,7 @@
   }
 
   function saveGameState() {
-    if (game && Core.current(game).status === 'active') writeJson(SAVE_KEY, Core.serialize(game, selected));
+    if (game) writeJson(SAVE_KEY, Core.serialize(game, selected));
   }
 
   function clearGameState() {
@@ -64,10 +66,6 @@
       restored = Core.restore(saved);
     } catch (error) {
       storageWarning('這份西瓜棋存檔無效，已重新開局。');
-      clearGameState();
-      return false;
-    }
-    if (Core.current(restored.game).status !== 'active') {
       clearGameState();
       return false;
     }
@@ -126,15 +124,37 @@
     if (finished) audio.tone({ freq: 880, delay: .12, type: 'triangle', duration: .16, gain: .07 });
   }
 
+  function displayXY(point) {
+    const [x, y] = Core.POINTS[point];
+    return rotated ? [600 - x, 600 - y] : [x, y];
+  }
+
+  function placePoints() {
+    pointButtons.forEach((button, point) => {
+      const [x, y] = displayXY(point);
+      button.style.left = (x / 6) + '%';
+      button.style.top = (y / 6) + '%';
+    });
+    $('rotate-button').setAttribute('aria-pressed', String(rotated));
+  }
+
+  function toggleRotation() {
+    rotated = !rotated;
+    writeJson(ROTATE_KEY, rotated);
+    placePoints();
+    const board = $('board');
+    board.classList.remove('is-flipping');
+    void board.offsetWidth;
+    board.classList.add('is-flipping');
+  }
+
   function createBoard() {
-    Core.POINTS.forEach(([x, y], point) => {
+    Core.POINTS.forEach((_, point) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'point';
       button.id = 'point-' + point;
       button.dataset.point = String(point);
-      button.style.left = (x / 6) + '%';
-      button.style.top = (y / 6) + '%';
       button.addEventListener('click', () => selectPoint(point));
       button.addEventListener('keydown', event => {
         const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
@@ -147,7 +167,9 @@
           return;
         }
         event.preventDefault();
-        const target = Core.POINTS.map(([tx, ty], index) => {
+        const [x, y] = displayXY(point);
+        const target = Core.POINTS.map((_, index) => {
+          const [tx, ty] = displayXY(index);
           const dx = tx - x;
           const dy = ty - y;
           const forward = dx * direction[0] + dy * direction[1];
@@ -159,6 +181,7 @@
       pointButtons.push(button);
       $('board').appendChild(button);
     });
+    placePoints();
   }
 
   function render() {
@@ -243,10 +266,8 @@
     game = Core.playMove(game, from, to);
     selected = null;
     const state = Core.current(game);
-    if (state.status === 'finished') {
-      clearGameState();
-      recordResult();
-    } else saveGameState();
+    saveGameState();
+    if (state.status === 'finished') recordResult();
     playSound(state.lastMove.captured.length > 0, state.status === 'finished');
     render();
     scheduleAI();
@@ -326,6 +347,9 @@
     if (audio) audio.setEnabled(sound);
     else $('sound-button').disabled = true;
     $('sound-button').setAttribute('aria-pressed', String(sound));
+    const storedRotation = readJson(ROTATE_KEY);
+    if (typeof storedRotation === 'boolean') rotated = storedRotation;
+    else if (storedRotation !== null) storageWarning('棋盤方向設定格式無效，已使用預設方向。');
     const preferences = readJson(PREF_KEY);
     if (preferences !== null && !Core.validSettings(preferences)) storageWarning('對局設定格式無效，已使用預設設定。');
     fillSettings(Core.validSettings(preferences) ? preferences : { mode: 'ai', difficulty: 'normal', human: Core.RED });
@@ -357,6 +381,8 @@
       saveGameState();
       render();
     });
+    $('rotate-button').addEventListener('click', toggleRotation);
+    $('board').addEventListener('animationend', () => $('board').classList.remove('is-flipping'));
     $('sound-button').addEventListener('click', () => {
       sound = !sound;
       if (audio) audio.setEnabled(sound);
