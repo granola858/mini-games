@@ -83,6 +83,7 @@
         <p class="last-move" id="last-move">紅方先手，先選一顆棋子吧。</p>
         <div class="match-actions">
           <button class="button button-secondary" id="undo-button" type="button" disabled>↶ 悔棋</button>
+          <button class="button button-secondary" id="rotate-button" type="button" aria-pressed="false" title="把棋盤轉 180°">⟳ 旋轉棋盤</button>
           <button class="button button-primary" id="again-button" type="button">再來一局</button>
         </div>
       </section>
@@ -105,7 +106,7 @@
             </div>
             <button class="button button-primary start-button" type="submit">開始新局</button>
           </form>
-          <p class="small-copy">設定在新局生效。對局自動儲存，離開再回來也能接著下。</p>
+          <p class="small-copy">設定在新局生效。對局自動儲存（含終局盤面與棋盤方向），離開再回來也能接著下。</p>
         </section>
 
         <section class="panel quick-rules" aria-labelledby="quick-title">
