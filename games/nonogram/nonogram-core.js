@@ -13,10 +13,12 @@ const NonogramCore = (() => {
   // 生成偏置：鄰居已填黑時提高本格填黑機率，用來控制方塊的聚集程度。
   // 正偏置 → 色塊聚成長條，線索少而長，開局靠重疊就能推出大半；
   // 負偏置 → 色塊零碎，線索多而短，必須反覆交叉列與行才推得動。
+  // densityRange 是搜尋時允許的黑格比例，取自原本純隨機抽樣的實測分布（約 p5～p95 再放寬一點），
+  // 避免為了湊難度把盤面推成幾乎全黑或全空，維持各難度原本的手感。
   const GENERATION_PROFILES = {
-    easy: { fillProbability: 0.50, neighborBias: 0.15 },
-    medium: { fillProbability: 0.55, neighborBias: 0.00 },
-    hard: { fillProbability: 0.55, neighborBias: -0.10 }
+    easy: { fillProbability: 0.50, neighborBias: 0.15, densityRange: [0.58, 0.85] },
+    medium: { fillProbability: 0.55, neighborBias: 0.00, densityRange: [0.45, 0.68] },
+    hard: { fillProbability: 0.55, neighborBias: -0.10, densityRange: [0.38, 0.58] }
   };
 
   // 難度門檻：passes 是線解掃描輪數，firstYield 是第一輪就確定的格子比例。
@@ -31,7 +33,13 @@ const NonogramCore = (() => {
   };
   const DEFAULT_HARD_THRESHOLD = { minPasses: 4, maxFirstYield: 0.45 };
 
-  const MAX_GENERATION_ATTEMPTS = 600;
+  // 生成是「隨機起點 + 逐格修改的爬山搜尋」：每一步翻轉一格，只保留不會離目標更遠的修改。
+  // 一個起點走 MAX_SEARCH_STEPS 步還沒到目標就換新起點，最多換 MAX_SEARCH_RESTARTS 次。
+  const MAX_SEARCH_STEPS = 300;
+  const MAX_SEARCH_RESTARTS = 200;
+  // 還推不完的盤面一律比任何推得完的盤面差；firstYield 差 0.1 約等於掃描輪數差 1 輪。
+  const UNSOLVED_PENALTY = 100;
+  const FIRST_YIELD_WEIGHT = 10;
   const linePatternCache = new Map();
 
   // --- 基礎工具 (Primitives) ---
@@ -443,19 +451,84 @@ const NonogramCore = (() => {
     };
   }
 
-  function generatePuzzle(targetSize, difficulty) {
+  // --- 題目生成 (Puzzle Search) ---
+  // 難度目標直接用線解指標的區間描述：掃描輪數 passes 與第一輪確定比例 firstYield。
+  // 三個預設區間都完全落在 classifyDifficulty 的對應等級內，生成結果不會被重新評成別級。
+  function getDifficultyTarget(difficulty, targetSize) {
+    const level = normalizeDifficulty(difficulty);
+    const hardRule = RATING_THRESHOLDS.hard[targetSize] || DEFAULT_HARD_THRESHOLD;
+    if (level === 'easy') {
+      return { minPasses: 1, maxPasses: RATING_THRESHOLDS.easy.maxPasses, minFirstYield: RATING_THRESHOLDS.easy.minFirstYield, maxFirstYield: 1 };
+    }
+    if (level === 'hard') {
+      return { minPasses: hardRule.minPasses, maxPasses: Infinity, minFirstYield: 0, maxFirstYield: hardRule.maxFirstYield };
+    }
+    return { minPasses: 2, maxPasses: hardRule.minPasses - 1, minFirstYield: 0, maxFirstYield: 0.75 };
+  }
+
+  // 0 代表已經在目標區間內；推不完的盤面以剩下的未知格數衡量，讓修補有方向可循。
+  function getTargetDistance(rating, target) {
+    if (!rating.solved) {
+      let unknown = 0;
+      rating.board.forEach(row => row.forEach(value => { if (value === -1) unknown++; }));
+      return UNSOLVED_PENALTY + unknown;
+    }
+    const passGap = Math.max(0, target.minPasses - rating.passes, rating.passes - target.maxPasses);
+    const yieldGap = Math.max(0, target.minFirstYield - rating.firstYield, rating.firstYield - target.maxFirstYield);
+    return passGap + yieldGap * FIRST_YIELD_WEIGHT;
+  }
+
+  function evaluateSolution(solution, target) {
+    const { rowClues, colClues } = buildCluesFromSolution(solution);
+    const rating = solveByLineLogic(rowClues, colClues);
+    return { rowClues, colClues, rating, distance: getTargetDistance(rating, target) };
+  }
+
+  // 推不完時只翻轉卡住的未知格：歧義就出在那裡，改動它最可能讓推理接得下去。
+  // 已經推得完、只是難度不對時，才在整個盤面隨機挑格子。
+  function pickFlipCell(targetSize, rating) {
+    if (!rating.solved) {
+      const unknownCells = [];
+      rating.board.forEach((row, r) => row.forEach((value, c) => { if (value === -1) unknownCells.push([r, c]); }));
+      return unknownCells[Math.floor(Math.random() * unknownCells.length)];
+    }
+    return [Math.floor(Math.random() * targetSize), Math.floor(Math.random() * targetSize)];
+  }
+
+  // options.target 可直接指定 { minPasses, maxPasses, minFirstYield, maxFirstYield }，
+  // 不給就用 difficulty 對應的預設區間；密度範圍與起點分布沿用 difficulty 的生成偏置。
+  function generatePuzzle(targetSize, difficulty, options = {}) {
     const targetDifficulty = resolveDifficulty(difficulty);
+    const target = options.target || getDifficultyTarget(targetDifficulty, targetSize);
+    const [minFilled, maxFilled] = getGenerationProfile(targetDifficulty).densityRange
+      .map((ratio, index) => (index === 0 ? Math.ceil : Math.floor)(ratio * targetSize * targetSize));
 
-    for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
+    for (let restart = 0; restart < MAX_SEARCH_RESTARTS; restart++) {
       const solution = createRandomSolution(targetSize, targetDifficulty);
-      const { rowClues, colClues } = buildCluesFromSolution(solution);
-      const rating = solveByLineLogic(rowClues, colClues);
+      let filled = solution.reduce((sum, row) => sum + row.reduce((a, b) => a + b, 0), 0);
+      if (filled < minFilled || filled > maxFilled) continue;
 
-      // 不能純邏輯解完就直接丟棄，確保出到玩家手上的題目一定不需要猜測。
-      if (!rating.solved) continue;
-      if (classifyDifficulty(rating, targetSize) !== targetDifficulty) continue;
+      let current = evaluateSolution(solution, target);
+      for (let step = 0; step < MAX_SEARCH_STEPS && current.distance > 0; step++) {
+        const [r, c] = pickFlipCell(targetSize, current.rating);
+        const nextFilled = filled + (solution[r][c] === 1 ? -1 : 1);
+        if (nextFilled < minFilled || nextFilled > maxFilled) continue;
 
-      return { solution, rowClues, colClues, rating, difficulty: targetDifficulty };
+        solution[r][c] ^= 1;
+        const candidate = evaluateSolution(solution, target);
+        // 距離相同也接受，讓搜尋能在平原上移動而不是原地卡死
+        if (candidate.distance <= current.distance) {
+          current = candidate;
+          filled = nextFilled;
+        } else {
+          solution[r][c] ^= 1;
+        }
+      }
+
+      if (current.distance === 0) {
+        const { rowClues, colClues, rating } = current;
+        return { solution, rowClues, colClues, rating, difficulty: options.target ? classifyDifficulty(rating, targetSize) : targetDifficulty };
+      }
     }
 
     throw new Error(`Unable to generate a ${targetDifficulty} ${targetSize}x${targetSize} puzzle.`);
@@ -468,7 +541,8 @@ const NonogramCore = (() => {
     DIFFICULTY_CHOICES,
     GENERATION_PROFILES,
     RATING_THRESHOLDS,
-    MAX_GENERATION_ATTEMPTS,
+    MAX_SEARCH_STEPS,
+    MAX_SEARCH_RESTARTS,
     getClues,
     cloneGrid,
     createEmptyPlayerState,
@@ -489,6 +563,7 @@ const NonogramCore = (() => {
     countSolutions,
     classifyDifficulty,
     ratePuzzle,
+    getDifficultyTarget,
     generatePuzzle
   };
 })();
