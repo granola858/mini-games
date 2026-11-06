@@ -1,20 +1,22 @@
 :root {
             --primary-color: #1f1f1f;
             --primary-shadow: rgba(0, 0, 0, 0.2);
-            --error-color: #FF6B81;
+            --error-color: #D6334A; /* 錯誤訊息文字，白底 ≥4.5:1 */
+            --secondary-text: #6b6b6b; /* 次要說明文字，原 #999／#a6a6a6 對比不足 */
             --inactive-btn-text: #333;
             --line-color: #f0f0f0;
-            --title-red: #FF6B81;
-            --title-yellow: #FFD166;
-            --title-green: #6BCB77;
-            --title-blue: #4D96FF;
+            /* 標題彩色字：保留原色相、調深到大字 ≥3:1 */
+            --title-red: #E8475F;
+            --title-yellow: #B88400;
+            --title-green: #37A247;
+            --title-blue: #3B82F6;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: sans-serif;
+            font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
         }
 
         body {
@@ -139,7 +141,7 @@
             font-size: 0.82rem;
             font-weight: 800;
             letter-spacing: 2px;
-            color: #a6a6a6;
+            color: var(--secondary-text);
         }
 
         .control-stack {
@@ -161,7 +163,7 @@
         .control-label {
             width: 100%;
             max-width: 320px;
-            color: #999;
+            color: var(--secondary-text);
             font-size: 0.8rem;
             font-weight: 700;
             padding-left: 8px;
@@ -186,7 +188,7 @@
             font-size: 1rem;
             padding: 8px 0;
             cursor: pointer;
-            color: #999;
+            color: #666666;
         }
 
         .mode-btn.active {
@@ -293,10 +295,10 @@
         }
 
         .board-lock-btn.locked {
-            background: #FF5252;
+            background: #D6334A;
             color: #ffffff;
-            border-color: #FF5252;
-            box-shadow: 0 2px 8px rgba(255, 82, 82, 0.4);
+            border-color: #D6334A;
+            box-shadow: 0 2px 8px rgba(214, 51, 74, 0.3);
         }
 
         .board-lock-btn .lock-icon {
@@ -339,8 +341,8 @@
         }
 
         .game-board.board-locked {
-            border-color: #FF5252;
-            box-shadow: 0 0 0 3px rgba(255, 82, 82, 0.35), 0 8px 24px rgba(0, 0, 0, 0.08);
+            border-color: #D6334A;
+            box-shadow: 0 0 0 3px rgba(214, 51, 74, 0.3), 0 8px 24px rgba(0, 0, 0, 0.08);
         }
 
         .cell,
@@ -377,7 +379,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            color: #777;
+            color: #707070;
             flex-direction: column;
             font-size: 0.82rem;
             min-height: var(--cell-size);
@@ -399,7 +401,7 @@
         }
 
         .clue-number.empty {
-            color: #c8c8c8;
+            color: #767676;
         }
 
         .status-area {
@@ -667,7 +669,7 @@
 
             .title-sub {
                 display: block;
-                font-size: 0.66rem;
+                font-size: 0.75rem;
                 letter-spacing: 1.2px;
             }
 
@@ -687,7 +689,7 @@
             .control-label {
                 max-width: 300px;
                 padding-left: 4px;
-                font-size: 0.68rem;
+                font-size: 0.72rem;
             }
 
             .toggle-container {
@@ -725,5 +727,24 @@
             #main-actions>.primary-btn,
             #main-actions>.secondary-btn {
                 height: 42px;
+            }
+        }
+
+        /* 鍵盤操作時的焦點框 */
+        a:focus-visible,
+        button:focus-visible {
+            outline: 3px solid #1f1f1f;
+            outline-offset: 2px;
+        }
+
+        /* 系統要求減少動態效果時，把動畫與轉場縮到幾乎瞬間（事件仍會觸發） */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
             }
         }

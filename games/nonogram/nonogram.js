@@ -165,8 +165,50 @@ let size = 8;
       return yiq >= 165 ? PRIMARY_DARK_TEXT : LIGHT_SURFACE_COLOR;
     }
 
+    // 淺色模式下把主題色在 HSL 中逐步調暗（保留色相與飽和度），
+    // 直到在白底與淺灰卡片底（#FAFAFA）上都達到 4.5:1，給文字與外框使用。
+    function getDarkenedReadableColor(value) {
+      const surfaces = [LIGHT_SURFACE_COLOR, '#FAFAFA'];
+      const passes = color => surfaces.every(surface => getContrastRatio(color, surface) >= 4.5);
+      if (passes(value)) return value;
+
+      const { r, g, b } = hexToRgb(value);
+      const rn = r / 255;
+      const gn = g / 255;
+      const bn = b / 255;
+      const max = Math.max(rn, gn, bn);
+      const min = Math.min(rn, gn, bn);
+      const delta = max - min;
+      let h = 0;
+      if (delta) {
+        if (max === rn) h = ((gn - bn) / delta) % 6;
+        else if (max === gn) h = (bn - rn) / delta + 2;
+        else h = (rn - gn) / delta + 4;
+        h *= 60;
+        if (h < 0) h += 360;
+      }
+      let l = (max + min) / 2;
+      const sat = delta ? delta / (1 - Math.abs(2 * l - 1)) : 0;
+
+      const fromHsl = lightness => {
+        const c = (1 - Math.abs(2 * lightness - 1)) * sat;
+        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        const m = lightness - c / 2;
+        const [r1, g1, b1] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
+          : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+        return `#${toHexChannel((r1 + m) * 255)}${toHexChannel((g1 + m) * 255)}${toHexChannel((b1 + m) * 255)}`;
+      };
+
+      while (l > 0) {
+        l = Math.max(0, l - 0.02);
+        const candidate = fromHsl(l);
+        if (passes(candidate)) return candidate;
+      }
+      return PRIMARY_DARK_TEXT;
+    }
+
     function getReadableAccentColor(value) {
-      if (!darkMode) return value;
+      if (!darkMode) return getDarkenedReadableColor(value);
 
       if (getContrastRatio(value, DARK_SURFACE_COLOR) >= 4.5) {
         return value;
@@ -190,10 +232,13 @@ let size = 8;
 
     function applyThemeColor(nextColor) {
       themeColor = normalizeThemeColor(nextColor);
-      const appliedPrimaryColor = getReadableAccentColor(themeColor);
+      // 填色／按鈕底色：淺色模式用原色，深色模式提亮到在深底看得清楚
+      const appliedPrimaryColor = darkMode ? getReadableAccentColor(themeColor) : themeColor;
+      // 文字／外框：一律保證 4.5:1（淺色模式調暗、深色模式提亮）
+      const displayColor = getReadableAccentColor(themeColor);
       document.documentElement.style.setProperty('--primary-color', appliedPrimaryColor);
       document.documentElement.style.setProperty('--primary-shadow', hexToRgba(appliedPrimaryColor, darkMode ? 0.28 : 0.4));
-      document.documentElement.style.setProperty('--primary-display', appliedPrimaryColor);
+      document.documentElement.style.setProperty('--primary-display', displayColor);
       document.documentElement.style.setProperty('--primary-contrast', getPrimaryContrastColor(appliedPrimaryColor));
       customColorInput.value = themeColor.toLowerCase();
       updatePaletteSelection();

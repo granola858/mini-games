@@ -1,11 +1,8 @@
 /* 宣告 CSS 變數 (CSS Variables) */
     :root {
       --inactive-btn-text: #666;
-      /* 黃色漸層變數 (Yellow Gradient Variables) */
-      --primary-gradient-start: #FFD700;
-      /* 金黃色 */
-      --primary-gradient-end: #FFA500;
-      /* 橘黃色 */
+      /* 標題用的深琥珀色：原本的金黃漸層字在白底只有約 1.5:1，改成單色並調深到 ≥3:1 */
+      --title-color: #A87900;
     }
 
     /* 全域設定 (Global Styles) */
@@ -24,7 +21,7 @@
       min-height: 100dvh;
       padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
       background-color: transparent;
-      font-family: sans-serif;
+      font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
       touch-action: manipulation;
       user-select: none;
       -webkit-user-select: none;
@@ -80,10 +77,7 @@
       font-weight: 900;
       letter-spacing: 1px;
       font-size: 2.5rem;
-      background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
+      color: var(--title-color);
     }
 
     /* 步數顯示 (Move Count) */
@@ -113,7 +107,7 @@
       padding: 10px 0;
       cursor: pointer;
       transition: 0.2s;
-      color: #999;
+      color: #666666;
     }
 
     /* tag樣式 (Level Tag Style) */
@@ -153,6 +147,7 @@
     /* 卡片亮燈狀態 (Active State) */
     .card.active {
       background-color: #FFFACD;
+      /* 內發光代表「燈亮」這個遊戲狀態，不是裝飾；impeccable 的 dark-glow 已在 index.html 以註解豁免 */
       box-shadow: inset 0 0 10px rgba(255, 250, 205, 0.8);
     }
 
@@ -255,5 +250,24 @@
 
       .game-board {
         max-height: 52vh;
+      }
+    }
+
+    /* 鍵盤操作時的焦點框 */
+    a:focus-visible,
+    button:focus-visible {
+      outline: 3px solid var(--title-color);
+      outline-offset: 2px;
+    }
+
+    /* 系統要求減少動態效果時，把動畫與轉場縮到幾乎瞬間（事件仍會觸發） */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
       }
     }

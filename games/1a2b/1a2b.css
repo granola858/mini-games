@@ -1,18 +1,17 @@
 :root {
             --primary-color: #d6336c;
             --primary-hover: #c2255c;
-            --gradient-start: #d6336c;
-            --gradient-end: #7048e8;
+            --result-color: #7048e8;
             --text-color: #343a40;
-            --text-secondary: #868e96;
+            --text-secondary: #626a72; /* 原 #868e96 對比不足，調深到 ≥4.5:1 */
             --border-color: #dee2e6;
-            --success-color: #20c997;
-            --error-color: #fa5252;
+            --success-color: #087f5b; /* 原 #20c997 在白底只有 2.1:1 */
+            --error-color: #c92a2a; /* 原 #fa5252 在白底只有 3.3:1 */
             --focus-glow: rgba(214, 51, 108, 0.25);
         }
 
         body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
             background-color: #ffffff;
             color: var(--text-color);
             display: flex;
@@ -45,7 +44,7 @@
         }
 
         .back-btn:hover {
-            color: var(--primary-color);
+            color: var(--primary-hover);
             background-color: #fff0f6;
             transform: translateX(-3px);
         }
@@ -63,10 +62,7 @@
             font-size: clamp(2rem, 5vw, 2.5rem);
             margin-bottom: 0.5rem;
             letter-spacing: 1px;
-            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+            color: var(--primary-color);
             font-weight: 800;
         }
 
@@ -89,10 +85,10 @@
             font-weight: 900;
             height: 60px;
             margin-bottom: 0.5rem;
-            color: var(--gradient-end);
+            color: var(--result-color);
             opacity: 0;
             transform: scale(0.8);
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -255,5 +251,24 @@
                 padding: 6px 12px;
                 min-height: 40px;
                 font-size: 0.85rem;
+            }
+        }
+
+        /* 鍵盤操作時的焦點框 */
+        a:focus-visible,
+        button:focus-visible {
+            outline: 3px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        /* 系統要求減少動態效果時，把動畫與轉場縮到幾乎瞬間（事件仍會觸發） */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
             }
         }

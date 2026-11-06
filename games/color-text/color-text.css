@@ -1,11 +1,13 @@
 /* --- 全域設定 --- */
         :root {
-            /* 主色系 */
-            --primary-blue: #53B4FF;
+            /* 主色系：文字與按鈕底色用深一階的藍，白字／白底都能達到 4.5:1 */
+            --primary-blue: #1971C2;
+            /* 原本的亮藍保留給不承載文字的裝飾（計時條、開關） */
+            --bright-blue: #53B4FF;
             /* 輔助淺藍 */
             --sky-blue: #C4E6FF;
             --bg-color: #FFFFFF;
-            --text-grey: #888888;
+            --text-grey: #666666; /* 原 #888 對比不足 */
             --card-transition: 0.2s;
             --card-gap: 10px;
         }
@@ -13,7 +15,7 @@
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
         }
 
         body {
@@ -95,7 +97,7 @@
         .mode-btn.active {
             background-color: var(--primary-blue);
             color: #FFFFFF;
-            box-shadow: 0 2px 6px rgba(83, 180, 255, 0.4);
+            box-shadow: 0 2px 6px rgba(25, 113, 194, 0.3);
         }
 
         /* 狀態列 (分數 + 計時開關) */
@@ -169,7 +171,7 @@
         }
 
         input:checked+.slider {
-            background-color: var(--primary-blue);
+            background-color: var(--bright-blue);
         }
 
         input:checked+.slider:before {
@@ -229,7 +231,7 @@
         .timer-bar-fill {
             height: 100%;
             width: 100%;
-            background: var(--primary-blue);
+            background: var(--bright-blue);
             transform-origin: left;
             border-radius: 4px;
         }
@@ -257,7 +259,7 @@
             width: 100%;
             max-width: 480px;
             transition: transform 0.1s, opacity 0.2s;
-            box-shadow: 0 4px 15px rgba(83, 180, 255, 0.35);
+            box-shadow: 0 4px 15px rgba(25, 113, 194, 0.25);
         }
 
         .btn-main:active {
@@ -412,7 +414,7 @@
         /* 回首頁按鈕 */
         .back-btn {
             text-decoration: none;
-            color: #888888;
+            color: var(--text-grey);
             font-weight: 600;
             font-size: 0.95rem;
             display: inline-flex;
@@ -511,5 +513,26 @@
 
             .action-area {
                 min-height: 120px;
+            }
+        }
+
+        /* 鍵盤操作時的焦點框 */
+        a:focus-visible,
+        button:focus-visible,
+        .switch input:focus-visible + .slider {
+            outline: 3px solid var(--primary-blue);
+            outline-offset: 2px;
+        }
+
+        /* 系統要求減少動態效果時，把動畫與轉場縮到幾乎瞬間（事件仍會觸發）；
+           倒數計時條是遊戲資訊不是裝飾，排除在外 */
+        @media (prefers-reduced-motion: reduce) {
+            *:not(.timer-bar-fill),
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
             }
         }
