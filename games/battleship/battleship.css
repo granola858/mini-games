@@ -3,12 +3,15 @@
   --bg-secondary: #0c162d;
   --bg-surface: #132244;
   --bg-surface-hover: #1b2f5d;
-  --border-color: rgba(56, 189, 248, 0.2);
-  --border-glow: rgba(56, 189, 248, 0.45);
-  
-  --color-radar: #00f0ff;
-  --color-radar-dim: rgba(0, 240, 255, 0.15);
-  --color-friendly: #38bdf8;
+  /* 配色：深海軍藍底 + 黃銅色雷達 / 主要操作 + 鋼藍色我方艦隊。
+     刻意不用螢光青與發光光暈，改用海圖桌上的黃銅儀器色調 */
+  --border-color: rgba(140, 180, 224, 0.18);
+  --border-strong: rgba(140, 180, 224, 0.4);
+
+  --color-radar: #e0b04a;
+  --color-radar-strong: #c99a35;
+  --color-radar-tint: rgba(224, 176, 74, 0.14);
+  --color-friendly: #8cb4e0;
   --color-enemy: #f43f5e;
   --color-hit: #ff2a5f;
   --color-miss: #94a3b8;
@@ -25,6 +28,9 @@
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
+
+  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -60,10 +66,7 @@ body {
   flex-direction: column;
   align-items: center;
   overflow-x: hidden;
-  background-image: 
-    radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.15) 0%, transparent 60%),
-    radial-gradient(circle at 10% 90%, rgba(244, 63, 94, 0.08) 0%, transparent 50%),
-    linear-gradient(to bottom, #060c19, #091326);
+  background-image: linear-gradient(to bottom, #060c19, #091326);
 }
 
 button, .cell, .dock-ship, .back-btn {
@@ -121,7 +124,7 @@ button, .cell, .dock-ship, .back-btn {
 
 .back-btn:hover {
   color: var(--text-bright);
-  background: rgba(56, 189, 248, 0.12);
+  background: var(--color-radar-tint);
   border-color: var(--color-radar);
 }
 
@@ -137,7 +140,6 @@ button, .cell, .dock-ship, .back-btn {
   height: 28px;
   flex-shrink: 0;
   color: var(--color-radar);
-  animation: pulse-glow 3s infinite alternate;
 }
 
 h1 {
@@ -145,9 +147,7 @@ h1 {
   font-weight: 800;
   letter-spacing: 0.5px;
   white-space: nowrap;
-  background: linear-gradient(135deg, #ffffff 40%, var(--color-radar));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-bright);
 }
 
 .title-sub {
@@ -238,17 +238,6 @@ h1 {
   overflow: hidden;
 }
 
-.mission-bar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: var(--color-radar);
-  box-shadow: 0 0 10px var(--color-radar);
-}
-
 .status-indicator {
   display: flex;
   align-items: center;
@@ -261,29 +250,26 @@ h1 {
   height: 10px;
   border-radius: 50%;
   background: var(--color-success);
-  box-shadow: 0 0 8px var(--color-success);
   flex-shrink: 0;
 }
 
 .status-dot.enemy-turn {
   background: var(--color-enemy);
-  box-shadow: 0 0 8px var(--color-enemy);
   animation: blink 0.8s infinite;
 }
 
 .status-dot.game-over {
   background: var(--color-warning);
-  box-shadow: 0 0 8px var(--color-warning);
 }
 
 .phase-tag {
   font-size: 0.75rem;
   font-family: var(--font-mono);
-  background: rgba(0, 240, 255, 0.12);
+  background: var(--color-radar-tint);
   color: var(--color-radar);
   padding: 3px 8px;
   border-radius: 4px;
-  border: 1px solid rgba(0, 240, 255, 0.3);
+  border: 1px solid rgba(224, 176, 74, 0.35);
   letter-spacing: 0.5px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -391,7 +377,6 @@ h1 {
   background: var(--color-radar);
   color: #060c19;
   font-weight: 700;
-  box-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
 }
 
 .ship-dock {
@@ -424,15 +409,19 @@ h1 {
 
 .dock-ship.selected {
   border-color: var(--color-radar);
-  background: rgba(0, 240, 255, 0.15);
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+  background: var(--color-radar-tint);
 }
 
+/* 已部署：用虛線框 + 淡化艦型預覽表示，文字維持可讀的對比，不整塊調透明 */
 .dock-ship.placed {
-  opacity: 0.4;
   cursor: not-allowed;
   border-style: dashed;
   background: rgba(255, 255, 255, 0.02);
+  color: var(--text-dim);
+}
+
+.dock-ship.placed .ship-preview {
+  opacity: 0.35;
 }
 
 .dock-ship.placed:hover {
@@ -489,16 +478,16 @@ h1 {
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, #0284c7, #00f0ff);
+  background: var(--color-radar);
   color: #060c19;
   border: none;
   font-weight: 700;
-  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .action-btn.primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #0369a1, #38bdf8);
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+  background: var(--color-radar-strong);
+  box-shadow: var(--shadow-raised);
   color: #060c19;
   transform: translateY(-1px);
 }
@@ -546,7 +535,7 @@ h1 {
 
 .board-wrapper.active-target {
   border-color: var(--color-radar);
-  box-shadow: 0 0 24px rgba(0, 240, 255, 0.2);
+  box-shadow: var(--shadow-raised);
 }
 
 .board-header {
@@ -585,8 +574,8 @@ h1 {
   font-size: 0.9rem;
   padding: 2px 4px;
   border-radius: 4px;
-  background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(140, 180, 224, 0.1);
+  border: 1px solid rgba(140, 180, 224, 0.25);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -613,7 +602,7 @@ h1 {
 /* Collapsible Fleet Details (隱藏/展開) */
 .fleet-details {
   width: 100%;
-  border-top: 1px solid rgba(56, 189, 248, 0.1);
+  border-top: 1px solid var(--border-color);
   padding-top: 6px;
 }
 
@@ -648,10 +637,8 @@ h1 {
   grid-template-columns: 20px repeat(10, var(--cell-size));
   grid-template-rows: 20px repeat(10, var(--cell-size));
   gap: var(--grid-gap);
-  background: rgba(0, 0, 0, 0.35);
-  padding: 8px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(56, 189, 248, 0.15);
+  /* 外層 .board-wrapper 已經是卡片，格線底板只留間距，不再疊一層框 */
+  padding: 8px 0;
   position: relative;
   user-select: none;
   overflow: hidden; /* 嚴格限制不得超出棋盤邊界 */
@@ -665,7 +652,7 @@ h1 {
   left: 0;
   right: 0;
   height: 100%;
-  background: linear-gradient(180deg, transparent 0%, rgba(0, 240, 255, 0.18) 50%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(224, 176, 74, 0.16) 50%, transparent 100%);
   pointer-events: none;
   animation: radar-sweep 3.5s linear infinite;
   border-radius: var(--radius-md);
@@ -687,7 +674,7 @@ h1 {
   width: var(--cell-size);
   height: var(--cell-size);
   background: rgba(19, 34, 68, 0.6);
-  border: 1px solid rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(140, 180, 224, 0.14);
   border-radius: 3px;
   display: flex;
   align-items: center;
@@ -704,33 +691,30 @@ h1 {
 }
 
 .enemy-grid .cell:not(.hit):not(.miss):not(.sunk):hover {
-  background: rgba(0, 240, 255, 0.25);
+  background: rgba(224, 176, 74, 0.25);
   border-color: var(--color-radar);
-  box-shadow: inset 0 0 8px rgba(0, 240, 255, 0.4);
 }
 
 /* Placement Preview */
 .cell.preview-valid {
   background: rgba(16, 185, 129, 0.45) !important;
   border-color: var(--color-success) !important;
-  box-shadow: inset 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
 .cell.preview-invalid {
   background: rgba(239, 68, 68, 0.45) !important;
   border-color: var(--color-enemy) !important;
-  box-shadow: inset 0 0 8px rgba(239, 68, 68, 0.6);
 }
 
 /* Friendly Ships Display */
 .cell.has-ship {
-  background: rgba(56, 189, 248, 0.25);
-  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(140, 180, 224, 0.25);
+  border-color: rgba(140, 180, 224, 0.4);
 }
 
 .cell.ship-body {
-  background: linear-gradient(135deg, #1e3a8a, #0369a1);
-  border-color: #38bdf8;
+  background: #2a4a72;
+  border-color: var(--color-friendly);
 }
 
 .cell.ship-bow-n { border-top-left-radius: 8px; border-top-right-radius: 8px; }
@@ -786,7 +770,7 @@ h1 {
   flex-direction: column;
   gap: 6px;
   padding-top: 8px;
-  border-top: 1px solid rgba(56, 189, 248, 0.1);
+  border-top: 1px solid var(--border-color);
 }
 
 .manifest-item {
@@ -825,7 +809,7 @@ h1 {
 
 /* 敵方情報迷霧：未擊沉時為隱藏未知 peg，擊沉時全紅 */
 .peg.fog-peg {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(140, 180, 224, 0.2);
 }
 
 .peg.sunk-peg {
@@ -859,7 +843,7 @@ h1 {
 
 .modal-card {
   background: var(--bg-secondary);
-  border: 2px solid var(--border-glow);
+  border: 2px solid var(--border-strong);
   border-radius: var(--radius-lg);
   padding: 32px;
   max-width: 440px;
@@ -869,9 +853,9 @@ h1 {
   flex-direction: column;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 0 50px rgba(0, 240, 255, 0.25);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   transform: scale(0.9);
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.3s var(--ease-out-quart);
 }
 
 .modal-overlay.show .modal-card {
@@ -880,12 +864,10 @@ h1 {
 
 .modal-card.victory {
   border-color: #10b981;
-  box-shadow: 0 0 50px rgba(16, 185, 129, 0.3);
 }
 
 .modal-card.defeat {
   border-color: #ef4444;
-  box-shadow: 0 0 50px rgba(239, 68, 68, 0.3);
 }
 
 .modal-badge {
@@ -940,11 +922,6 @@ h1 {
   100% { transform: translateY(100%); }
 }
 
-@keyframes pulse-glow {
-  0% { transform: scale(1); filter: drop-shadow(0 0 2px var(--color-radar)); }
-  100% { transform: scale(1.06); filter: drop-shadow(0 0 8px var(--color-radar)); }
-}
-
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
@@ -969,11 +946,33 @@ h1 {
   0% {
     transform: scale(1.35);
     background-color: #ff0055;
+    /* impeccable-disable-next-line dark-glow: 遊戲狀態（砲彈命中瞬間）的視覺語意 */
     box-shadow: 0 0 20px #ff0055;
     z-index: 10;
   }
   100% {
     transform: scale(1);
     z-index: 1;
+  }
+}
+
+/* 鍵盤操作時的焦點外框 */
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+.cell:focus-visible {
+  outline: 3px solid var(--color-radar);
+  outline-offset: 2px;
+}
+
+/* 降低動態效果：動畫與轉場縮到幾乎瞬間，事件照常觸發、不影響對局 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

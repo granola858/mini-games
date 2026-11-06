@@ -12,8 +12,8 @@
    ========================================================================== */
 
 :root {
-  /* --- 字體（與 index.html 的 Google Fonts 引入一致） --- */
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+  /* --- 字體（與首頁同一套圓體系統字型，不另外載入網路字型） --- */
+  --font-sans: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: 'Space Mono', 'Consolas', 'Courier New', monospace;
 
   /* --- 圓角 --- */
@@ -43,7 +43,8 @@
   --delay-none: 0ms;       /* prefers-reduced-motion 的歸零延遲 */
 
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* 進場一律用 ease-out-quart 平順減速，不用會回彈過頭的彈簧曲線 */
+  --ease-pop: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-slide: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
   /* --- 磚塊時序：預設 fallback ------------------------------------------
@@ -65,22 +66,24 @@
    1. 雙主題色票
    ========================================================================== */
 
-/* --- A. 淺色主題（預設）：奶油紙 + 焦糖木 --- */
+/* --- A. 淺色主題（預設）：霧灰石板底 + 焦糖木棋盤 ---
+   頁面底色刻意用帶一點藍的冷灰，讓暖棕的棋盤與磚塊成為畫面裡唯一的暖色主角 */
 :root,
 :root[data-theme="light"],
 html[data-theme="light"] {
-  --bg-primary: #faf4ea;
-  --bg-secondary: #fffdf8;
-  --bg-tertiary: #f2e6d3;
-  --bg-glass: rgba(255, 253, 248, 0.88);
-  --border-color: #e2cfb2;
+  --bg-primary: #eceff2;
+  --bg-secondary: #fbfcfd;
+  --bg-tertiary: #e1e6eb;
+  --bg-glass: rgba(251, 252, 253, 0.9);
+  --border-color: #cdd4dc;
   --border-focus: #8b5a2b;
-  --text-main: #3c2a1a;
-  --text-muted: #8a7159;
+  --text-main: #2f2419;
+  --text-muted: #5f5448;
 
-  --accent-primary: #a9682f;
+  --accent-primary: #94551f;
   --accent-secondary: #c98a45;
-  --accent-soft: #f6e7d2;
+  --accent-on: #ffffff;           /* 放在主色底上的文字色 */
+  --accent-soft: #f3e4d1;
   --accent-glow: rgba(169, 104, 47, 0.22);
 
   --danger: #d1402f;
@@ -108,6 +111,7 @@ html[data-theme="dark"] {
 
   --accent-primary: #d99a56;
   --accent-secondary: #b87a3c;
+  --accent-on: #1f1309;           /* 深色主題主色偏亮，上面的字改用深色才夠對比 */
   --accent-soft: #3a2c1e;
   --accent-glow: rgba(217, 154, 86, 0.26);
 
@@ -150,20 +154,6 @@ body {
   position: relative;
   transition: background-color var(--dur-normal) var(--ease-out),
               color var(--dur-normal) var(--ease-out);
-}
-
-/* 氛圍光暈 */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.7;
-  background-image:
-    radial-gradient(circle at 16% 10%, var(--accent-glow) 0%, transparent 44%),
-    radial-gradient(circle at 84% 90%, var(--accent-glow) 0%, transparent 44%);
-  transition: opacity var(--dur-normal) var(--ease-out);
 }
 
 #confetti-canvas {
@@ -313,10 +303,7 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] {
   justify-content: center;
   flex-wrap: wrap;
   gap: 8px;
-  background: linear-gradient(135deg, var(--text-main) 28%, var(--accent-primary) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-main);
 }
 
 .main-title-text {
@@ -357,7 +344,7 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] {
 
 .mode-tab-btn.active {
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   box-shadow: 0 2px 10px var(--accent-glow);
 }
 
@@ -464,13 +451,13 @@ body[data-mode="blitz"] #tower-bar {
   justify-content: center;
   gap: 2px;
   padding: 6px 8px;
-  background: var(--bg-secondary);
-  border: 1.5px solid var(--border-color);
+  /* 外層 HUD 已經是卡片，這裡只用淡色塊分隔，不再疊一層框線卡片 */
+  background: var(--bg-tertiary);
   border-radius: var(--radius-md);
 }
 
 .score-label {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--text-muted);
@@ -552,7 +539,7 @@ body[data-mode="blitz"] #tower-bar {
   font-weight: 800;
   white-space: nowrap;
   box-shadow: 0 2px 10px rgba(217, 119, 6, 0.45);
-  animation: chainPop var(--dur-chain) var(--ease-spring);
+  animation: chainPop var(--dur-chain) var(--ease-pop);
 }
 
 .chain-badge[hidden] {
@@ -772,7 +759,7 @@ html[data-theme="dark"] .floor-badge {
   padding: 16px;
   text-align: center;
   border-radius: inherit;
-  background: rgba(250, 244, 234, 0.82);
+  background: rgba(236, 239, 242, 0.84);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
   color: var(--text-main);
@@ -857,11 +844,11 @@ html[data-theme="dark"] .board-overlay {
 /* 合併彈跳（POP_MS）與生成彈入（SPAWN_MS）：
    只掛在 .tile-face，且只動 scale。 */
 .tile.is-merged .tile-face {
-  animation: tilePop var(--pop-ms) var(--ease-spring);
+  animation: tilePop var(--pop-ms) var(--ease-pop);
 }
 
 .tile.is-new .tile-face {
-  animation: tileSpawn var(--spawn-ms) var(--ease-spring);
+  animation: tileSpawn var(--spawn-ms) var(--ease-pop);
 }
 
 /* 被合併掉的那顆：滑到目的地的同時微縮，並沉到存活者底下。
@@ -927,8 +914,8 @@ html[data-theme="dark"] .board-overlay {
 /* --- A. 全值域保底：level 1 ~ 17（MAX_LEVEL） --- */
 .tile[data-level="1"]  { --tile-bg: #efe4d7; --tile-fg: #6b4f35; --num-fs: 0.46; }
 .tile[data-level="2"]  { --tile-bg: #e8d3b4; --tile-fg: #6b4f35; --num-fs: 0.46; }
-.tile[data-level="3"]  { --tile-bg: #f2b179; --tile-fg: #ffffff; --num-fs: 0.46; }
-.tile[data-level="4"]  { --tile-bg: #f08e52; --tile-fg: #ffffff; --num-fs: 0.42; }
+.tile[data-level="3"]  { --tile-bg: #f2b179; --tile-fg: #4a2a12; --num-fs: 0.46; }
+.tile[data-level="4"]  { --tile-bg: #f08e52; --tile-fg: #4a2a12; --num-fs: 0.42; }
 .tile[data-level="5"]  { --tile-bg: #ef6c4d; --tile-fg: #ffffff; --num-fs: 0.42; }
 .tile[data-level="6"]  { --tile-bg: #e2493c; --tile-fg: #ffffff; --num-fs: 0.42; }
 .tile[data-level="7"]  { --tile-bg: #d6408f; --tile-fg: #ffffff; --num-fs: 0.33; }
@@ -936,7 +923,7 @@ html[data-theme="dark"] .board-overlay {
 .tile[data-level="9"]  { --tile-bg: #5b62e0; --tile-fg: #ffffff; --num-fs: 0.33; }
 .tile[data-level="10"] { --tile-bg: #1c93b8; --tile-fg: #ffffff; --num-fs: 0.26; }
 .tile[data-level="11"] { --tile-bg: #f0b429; --tile-fg: #4a3208; --num-fs: 0.26; }
-.tile[data-level="12"] { --tile-bg: #10b981; --tile-fg: #ffffff; --num-fs: 0.26; }
+.tile[data-level="12"] { --tile-bg: #0b7a57; --tile-fg: #ffffff; --num-fs: 0.26; }
 .tile[data-level="13"] {
   --tile-bg: #0f172a;
   --tile-fg: #f5c542;
@@ -944,12 +931,12 @@ html[data-theme="dark"] .board-overlay {
   --num-fs: 0.26;
 }
 .tile[data-level="14"] {
-  --tile-bg: linear-gradient(135deg, #f472b6 0%, #a855f7 52%, #38bdf8 100%);
+  --tile-bg: linear-gradient(135deg, #f472b6 0%, #e11d48 52%, #9f1239 100%);
   --tile-fg: #ffffff;
   --num-fs: 0.21;
 }
 .tile[data-level="15"] {
-  --tile-bg: linear-gradient(135deg, #fbbf24 0%, #f472b6 38%, #8b5cf6 70%, #22d3ee 100%);
+  --tile-bg: linear-gradient(135deg, #fbbf24 0%, #f97316 38%, #dc2626 70%, #7f1d1d 100%);
   --tile-fg: #ffffff;
   --num-fs: 0.21;
 }
@@ -959,7 +946,7 @@ html[data-theme="dark"] .board-overlay {
   --num-fs: 0.21;
 }
 .tile[data-level="17"] {
-  --tile-bg: conic-gradient(from 210deg, #f43f5e, #f59e0b, #84cc16, #06b6d4, #6366f1, #d946ef, #f43f5e);
+  --tile-bg: conic-gradient(from 210deg, #f43f5e, #f59e0b, #84cc16, #06b6d4, #0f766e, #f43f5e);
   --tile-fg: #ffffff;
   --num-fs: 0.175;
 }
@@ -975,8 +962,8 @@ html[data-theme="dark"] .board-overlay {
 /* --- B. 精確配色：data-value 2 ~ 2048（放在保底之後，同分後寫者勝） --- */
 .tile[data-value="2"]    { --tile-bg: #efe4d7; --tile-fg: #6b4f35; }
 .tile[data-value="4"]    { --tile-bg: #e8d3b4; --tile-fg: #6b4f35; }
-.tile[data-value="8"]    { --tile-bg: #f2b179; --tile-fg: #ffffff; }
-.tile[data-value="16"]   { --tile-bg: #f08e52; --tile-fg: #ffffff; }
+.tile[data-value="8"]    { --tile-bg: #f2b179; --tile-fg: #4a2a12; }
+.tile[data-value="16"]   { --tile-bg: #f08e52; --tile-fg: #4a2a12; }
 .tile[data-value="32"]   { --tile-bg: #ef6c4d; --tile-fg: #ffffff; }
 .tile[data-value="64"]   { --tile-bg: #e2493c; --tile-fg: #ffffff; }
 .tile[data-value="128"]  { --tile-bg: #d6408f; --tile-fg: #ffffff; }
@@ -1028,11 +1015,11 @@ html[data-theme="dark"] .tile[data-level="12"] { --tile-bg: #0d9268; --tile-fg: 
 html[data-theme="dark"] .tile[data-level="13"] { --tile-bg: #060b16; --tile-fg: #f5c542; }
 :root[data-theme="dark"] .tile[data-level="14"],
 html[data-theme="dark"] .tile[data-level="14"] {
-  --tile-bg: linear-gradient(135deg, #c2568f 0%, #7c3fb0 52%, #2a86b5 100%);
+  --tile-bg: linear-gradient(135deg, #c2568f 0%, #b0213f 52%, #6d1029 100%);
 }
 :root[data-theme="dark"] .tile[data-level="15"],
 html[data-theme="dark"] .tile[data-level="15"] {
-  --tile-bg: linear-gradient(135deg, #c7931c 0%, #c2568f 38%, #6a43b8 70%, #1b9db0 100%);
+  --tile-bg: linear-gradient(135deg, #c7931c 0%, #c2611c 38%, #a3221c 70%, #5c1414 100%);
 }
 :root[data-theme="dark"] .tile[data-level="16"],
 html[data-theme="dark"] .tile[data-level="16"] {
@@ -1040,7 +1027,7 @@ html[data-theme="dark"] .tile[data-level="16"] {
 }
 :root[data-theme="dark"] .tile[data-level="17"],
 html[data-theme="dark"] .tile[data-level="17"] {
-  --tile-bg: conic-gradient(from 210deg, #bd3149, #c2841a, #6ba312, #0b90a5, #4d52bd, #ad34bf, #bd3149);
+  --tile-bg: conic-gradient(from 210deg, #bd3149, #c2841a, #6ba312, #0b90a5, #0b5f58, #bd3149);
 }
 
 /* 深色主題的精確值（同樣放在 level 之後才蓋得住） */
@@ -1090,6 +1077,7 @@ html[data-theme="dark"] .tile[data-value="2048"] { --tile-bg: #d99c1f; --tile-fg
   /* 霜紋質感：兩組交錯的細斜紋 + 左上高光，疊在冰藍底色上。
      半透明只發生在「磚面內部的漸層」，.tile 本身的 opacity 一律不碰。 */
   background-color: #cde8f8;
+  /* impeccable-disable repeating-stripes-gradient: 交錯細斜紋是「冰塊磚」這個遊戲狀態的辨識記號，不是裝飾 */
   background-image:
     linear-gradient(152deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0) 44%),
     repeating-linear-gradient(58deg, rgba(255, 255, 255, 0.52) 0 2px, rgba(255, 255, 255, 0) 2px 9px),
@@ -1303,7 +1291,7 @@ body[data-glyph-only] .tile-num {
 .action-btn[aria-pressed="true"] {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   box-shadow: 0 4px 14px var(--accent-glow);
 }
 
@@ -1312,8 +1300,8 @@ body[data-glyph-only] .tile-num {
   top: -6px;
   right: -4px;
   background: var(--accent-primary);
-  color: #ffffff;
-  font-size: 0.68rem;
+  color: var(--accent-on);
+  font-size: 0.6875rem;
   font-weight: 800;
   padding: 1px 6px;
   border-radius: 999px;
@@ -1373,7 +1361,7 @@ body[data-glyph-only] .tile-num {
   width: 100%;
   box-shadow: var(--shadow-lg);
   transform: translateY(20px) scale(0.95);
-  transition: transform var(--dur-modal) var(--ease-spring);
+  transition: transform var(--dur-modal) var(--ease-pop);
   max-height: 88vh;
   max-height: 88dvh;
   overflow-y: auto;
@@ -1464,7 +1452,7 @@ body[data-glyph-only] .tile-num {
 .btn-primary {
   padding: 10px 20px;
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   border: none;
   border-radius: var(--radius-md);
   font-family: var(--font-sans);
@@ -1626,7 +1614,7 @@ body[data-glyph-only] .tile-num {
   border: none;
   border-radius: var(--radius-sm);
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   font-family: var(--font-sans);
   font-size: 0.8rem;
   font-weight: 700;
@@ -1695,7 +1683,7 @@ body[data-glyph-only] .tile-num {
   font-size: 0.9rem;
   font-weight: 700;
   box-shadow: var(--shadow-md);
-  animation: toastIn var(--dur-toast) var(--ease-spring);
+  animation: toastIn var(--dur-toast) var(--ease-pop);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1718,13 +1706,13 @@ body[data-glyph-only] .tile-num {
 
 @keyframes tileSpawn {
   0%   { transform: scale(0.28); }
-  70%  { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
 
 /* 2048 榮耀金光暈：畫在 .tile-face::after，只動 box-shadow，不碰 transform */
 @keyframes goldGlow {
   0%, 100% { box-shadow: 0 0 0 0 rgba(240, 180, 41, 0.55); }
+  /* impeccable-disable-next-line dark-glow: 遊戲狀態（合出 2048 榮耀磚）的視覺語意 */
   50%      { box-shadow: 0 0 18px 5px rgba(240, 180, 41, 0.62); }
 }
 
@@ -1759,7 +1747,6 @@ body[data-glyph-only] .tile-num {
 
 @keyframes chainPop {
   0%   { transform: scale(0.4); opacity: 0; }
-  60%  { transform: scale(1.15); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
 
@@ -1848,7 +1835,7 @@ body[data-glyph-only] .tile-num {
   }
 
   .shop-card .desc {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     min-height: 3.2em;
   }
 
@@ -1922,7 +1909,7 @@ body[data-glyph-only] .tile-num {
   }
 
   .score-label {
-    font-size: 0.64rem;
+    font-size: 0.6875rem; /* 11px：功能性標籤的最小可讀字級 */
   }
 
   .score-value {
@@ -1940,7 +1927,7 @@ body[data-glyph-only] .tile-num {
   }
 
   .chain-badge {
-    font-size: 0.66rem;
+    font-size: 0.6875rem;
     padding: 2px 6px;
   }
 
@@ -1957,7 +1944,7 @@ body[data-glyph-only] .tile-num {
 
   .tower-bar > span {
     padding: 2px 6px;
-    font-size: 0.67rem;
+    font-size: 0.6875rem;
     min-height: 22px;
   }
 
@@ -2033,7 +2020,4 @@ body[data-glyph-only] .tile-num {
     transition-delay: var(--delay-none) !important;
   }
 
-  body::before {
-    opacity: 0.35;
-  }
 }

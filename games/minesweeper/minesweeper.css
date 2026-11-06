@@ -5,7 +5,8 @@
 
 :root {
   /* --- Shared Foundations --- */
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* 與首頁同一套圓體系統字型，不另外載入網路字型 */
+  --font-sans: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: 'Space Mono', 'Consolas', 'Courier New', monospace;
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -13,7 +14,8 @@
   --radius-xl: 28px;
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* 進場一律用 ease-out-quart 平順減速，不用會回彈過頭的彈簧曲線 */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.2);
@@ -41,10 +43,11 @@
   --bg-tertiary: #e2e8f0;
   --bg-glass: rgba(255, 255, 255, 0.85);
   --border-color: #cbd5e1;
-  --border-focus: #0284c7;
+  --border-focus: #0369a1;
   --text-main: #0f172a;
-  --text-muted: #64748b;
-  --accent-primary: #0284c7;
+  --text-muted: #526075;
+  --accent-primary: #0369a1;
+  --accent-on: #ffffff;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #06b6d4;
   --accent-glow: rgba(2, 132, 199, 0.2);
   --danger: #ef4444;
@@ -73,6 +76,7 @@
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --accent-primary: #38bdf8;
+  --accent-on: #04212e;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #22d3ee;
   --accent-glow: rgba(56, 189, 248, 0.25);
   --danger: #f43f5e;
@@ -108,10 +112,11 @@
   --bg-tertiary: #e7dac9;
   --bg-glass: rgba(244, 236, 225, 0.88);
   --border-color: #d8c4ad;
-  --border-focus: #b45309;
+  --border-focus: #92400e;
   --text-main: #382413;
-  --text-muted: #7c6853;
-  --accent-primary: #b45309;
+  --text-muted: #67533f;
+  --accent-primary: #92400e;
+  --accent-on: #ffffff;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #d97706;
   --accent-glow: rgba(180, 83, 9, 0.2);
   --danger: #b91c1c;
@@ -140,6 +145,7 @@
   --text-main: #fbeee0;
   --text-muted: #bda795;
   --accent-primary: #f59e0b;
+  --accent-on: #241405;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #fbbf24;
   --accent-glow: rgba(245, 158, 11, 0.25);
   --danger: #ef4444;
@@ -189,7 +195,7 @@
   --w95-shadow: #808080;
   --w95-dark: #000000;
   --w95-titlebar: #000080;
-  --w95-titlebar-2: #1084d0;
+  --w95-titlebar-2: #0b6cb0;
   --w95-titlebar-text: #ffffff;
   --w95-led-bg: #000000;
   --w95-led-text: #ff0000;
@@ -203,6 +209,7 @@
   --text-main: #000000;
   --text-muted: #404040;
   --accent-primary: #000080;
+  --accent-on: #ffffff;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #1084d0;
   --accent-glow: transparent;
   --danger: #a80000;
@@ -263,6 +270,7 @@
   --text-main: #ececec;
   --text-muted: #b5b5b5;
   --accent-primary: #9db8ff;
+  --accent-on: #0b1530;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #7fa6f0;
   --accent-glow: transparent;
   --danger: #ff6b6b;
@@ -315,21 +323,6 @@ body {
 }
 
 /* Subtle Animated Ambient Background */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.6;
-  background-image: radial-gradient(circle at 20% 15%, var(--accent-glow) 0%, transparent 40%),
-                    radial-gradient(circle at 80% 85%, var(--accent-glow) 0%, transparent 40%);
-  transition: opacity var(--transition-normal);
-}
-
 #confetti-canvas {
   position: fixed;
   top: 0;
@@ -419,7 +412,7 @@ body::before {
 
 .icon-btn.active {
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   border-color: var(--accent-primary);
 }
 
@@ -442,7 +435,7 @@ body::before {
 
 .skin-toggle-btn:hover {
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
 }
 
 /* ==========================================================================
@@ -463,9 +456,7 @@ body::before {
   justify-content: center;
   flex-wrap: wrap;
   gap: 8px;
-  background: linear-gradient(135deg, var(--text-main) 30%, var(--accent-primary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-main);
 }
 
 /* 標題不從中文字中間斷行，窄螢幕時整塊徽章換行到下一列 */
@@ -478,11 +469,10 @@ body::before {
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  -webkit-text-fill-color: #ffffff;
   white-space: nowrap;
 }
 
@@ -493,7 +483,7 @@ body::before {
   }
 
   .main-title-badge {
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     padding: 2px 6px;
   }
 }
@@ -538,7 +528,7 @@ body::before {
 
 .mode-tab-btn.active {
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   box-shadow: 0 2px 10px var(--accent-glow);
 }
 
@@ -714,7 +704,6 @@ body::before {
   background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
   border-radius: 999px;
   transition: width 0.3s ease;
-  box-shadow: 0 0 8px var(--accent-primary);
 }
 
 /* ==========================================================================
@@ -762,8 +751,8 @@ body::before {
 .item-btn.active {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
-  color: #ffffff;
-  box-shadow: 0 0 12px var(--accent-glow);
+  color: var(--accent-on);
+  box-shadow: var(--shadow-sm);
 }
 
 .item-icon {
@@ -781,8 +770,8 @@ body::before {
   top: -6px;
   right: -4px;
   background: var(--accent-primary);
-  color: #ffffff;
-  font-size: 0.68rem;
+  color: var(--accent-on);
+  font-size: 0.6875rem;
   font-weight: 800;
   padding: 1px 6px;
   border-radius: 999px;
@@ -864,6 +853,15 @@ body::before {
   padding: 0;
 }
 
+/* 鍵盤操作時的焦點外框：所有按鈕與連結共用，格子另有自己的版本 */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
 .cell:focus-visible {
   outline: 3px solid var(--accent-primary);
   outline-offset: 1px;
@@ -913,7 +911,7 @@ body::before {
 /* Flagged & Question states */
 .cell.flagged {
   color: var(--cell-flag-color);
-  animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: popIn 0.2s var(--ease-out-quart);
 }
 
 .cell.question {
@@ -948,7 +946,7 @@ body::before {
 .cell.chest {
   background: #fef3c7;
   color: #d97706;
-  animation: bounce 0.6s infinite alternate;
+  animation: chestFloat 0.6s ease-in-out infinite alternate;
 }
 
 .cell.stair {
@@ -1016,7 +1014,7 @@ body::before {
 .action-mode-btn.active {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   box-shadow: 0 4px 14px var(--accent-glow);
 }
 
@@ -1150,7 +1148,7 @@ body::before {
   width: 100%;
   box-shadow: var(--shadow-lg);
   transform: translateY(20px) scale(0.95);
-  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.25s var(--ease-out-quart);
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -1203,7 +1201,7 @@ body::before {
 .btn-primary {
   padding: 10px 20px;
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   border: none;
   border-radius: var(--radius-md);
   font-weight: 700;
@@ -1268,7 +1266,7 @@ body::before {
   width: 100%;
   padding: 6px;
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   border: none;
   border-radius: var(--radius-sm);
   font-size: 0.8rem;
@@ -1361,7 +1359,7 @@ body::before {
   font-size: 0.9rem;
   font-weight: 700;
   box-shadow: var(--shadow-md);
-  animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: toastIn 0.3s var(--ease-out-quart);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1385,7 +1383,9 @@ body::before {
 }
 
 @keyframes radarPulse {
+  /* impeccable-disable-next-line dark-glow: 遊戲狀態（聲納掃到的格子）的視覺語意 */
   0% { transform: scale(1); box-shadow: 0 0 4px var(--accent-primary); }
+  /* impeccable-disable-next-line dark-glow: 遊戲狀態（聲納掃到的格子）的視覺語意 */
   100% { transform: scale(1.06); box-shadow: 0 0 14px var(--accent-primary); }
 }
 
@@ -1394,7 +1394,7 @@ body::before {
   100% { transform: translateY(0); opacity: 1; }
 }
 
-@keyframes bounce {
+@keyframes chestFloat {
   0% { transform: translateY(0); }
   100% { transform: translateY(-4px); }
 }
@@ -1404,11 +1404,7 @@ body::before {
    復刻 95 年代的灰色面板與立體浮凸/凹陷邊框
    ========================================================================== */
 
-/* 拿掉現代感的氛圍光暈與毛玻璃 */
-[data-skin="classic"] body::before {
-  display: none;
-}
-
+/* 拿掉現代感的毛玻璃 */
 [data-skin="classic"] .hud-panel,
 [data-skin="classic"] .board-viewport,
 [data-skin="classic"] .thumb-action-bar {
