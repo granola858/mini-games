@@ -1419,7 +1419,7 @@ test('index.html 具備防閃爍 snippet、四支共用模組、Stats 記錄與 
   assert.match(html, /viewport-fit=cover/, 'viewport 必須含 viewport-fit=cover，安全區域才算得準');
   assert.match(html, /<meta\s+name="theme-color"/, '必須有 theme-color meta');
   assert.match(html, /data-theme-color-dark="#101410"/, 'theme-color 必須帶深色主題的值');
-  assert.match(html, /data-theme-color-light="#f4f1ea"/, 'theme-color 必須帶淺色主題的值');
+  assert.match(html, /data-theme-color-light="#eef2ee"/, 'theme-color 必須帶淺色主題的值');
 
   // 四支共用模組一律用 ../../assets/js/ 相對路徑（集中式 assets/ 路徑已移除）
   const SHARED_PREFIX = '../../assets/js/';

@@ -35,8 +35,8 @@
    ========================================================================== */
 
 :root {
-  /* --- 1.1 字體（與 index.html 的 Google Fonts 引入一致） --- */
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+  /* --- 1.1 字體（內文與首頁同一組系統圓體；等寬數字沿用 index.html 引入的 Space Mono） --- */
+  --font-sans: ui-rounded, 'SF Pro Rounded', 'Noto Sans TC', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'Space Mono', 'Consolas', 'Courier New', monospace;
 
   /* --- 1.2 圓角 --- */
@@ -60,7 +60,8 @@
   --delay-none: 0ms;       /* prefers-reduced-motion 的歸零延遲 */
 
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* 不用會過衝的彈簧曲線：落桌、彈窗、提示一律用 ease-out-expo 平順減速 */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-settle: cubic-bezier(0.16, 0.84, 0.44, 1);
 
   /* 演出時序：預設 fallback。唯一真相是 sic-bo.js 的常數，
@@ -101,16 +102,17 @@
 :root,
 :root[data-theme="light"],
 html[data-theme="light"] {
-  --bg-primary: #f4f1ea;
-  --bg-secondary: #fffdf7;
-  --bg-tertiary: #e8e2d4;
-  --bg-glass: rgba(255, 253, 247, 0.88);
-  --border-color: #d8d0bd;  --border-focus: #1f6b47;
+  /* 頁面底色不用米色：改用帶一點松綠的冷灰白，與綠絨桌布同一色系 */
+  --bg-primary: #eef2ee;
+  --bg-secondary: #fbfcfa;
+  --bg-tertiary: #e0e7e1;
+  --bg-glass: rgba(251, 252, 250, 0.88);
+  --border-color: #cbd5cd;  --border-focus: #1f6b47;
   --text-main: #23281f;
-  /* 缺陷 Q：原本是 #7b8073，在象牙底（#fffdf7）上只有 3.99:1，
-     而它撐起的是「沒中，輸了 N 分」主訊息與全部 50 格的賠率文字（9.9px/700）。
-     壓深到 #5d6356 之後：on #fffdf7 6.10:1、on 桌布 #e3ddcd 4.58:1、
-     on #e8e2d4 4.80:1，最差的使用情境也過 4.5。深色主題的 #96a38f 實測
+  /* 缺陷 Q：原本是 #7b8073，在淺底上不到 4:1，
+     而它撐起的是「沒中，輸了 N 分」主訊息與全部 50 格的賠率文字（11px/700）。
+     壓深到 #5d6356 之後：on #fbfcfa 6.03:1、on 桌布 #dde5de 4.83:1、
+     on #e0e7e1 4.93:1，最差的使用情境也過 4.5。深色主題的 #96a38f 實測
      最低 5.42:1，本來就過關，所以只動淺色這一個值。 */
   --text-muted: #5d6356;
 
@@ -122,7 +124,7 @@ html[data-theme="light"] {
   --gold: #b8860b;                    /* 中獎金：只給「裝飾」用（邊框、光暈、徽章底） */
   /* 缺陷 Q：金色當「文字」用時 #b8860b on #fffdf7 只有 3.20:1。
      裝飾用途（邊框、光暈、籌碼徽章底）的金必須維持原色才看得出是金色，
-     所以另開一個只給文字的深金：on #fffdf7 5.23:1、on 舞台底 #f4f1ea 4.72:1、
+     所以另開一個只給文字的深金：on #fbfcfa 5.17:1、on 舞台底 #eef2ee 4.71:1、
      on 翻倍面板的 --gold-soft #f7ecd0 4.53:1。深色主題的金字本來就夠亮，
      那邊的 --gold-text 直接等於 --gold。 */
   --gold-text: #8a6508;
@@ -140,8 +142,8 @@ html[data-theme="light"] {
   --warning: #c77700;
   --success: #1f6b47;
 
-  --felt-bg: #e3ddcd;                 /* 下注桌底 */
-  --felt-line: #cdc5b0;
+  --felt-bg: #dde5de;                 /* 下注桌底 */
+  --felt-line: #c2cec5;
   --die-face: #fffdf7;                /* 骰身 */
   --die-edge: #ded7c4;
   --die-pip: #23281f;
@@ -515,8 +517,8 @@ body[data-phase="rolling"] .stage-dice {
 }
 
 /* 缺陷 Q：贏的主訊息是 15.2px/700 的一般文字（不到 18.66px 的粗體放寬線），
-   必須 4.5:1。用文字專用的 --gold-text（淺色 4.72:1 on 舞台底 #f4f1ea、
-   5.23:1 on 桌機舞台卡片 #fffdf7；深色 9.83 / 8.82:1）。 */
+   必須 4.5:1。用文字專用的 --gold-text（淺色 4.71:1 on 舞台底 #eef2ee、
+   5.17:1 on 桌機舞台卡片 #fbfcfa；深色 9.83 / 8.82:1）。 */
 #result-msg.is-win {
   color: var(--gold-text);
 }
@@ -583,7 +585,6 @@ body[data-phase="rolling"] .stage-dice {
   background-size: 100% 100%;
   background-size: 100cqi 100%;
   background-repeat: no-repeat;
-  box-shadow: 0 0 8px var(--gold-glow);
   transition: width var(--dur-normal) var(--ease-out);
 }
 
@@ -616,9 +617,11 @@ body[data-phase="rolling"] .stage-dice {
   align-items: center;
   gap: 1px;
   padding: 5px 8px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+}
+
+/* 兩個數字之間用 1px 分隔線區隔，不再各自包成卡片（避免卡片套卡片） */
+.figure + .figure {
+  border-left: 1px solid var(--border-color);
 }
 
 .figure-label {
@@ -696,7 +699,7 @@ body[data-phase="rolling"] .stage-dice {
 
 /* 落桌彈跳只掛在 .die（位移與縮放層） */
 .die.is-landing {
-  animation: dieLand var(--land-ms) var(--ease-spring);
+  animation: dieLand var(--land-ms) var(--ease-out-expo);
 }
 
 /* 底下的橢圓投影：骰子落桌時同步縮放，讓「重量感」對得上 */
@@ -714,7 +717,7 @@ body[data-phase="rolling"] .stage-dice {
 }
 
 .die.is-landing::after {
-  animation: dieLandShadow var(--land-ms) var(--ease-spring);
+  animation: dieLandShadow var(--land-ms) var(--ease-out-expo);
 }
 
 .die__cube {
@@ -948,11 +951,11 @@ body[data-phase="rolling"] .stage-dice {
    五個狀態 × 兩個主題的實測對比（漸層兩端都算，取最差的一端）：
      預設 / broke   淺 白字 on #26794f→#1f6b47      5.34 / 6.46
                     深 #0d140f on #3d9169→#52b184   4.85 / 7.10
-     rolling        淺 #23281f on #e8e2d4→#d8d0bd  11.66 / 9.81
+     rolling        淺 #23281f on #e0e7e1→#cbd5cd  11.96 / 9.99
                     深 #e9efe4 on #222c22→#34402f  12.35 / 9.34
      settling       淺 #2a1f04 on #e3c165→#b8860b   9.32 / 4.98
                     深 #2a1f04 on #e3c165→#e2b74a   9.32 / 8.57
-     disabled       淺 #5d6356 on #e8e2d4           4.80
+     disabled       淺 #5d6356 on #e0e7e1           4.93
                     深 #96a38f on #222c22           5.47
    hover 的 brightness(1.08) 也一併算過，最差是淺色預設態的 4.70:1。 */
 .roll-btn {
@@ -1089,8 +1092,7 @@ html[data-theme="dark"] .gamble-panel > p:first-of-type {
   line-height: 1.35;
   color: var(--text-muted);
   margin-bottom: 6px;
-  padding-left: 7px;
-  border-left: 3px solid var(--accent-primary);
+  padding-left: 2px;
 }
 
 /* --- 8.1 格線（鐵律 3：一律 minmax(0, 1fr)） -----------------------------
@@ -1219,7 +1221,7 @@ html[data-theme="dark"] .gamble-panel > p:first-of-type {
 
 .bet-cell__rate {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.6875rem;   /* 11px：功能性文字的下限，手機版不再往下縮 */
   font-weight: 700;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
@@ -1298,13 +1300,13 @@ html[data-theme="dark"] .gamble-panel > p:first-of-type {
   left: 2px;
   right: 2px;
   bottom: 2px;
-  min-height: 13px;
+  min-height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 3px;
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.25;
   font-variant-numeric: tabular-nums;
@@ -1452,7 +1454,7 @@ html[data-theme="dark"] .bet-cell__stack {
   width: 100%;
   box-shadow: var(--shadow-lg);
   transform: translateY(20px) scale(0.95);
-  transition: transform var(--dur-modal) var(--ease-spring);
+  transition: transform var(--dur-modal) var(--ease-out-expo);
   max-height: 88vh;
   max-height: 88dvh;
   overflow-y: auto;
@@ -1656,7 +1658,7 @@ html[data-theme="dark"] .btn-primary {
   line-height: 1.2;
   border-radius: 999px;
   /* 未達成：灰底 + muted 字 + 虛線框。
-     淺色 #5d6356 on #e8e2d4 = 4.80:1；深色 #96a38f on #222c22 = 5.47:1 */
+     淺色 #5d6356 on #e0e7e1 = 4.93:1；深色 #96a38f on #222c22 = 5.47:1 */
   color: var(--text-muted);
   background: var(--bg-tertiary);
   border: 1px dashed var(--border-color);
@@ -1745,7 +1747,7 @@ html[data-theme="dark"] .milestone-badge.is-hit {
   font-size: 0.9rem;
   font-weight: 700;
   box-shadow: var(--shadow-md);
-  animation: toastIn var(--dur-toast) var(--ease-spring);
+  animation: toastIn var(--dur-toast) var(--ease-out-expo);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1786,7 +1788,7 @@ body[data-phase="rolling"] .dock-actions {
    深色主題下就變成深色字配深灰綠底（實測 1.29:1）。
    改成寫 token：這條宣告落在 .roll-btn 元素自己身上，
    一定贏過任何從 :root 繼承下來的值，與兩邊的特異度無關。
-   淺色 #23281f on #e8e2d4→#d8d0bd = 11.66 / 9.81:1；
+   淺色 #23281f on #e0e7e1→#cbd5cd = 11.96 / 9.99:1；
    深色 #e9efe4 on #222c22→#34402f = 12.35 / 9.34:1。 */
 body[data-phase="rolling"] .roll-btn {
   background: linear-gradient(135deg, var(--bg-tertiary), var(--border-color));
@@ -1850,7 +1852,6 @@ body[data-phase="gamble"] .dock-actions {
 
 @keyframes dieLand {
   0%   { transform: translateY(-10%) scale(1.08); }
-  60%  { transform: translateY(3%) scale(0.96); }
   100% { transform: none; }
 }
 
@@ -1858,7 +1859,6 @@ body[data-phase="gamble"] .dock-actions {
    因為 transform 是整份覆寫而不是疊加。 */
 @keyframes dieLandShadow {
   0%   { transform: translateX(-50%) scale(0.72); opacity: 0.35; }
-  60%  { transform: translateX(-50%) scale(1.12); opacity: 0.9; }
   100% { transform: translateX(-50%) scale(1); opacity: 1; }
 }
 
@@ -1872,7 +1872,7 @@ body[data-phase="gamble"] .dock-actions {
   90%      { transform: translateX(-2px); }
 }
 
-/* 中獎注格：金色脈動（外框光暈 + 背景轉金），時長 = PULSE_MS */
+/* 中獎注格：金色脈動（外環 + 背景轉金），時長 = PULSE_MS */
 @keyframes cellWin {
   0% {
     background-color: var(--gold-soft);
@@ -1880,7 +1880,8 @@ body[data-phase="gamble"] .dock-actions {
   }
   45% {
     background-color: var(--gold-soft);
-    box-shadow: 0 0 16px 5px var(--gold-glow);
+    /* 中獎是遊戲狀態，用清楚的金色外環表示，不用模糊光暈 */
+    box-shadow: 0 0 0 5px var(--gold-glow);
   }
   100% {
     background-color: var(--gold-soft);
@@ -1896,7 +1897,8 @@ body[data-phase="gamble"] .dock-actions {
 
 @keyframes suspensePulse {
   0%, 100% { box-shadow: var(--stage-shadow), 0 0 0 0 var(--gold-glow); }
-  50%      { box-shadow: var(--stage-shadow), 0 0 24px 5px var(--gold-glow); }
+  /* 開盅前的懸念：金色外環一張一縮（實心外環，不用模糊光暈） */
+  50%      { box-shadow: var(--stage-shadow), 0 0 0 5px var(--gold-glow); }
 }
 
 @keyframes floatGain {
@@ -2071,7 +2073,7 @@ body[data-phase="gamble"] .dock-actions {
   }
 
   .bet-group-title {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
   }
 
   .figure-value {
@@ -2157,9 +2159,6 @@ body[data-phase="gamble"] .dock-actions {
     font-size: 0.84rem;
   }
 
-  .bet-cell__rate {
-    font-size: 0.58rem;
-  }
 }
 
 
