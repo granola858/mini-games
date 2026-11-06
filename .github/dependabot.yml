@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # workflow 裡的 action 都釘在 commit SHA，由 Dependabot 每週合成一個 PR 提出更新
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - '*'
