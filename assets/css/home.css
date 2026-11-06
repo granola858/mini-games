@@ -1,17 +1,17 @@
 :root {
   color-scheme: light;
-  --bg: #fff8ed;
+  --bg: #f4f3f8;
   --surface: rgba(255, 255, 255, 0.82);
-  --solid: #fffdf8;
+  --solid: #fcfbff;
   --strong: #fff;
   --ink: #29243a;
-  --muted: #746d82;
+  --muted: #6b6478;
   --line: rgba(57, 47, 80, 0.12);
-  --shadow: 0 18px 50px rgba(78, 55, 31, 0.1);
-  --shadow-hover: 0 25px 60px rgba(78, 55, 31, 0.18);
-  --brand: #7557ff;
+  --shadow: 0 18px 50px rgba(41, 36, 58, 0.09);
+  --shadow-hover: 0 25px 60px rgba(41, 36, 58, 0.16);
+  --brand: #6346ea;
   --focus: #4c32d7;
-  --header: rgba(255, 248, 237, 0.78);
+  --header: rgba(244, 243, 248, 0.8);
   --card-text: #302a40;
   --card-muted: #716a7d;
 }
@@ -48,9 +48,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
-  background: radial-gradient(circle at 12% 6%, rgba(255, 196, 112, 0.2), transparent 25rem),
-              radial-gradient(circle at 88% 24%, rgba(126, 94, 255, 0.14), transparent 28rem),
-              var(--bg);
+  background: var(--bg);
   color: var(--ink);
   font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
   transition: background-color 0.35s, color 0.35s;
@@ -232,29 +230,6 @@ html[data-theme="dark"] .moon-icon {
 .hero-copy {
   position: relative;
   z-index: 2;
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0 0 1.2rem;
-  padding: 0.45rem 0.75rem;
-  border: 1px solid rgba(117, 87, 255, 0.22);
-  border-radius: 999px;
-  background: rgba(117, 87, 255, 0.08);
-  color: var(--brand);
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.09em;
-}
-
-.eyebrow-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #58cb8e;
-  box-shadow: 0 0 0 5px rgba(88, 203, 142, 0.14);
 }
 
 h1 {
@@ -485,6 +460,11 @@ h1 {
   color: var(--ink);
 }
 
+.search-box input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
 .search-box input:focus {
   border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(117, 87, 255, 0.12);
@@ -527,9 +507,9 @@ h1 {
 }
 
 .filter-button.popular-filter[aria-pressed="true"] {
-  background: linear-gradient(135deg, #ff6547, #ff8c42);
+  background: #c63d1c;
   color: #fff;
-  box-shadow: 0 4px 12px rgba(255, 101, 71, 0.35);
+  box-shadow: 0 4px 12px rgba(41, 36, 58, 0.18);
 }
 
 .edit-notice {
@@ -538,9 +518,9 @@ h1 {
   gap: 0.65rem;
   margin: 0 0 1rem;
   padding: 0.8rem 1rem;
-  border: 1px solid rgba(117, 87, 255, 0.26);
+  border: 1px solid rgba(99, 70, 234, 0.26);
   border-radius: 16px;
-  background: rgba(117, 87, 255, 0.08);
+  background: rgba(99, 70, 234, 0.08);
   color: var(--brand);
   font-size: 0.86rem;
   font-weight: 750;
@@ -565,6 +545,8 @@ body.editing .edit-notice {
 .game-card {
   --accent: #7557ff;
   --soft: #e9e3ff;
+  /* 主題色直接當文字色在白卡上對比不足，文字一律用壓暗（深色主題提亮）後的墨色 */
+  --accent-ink: color-mix(in oklab, var(--accent) 64%, #000);
   position: relative;
   min-width: 0;
   min-height: 292px;
@@ -572,10 +554,14 @@ body.editing .edit-notice {
   border: 1px solid var(--line);
   border-radius: 26px;
   background: var(--strong);
-  box-shadow: 0 8px 24px rgba(62, 47, 34, 0.07);
+  box-shadow: 0 8px 24px rgba(41, 36, 58, 0.07);
   animation: card-in 0.55s both;
   animation-delay: calc(var(--index, 0) * 45ms);
   transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s, opacity 0.2s, border-color 0.2s;
+}
+
+html[data-theme="dark"] .game-card {
+  --accent-ink: color-mix(in oklab, var(--accent) 55%, #fff);
 }
 
 .game-card:hover {
@@ -694,7 +680,7 @@ body.editing .game-card:hover {
   padding: 0.4rem 0.65rem;
   border-radius: 999px;
   background: var(--solid);
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: 0.72rem;
   font-weight: 900;
 }
@@ -753,7 +739,7 @@ body.editing .game-card:hover {
   align-items: center;
   gap: 0.35rem;
   margin-top: 1rem;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: 0.86rem;
   font-weight: 900;
 }
@@ -830,7 +816,7 @@ body.editing .card-link {
 
 .mini-button:hover {
   background: var(--soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .mini-button.hide-card:hover {

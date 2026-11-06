@@ -121,7 +121,7 @@
     root.dataset.theme = t;
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      metaThemeColor.content = t === 'dark' ? '#14121e' : '#fff8ed';
+      metaThemeColor.content = t === 'dark' ? '#14121e' : '#f4f3f8';
     }
     const b = document.getElementById('theme-toggle');
     const next = t === 'dark' ? '淺色' : '深色';
