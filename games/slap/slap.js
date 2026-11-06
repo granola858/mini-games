@@ -45,7 +45,7 @@
 
             // 如果是第一次開始（沒有任何內容），可以在這裡清空或初始化
             if (historyPanel.innerHTML.trim() === '') {
-                historyPanel.innerHTML = '<div style="text-align:center; color:#e0e0e0; padding-top:20px;">等待成績...</div>';
+                historyPanel.innerHTML = '<div style="text-align:center; color:#6b6b6b; padding-top:20px;">等待成績...</div>';
             }
 
             nextTurn(); // 發第一張
@@ -204,7 +204,7 @@
                 if (current < prev) statusTag = '<span class="good"> (▲進步)</span>';
                 else statusTag = '<span class="bad"> (▼退步)</span>';
             } else {
-                statusTag = '<span style="font-size:0.8em; color:#bdbdbd"> (New)</span>';
+                statusTag = '<span style="font-size:0.8em; color:#6b6b6b"> (New)</span>';
             }
 
             item.innerHTML = `

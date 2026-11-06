@@ -1,13 +1,16 @@
 :root {
             /* --- 顏色調整區 --- */
-            --primary-color: #86D16A;
-            /* 新主色調：清新綠 */
+            --primary-color: #357A22;
+            /* 主色調：森林綠（原清新綠 #86D16A 當文字或配白字只有 1.7–1.9:1） */
+            --primary-pressed: #2F6E1E;
+            --muted-text: #546e7a;
+            /* 次要灰藍文字 */
             --primary-light: #f0f9eb;
             /* 搭配主色的淺綠背景 */
             /* ----------------- */
-            --accent-color: #ff5252;
+            --accent-color: #d32f2f;
             /* 錯誤/退步提示色 (紅) */
-            --success-color: #4caf50;
+            --success-color: #2e7d32;
             /* 進步提示色 (深綠) */
             --text-color: #37474f;
             /* 深灰文字 */
@@ -21,7 +24,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
             margin: 0;
             padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
             background-color: var(--primary-light);
@@ -179,8 +182,8 @@
         .btn-snap {
             width: 100%;
             background-color: #cfd8dc;
-            /* 初始灰色 */
-            color: white;
+            /* 初始灰色（停用狀態，2rem 粗體屬大字，灰藍字 3.7:1） */
+            color: var(--muted-text);
             height: 75px;
             border: none;
             border-radius: 18px;
@@ -194,14 +197,16 @@
         /* 遊戲中 SNAP 按鈕變色 */
         .btn-snap.active {
             background-color: var(--primary-color);
-            /* 產生一個比主色深一點的陰影 */
-            box-shadow: 0 6px 0 #6ebf55;
+            color: white;
+            /* 柔和的中性陰影（取代無模糊的硬位移陰影） */
+            box-shadow: 0 6px 16px rgba(53, 122, 34, 0.28);
             cursor: pointer;
         }
 
         .btn-snap.active:active {
+            background-color: var(--primary-pressed);
             transform: translateY(4px);
-            box-shadow: none;
+            box-shadow: 0 2px 6px rgba(53, 122, 34, 0.24);
         }
 
         /* 歷史紀錄區 - 初始隱藏 */
@@ -228,7 +233,7 @@
             justify-content: space-between;
             padding: 10px 0;
             border-bottom: 1px dashed #eee;
-            color: #607d8b;
+            color: var(--muted-text);
         }
 
         .history-item:first-child {
@@ -252,7 +257,7 @@
             padding: 12px;
             font-size: 1rem;
             background: transparent;
-            color: #b0bec5;
+            color: var(--muted-text);
             border: 1px solid #eceff1;
             border-radius: 50px;
             cursor: pointer;
@@ -287,7 +292,7 @@
             text-align: center;
             width: 85%;
             max-width: 320px;
-            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         @keyframes popIn {
@@ -326,7 +331,7 @@
         }
 
         .result-msg {
-            color: #78909c;
+            color: var(--muted-text);
             margin-bottom: 25px;
             font-size: 1rem;
             line-height: 1.5;
@@ -342,7 +347,7 @@
             cursor: pointer;
             width: 100%;
             font-weight: bold;
-            box-shadow: 0 4px 10px rgba(134, 209, 106, 0.4);
+            box-shadow: 0 4px 12px rgba(53, 122, 34, 0.25);
             /* 使用主色調的陰影 */
         }
 
@@ -370,7 +375,7 @@
         /* 回首頁按鈕 */
         .back-btn {
             text-decoration: none;
-            color: #888888;
+            color: #666666;
             font-weight: 600;
             font-size: 0.95rem;
             display: inline-flex;
@@ -426,5 +431,24 @@
             .btn-snap {
                 height: 58px;
                 font-size: 1.6rem;
+            }
+        }
+
+        /* 無障礙：鍵盤焦點與減少動態效果（拍拍手的計時邏輯在 JS，不受影響） */
+        a:focus-visible,
+        button:focus-visible,
+        .card:focus-visible {
+            outline: 3px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
             }
         }

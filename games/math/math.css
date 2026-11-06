@@ -1,11 +1,18 @@
 :root {
-            --primary-color: #00b894;
+            /* 主色加深：原本 #00b894 / #ff7675 配白字只有 2.5:1，未達 WCAG AA */
+            --primary-color: #00806a;
+            --primary-pressed: #006653;
             --dark-green: #2d3436;
+            --muted-text: #5f6b70;
             --btn-op-bg: #e6fffa;
-            --btn-op-text: #00b894;
+            --btn-op-text: #007a63;
             --disabled-bg: #f1f2f6;
             --disabled-text: #dfe6e9;
-            --warn-color: #ff7675;
+            --warn-color: #d63031;
+            --warn-pressed: #b02324;
+            /* 柔和的中性陰影，取代無模糊的硬位移陰影 */
+            --btn-shadow: 0 2px 6px rgba(45, 52, 54, 0.12);
+            --btn-shadow-strong: 0 4px 12px rgba(45, 52, 54, 0.18);
         }
 
         * {
@@ -13,7 +20,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
             background-color: #ffffff;
             display: flex;
             flex-direction: column;
@@ -34,7 +41,7 @@
         /* 新增：返回按鈕樣式 (與其他頁面風格一致) */
         .back-btn {
             text-decoration: none;
-            color: #888;
+            color: var(--muted-text);
             font-weight: 600;
             font-size: 0.95rem;
             display: inline-flex;
@@ -68,8 +75,9 @@
         .mode-selector {
             display: flex;
             background: #f1f2f6;
-            padding: 4px;
-            border-radius: 12px;
+            gap: 4px;
+            padding: 6px;
+            border-radius: 14px;
             margin-bottom: 20px;
             width: 100%;
             max-width: 300px;
@@ -80,10 +88,10 @@
             flex: 1;
             border: none;
             background: transparent;
-            padding: 8px 0;
+            padding: 8px 10px;
             font-size: 0.9rem;
             font-weight: bold;
-            color: #b2bec3;
+            color: var(--muted-text);
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
@@ -111,7 +119,7 @@
         }
 
         .target-hint {
-            color: #b2bec3;
+            color: var(--muted-text);
             font-size: 0.8rem;
             margin-top: 5px;
             font-weight: 500;
@@ -150,7 +158,7 @@
             border-color: var(--primary-color);
             color: var(--primary-color);
             background-color: #fff;
-            box-shadow: 0 4px 10px rgba(0, 184, 148, 0.15);
+            box-shadow: 0 4px 10px rgba(0, 128, 106, 0.15);
             transform: translateY(-2px);
         }
 
@@ -173,26 +181,21 @@
             font-size: 1.4rem;
             font-weight: bold;
             color: var(--dark-green);
-            box-shadow: 0 3px 0 #dfe6e9;
+            box-shadow: var(--btn-shadow);
             cursor: pointer;
             transition: transform 0.1s, box-shadow 0.1s;
             padding: 0;
         }
 
         .btn:active {
-            transform: translateY(3px);
-            box-shadow: 0 0 0 #dfe6e9;
+            transform: translateY(2px);
+            box-shadow: none;
         }
 
         .btn.op {
             background-color: var(--btn-op-bg);
             border-color: var(--btn-op-bg);
             color: var(--btn-op-text);
-            box-shadow: 0 3px 0 #b3ede0;
-        }
-
-        .btn.op:active {
-            box-shadow: 0 0 0 #b3ede0;
         }
 
         .btn:disabled {
@@ -201,7 +204,7 @@
             color: var(--disabled-text);
             box-shadow: none;
             cursor: not-allowed;
-            transform: translateY(3px);
+            transform: translateY(2px);
         }
 
         .btn.undo {
@@ -209,14 +212,14 @@
             background-color: var(--warn-color);
             border-color: var(--warn-color);
             color: white;
-            box-shadow: 0 3px 0 #fab1a0;
             aspect-ratio: auto;
             height: 55px;
             font-size: 1rem;
         }
 
         .btn.undo:active {
-            box-shadow: 0 0 0 #fab1a0;
+            background-color: var(--warn-pressed);
+            border-color: var(--warn-pressed);
         }
 
         .btn.op-div {
@@ -230,7 +233,7 @@
             background: var(--primary-color);
             border-color: var(--primary-color);
             color: white;
-            box-shadow: 0 4px 0 #008c70;
+            box-shadow: var(--btn-shadow-strong);
             height: 60px;
             font-size: 1.1rem;
             letter-spacing: 1px;
@@ -238,7 +241,9 @@
         }
 
         .btn.reset:active {
-            box-shadow: 0 0 0 #008c70;
+            background: var(--primary-pressed);
+            border-color: var(--primary-pressed);
+            box-shadow: var(--btn-shadow);
         }
 
         /* --- 提示訊息 (Toast) --- */
@@ -252,7 +257,7 @@
             padding: 12px 24px;
             border-radius: 50px;
             opacity: 0;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             z-index: 100;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
             font-size: 1rem;
@@ -328,5 +333,23 @@
             .btn.undo,
             .btn.op-div {
                 height: 40px;
+            }
+        }
+
+        /* 無障礙：鍵盤焦點與減少動態效果 */
+        a:focus-visible,
+        button:focus-visible {
+            outline: 3px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
             }
         }

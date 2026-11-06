@@ -78,7 +78,7 @@ let targetValue = 0;
             }
 
             document.getElementById('targetNum').innerText = targetValue;
-            document.getElementById('targetNum').style.color = "#00b894";
+            document.getElementById('targetNum').style.color = "var(--primary-color)";
         }
 
         function handleInput(val, btn) {
@@ -105,7 +105,7 @@ let targetValue = 0;
             slot.innerText = '';
             slot.classList.remove('filled');
             updateButtonStates();
-            document.getElementById('targetNum').style.color = "#00b894";
+            document.getElementById('targetNum').style.color = "var(--primary-color)";
         }
 
         function updateButtonStates() {
@@ -137,10 +137,10 @@ let targetValue = 0;
                 const result = new Function('return ' + formulaStr)();
                 if (Math.abs(result - targetValue) < 0.001) {
                     showToast("🎉 太神啦！答對了！", "success");
-                    document.getElementById('targetNum').style.color = "#00b894";
+                    document.getElementById('targetNum').style.color = "var(--primary-color)";
                 } else {
                     showToast(`結果是 ${result} ... 再試試！`, "error");
-                    document.getElementById('targetNum').style.color = "#ff7675";
+                    document.getElementById('targetNum').style.color = "var(--warn-color)";
                 }
             } catch (e) {
                 showToast("算式錯誤", "error");

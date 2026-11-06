@@ -1,13 +1,16 @@
 :root {
-            --primary-color: #FF9F1C;
-            --primary-gradient-start: #FF9F1C;
-            --primary-gradient-end: #FF355E;
+            /* 主色由亮橘 #FF9F1C 加深為焦橘：亮橘配白字只有 2.1:1 */
+            --primary-color: #C2410C;
+            --primary-pressed: #9A3412;
             --secondary-color: #2EC4B6;
+            /* 青綠色當文字時用的深色版本 */
+            --secondary-text: #17766E;
             --bg-color: #F5F7FA;
             --text-color: #333;
-            --active-btn-bg: #FF9F1C;
+            --muted-text: #595959;
+            --active-btn-bg: #C2410C;
             --inactive-btn-bg: #E0E0E0;
-            --inactive-btn-text: #888;
+            --inactive-btn-text: #595959;
         }
 
         body {
@@ -72,11 +75,7 @@
             font-weight: 800;
             letter-spacing: 1px;
             font-size: 2.5rem;
-
-            background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+            color: var(--primary-color);
         }
 
         /* --- 1. 語言切換區塊 --- */
@@ -96,7 +95,7 @@
             font-size: 1rem;
             cursor: pointer;
             background: transparent;
-            color: #888;
+            color: var(--inactive-btn-text);
             font-weight: bold;
             transition: all 0.3s ease;
         }
@@ -196,7 +195,7 @@
             justify-content: flex-start;
             min-height: 180px;
             border: 1px solid #f0f0f0;
-            transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
             overflow: hidden;
         }
 
@@ -218,9 +217,9 @@
             background-color: #fff;
         }
 
-        .card h3 {
+        .card h2 {
             margin: 0 0 20px 0;
-            color: #999;
+            color: var(--muted-text);
             font-size: 0.9rem;
             font-weight: normal;
             white-space: nowrap;
@@ -237,7 +236,7 @@
 
         .result-category {
             font-size: 2rem;
-            color: var(--secondary-color);
+            color: var(--secondary-text);
         }
 
         button.main-btn {
@@ -248,7 +247,7 @@
             font-size: 1.2rem;
             border-radius: 16px;
             cursor: pointer;
-            box-shadow: 0 8px 20px rgba(255, 159, 28, 0.3);
+            box-shadow: 0 8px 20px rgba(154, 52, 18, 0.22);
             transition: transform 0.1s, box-shadow 0.1s;
             width: 100%;
             margin-top: 10px;
@@ -258,6 +257,7 @@
         }
 
         button.main-btn:active {
+            background-color: var(--primary-pressed);
             transform: scale(0.98);
         }
 
@@ -308,7 +308,7 @@
         .hint-btn {
             background-color: transparent;
             border: 1px solid #ccc;
-            color: #888;
+            color: var(--muted-text);
             padding: 8px 20px;
             border-radius: 30px;
             cursor: pointer;
@@ -317,8 +317,8 @@
         }
 
         .hint-btn:hover {
-            border-color: var(--secondary-color);
-            color: var(--secondary-color);
+            border-color: var(--secondary-text);
+            color: var(--secondary-text);
         }
 
         /* 響應式微調 */
@@ -394,5 +394,24 @@
 
             .hint-section {
                 margin-top: 8px;
+            }
+        }
+
+        /* 無障礙：鍵盤焦點與減少動態效果 */
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible + .slider {
+            outline: 3px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
             }
         }
