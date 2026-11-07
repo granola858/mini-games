@@ -1,332 +1,811 @@
+/* ==========================================================================
+   波波小遊戲：遊戲頁共用外殼（頂端列、標題、狀態列、對話框、主題 token）
+   1a2b / lights-out / color-text / math 四款共用這一段，改動請四份同步。
+   （過關結果改用全站共用的 BoboCelebrate 卡片，這份已拿掉舊的結果對話框與彩帶畫布樣式。）
+   各遊戲只在檔案後段覆寫 --accent 系列變數與自己的盤面樣式。
+   ========================================================================== */
 :root {
-            --primary-color: #00b894;
-            --dark-green: #2d3436;
-            --btn-op-bg: #e6fffa;
-            --btn-op-text: #00b894;
-            --disabled-bg: #f1f2f6;
-            --disabled-text: #dfe6e9;
-            --warn-color: #ff7675;
-        }
+  color-scheme: light;
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --surface-2: #eceef3;
+  --ink: #23262f;
+  --muted: #5b6170;          /* 在 --bg 上 5.7:1、在白底 6.2:1 */
+  --line: #d6dae3;
+  --line-strong: #8a91a1;    /* 需要被看見的元件邊界（≥3:1） */
+  --success-ink: #0b7a55;
+  --error-ink: #c0262d;
+  --accent: #1864ab;         /* 白字按鈕底色，各遊戲覆寫 */
+  --accent-hover: #145591;
+  --accent-ink: #1864ab;     /* 在白底與 --bg 上當文字用 */
+  --accent-soft: #e3eefa;
+  --on-accent: #ffffff;
+  --focus: #1864ab;
+  --shadow-sm: 0 1px 2px rgba(20, 24, 35, 0.06), 0 2px 8px rgba(20, 24, 35, 0.06);
+  --shadow-lg: 0 18px 48px rgba(20, 24, 35, 0.2);
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  --font: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
 
-        * {
-            box-sizing: border-box;
-        }
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #14161c;
+  --surface: #1e2129;
+  --surface-2: #272b35;
+  --ink: #eef0f5;
+  --muted: #a9afbd;
+  --line: #353a46;
+  --line-strong: #6f7686;
+  --success-ink: #5fd3a4;
+  --error-ink: #ff8a8f;
+  --accent: #74c0fc;
+  --accent-hover: #a5d8ff;
+  --accent-ink: #74c0fc;
+  --accent-soft: #1d3247;
+  --on-accent: #14161c;
+  --focus: #a5d8ff;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.5);
+}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            min-height: 100dvh;
-            margin: 0;
-            padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-            color: var(--dark-green);
-            touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
-            position: relative;
-            /* 為了定位返回按鈕 */
-        }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
-        /* 新增：返回按鈕樣式 (與其他頁面風格一致) */
-        .back-btn {
-            text-decoration: none;
-            color: #888;
-            font-weight: 600;
-            font-size: 0.95rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 40px;
-            gap: 6px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            background-color: #f8f9fa;
-            align-self: flex-start;
-            margin-bottom: 16px;
-        }
+html {
+  -webkit-text-size-adjust: 100%;
+}
 
-        .back-btn:hover {
-            color: var(--primary-color);
-            background-color: #e6fffa;
-            transform: translateX(-3px);
-        }
+/* hidden 屬性一律勝過元件自己的 display（否則 display:grid 會把隱藏的區塊撐出來） */
+[hidden] {
+  display: none !important;
+}
 
-        .game-container {
-            width: 100%;
-            max-width: 420px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  line-height: 1.5;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
 
-        /* --- 難度選擇器 (Segmented Control) --- */
-        .mode-selector {
-            display: flex;
-            background: #f1f2f6;
-            padding: 4px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            width: 100%;
-            max-width: 300px;
-            /* 限制寬度讓它好看一點 */
-        }
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
 
-        .mode-btn {
-            flex: 1;
-            border: none;
-            background: transparent;
-            padding: 8px 0;
-            font-size: 0.9rem;
-            font-weight: bold;
-            color: #b2bec3;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+button {
+  cursor: pointer;
+}
 
-        .mode-btn.active {
-            background: white;
-            color: var(--primary-color);
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
+.page {
+  width: min(100%, 520px);
+  margin: 0 auto;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+}
 
-        /* --- 規則與目標 --- */
-        .target-section {
-            text-align: center;
-            margin-bottom: 20px;
-            flex-shrink: 0;
-        }
+/* --- 頂端列：← 回首頁 ／ 規則 · 主題 --- */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
 
-        .target-number {
-            font-size: clamp(3.5rem, 15vw, 5rem);
-            font-weight: 800;
-            color: var(--primary-color);
-            line-height: 1;
-            letter-spacing: -2px;
-        }
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.15s, border-color 0.15s;
+}
 
-        .target-hint {
-            color: #b2bec3;
-            font-size: 0.8rem;
-            margin-top: 5px;
-            font-weight: 500;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
+.back-btn:hover {
+  border-color: var(--line-strong);
+}
 
-        /* --- 答題空格區 --- */
-        .slots-container {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 25px;
-            justify-content: center;
-            width: 100%;
-            height: 60px;
-        }
+.top-actions {
+  display: flex;
+  gap: 8px;
+}
 
-        .slot {
-            flex: 1;
-            max-width: 55px;
-            height: 100%;
-            background: white;
-            border: 2px dashed #dfe6e9;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--dark-green);
-            transition: all 0.2s;
-        }
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.15s, border-color 0.15s;
+}
 
-        .slot.filled {
-            border-style: solid;
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-            background-color: #fff;
-            box-shadow: 0 4px 10px rgba(0, 184, 148, 0.15);
-            transform: translateY(-2px);
-        }
+.icon-btn:hover {
+  border-color: var(--line-strong);
+}
 
-        /* --- 控制區 --- */
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            width: 100%;
-        }
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
 
-        .btn {
-            background: white;
-            border: 1px solid #dfe6e9;
-            border-radius: 14px;
-            aspect-ratio: 1.2 / 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.4rem;
-            font-weight: bold;
-            color: var(--dark-green);
-            box-shadow: 0 3px 0 #dfe6e9;
-            cursor: pointer;
-            transition: transform 0.1s, box-shadow 0.1s;
-            padding: 0;
-        }
+/* 主題鍵：淺色時顯示月亮（按下變深色），深色時顯示太陽 */
+.icon-sun {
+  display: none;
+}
 
-        .btn:active {
-            transform: translateY(3px);
-            box-shadow: 0 0 0 #dfe6e9;
-        }
+html[data-theme="dark"] .icon-sun {
+  display: block;
+}
 
-        .btn.op {
-            background-color: var(--btn-op-bg);
-            border-color: var(--btn-op-bg);
-            color: var(--btn-op-text);
-            box-shadow: 0 3px 0 #b3ede0;
-        }
+html[data-theme="dark"] .icon-moon {
+  display: none;
+}
 
-        .btn.op:active {
-            box-shadow: 0 0 0 #b3ede0;
-        }
+/* --- 標題區 --- */
+.game-title {
+  margin: 0;
+  font-size: clamp(1.7rem, 6vw, 2.1rem);
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
 
-        .btn:disabled {
-            background-color: var(--disabled-bg);
-            border-color: var(--disabled-bg);
-            color: var(--disabled-text);
-            box-shadow: none;
-            cursor: not-allowed;
-            transform: translateY(3px);
-        }
+.goal {
+  margin: 6px 0 16px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
 
-        .btn.undo {
-            grid-column: span 2;
-            background-color: var(--warn-color);
-            border-color: var(--warn-color);
-            color: white;
-            box-shadow: 0 3px 0 #fab1a0;
-            aspect-ratio: auto;
-            height: 55px;
-            font-size: 1rem;
-        }
+/* --- 統計格 --- */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
 
-        .btn.undo:active {
-            box-shadow: 0 0 0 #fab1a0;
-        }
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
 
-        .btn.op-div {
-            aspect-ratio: auto;
-            height: 55px;
-        }
+.stat-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
 
-        .btn.reset {
-            grid-column: span 4;
-            margin-top: 10px;
-            background: var(--primary-color);
-            border-color: var(--primary-color);
-            color: white;
-            box-shadow: 0 4px 0 #008c70;
-            height: 60px;
-            font-size: 1.1rem;
-            letter-spacing: 1px;
-            aspect-ratio: auto;
-        }
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
 
-        .btn.reset:active {
-            box-shadow: 0 0 0 #008c70;
-        }
+/* --- 分段選擇（難度／盤面） --- */
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
 
-        /* --- 提示訊息 (Toast) --- */
-        .message-toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-100%);
-            background: #2d3436;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 50px;
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 100;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-            font-size: 1rem;
-            white-space: nowrap;
-            pointer-events: none;
-        }
+.segmented-label {
+  display: block;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
 
-        .message-toast.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(20px);
-        }
+.seg-btn {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+  transition: background-color 0.15s, color 0.15s;
+}
 
-        .message-toast.success {
-            background: var(--primary-color);
-        }
+.seg-btn:hover {
+  color: var(--ink);
+}
 
-        .message-toast.error {
-            background: var(--warn-color);
-        }
+.seg-btn[aria-pressed="true"] {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-sm);
+}
 
-        @media (max-width: 380px) {
-            .btn {
-                font-size: 1.2rem;
-                border-radius: 10px;
-            }
+/* --- 按鈕 --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 800;
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s var(--ease-out);
+}
 
-            .target-number {
-                font-size: 3.5rem;
-            }
+.btn:hover {
+  border-color: var(--line-strong);
+}
 
-            .slots-container {
-                gap: 5px;
-            }
+.btn:active {
+  transform: translateY(1px);
+}
 
-            /* 手機版調整返回按鈕 */
-            .back-btn {
-                top: 10px;
-                left: 10px;
-                padding: 6px 12px;
-                min-height: 40px;
-                font-size: 0.85rem;
-            }
+.btn-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
 
-            .game-container {
-                margin-top: 30px;
-            }
-        }
+.btn-primary:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
 
-        @media (max-height: 600px) {
-            body {
-                padding: 10px;
-            }
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
 
-            .target-section {
-                margin-bottom: 5px;
-            }
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
-            .slots-container {
-                margin-bottom: 10px;
-            }
+.btn-row > .btn {
+  flex: 1 1 0;
+}
 
-            .mode-selector {
-                margin-bottom: 10px;
-                padding: 2px;
-            }
+/* --- 狀態列（唯一的 live region） --- */
+.status {
+  min-height: 1.6em;
+  margin: 12px 0;
+  font-weight: 800;
+  text-align: center;
+  color: var(--ink);
+}
 
-            .btn {
-                aspect-ratio: auto;
-                height: 40px;
-            }
+.status[data-tone="success"] {
+  color: var(--success-ink);
+}
 
-            .btn.reset,
-            .btn.undo,
-            .btn.op-div {
-                height: 40px;
-            }
-        }
+.status[data-tone="error"] {
+  color: var(--error-ink);
+}
+
+/* --- 對話框（原生 <dialog>） --- */
+.sheet {
+  width: min(calc(100% - 32px), 420px);
+  max-height: calc(100dvh - 48px);
+  padding: 24px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+}
+
+.sheet::backdrop {
+  background: rgba(10, 12, 18, 0.45);
+}
+
+.sheet[open] {
+  animation: sheet-in 0.22s var(--ease-out);
+}
+
+.sheet h2 {
+  margin: 0 0 12px;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.sheet p,
+.sheet li {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.sheet ul,
+.sheet ol {
+  margin: 0 0 12px;
+  padding-left: 1.2em;
+}
+
+.sheet li + li {
+  margin-top: 4px;
+}
+
+.sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.sheet-actions > .btn {
+  flex: 1 1 0;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- 焦點 --- */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 減少動態效果：只關掉「位移」，淡入淡出與顏色變化保留，回饋不會消失 */
+@media (prefers-reduced-motion: reduce) {
+  .sheet[open] {
+    animation: fade-in 0.15s linear;
+  }
+
+  .btn:active {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   算術遊戲專屬
+   ========================================================================== */
+:root {
+  --accent: #0b7362;          /* 白字 5.8:1 */
+  --accent-hover: #095e50;
+  --accent-ink: #0b7362;      /* 在 --bg 上 5.3:1 */
+  --accent-soft: #dff5ef;
+  --focus: #095e50;
+  --op-ink: #0b7362;
+}
+
+html[data-theme="dark"] {
+  --accent: #63e6be;          /* 深字 11.7:1 */
+  --accent-hover: #96f2d7;
+  --accent-ink: #63e6be;
+  --accent-soft: #123a31;
+  --on-accent: #14161c;
+  --focus: #96f2d7;
+  --op-ink: #63e6be;
+}
+
+.mode-picker {
+  margin-bottom: 16px;
+}
+
+/* --- 密碼鎖：目標數字是密碼窗、算式格是一排轉輪，算對就解鎖 --- */
+.lock {
+  position: relative;
+  margin-bottom: 4px;
+  padding: 14px 16px 16px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s var(--ease-out);
+}
+
+.lock-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.lock-icon {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  overflow: visible;
+}
+
+/* 鎖環：解鎖時往上抬起（減少動態效果時直接停在抬起的位置） */
+.lock-shackle {
+  transition: transform 0.32s var(--ease-out);
+}
+
+.lock.is-open {
+  border-color: var(--success-ink);
+}
+
+.lock.is-open .lock-head {
+  color: var(--success-ink);
+}
+
+.lock.is-open .lock-shackle {
+  transform: translateY(-3.5px);
+}
+
+.target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 6px 0 14px;
+}
+
+.target-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+/* 密碼窗：凹進去的一格，數字是整個畫面最大的元素 */
+.target-number {
+  min-width: 2.6ch;
+  margin-top: 4px;
+  padding: 2px 18px 6px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--accent-ink);
+  font-size: clamp(3.4rem, 15vw, 4.6rem);
+  font-weight: 900;
+  line-height: 1.05;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.lock.is-open .target-number {
+  border-color: var(--success-ink);
+  color: var(--success-ink);
+}
+
+/* 轉輪：上下各有一道刻痕，像密碼鎖的滾輪 */
+.slots {
+  display: grid;
+  grid-template-columns: repeat(var(--slots, 5), minmax(0, 60px));
+  justify-content: center;
+  gap: 6px;
+}
+
+.slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 68px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.slot::before,
+.slot::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+
+.slot::before {
+  top: 7px;
+}
+
+.slot::after {
+  bottom: 7px;
+}
+
+.slot.is-next {
+  border-color: var(--accent);
+  border-style: dashed;
+}
+
+.slot.is-filled {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.slot.is-filled::before,
+.slot.is-filled::after {
+  background: var(--accent);
+}
+
+.lock.is-open .slot.is-filled {
+  border-color: var(--success-ink);
+  color: var(--success-ink);
+}
+
+.lock.is-open .slot.is-filled::before,
+.lock.is-open .slot.is-filled::after {
+  background: var(--success-ink);
+}
+
+.live-value {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-value.is-match {
+  color: var(--success-ink);
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.key {
+  min-height: 56px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1.4rem;
+  font-weight: 900;
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s var(--ease-out);
+}
+
+.key:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+
+.key:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.key.op {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  color: var(--op-ink);
+}
+
+.key.key-ten {
+  grid-column: span 3;
+}
+
+.key:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.4;
+}
+
+/* 已經用掉的數字／符號：除了變淡，再加刪除線，不只靠透明度辨識 */
+.key.is-used {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.actions {
+  margin-bottom: 8px;
+}
+
+.key-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .key-hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .key:active:not(:disabled) {
+    transform: none;
+  }
+
+  /* 解鎖不用動畫：鎖環直接出現在抬起的位置，狀態改由邊框顏色與「已解鎖」文字表達 */
+  .lock,
+  .lock-shackle {
+    transition: none;
+  }
+}
+
+/* 版面：直式時兩個欄容器 display: contents，用 order 排出「標題→難度→題目→按鍵」；
+   橫式（手機橫放）時兩欄並排，題目在左、按鍵在右 */
+.math-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.col-play,
+.col-input {
+  display: contents;
+}
+
+.col-play > .game-title { order: 1; }
+.col-play > .goal { order: 2; }
+.col-play > .stat-row { order: 3; }
+.col-input > .mode-picker { order: 4; }
+.col-play > .lock { order: 5; }
+.col-play > .status { order: 8; }
+.col-input > .keypad { order: 9; }
+.col-input > .actions { order: 10; }
+.col-input > .key-hint { order: 11; }
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .page {
+    width: min(100%, 860px);
+  }
+
+  .math-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 24px;
+    align-items: start;
+  }
+
+  .col-play,
+  .col-input {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .goal,
+  .key-hint {
+    display: none;
+  }
+
+  .game-title {
+    font-size: 1.4rem;
+  }
+
+  .stat-row {
+    margin-bottom: 8px;
+  }
+
+  .stat {
+    padding: 4px;
+  }
+
+  .lock {
+    padding: 8px 12px 10px;
+  }
+
+  .lock-head {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+  }
+
+  .target {
+    flex-direction: row;
+    gap: 12px;
+    justify-content: center;
+    margin: 0 0 8px;
+  }
+
+  .target-number {
+    font-size: 2.4rem;
+    padding: 0 12px 2px;
+  }
+
+  .slot {
+    height: 48px;
+  }
+
+  .slot::before {
+    top: 5px;
+  }
+
+  .slot::after {
+    bottom: 5px;
+  }
+
+  .live-value {
+    margin-top: 6px;
+  }
+
+  .stat {
+    padding: 2px 4px;
+  }
+
+  .stat-value {
+    font-size: 1.05rem;
+  }
+
+  .mode-picker {
+    margin-bottom: 8px;
+  }
+
+  /* 橫放時把「難度」文字標籤藏起來（仍保留給螢幕閱讀器），省一行高度 */
+  .mode-picker .segmented-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .key {
+    min-height: 40px;
+  }
+
+  .actions .btn {
+    min-height: 44px;
+  }
+}

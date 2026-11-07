@@ -460,6 +460,23 @@ class GameBoard {
   }
 }
 
+// 戰績紀錄（勝敗場數、最佳命中率、最快勝利）
+const RECORDS_KEY = 'bobo-battleship-records-v1';
+
+// 盤面格子的無障礙標籤用的船名查表
+const SHIP_NAME = Object.fromEntries(SHIP_TYPES.map(s => [s.id, s.name]));
+
+// 是否開啟「減少動態效果」（JS 驅動的動態要自己看這個）
+const prefersReducedMotion = () => {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch (_) {
+    return false;
+  }
+};
+
+const themeKit = () => ((typeof BoboTheme !== 'undefined' && BoboTheme) ? BoboTheme : null);
+
 // 主遊戲控制器
 class BattleshipGame {
   constructor() {
@@ -471,9 +488,18 @@ class BattleshipGame {
     this.gameState = 'placement';
     this.selectedShipId = null;
     this.isHorizontal = true;
-    this.lastActionCoord = null;
+    this.enemyTurnTimer = null;
+    // 飛行中的砲彈：落點揭曉前，盤面先不顯示命中／落空（避免結果比砲彈先到）
+    this.pendingShots = new Set();
+    // 每開一局就加一，舊局還在飛的砲彈落地時發現世代不同就不處理
+    this.round = 0;
 
-    // 統計數據
+    // 兩個盤面各自記住鍵盤焦點所在的格子（roving tabindex）
+    this.focusPos = {
+      player: { r: 0, c: 0 },
+      enemy: { r: 0, c: 0 }
+    };
+
     this.stats = {
       playerShots: 0,
       playerHits: 0,
@@ -483,63 +509,68 @@ class BattleshipGame {
       timerInterval: null
     };
 
+    this.records = this.loadRecords();
+
     this.cacheDOM();
     this.bindEvents();
     this.init();
   }
 
   cacheDOM() {
+    const byId = (id) => document.getElementById(id);
     this.dom = {
-      soundToggle: document.getElementById('sound-toggle'),
-      playerGrid: document.getElementById('player-grid'),
-      enemyGrid: document.getElementById('enemy-grid'),
-      placementPanel: document.getElementById('placement-panel'),
-      shipDock: document.getElementById('ship-dock'),
-      rotateBtn: document.getElementById('rotate-btn'),
-      randomBtn: document.getElementById('random-btn'),
-      resetPlacementBtn: document.getElementById('reset-placement-btn'),
-      startBattleBtn: document.getElementById('start-battle-btn'),
+      soundToggle: byId('sound-toggle'),
+      themeBtn: byId('theme-btn'),
+      rulesBtn: byId('rules-btn'),
+      rulesDialog: byId('rules-dialog'),
+      rulesCloseBtn: byId('rules-close-btn'),
+      playerGrid: byId('player-grid'),
+      enemyGrid: byId('enemy-grid'),
+      placementPanel: byId('placement-panel'),
+      shipDock: byId('ship-dock'),
+      rotateBtn: byId('rotate-btn'),
+      randomBtn: byId('random-btn'),
+      resetPlacementBtn: byId('reset-placement-btn'),
+      startBattleBtn: byId('start-battle-btn'),
       diffBtns: document.querySelectorAll('.diff-btn'),
-      battlefield: document.getElementById('battlefield'),
-      statusDot: document.getElementById('status-dot'),
-      statusText: document.getElementById('status-text'),
-      phaseTag: document.getElementById('phase-tag'),
-      playerAccuracy: document.getElementById('player-accuracy'),
-      battleTime: document.getElementById('battle-time'),
-      playerBadges: document.getElementById('player-badges'),
-      enemyBadges: document.getElementById('enemy-badges'),
-      playerManifest: document.getElementById('player-manifest'),
-      enemyManifest: document.getElementById('enemy-manifest'),
-      playerFleetHealth: document.getElementById('player-fleet-health'),
-      enemyFleetHealth: document.getElementById('enemy-fleet-health'),
-      gameOverModal: document.getElementById('game-over-modal'),
-      modalCard: document.getElementById('modal-card'),
-      modalBadge: document.getElementById('modal-badge'),
-      modalTitle: document.getElementById('modal-title'),
-      modalDesc: document.getElementById('modal-desc'),
-      modalAccuracy: document.getElementById('modal-accuracy'),
-      modalShots: document.getElementById('modal-shots'),
-      modalTime: document.getElementById('modal-time'),
-      modalRestartBtn: document.getElementById('modal-restart-btn')
+      statusDot: byId('status-dot'),
+      statusText: byId('status-text'),
+      phaseTag: byId('phase-tag'),
+      playerAccuracy: byId('player-accuracy'),
+      battleTime: byId('battle-time'),
+      recordSummary: byId('record-summary'),
+      replayBtn: byId('replay-btn'),
+      playerBadges: byId('player-badges'),
+      enemyBadges: byId('enemy-badges'),
+      playerManifest: byId('player-manifest'),
+      enemyManifest: byId('enemy-manifest'),
+      playerFleetHealth: byId('player-fleet-health'),
+      enemyFleetHealth: byId('enemy-fleet-health'),
     };
   }
 
   init() {
+    const kit = themeKit();
+    if (kit) kit.init();
+    this.updateThemeButton();
     this.updateSoundToggleIcon();
+    this.updateRecordSummary();
     this.buildGridDOM(this.dom.playerGrid, 'player');
     this.buildGridDOM(this.dom.enemyGrid, 'enemy');
 
-    // 嘗試從 LocalStorage 載入歷史進度
     if (!this.loadGameState()) {
       this.startPlacementPhase();
     }
   }
+
+  /* ---------- 存檔 ---------- */
 
   saveGameState() {
     try {
       const state = {
         gameState: this.gameState,
         difficulty: this.ai.difficulty,
+        isHorizontal: this.isHorizontal,
         playerBoard: this.playerBoard.toJSON(),
         enemyBoard: this.enemyBoard.toJSON(),
         ai: this.ai.toJSON(),
@@ -557,19 +588,24 @@ class BattleshipGame {
   }
 
   loadGameState() {
+    let state = null;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return false;
-      const state = JSON.parse(raw);
-      if (!state || !state.gameState) return false;
+      state = JSON.parse(raw);
+    } catch (_) {
+      return false;
+    }
+    if (!state || !state.gameState) return false;
 
+    try {
       this.ai.fromJSON(state.ai);
-      this.dom.diffBtns.forEach(b => {
-        b.classList.toggle('active', b.dataset.diff === this.ai.difficulty);
-      });
+      this.syncDifficultyButtons();
 
       this.playerBoard.fromJSON(state.playerBoard);
       this.enemyBoard.fromJSON(state.enemyBoard);
+      this.isHorizontal = state.isHorizontal !== false;
+      this.updateRotateLabel();
 
       this.stats.playerShots = state.stats?.playerShots || 0;
       this.stats.playerHits = state.stats?.playerHits || 0;
@@ -580,10 +616,8 @@ class BattleshipGame {
       this.gameState = state.gameState;
 
       if (this.gameState === 'placement') {
-        this.dom.placementPanel.classList.remove('hidden');
-        this.dom.phaseTag.textContent = '佈陣階段';
-        this.dom.statusDot.className = 'status-dot';
-        this.dom.statusText.textContent = '請配置艦隊陣型，點擊「開始戰鬥」';
+        this.showPlacementUI();
+        this.setStatus('請配置艦隊陣型，完成後按「開始戰鬥」');
         this.renderShipDock();
         this.renderPlayerGrid();
         this.renderEnemyGrid();
@@ -591,14 +625,11 @@ class BattleshipGame {
         this.checkPlacementReady();
         this.updateAccuracy();
         this.updateTimerDisplay();
-      } else if (this.gameState === 'player-turn' || this.gameState === 'enemy-turn') {
-        this.dom.placementPanel.classList.add('hidden');
-        this.dom.phaseTag.textContent = '戰鬥交火';
-        this.dom.statusDot.className = 'status-dot';
-        this.dom.statusText.textContent = '輪到你了！請點選敵方座標發射飛彈。';
-        this.dom.enemyGrid.parentElement.classList.add('active-target');
-        this.dom.playerGrid.parentElement.classList.remove('active-target');
+        return true;
+      }
 
+      if (this.gameState === 'player-turn' || this.gameState === 'enemy-turn') {
+        this.dom.placementPanel.classList.add('hidden');
         this.startTimer();
         this.renderPlayerGrid();
         this.renderEnemyGrid();
@@ -607,17 +638,20 @@ class BattleshipGame {
         this.updateTimerDisplay();
 
         if (this.gameState === 'enemy-turn') {
-          this.gameState = 'player-turn';
+          // 上次存檔時電腦正要開砲：重新整理後照樣輪到電腦，不讓玩家多打一發
+          this.enterEnemyTurnUI();
+          this.setStatus('繼續上次的對局：輪到敵方開砲…');
+          this.enemyTurnTimer = setTimeout(() => this.executeEnemyTurn(), 500);
+        } else {
+          this.enterPlayerTurnUI();
+          this.setStatus('繼續上次的對局：輪到你了，選一個敵方座標開砲。');
         }
-      } else {
-        return false;
+        return true;
       }
-
-      return true;
     } catch (e) {
       console.warn('載入進度失敗:', e);
-      return false;
     }
+    return false;
   }
 
   clearGameState() {
@@ -626,36 +660,199 @@ class BattleshipGame {
     } catch (_) {}
   }
 
+  loadRecords() {
+    const empty = { wins: 0, losses: 0, bestAccuracy: null, fastestWin: null };
+    try {
+      const raw = localStorage.getItem(RECORDS_KEY);
+      if (!raw) return empty;
+      const data = JSON.parse(raw);
+      return {
+        wins: Number(data.wins) || 0,
+        losses: Number(data.losses) || 0,
+        bestAccuracy: Number.isFinite(data.bestAccuracy) ? data.bestAccuracy : null,
+        fastestWin: Number.isFinite(data.fastestWin) ? data.fastestWin : null
+      };
+    } catch (_) {
+      return empty;
+    }
+  }
+
+  saveRecords() {
+    try {
+      localStorage.setItem(RECORDS_KEY, JSON.stringify(this.records));
+    } catch (_) {}
+  }
+
+  updateRecordSummary() {
+    const { wins, losses } = this.records;
+    this.dom.recordSummary.textContent = `${wins} 勝 ${losses} 敗`;
+  }
+
+  /* ---------- 盤面 DOM 與鍵盤 ---------- */
+
   buildGridDOM(container, type) {
     container.innerHTML = '';
 
+    // 欄座標列：純視覺，每格的 aria-label 已經帶座標
+    const headerRow = document.createElement('div');
+    headerRow.className = 'grid-row';
+    headerRow.setAttribute('aria-hidden', 'true');
     const corner = document.createElement('div');
     corner.className = 'coord-header';
-    container.appendChild(corner);
-
+    headerRow.appendChild(corner);
     for (let c = 1; c <= BOARD_SIZE; c++) {
       const colHeader = document.createElement('div');
       colHeader.className = 'coord-header';
       colHeader.textContent = c;
-      container.appendChild(colHeader);
+      headerRow.appendChild(colHeader);
     }
+    container.appendChild(headerRow);
 
     for (let r = 0; r < BOARD_SIZE; r++) {
+      const row = document.createElement('div');
+      row.className = 'grid-row';
+      row.setAttribute('role', 'row');
+
       const rowHeader = document.createElement('div');
       rowHeader.className = 'coord-header';
       rowHeader.textContent = ROWS[r];
-      container.appendChild(rowHeader);
+      rowHeader.setAttribute('aria-hidden', 'true');
+      row.appendChild(rowHeader);
 
       for (let c = 0; c < BOARD_SIZE; c++) {
         const cell = document.createElement('div');
         cell.className = 'cell';
+        cell.setAttribute('role', 'gridcell');
         cell.dataset.row = r;
         cell.dataset.col = c;
         cell.dataset.type = type;
-        container.appendChild(cell);
+        cell.tabIndex = (r === 0 && c === 0) ? 0 : -1;
+        row.appendChild(cell);
       }
+      container.appendChild(row);
     }
   }
+
+  getCell(type, r, c) {
+    const grid = type === 'player' ? this.dom.playerGrid : this.dom.enemyGrid;
+    return grid.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+  }
+
+  // roving tabindex：整個盤面只留一格 tabIndex=0
+  setRovingCell(type, r, c, focus) {
+    const prev = this.focusPos[type];
+    const prevCell = this.getCell(type, prev.r, prev.c);
+    if (prevCell) prevCell.tabIndex = -1;
+    this.focusPos[type] = { r, c };
+    const cell = this.getCell(type, r, c);
+    if (!cell) return;
+    cell.tabIndex = 0;
+    if (focus) cell.focus();
+  }
+
+  handleGridKeydown(e, type) {
+    const cell = e.target.closest('.cell');
+    if (!cell) return;
+    let r = parseInt(cell.dataset.row, 10);
+    let c = parseInt(cell.dataset.col, 10);
+    let moved = true;
+
+    switch (e.key) {
+      case 'ArrowUp': r = Math.max(0, r - 1); break;
+      case 'ArrowDown': r = Math.min(BOARD_SIZE - 1, r + 1); break;
+      case 'ArrowLeft': c = Math.max(0, c - 1); break;
+      case 'ArrowRight': c = Math.min(BOARD_SIZE - 1, c + 1); break;
+      case 'Home': c = 0; break;
+      case 'End': c = BOARD_SIZE - 1; break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        moved = false;
+        this.activateCell(type, r, c, 'keyboard');
+        break;
+      default:
+        moved = false;
+    }
+
+    if (moved) {
+      e.preventDefault();
+      this.setRovingCell(type, r, c, true);
+    }
+  }
+
+  activateCell(type, r, c, source) {
+    if (type === 'enemy') {
+      this.handlePlayerAttack(r, c);
+      return;
+    }
+    if (this.gameState !== 'placement') return;
+
+    if (!this.selectedShipId) {
+      // 沒選船時，在已放好的船上按下 = 收回這艘船重放
+      const shipId = this.playerBoard.grid[r][c];
+      if (shipId) {
+        this.pickUpShip(shipId);
+        this.previewShipPlacement(r, c);
+      } else {
+        this.setStatus('先在船塢選一艘船，再選要放的位置。');
+      }
+      return;
+    }
+
+    this.tryPlaceSelectedShip(r, c, source);
+  }
+
+  tryPlaceSelectedShip(r, c, source) {
+    const shipDef = SHIP_TYPES.find(s => s.id === this.selectedShipId);
+    if (!shipDef) return;
+    if (this.playerBoard.placeShip(shipDef, r, c, this.isHorizontal)) {
+      this.sound.playSonar();
+      this.selectedShipId = null;
+      this.clearPlacementPreview();
+      this.renderPlayerGrid();
+      this.renderShipDock();
+      this.checkPlacementReady();
+      this.saveGameState();
+      const left = SHIP_TYPES.length - this.playerBoard.ships.length;
+      this.setStatus(left > 0
+        ? `${shipDef.name}已就位（${ROWS[r]}${c + 1}），還有 ${left} 艘待部署。`
+        : '五艘船都就位了，按「開始戰鬥」出航！');
+      // 下一艘未部署的船自動選起來，鍵盤玩家不必跑回船塢
+      const next = SHIP_TYPES.find(s => !this.playerBoard.ships.some(p => p.id === s.id));
+      if (next && source === 'keyboard') {
+        this.selectedShipId = next.id;
+        this.renderShipDock();
+        this.previewShipPlacement(r, c);
+        this.setStatus(`${shipDef.name}已就位。接著放${next.name}（${next.size} 格）。`);
+      }
+    } else {
+      // 放不下：紅色預覽停留一下，並說明原因
+      this.previewShipPlacement(r, c);
+      this.flashInvalid();
+      this.setStatus(`${shipDef.name}放不下：超出海域或和其他船重疊，換個位置或按 R 旋轉。`);
+    }
+  }
+
+  flashInvalid() {
+    clearTimeout(this.invalidTimer);
+    this.dom.playerGrid.classList.add('placement-error');
+    this.invalidTimer = setTimeout(() => {
+      this.dom.playerGrid.classList.remove('placement-error');
+    }, 600);
+  }
+
+  pickUpShip(shipId) {
+    this.playerBoard.removeShip(shipId);
+    this.selectedShipId = shipId;
+    this.renderPlayerGrid();
+    this.renderShipDock();
+    this.checkPlacementReady();
+    this.sound.playSonar();
+    this.saveGameState();
+    this.setStatus(`已收回${SHIP_NAME[shipId]}，選一個新位置放下。`);
+  }
+
+  /* ---------- 事件 ---------- */
 
   bindEvents() {
     this.dom.soundToggle.addEventListener('click', () => {
@@ -663,35 +860,53 @@ class BattleshipGame {
       this.updateSoundToggleIcon();
     });
 
-    this.dom.rotateBtn.addEventListener('click', () => {
-      this.isHorizontal = !this.isHorizontal;
-      this.dom.rotateBtn.textContent = `🔄 旋轉方向 (${this.isHorizontal ? '水平' : '垂直'})`;
-      this.sound.playSonar();
+    this.dom.themeBtn.addEventListener('click', () => {
+      const kit = themeKit();
+      if (kit) {
+        kit.toggle();
+      } else {
+        const root = document.documentElement;
+        root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      }
+      this.updateThemeButton();
     });
 
+    this.dom.rulesBtn.addEventListener('click', () => this.openDialog(this.dom.rulesDialog, this.dom.rulesCloseBtn));
+    this.dom.rulesCloseBtn.addEventListener('click', () => this.dom.rulesDialog.close());
+
+    this.dom.rotateBtn.addEventListener('click', () => this.rotate());
+
     window.addEventListener('keydown', (e) => {
-      if (this.gameState === 'placement' && (e.key === 'r' || e.key === 'R')) {
-        this.dom.rotateBtn.click();
-      }
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (this.gameState !== 'placement' || (e.key !== 'r' && e.key !== 'R')) return;
+      // 對話框開著、或正在輸入時不攔截
+      if (document.querySelector('dialog[open]')) return;
+      e.preventDefault();
+      this.rotate();
     });
 
     this.dom.randomBtn.addEventListener('click', () => {
       this.playerBoard.randomizeFleet();
+      this.selectedShipId = null;
+      this.clearPlacementPreview();
       this.renderPlayerGrid();
       this.renderShipDock();
       this.checkPlacementReady();
       this.sound.playSonar();
       this.saveGameState();
+      this.setStatus('已隨機佈好五艘船，按「開始戰鬥」出航，或點船調整位置。');
     });
 
     this.dom.resetPlacementBtn.addEventListener('click', () => {
       this.playerBoard.reset();
-      this.selectedShipId = null;
+      this.selectedShipId = SHIP_TYPES[0].id;
+      this.clearPlacementPreview();
       this.renderPlayerGrid();
       this.renderShipDock();
       this.checkPlacementReady();
       this.sound.playSonar();
       this.saveGameState();
+      this.setStatus(`船都收回船塢了。先放${SHIP_TYPES[0].name}（${SHIP_TYPES[0].size} 格）。`);
     });
 
     this.dom.startBattleBtn.addEventListener('click', () => {
@@ -702,70 +917,176 @@ class BattleshipGame {
 
     this.dom.diffBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        this.dom.diffBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const diff = btn.dataset.diff;
-        this.ai.setDifficulty(diff);
+        this.ai.setDifficulty(btn.dataset.diff);
+        this.syncDifficultyButtons();
         this.sound.playSonar();
         this.saveGameState();
       });
     });
 
-    this.dom.playerGrid.addEventListener('mouseover', (e) => {
+    // 盤面：pointerover 涵蓋滑鼠移動與觸控按下，觸控玩家也看得到落點預覽
+    this.dom.playerGrid.addEventListener('pointerover', (e) => {
       if (this.gameState !== 'placement' || !this.selectedShipId) return;
       const cell = e.target.closest('.cell');
       if (!cell) return;
-      const r = parseInt(cell.dataset.row, 10);
-      const c = parseInt(cell.dataset.col, 10);
-      this.previewShipPlacement(r, c);
+      this.previewShipPlacement(+cell.dataset.row, +cell.dataset.col);
     });
-
-    this.dom.playerGrid.addEventListener('mouseleave', () => {
-      if (this.gameState === 'placement') {
-        this.clearPlacementPreview();
+    this.dom.playerGrid.addEventListener('pointerleave', (e) => {
+      if (this.gameState === 'placement' && e.pointerType === 'mouse') this.clearPlacementPreview();
+    });
+    // 鍵盤焦點移動時也顯示預覽
+    this.dom.playerGrid.addEventListener('focusin', (e) => {
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      this.focusPos.player = { r: +cell.dataset.row, c: +cell.dataset.col };
+      if (this.gameState === 'placement' && this.selectedShipId) {
+        this.previewShipPlacement(+cell.dataset.row, +cell.dataset.col);
       }
+    });
+    this.dom.enemyGrid.addEventListener('focusin', (e) => {
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      this.focusPos.enemy = { r: +cell.dataset.row, c: +cell.dataset.col };
     });
 
     this.dom.playerGrid.addEventListener('click', (e) => {
-      if (this.gameState !== 'placement' || !this.selectedShipId) return;
       const cell = e.target.closest('.cell');
       if (!cell) return;
-      const r = parseInt(cell.dataset.row, 10);
-      const c = parseInt(cell.dataset.col, 10);
-      const shipDef = SHIP_TYPES.find(s => s.id === this.selectedShipId);
-      if (shipDef && this.playerBoard.placeShip(shipDef, r, c, this.isHorizontal)) {
-        this.sound.playSonar();
-        this.selectedShipId = null;
-        this.renderPlayerGrid();
-        this.renderShipDock();
-        this.checkPlacementReady();
-        this.saveGameState();
-      }
+      const r = +cell.dataset.row;
+      const c = +cell.dataset.col;
+      this.setRovingCell('player', r, c, false);
+      this.activateCell('player', r, c, 'pointer');
     });
 
-    // 點擊敵方棋盤開火（立即判定，零延遲打擊手感）
     this.dom.enemyGrid.addEventListener('click', (e) => {
-      if (this.gameState !== 'player-turn') return;
       const cell = e.target.closest('.cell');
       if (!cell) return;
-      const r = parseInt(cell.dataset.row, 10);
-      const c = parseInt(cell.dataset.col, 10);
+      const r = +cell.dataset.row;
+      const c = +cell.dataset.col;
+      this.setRovingCell('enemy', r, c, false);
       this.handlePlayerAttack(r, c);
     });
 
-    this.dom.modalRestartBtn.addEventListener('click', () => {
-      this.dom.gameOverModal.classList.remove('show');
-      this.clearGameState();
-      this.startPlacementPhase();
+    this.dom.playerGrid.addEventListener('keydown', (e) => this.handleGridKeydown(e, 'player'));
+    this.dom.enemyGrid.addEventListener('keydown', (e) => this.handleGridKeydown(e, 'enemy'));
+
+    this.dom.replayBtn.addEventListener('click', () => this.restart());
+  }
+
+  openDialog(dialog, focusTarget) {
+    if (!dialog) return;
+    const opener = document.activeElement;
+    if (typeof dialog.showModal === 'function') {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.setAttribute('open', '');
+    }
+    if (focusTarget) focusTarget.focus();
+    const restore = () => {
+      dialog.removeEventListener('close', restore);
+      if (opener && typeof opener.focus === 'function' && document.contains(opener)) {
+        opener.focus();
+      }
+    };
+    dialog.addEventListener('close', restore);
+  }
+
+  restart() {
+    if (typeof BoboCelebrate !== 'undefined') BoboCelebrate.close();
+    this.clearGameState();
+    this.startPlacementPhase();
+    const firstShip = this.dom.shipDock.querySelector('.dock-ship');
+    if (firstShip) firstShip.focus();
+  }
+
+  rotate() {
+    this.isHorizontal = !this.isHorizontal;
+    this.updateRotateLabel();
+    this.sound.playSonar();
+    const { r, c } = this.focusPos.player;
+    if (this.selectedShipId) this.previewShipPlacement(r, c);
+    this.setStatus(`船身方向：${this.isHorizontal ? '水平' : '垂直'}`);
+    this.saveGameState();
+  }
+
+  updateRotateLabel() {
+    this.dom.rotateBtn.textContent = `旋轉方向：${this.isHorizontal ? '水平' : '垂直'}`;
+  }
+
+  syncDifficultyButtons() {
+    this.dom.diffBtns.forEach(b => {
+      const on = b.dataset.diff === this.ai.difficulty;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
     });
   }
 
   updateSoundToggleIcon() {
-    this.dom.soundToggle.classList.toggle('muted', this.sound.muted);
-    this.dom.soundToggle.setAttribute('title', this.sound.muted ? '已靜音 (點擊開啟)' : '音效開啟中 (點擊靜音)');
+    const on = !this.sound.muted;
+    this.dom.soundToggle.classList.toggle('muted', !on);
+    this.dom.soundToggle.setAttribute('aria-pressed', String(on));
+    this.dom.soundToggle.title = on ? '音效：開' : '音效：關';
+  }
+
+  updateThemeButton() {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    this.dom.themeBtn.setAttribute('aria-pressed', String(dark));
+    this.dom.themeBtn.title = dark ? '深色模式：開' : '深色模式：關';
+  }
+
+  setStatus(text) {
+    this.dom.statusText.textContent = text;
+  }
+
+  /* ---------- 階段 ---------- */
+
+  // 佈陣時敵方海域不能開砲，整個移出 Tab 順序；開戰後恢復 roving 停點
+  setEnemyGridTabbable(on) {
+    this.dom.enemyGrid.querySelectorAll('.cell').forEach(cell => { cell.tabIndex = -1; });
+    if (on) {
+      const { r, c } = this.focusPos.enemy;
+      const cell = this.getCell('enemy', r, c);
+      if (cell) cell.tabIndex = 0;
+    }
+  }
+
+  showPlacementUI() {
+    this.setEnemyGridTabbable(false);
+    this.dom.placementPanel.classList.remove('hidden');
+    this.dom.replayBtn.hidden = true;
+    this.dom.phaseTag.textContent = '佈陣階段';
+    this.dom.statusDot.className = 'status-dot';
+    this.dom.enemyGrid.parentElement.classList.remove('active-target');
+    this.dom.playerGrid.parentElement.classList.remove('active-target');
+    this.dom.enemyGrid.setAttribute('aria-disabled', 'true');
+    this.dom.playerGrid.removeAttribute('aria-disabled');
+  }
+
+  enterPlayerTurnUI() {
+    this.gameState = 'player-turn';
+    this.dom.phaseTag.textContent = '輪到你';
+    this.dom.statusDot.className = 'status-dot';
+    this.dom.enemyGrid.parentElement.classList.add('active-target');
+    this.dom.playerGrid.parentElement.classList.remove('active-target');
+    // 用 aria-disabled 而非 disabled，焦點才不會在換手時掉到 body
+    this.dom.enemyGrid.removeAttribute('aria-disabled');
+    if (!this.dom.enemyGrid.querySelector('.cell[tabindex="0"]')) this.setEnemyGridTabbable(true);
+  }
+
+  enterEnemyTurnUI() {
+    this.gameState = 'enemy-turn';
+    this.dom.phaseTag.textContent = '敵方行動';
+    this.dom.statusDot.className = 'status-dot enemy-turn';
+    this.dom.enemyGrid.parentElement.classList.remove('active-target');
+    this.dom.playerGrid.parentElement.classList.add('active-target');
+    this.dom.enemyGrid.setAttribute('aria-disabled', 'true');
   }
 
   startPlacementPhase() {
+    clearTimeout(this.enemyTurnTimer);
+    this.round++;
+    this.pendingShots.clear();
+    document.querySelectorAll('.shell').forEach(el => el.remove());
     this.gameState = 'placement';
     this.playerBoard.reset();
     this.enemyBoard.reset();
@@ -775,12 +1096,8 @@ class BattleshipGame {
 
     this.playerBoard.randomizeFleet();
 
-    this.dom.placementPanel.classList.remove('hidden');
-    this.dom.enemyGrid.parentElement.classList.remove('active-target');
-    this.dom.playerGrid.parentElement.classList.remove('active-target');
-    this.dom.phaseTag.textContent = '佈陣階段';
-    this.dom.statusDot.className = 'status-dot';
-    this.dom.statusText.textContent = '請配置艦隊陣型，點擊「開始戰鬥」';
+    this.showPlacementUI();
+    this.setStatus('已先幫你隨機佈陣：可以直接按「開始戰鬥」，或點船調整位置。');
     this.dom.playerAccuracy.textContent = '0%';
     this.dom.battleTime.textContent = '00:00';
 
@@ -805,16 +1122,23 @@ class BattleshipGame {
     this.dom.shipDock.innerHTML = '';
     SHIP_TYPES.forEach(ship => {
       const placed = this.playerBoard.ships.some(s => s.id === ship.id);
-      const dockShip = document.createElement('div');
-      dockShip.className = `dock-ship ${placed ? 'placed' : ''} ${this.selectedShipId === ship.id ? 'selected' : ''}`;
+      const selected = this.selectedShipId === ship.id;
+      const dockShip = document.createElement('button');
+      dockShip.type = 'button';
+      dockShip.className = `dock-ship${placed ? ' placed' : ''}${selected ? ' selected' : ''}`;
       dockShip.dataset.id = ship.id;
+      dockShip.setAttribute('aria-pressed', String(selected));
+      dockShip.setAttribute('aria-label',
+        `${ship.name}，${ship.size} 格，${placed ? '已部署，按下收回重放' : (selected ? '已選取' : '待部署')}`);
 
-      const info = document.createElement('div');
+      const info = document.createElement('span');
       info.className = 'ship-info';
-      info.innerHTML = `<span>${ship.icon} ${ship.name}</span><span>${ship.size}格</span>`;
+      info.innerHTML = `<span>${ship.name}</span><span>${ship.size} 格</span>`;
+      info.setAttribute('aria-hidden', 'true');
 
-      const preview = document.createElement('div');
+      const preview = document.createElement('span');
       preview.className = 'ship-preview';
+      preview.setAttribute('aria-hidden', 'true');
       for (let i = 0; i < ship.size; i++) {
         const pCell = document.createElement('span');
         pCell.className = 'preview-cell';
@@ -826,18 +1150,17 @@ class BattleshipGame {
 
       dockShip.addEventListener('click', () => {
         if (placed) {
-          this.playerBoard.removeShip(ship.id);
-          this.selectedShipId = ship.id;
-          this.renderPlayerGrid();
-          this.renderShipDock();
-          this.checkPlacementReady();
-          this.sound.playSonar();
-          this.saveGameState();
+          this.pickUpShip(ship.id);
         } else {
-          this.selectedShipId = this.selectedShipId === ship.id ? null : ship.id;
+          this.selectedShipId = selected ? null : ship.id;
           this.renderShipDock();
           this.sound.playSonar();
+          if (this.selectedShipId) {
+            this.setStatus(`已選${ship.name}（${ship.size} 格），點我方海域放置。`);
+          }
         }
+        const again = this.dom.shipDock.querySelector(`[data-id="${ship.id}"]`);
+        if (again) again.focus();
       });
 
       this.dom.shipDock.appendChild(dockShip);
@@ -856,33 +1179,26 @@ class BattleshipGame {
       const row = this.isHorizontal ? r : r + i;
       const col = this.isHorizontal ? c + i : c;
       if (row < BOARD_SIZE && col < BOARD_SIZE) {
-        const cell = this.dom.playerGrid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-        if (cell) {
-          cell.classList.add(className);
-        }
+        const cell = this.getCell('player', row, col);
+        if (cell) cell.classList.add(className);
       }
     }
   }
 
   clearPlacementPreview() {
-    const cells = this.dom.playerGrid.querySelectorAll('.preview-valid, .preview-invalid');
-    cells.forEach(c => c.classList.remove('preview-valid', 'preview-invalid'));
+    this.dom.playerGrid.querySelectorAll('.preview-valid, .preview-invalid')
+      .forEach(cell => cell.classList.remove('preview-valid', 'preview-invalid'));
   }
 
   checkPlacementReady() {
     const allPlaced = this.playerBoard.ships.length === SHIP_TYPES.length;
     this.dom.startBattleBtn.disabled = !allPlaced;
-    if (allPlaced) {
-      this.dom.startBattleBtn.classList.add('pulse');
-    } else {
-      this.dom.startBattleBtn.classList.remove('pulse');
-    }
   }
 
   startCombatPhase() {
-    this.gameState = 'player-turn';
     this.dom.placementPanel.classList.add('hidden');
     this.clearPlacementPreview();
+    this.selectedShipId = null;
 
     this.enemyBoard.randomizeFleet();
 
@@ -893,18 +1209,17 @@ class BattleshipGame {
     this.stats.elapsedSeconds = 0;
 
     this.startTimer();
-
-    this.dom.phaseTag.textContent = '戰鬥交火';
-    this.dom.statusDot.className = 'status-dot';
-    this.dom.statusText.textContent = '輪到你了！請點選敵方座標發射飛彈。';
-    this.dom.enemyGrid.parentElement.classList.add('active-target');
-    this.dom.playerGrid.parentElement.classList.remove('active-target');
+    this.enterPlayerTurnUI();
+    this.setStatus('開戰！輪到你了，選一個敵方座標開砲。');
 
     this.renderPlayerGrid();
     this.renderEnemyGrid();
     this.renderManifests();
     this.sound.playLaunch();
     this.saveGameState();
+
+    // 鍵盤玩家直接進入敵方海域
+    this.setRovingCell('enemy', this.focusPos.enemy.r, this.focusPos.enemy.c, true);
   }
 
   startTimer() {
@@ -919,9 +1234,13 @@ class BattleshipGame {
   }
 
   updateTimerDisplay() {
-    const mins = String(Math.floor(this.stats.elapsedSeconds / 60)).padStart(2, '0');
-    const secs = String(this.stats.elapsedSeconds % 60).padStart(2, '0');
-    this.dom.battleTime.textContent = `${mins}:${secs}`;
+    this.dom.battleTime.textContent = this.formatTime(this.stats.elapsedSeconds);
+  }
+
+  formatTime(seconds) {
+    const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const secs = String(seconds % 60).padStart(2, '0');
+    return `${mins}:${secs}`;
   }
 
   clearIntervalTimer() {
@@ -931,54 +1250,66 @@ class BattleshipGame {
     }
   }
 
-  // 玩家開火（即時響應、俐落打擊感）
+  // 玩家開火：判定與存檔立即完成；畫面上砲彈從我方海域飛向目標，落地才揭曉命中或落空
   handlePlayerAttack(r, c) {
+    const coordName = `${ROWS[r]}${c + 1}`;
+    if (this.gameState === 'enemy-turn') {
+      this.setStatus('敵方正在開砲，請稍等。');
+      return;
+    }
     if (this.gameState !== 'player-turn') return;
     const res = this.enemyBoard.receiveAttack(r, c);
-    if (res.alreadyShot) return;
-
-    this.stats.playerShots++;
-    const coordName = `${ROWS[r]}${c + 1}`;
-
-    // 立即判定與立即給予視覺/音效反饋
-    if (res.hit) {
-      this.stats.playerHits++;
-      this.triggerCellImpact(this.dom.enemyGrid, r, c);
-
-      if (res.isSunk) {
-        this.sound.playSunk();
-        this.dom.statusText.textContent = `🎯 擊沉敵方【${res.ship.name}】(${coordName})！`;
-      } else {
-        this.sound.playHit();
-        this.dom.statusText.textContent = `💥 命中敵方艦艇 (${coordName})！`;
-      }
-    } else {
-      this.sound.playMiss();
-      this.dom.statusText.textContent = `⚪ 砲彈落水未命中 (${coordName})`;
-    }
-
-    this.updateAccuracy();
-    this.renderEnemyGrid();
-    this.renderManifests();
-    this.saveGameState();
-
-    // 檢查是否勝利
-    if (this.enemyBoard.allShipsSunk()) {
-      this.handleGameOver('victory');
+    if (res.alreadyShot) {
+      this.setStatus(`${coordName} 已經打過了，換一格。`);
       return;
     }
 
-    // 快速交接給 AI 回合（縮短等待時間至 350ms，提升節奏感）
-    this.gameState = 'enemy-turn';
-    this.dom.phaseTag.textContent = '敵方行動';
-    this.dom.statusDot.className = 'status-dot enemy-turn';
-    this.dom.enemyGrid.parentElement.classList.remove('active-target');
-    this.dom.playerGrid.parentElement.classList.add('active-target');
+    this.stats.playerShots++;
+    if (res.hit) this.stats.playerHits++;
+    const victory = this.enemyBoard.allShipsSunk();
 
-    setTimeout(() => this.executeEnemyTurn(), 350);
+    if (victory) {
+      // 最後一發：先鎖住盤面，等砲彈落地再宣布勝利
+      this.gameState = 'resolving';
+      this.dom.enemyGrid.setAttribute('aria-disabled', 'true');
+    } else {
+      // 先切換狀態再存檔：重新整理時才會接著讓電腦開砲（修正重整多打一發的漏洞）
+      this.enterEnemyTurnUI();
+      this.saveGameState();
+    }
+
+    const key = `enemy:${r},${c}`;
+    this.pendingShots.add(key);
+    this.renderEnemyGrid();
+
+    this.launchShell(this.dom.playerGrid, this.dom.enemyGrid, r, c, () => {
+      this.pendingShots.delete(key);
+      if (res.hit) {
+        if (res.isSunk) {
+          this.sound.playSunk();
+          this.setStatus(`擊沉敵方${res.ship.name}（${coordName}）！`);
+        } else {
+          this.sound.playHit();
+          this.setStatus(`命中（${coordName}）！`);
+        }
+      } else {
+        this.sound.playMiss();
+        this.setStatus(`${coordName} 落空。`);
+      }
+      this.updateAccuracy();
+      this.renderEnemyGrid();
+      this.renderManifests();
+      this.playLandingEffect(this.dom.enemyGrid, r, c, res);
+
+      if (victory) {
+        this.handleGameOver('victory');
+        return;
+      }
+      this.enemyTurnTimer = setTimeout(() => this.executeEnemyTurn(), 450);
+    });
   }
 
-  // 電腦 AI 回合（緊湊反饋）
+  // 電腦回合：一樣先判定，砲彈從敵方海域飛過來，落地才揭曉並換手
   executeEnemyTurn() {
     if (this.gameState !== 'enemy-turn') return;
 
@@ -988,177 +1319,299 @@ class BattleshipGame {
     const { r, c } = move;
     const res = this.playerBoard.receiveAttack(r, c);
     this.stats.enemyShots++;
+    if (res.hit) this.stats.enemyHits++;
 
     this.ai.recordShotResult(r, c, res.hit, res.isSunk, res.ship);
     const coordName = `${ROWS[r]}${c + 1}`;
-
-    if (res.hit) {
-      this.stats.enemyHits++;
-      this.triggerCellImpact(this.dom.playerGrid, r, c);
-
-      if (res.isSunk) {
-        this.sound.playSunk();
-        this.dom.statusText.textContent = `🚨 我方【${res.ship.name}】遭到擊沉 (${coordName})！`;
-      } else {
-        this.sound.playHit();
-        this.dom.statusText.textContent = `🔥 我方艦艇遭受敵火命中 (${coordName})！`;
-      }
-    } else {
-      this.sound.playMiss();
-      this.dom.statusText.textContent = `🛡️ 敵方砲火落水未命中 (${coordName})`;
-    }
-
+    const key = `player:${r},${c}`;
+    this.pendingShots.add(key);
     this.renderPlayerGrid();
-    this.renderManifests();
-    this.saveGameState();
 
-    // 檢查是否戰敗
-    if (this.playerBoard.allShipsSunk()) {
-      this.handleGameOver('defeat');
+    this.launchShell(this.dom.enemyGrid, this.dom.playerGrid, r, c, () => {
+      this.pendingShots.delete(key);
+      let message;
+      if (res.hit) {
+        if (res.isSunk) {
+          this.sound.playSunk();
+          message = `我方${res.ship.name}被擊沉（${coordName}）！`;
+        } else {
+          this.sound.playHit();
+          message = `我方船艦在 ${coordName} 中彈！`;
+        }
+      } else {
+        this.sound.playMiss();
+        message = `敵方砲火落在 ${coordName}，沒打中。`;
+      }
+
+      this.renderPlayerGrid();
+      this.renderManifests();
+      this.playLandingEffect(this.dom.playerGrid, r, c, res);
+
+      if (this.playerBoard.allShipsSunk()) {
+        this.setStatus(message);
+        this.handleGameOver('defeat');
+        return;
+      }
+
+      this.enterPlayerTurnUI();
+      this.setStatus(`${message}輪到你了。`);
+      this.saveGameState();
+    });
+  }
+
+  // 砲彈飛行：從開砲方海域的中心飛到目標格，中段放大做出拋物線的感覺。
+  // 減少動態效果或瀏覽器不支援時不飛，直接落地（同步呼叫 onLand）。
+  launchShell(fromGrid, toGrid, r, c, onLand) {
+    const cell = toGrid.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+    if (!cell || prefersReducedMotion() || typeof cell.animate !== 'function') {
+      onLand();
       return;
     }
+    const from = fromGrid.getBoundingClientRect();
+    const to = cell.getBoundingClientRect();
+    const ex = to.left + to.width / 2;
+    const ey = to.top + to.height / 2;
+    const dx = from.left + from.width / 2 - ex;
+    const dy = from.top + from.height / 2 - ey;
+    // 距離越遠飛越久，但控制在 220–380ms，不讓玩家覺得在等
+    const duration = Math.round(Math.min(380, Math.max(220, Math.hypot(dx, dy) * 0.5)));
 
-    // 快速切回玩家回合
-    setTimeout(() => {
-      if (this.gameState === 'enemy-turn') {
-        this.gameState = 'player-turn';
-        this.dom.phaseTag.textContent = '戰鬥交火';
-        this.dom.statusDot.className = 'status-dot';
-        this.dom.enemyGrid.parentElement.classList.add('active-target');
-        this.dom.playerGrid.parentElement.classList.remove('active-target');
-      }
-    }, 200);
+    const shell = document.createElement('span');
+    shell.className = 'shell';
+    shell.setAttribute('aria-hidden', 'true');
+    shell.style.left = `${ex}px`;
+    shell.style.top = `${ey}px`;
+    document.body.appendChild(shell);
+
+    const generation = this.round;
+    const anim = shell.animate([
+      { transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(0.6)`, opacity: 0 },
+      { transform: `translate(-50%, -50%) translate(${dx * 0.85}px, ${dy * 0.85}px) scale(0.9)`, opacity: 1, offset: 0.15 },
+      { transform: `translate(-50%, -50%) translate(${dx * 0.45}px, ${dy * 0.45}px) scale(1.45)`, offset: 0.55 },
+      { transform: 'translate(-50%, -50%) scale(0.7)', opacity: 1 }
+    ], { duration, easing: 'cubic-bezier(0.4, 0, 0.9, 0.6)' });
+    anim.onfinish = () => {
+      shell.remove();
+      if (generation === this.round) onLand();
+    };
+    anim.oncancel = () => shell.remove();
+  }
+
+  // 落地效果：命中、落空、擊沉各不相同（減少動態效果時由 CSS 改成只變色）
+  playLandingEffect(gridEl, r, c, res) {
+    const cellAt = (row, col) => gridEl.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    const restartClass = (el, cls) => {
+      if (!el) return;
+      el.classList.remove(cls);
+      void el.offsetWidth;
+      el.classList.add(cls);
+      el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+    };
+    if (res.isSunk && res.ship && Array.isArray(res.ship.positions)) {
+      // 擊沉：整艘船從落點往外一格一格閃過去
+      const ordered = [...res.ship.positions]
+        .sort((a, b) => (Math.abs(a.r - r) + Math.abs(a.c - c)) - (Math.abs(b.r - r) + Math.abs(b.c - c)));
+      ordered.forEach((pos, index) => {
+        const el = cellAt(pos.r, pos.c);
+        if (!el) return;
+        el.style.animationDelay = `${index * 55}ms`;
+        restartClass(el, 'sunk-flash');
+        el.addEventListener('animationend', () => { el.style.animationDelay = ''; }, { once: true });
+      });
+    } else if (res.hit) {
+      this.triggerCellImpact(gridEl, r, c);
+    } else {
+      restartClass(cellAt(r, c), 'miss-splash');
+    }
   }
 
   updateAccuracy() {
-    if (this.stats.playerShots === 0) return;
+    if (this.stats.playerShots === 0) {
+      this.dom.playerAccuracy.textContent = '0%';
+      return;
+    }
     const acc = Math.round((this.stats.playerHits / this.stats.playerShots) * 100);
     this.dom.playerAccuracy.textContent = `${acc}%`;
   }
 
   triggerCellImpact(gridEl, r, c) {
-    const cell = gridEl.querySelector(`[data-row="${r}"][data-col="${c}"]`);
-    if (cell) {
-      cell.classList.add('hit-impact');
-      setTimeout(() => {
-        cell.classList.remove('hit-impact');
-      }, 300);
-    }
+    const cell = gridEl.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+    if (!cell) return;
+    cell.classList.add('hit-impact');
+    setTimeout(() => cell.classList.remove('hit-impact'), 380);
   }
 
   handleGameOver(result) {
+    clearTimeout(this.enemyTurnTimer);
     this.gameState = 'game-over';
     this.clearIntervalTimer();
     this.clearGameState();
     this.dom.statusDot.className = 'status-dot game-over';
+    this.dom.phaseTag.textContent = result === 'victory' ? '勝利' : '戰敗';
+    this.dom.enemyGrid.setAttribute('aria-disabled', 'true');
+    this.dom.enemyGrid.parentElement.classList.remove('active-target');
+    this.dom.playerGrid.parentElement.classList.remove('active-target');
+    this.dom.replayBtn.hidden = false;
 
-    const mins = String(Math.floor(this.stats.elapsedSeconds / 60)).padStart(2, '0');
-    const secs = String(this.stats.elapsedSeconds % 60).padStart(2, '0');
-    const timeStr = `${mins}:${secs}`;
-    const acc = this.stats.playerShots > 0 ? Math.round((this.stats.playerHits / this.stats.playerShots) * 100) : 0;
+    const acc = this.stats.playerShots > 0
+      ? Math.round((this.stats.playerHits / this.stats.playerShots) * 100) : 0;
 
-    this.dom.modalAccuracy.textContent = `${acc}%`;
-    this.dom.modalShots.textContent = `${this.stats.playerShots} 發`;
-    this.dom.modalTime.textContent = timeStr;
+    // 更新戰績
+    const isNewBest = result === 'victory' && this.records.wins > 0
+      && (this.records.bestAccuracy === null || acc > this.records.bestAccuracy);
+    if (result === 'victory') {
+      this.records.wins++;
+      if (this.records.bestAccuracy === null || acc > this.records.bestAccuracy) this.records.bestAccuracy = acc;
+      if (this.records.fastestWin === null || this.stats.elapsedSeconds < this.records.fastestWin) {
+        this.records.fastestWin = this.stats.elapsedSeconds;
+      }
+    } else {
+      this.records.losses++;
+    }
+    this.saveRecords();
+    this.updateRecordSummary();
+
+    // 共用過關卡片：勝利附彩帶，戰敗用虛線色帶；關掉後焦點回到戰況列的「再來一局」
+    const fastest = this.records.fastestWin;
+    const cardStats = [
+      { label: '命中率', value: `${acc}%`, isBest: isNewBest },
+      { label: '消耗彈藥', value: `${this.stats.playerShots} 發` },
+      { label: '作戰耗時', value: this.formatTime(this.stats.elapsedSeconds),
+        isBest: result === 'victory' && fastest === this.stats.elapsedSeconds && this.records.wins > 1 }
+    ];
+    const recordLine = `目前戰績 ${this.records.wins} 勝 ${this.records.losses} 敗。`;
+    const show = () => {
+      if (this.gameState !== 'game-over' || typeof BoboCelebrate === 'undefined') {
+        this.dom.replayBtn.focus();
+        return;
+      }
+      BoboCelebrate.show({
+        outcome: result === 'victory' ? 'win' : 'lose',
+        gameName: 'Battleship 海戰棋',
+        title: result === 'victory' ? '海上大捷！' : '艦隊覆沒',
+        subtitle: (result === 'victory'
+          ? (isNewBest ? `命中率 ${acc}%，刷新你的最佳紀錄！` : '敵方艦隊全數沉沒。')
+          : '這次被搶先一步。換個陣型，再戰一次吧！') + recordLine,
+        stats: cardStats,
+        accent: '#8a5a00',
+        accentDark: '#e0b04a',
+        primary: { label: '再來一局', onClick: () => this.restart() },
+        secondary: { label: '看盤面' },
+        returnFocus: this.dom.replayBtn
+      });
+    };
 
     if (result === 'victory') {
       this.sound.playVictory();
-      this.dom.statusText.textContent = '🎉 勝利！敵方艦隊全數沉沒！';
-      this.dom.modalCard.className = 'modal-card victory';
-      this.dom.modalBadge.textContent = '🏆';
-      this.dom.modalTitle.textContent = '海上大捷！';
-      this.dom.modalDesc.textContent = '你憑藉卓越的戰術判斷，成功全殲敵方海軍艦隊！';
+      this.setStatus('勝利！敵方艦隊全數沉沒。');
     } else {
       this.sound.playDefeat();
-      this.dom.statusText.textContent = '💀 戰敗！我方艦隊已被全數擊沉。';
-      this.dom.modalCard.className = 'modal-card defeat';
-      this.dom.modalBadge.textContent = '💥';
-      this.dom.modalTitle.textContent = '艦隊覆沒';
-      this.dom.modalDesc.textContent = '我方陣地已失守，重整陣型再來一局吧！';
+      this.setStatus('戰敗：我方艦隊全數沉沒。');
     }
-
-    setTimeout(() => {
-      this.dom.gameOverModal.classList.add('show');
-    }, 600);
+    // 讓最後一發的落地效果演完再出卡片
+    setTimeout(show, prefersReducedMotion() ? 0 : 600);
   }
+
+  /* ---------- 渲染 ---------- */
 
   renderPlayerGrid() {
     const cells = this.dom.playerGrid.querySelectorAll('.cell');
     cells.forEach(cell => {
-      const r = parseInt(cell.dataset.row, 10);
-      const c = parseInt(cell.dataset.col, 10);
-
+      const r = +cell.dataset.row;
+      const c = +cell.dataset.col;
+      const keepImpact = cell.classList.contains('hit-impact');
       cell.className = 'cell';
+      if (keepImpact) cell.classList.add('hit-impact');
       const shipId = this.playerBoard.grid[r][c];
       const shot = this.playerBoard.shots[r][c];
+      const coord = `${ROWS[r]}${c + 1}`;
+      let label;
 
-      if (shipId) {
-        cell.classList.add('has-ship', 'ship-body');
-      }
+      if (shipId) cell.classList.add('has-ship', 'ship-body');
+      if (this.pendingShots.has(`player:${r},${c}`)) cell.classList.add('awaiting-shot');
 
       if (shot === 'hit') {
         const ship = this.playerBoard.ships.find(s => s.id === shipId);
         if (ship && ship.isSunk) {
           cell.classList.add('sunk');
+          label = `${coord}，我方${SHIP_NAME[shipId]}已沉沒`;
         } else {
           cell.classList.add('hit');
+          label = `${coord}，我方${SHIP_NAME[shipId]}中彈`;
         }
       } else if (shot === 'miss') {
         cell.classList.add('miss');
+        label = `${coord}，敵方砲彈落空`;
+      } else if (shipId) {
+        label = `${coord}，我方${SHIP_NAME[shipId]}`;
+      } else {
+        label = `${coord}，空海域`;
       }
+      cell.setAttribute('aria-label', label);
     });
   }
 
   renderEnemyGrid() {
     const cells = this.dom.enemyGrid.querySelectorAll('.cell');
     cells.forEach(cell => {
-      const r = parseInt(cell.dataset.row, 10);
-      const c = parseInt(cell.dataset.col, 10);
-
+      const r = +cell.dataset.row;
+      const c = +cell.dataset.col;
+      const keepImpact = cell.classList.contains('hit-impact');
       cell.className = 'cell';
+      if (keepImpact) cell.classList.add('hit-impact');
       const shot = this.enemyBoard.shots[r][c];
       const shipId = this.enemyBoard.grid[r][c];
+      const coord = `${ROWS[r]}${c + 1}`;
+      let label = `${coord}，未射擊`;
+      if (this.pendingShots.has(`enemy:${r},${c}`)) cell.classList.add('awaiting-shot');
 
       if (shot === 'hit') {
         const ship = this.enemyBoard.ships.find(s => s.id === shipId);
         if (ship && ship.isSunk) {
           cell.classList.add('sunk');
+          label = `${coord}，擊沉${SHIP_NAME[shipId]}`;
         } else {
           cell.classList.add('hit');
+          label = `${coord}，命中`;
         }
       } else if (shot === 'miss') {
         cell.classList.add('miss');
+        label = `${coord}，落空`;
       }
+      cell.setAttribute('aria-label', label);
     });
   }
 
   renderManifests() {
-    this.renderBadges(this.dom.playerBadges, this.playerBoard);
-    this.renderBadges(this.dom.enemyBadges, this.enemyBoard);
+    this.renderBadges(this.dom.playerBadges, this.playerBoard, '我方');
+    this.renderBadges(this.dom.enemyBadges, this.enemyBoard, '敵方');
 
     this.renderSingleManifest(this.dom.playerManifest, this.playerBoard, false);
     this.renderSingleManifest(this.dom.enemyManifest, this.enemyBoard, true);
 
-    this.dom.playerFleetHealth.textContent = `我艦存活: ${this.playerBoard.getAliveShipsCount()} / 5`;
-    this.dom.enemyFleetHealth.textContent = `敵艦存活: ${this.enemyBoard.getAliveShipsCount()} / 5`;
+    // 佈陣階段敵方還沒下船，顯示滿編而不是 0
+    const alive = (board) => (board.ships.length ? board.getAliveShipsCount() : SHIP_TYPES.length);
+    this.dom.playerFleetHealth.textContent = `我艦存活：${alive(this.playerBoard)} / 5`;
+    this.dom.enemyFleetHealth.textContent = `敵艦存活：${alive(this.enemyBoard)} / 5`;
   }
 
-  // 渲染頂部簡潔艦隊徽章
-  renderBadges(container, board) {
+  renderBadges(container, board, side) {
     if (!container) return;
     container.innerHTML = '';
+    const alive = [];
     SHIP_TYPES.forEach(shipDef => {
       const ship = board.ships.find(s => s.id === shipDef.id);
       const isSunk = ship ? ship.isSunk : false;
+      if (!isSunk) alive.push(shipDef.name);
       const badge = document.createElement('span');
-      badge.className = `fleet-badge ${isSunk ? 'sunk' : ''}`;
+      badge.className = `fleet-badge${isSunk ? ' sunk' : ''}`;
       badge.textContent = shipDef.icon;
-      badge.title = `${shipDef.name} (${shipDef.size}格) - ${isSunk ? '已擊沉' : '存活'}`;
+      badge.title = `${shipDef.name}（${shipDef.size} 格）${isSunk ? '已擊沉' : '存活'}`;
       container.appendChild(badge);
     });
+    container.setAttribute('aria-label', `${side}艦隊存活 ${alive.length} 艘`);
   }
 
-  // 渲染折疊式明細
   renderSingleManifest(container, board, isEnemy) {
     if (!container) return;
     container.innerHTML = '';
@@ -1168,13 +1621,14 @@ class BattleshipGame {
       const hitCount = ship ? ship.hits.size : 0;
 
       const item = document.createElement('div');
-      item.className = `manifest-item ${isSunk ? 'sunk' : ''}`;
+      item.className = `manifest-item${isSunk ? ' sunk' : ''}`;
 
       const name = document.createElement('span');
-      name.textContent = `${shipDef.icon} ${shipDef.name}`;
+      name.textContent = `${shipDef.icon} ${shipDef.name}${isSunk ? '（已沉沒）' : ''}`;
 
       const pegs = document.createElement('div');
       pegs.className = 'manifest-pegs';
+      pegs.setAttribute('aria-hidden', 'true');
 
       for (let i = 0; i < shipDef.size; i++) {
         const peg = document.createElement('span');

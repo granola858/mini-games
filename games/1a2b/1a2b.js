@@ -1,251 +1,448 @@
-// 遊戲狀態變數
-        let answer = "";
-        let isGameOver = false;
-        let count = 0;
-        let historyData = [];
+// 1A2B 猜數字
+(() => {
+    'use strict';
 
-        const inputs = document.querySelectorAll('.digit-input');
-        const submitBtn = document.getElementById('submitBtn');
-        const restartBtn = document.getElementById('restartBtn');
-        const msgBox = document.getElementById('msgBox');
-        const historyList = document.getElementById('historyList');
-        const guessCountSpan = document.getElementById('guessCount');
-        const currentResultDiv = document.getElementById('currentResult');
+    // ======================================================================
+    // 共用：安全存取 localStorage（隱私模式、封鎖網站資料時存取本身就會 throw）
+    // ======================================================================
+    const store = {
+        get(key) { try { return window.localStorage.getItem(key); } catch (_) { return null; } },
+        set(key, value) { try { window.localStorage.setItem(key, value); } catch (_) {} },
+        remove(key) { try { window.localStorage.removeItem(key); } catch (_) {} }
+    };
+    const readJSON = (key, fallback) => {
+        const raw = store.get(key);
+        if (!raw) return fallback;
+        try {
+            const value = JSON.parse(raw);
+            return (value && typeof value === 'object') ? value : fallback;
+        } catch (_) {
+            return fallback;
+        }
+    };
+    const writeJSON = (key, value) => {
+        try { store.set(key, JSON.stringify(value)); } catch (_) {}
+    };
 
-        const STORAGE_KEY = '1a2b_game_state';
+    // ======================================================================
+    // 共用：主題（只有按下按鈕才寫入偏好）
+    // ======================================================================
+    const themeBtn = document.getElementById('theme-btn');
+    const syncThemeBtn = () => {
+        const dark = document.documentElement.dataset.theme === 'dark';
+        themeBtn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    };
+    if (typeof BoboTheme !== 'undefined') BoboTheme.init();
+    syncThemeBtn();
+    new MutationObserver(syncThemeBtn).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    themeBtn.addEventListener('click', () => {
+        if (typeof BoboTheme !== 'undefined') {
+            BoboTheme.toggle();
+        } else {
+            const root = document.documentElement;
+            root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        }
+    });
 
-        function saveGameState() {
-            try {
-                const state = {
-                    answer: answer,
-                    isGameOver: isGameOver,
-                    count: count,
-                    historyData: historyData
-                };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-            } catch (e) {
-                console.warn('Unable to save 1A2B state to localStorage', e);
-            }
+    // ======================================================================
+    // 共用：對話框（原生 <dialog>，關閉後焦點回到開啟它的元素）
+    // ======================================================================
+    function openDialog(dialog, focusEl) {
+        dialog._opener = document.activeElement;
+        if (typeof dialog.showModal === 'function') {
+            if (!dialog.open) dialog.showModal();
+        } else {
+            dialog.setAttribute('open', '');
+        }
+        if (focusEl) focusEl.focus();
+    }
+    document.querySelectorAll('dialog').forEach(dialog => {
+        dialog.addEventListener('close', () => {
+            const opener = dialog._opener;
+            dialog._opener = null;
+            if (dialog._skipRestore) { dialog._skipRestore = false; return; }
+            // 開啟者若已被停用（例如過關後的送出鈕），改把焦點交給備援元素
+            const usable = opener && document.contains(opener) && !opener.disabled && typeof opener.focus === 'function';
+            const target = usable ? opener : dialog._fallback;
+            if (target && typeof target.focus === 'function') target.focus();
+        });
+    });
+
+    const confirmDialog = document.getElementById('confirm-dialog');
+    function askConfirm(text, okLabel) {
+        document.getElementById('confirm-text').textContent = text;
+        document.getElementById('confirm-ok').textContent = okLabel || '確定';
+        confirmDialog.returnValue = '';
+        openDialog(confirmDialog, document.getElementById('confirm-ok'));
+        return new Promise(resolve => {
+            confirmDialog.addEventListener('close', () => resolve(confirmDialog.returnValue === 'ok'), { once: true });
+        });
+    }
+
+    const rulesDialog = document.getElementById('rules-dialog');
+    document.getElementById('help-btn').addEventListener('click', () => {
+        openDialog(rulesDialog, rulesDialog.querySelector('button'));
+    });
+
+
+    // ======================================================================
+    // 遊戲狀態
+    // ======================================================================
+    const STATE_KEY = '1a2b_game_state';
+    const STATS_KEY = '1a2b_stats';
+
+    let answer = '';
+    let isGameOver = false;
+    let gaveUp = false;
+    let count = 0;
+    let historyData = [];
+    let stats = { wins: 0, best: null, plays: 0 };
+
+    const inputs = Array.from(document.querySelectorAll('.digit-input'));
+    const form = document.getElementById('guess-form');
+    const digitGroup = document.getElementById('digit-group');
+    const submitBtn = document.getElementById('submit-btn');
+    const giveupBtn = document.getElementById('giveup-btn');
+    const restartBtn = document.getElementById('restart-btn');
+    const statusEl = document.getElementById('status');
+    const historyList = document.getElementById('history-list');
+    const historyEmpty = document.getElementById('history-empty');
+    const guessCountEl = document.getElementById('guess-count');
+    const bestCountEl = document.getElementById('best-count');
+    const winCountEl = document.getElementById('win-count');
+    const lastResult = document.getElementById('last-result');
+    const lastGuessEl = document.getElementById('last-guess');
+    const lastAbEl = document.getElementById('last-ab');
+    const lastExplainEl = document.getElementById('last-explain');
+    const vaultEl = document.getElementById('vault');
+    const vaultStateEl = document.getElementById('vault-state');
+    const lampEls = Array.from(document.querySelectorAll('#lamps .lamp'));
+
+    function setStatus(text, tone) {
+        statusEl.textContent = text;
+        if (tone) statusEl.dataset.tone = tone;
+        else delete statusEl.dataset.tone;
+    }
+
+    // --- 存檔 ---
+    function saveGameState() {
+        writeJSON(STATE_KEY, { answer, isGameOver, gaveUp, count, historyData });
+    }
+
+    function clearGameState() {
+        store.remove(STATE_KEY);
+    }
+
+    function loadStats() {
+        const saved = readJSON(STATS_KEY, {});
+        stats = {
+            wins: Number.isInteger(saved.wins) && saved.wins >= 0 ? saved.wins : 0,
+            best: Number.isInteger(saved.best) && saved.best > 0 ? saved.best : null,
+            plays: Number.isInteger(saved.plays) && saved.plays >= 0 ? saved.plays : 0
+        };
+    }
+
+    function saveStats() {
+        writeJSON(STATS_KEY, stats);
+    }
+
+    function isValidAnswer(str) {
+        return typeof str === 'string' && /^\d{4}$/.test(str) && new Set(str).size === 4;
+    }
+
+    function loadGameState() {
+        const state = readJSON(STATE_KEY, null);
+        if (!state || !isValidAnswer(state.answer)) return false;
+        answer = state.answer;
+        isGameOver = !!state.isGameOver;
+        gaveUp = !!state.gaveUp;
+        count = Number.isInteger(state.count) && state.count >= 0 ? state.count : 0;
+        historyData = Array.isArray(state.historyData)
+            ? state.historyData.filter(item => item && /^\d{4}$/.test(item.guess) && /^\dA\dB$/.test(item.result))
+            : [];
+        return true;
+    }
+
+    // --- 規則 ---
+    function generateAnswer() {
+        const nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        for (let i = nums.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [nums[i], nums[j]] = [nums[j], nums[i]];
+        }
+        return nums.slice(0, 4).join('');
+    }
+
+    function validateInput(str) {
+        if (str.length !== 4) return '請填滿 4 個數字';
+        if (!/^\d+$/.test(str)) return '只能輸入數字';
+        if (new Set(str.split('')).size !== 4) return '數字不能重複';
+        return null;
+    }
+
+    function checkAB(guess, ans) {
+        let a = 0;
+        let b = 0;
+        for (let i = 0; i < 4; i++) {
+            if (guess[i] === ans[i]) a++;
+            else if (ans.includes(guess[i])) b++;
+        }
+        return `${a}A${b}B`;
+    }
+
+    function explain(result) {
+        const a = Number(result[0]);
+        const b = Number(result[2]);
+        if (a === 4) return '全部猜中！';
+        if (a === 0 && b === 0) return '4 個數字都不在答案裡';
+        const parts = [];
+        if (a) parts.push(`${a} 個數字和位置都對`);
+        if (b) parts.push(`${b} 個數字對但位置不對`);
+        return parts.join('，');
+    }
+
+    // --- 畫面 ---
+    function renderStats() {
+        guessCountEl.textContent = count;
+        bestCountEl.textContent = stats.best ?? '—';
+        winCountEl.textContent = stats.wins;
+    }
+
+    function renderHistory() {
+        historyList.innerHTML = '';
+        // 最新的一筆放最上面
+        historyData.slice().reverse().forEach((item, idx) => {
+            const li = document.createElement('li');
+            li.className = 'history-item';
+            if (item.result === '4A0B') li.classList.add('is-win');
+            const num = historyData.length - idx;
+            li.innerHTML = `<span class="h-num">${num}</span>`
+                + `<span class="h-guess">${item.guess.split('').join(' ')}</span>`
+                + `<span class="h-result">${item.result}</span>`;
+            li.setAttribute('aria-label', `第 ${num} 次：${item.guess}，${item.result}`);
+            historyList.appendChild(li);
+        });
+        historyEmpty.hidden = historyData.length > 0;
+    }
+
+    // 保險箱：四顆指示燈依上一次結果亮起（A 實心、B 空心環、沒中的保持熄滅）
+    function renderVault() {
+        const last = historyData[historyData.length - 1];
+        const a = last ? Number(last.result[0]) : 0;
+        const b = last ? Number(last.result[2]) : 0;
+        lampEls.forEach((lamp, i) => {
+            lamp.classList.toggle('lamp-a', i < a);
+            lamp.classList.toggle('lamp-b', i >= a && i < a + b);
+        });
+        const opened = isGameOver && !gaveUp;
+        vaultEl.classList.toggle('is-open', opened);
+        vaultEl.classList.toggle('is-given-up', isGameOver && gaveUp);
+        vaultStateEl.textContent = opened ? '保險箱打開了！' : (isGameOver ? `沒打開，密碼是 ${answer}` : '保險箱上鎖中');
+
+        if (!last) {
+            lastGuessEl.textContent = '';
+            lastAbEl.textContent = '';
+            lastExplainEl.textContent = '還沒試過密碼，先輸入 4 個數字。';
+            lastResult.classList.remove('is-win');
+            return;
+        }
+        lastGuessEl.textContent = last.guess;
+        lastAbEl.textContent = last.result;
+        lastExplainEl.textContent = explain(last.result);
+        lastResult.classList.toggle('is-win', last.result === '4A0B');
+    }
+
+    function setInputsEnabled(enabled) {
+        inputs.forEach(input => { input.disabled = !enabled; });
+        submitBtn.disabled = !enabled;
+        giveupBtn.disabled = !enabled;
+    }
+
+    function clearInputs() {
+        inputs.forEach(input => { input.value = ''; });
+    }
+
+    function renderAll() {
+        renderStats();
+        renderHistory();
+        renderVault();
+        setInputsEnabled(!isGameOver);
+    }
+
+    // --- 流程 ---
+    function newGame(focus = true) {
+        clearGameState();
+        answer = generateAnswer();
+        isGameOver = false;
+        gaveUp = false;
+        count = 0;
+        historyData = [];
+        clearInputs();
+        saveGameState();
+        renderAll();
+        setStatus('新的一局開始了，輸入第一個猜測吧。');
+        if (focus) inputs[0].focus();
+    }
+
+    // 過關／放棄都用全站共用的結果卡片；個性元素是打開的保險箱裡的那組密碼
+    function showResult({ won, isRecord }) {
+        const reveal = document.createElement('div');
+        reveal.className = 'vault-reveal';
+        reveal.setAttribute('aria-label', `密碼 ${answer.split('').join(' ')}`);
+        reveal.setAttribute('role', 'img');
+        answer.split('').forEach(d => {
+            const chip = document.createElement('span');
+            chip.className = 'vault-reveal-digit';
+            chip.textContent = d;
+            reveal.appendChild(chip);
+        });
+        const common = {
+            gameName: '1A2B 猜數字',
+            extra: reveal,
+            accent: '#c2255c',
+            accentDark: '#f783ac',
+            primary: { label: '再來一局', onClick: () => newGame() },
+            secondary: { label: '看紀錄', onClick: () => restartBtn.focus() },
+            returnFocus: restartBtn
+        };
+        if (typeof BoboCelebrate === 'undefined') return;
+        if (won) {
+            BoboCelebrate.show({
+                ...common,
+                outcome: 'win',
+                title: '保險箱打開了！',
+                subtitle: count === 1 ? '第一次就試中密碼，運氣也是實力！' : `試了 ${count} 組密碼就破解成功。`,
+                stats: [
+                    { label: '這局次數', value: `${count} 次`, isBest: isRecord },
+                    { label: '最少次數', value: stats.best === null ? '—' : `${stats.best} 次` },
+                    { label: '過關次數', value: `${stats.wins} 次` }
+                ]
+            });
+        } else {
+            BoboCelebrate.show({
+                ...common,
+                outcome: 'lose',
+                title: '這次沒打開',
+                subtitle: '上面就是這次的密碼。換一組新密碼，再挑戰一次吧！',
+                stats: [{ label: '這局試了', value: `${count} 次` }]
+            });
+        }
+    }
+
+    function handleGuess() {
+        if (isGameOver) return;
+        const val = inputs.map(input => input.value).join('');
+        const errorMsg = validateInput(val);
+
+        if (errorMsg) {
+            setStatus(errorMsg, 'error');
+            digitGroup.classList.remove('is-invalid');
+            void digitGroup.offsetWidth; // 重新觸發提示動畫
+            digitGroup.classList.add('is-invalid');
+            const firstBad = inputs.find(input => input.value === '') || inputs[0];
+            firstBad.focus();
+            return;
         }
 
-        function loadGameState() {
-            try {
-                const savedState = localStorage.getItem(STORAGE_KEY);
-                if (savedState) {
-                    const state = JSON.parse(savedState);
-                    answer = state.answer;
-                    isGameOver = state.isGameOver;
-                    count = state.count;
-                    historyData = state.historyData || [];
+        count++;
+        const result = checkAB(val, answer);
+        historyData.push({ guess: val, result });
 
-                    guessCountSpan.textContent = count;
-                    historyList.innerHTML = "";
-
-                    // 修正點：移除 .reverse()。
-                    // 因為 renderHistoryDOM 內部是用 prepend (插在最上方)，
-                    // 依照原本 [舊 -> 新] 的順序推入，最後一筆新的自然會被擠到最上面。
-                    historyData.forEach(item => {
-                        renderHistoryDOM(item.guess, item.result);
-                    });
-
-                    if (historyData.length > 0) {
-                        const lastResult = historyData[historyData.length - 1].result;
-                        currentResultDiv.textContent = lastResult;
-                        currentResultDiv.classList.add('show');
-                        if (lastResult === "4A0B") {
-                            currentResultDiv.classList.add('win');
-                        }
-                    }
-
-                    if (isGameOver) {
-                        gameWinUI();
-                    }
-
-                    console.log("已恢復上次遊戲進度，謎底: " + answer);
-                } else {
-                    initGame(true);
-                }
-            } catch (e) {
-                console.warn('Unable to load 1A2B state from localStorage', e);
-                initGame(true);
-            }
+        if (result === '4A0B') {
+            isGameOver = true;
+            stats.wins++;
+            stats.plays++;
+            const isRecord = stats.best === null || count < stats.best;
+            if (isRecord) stats.best = count;
+            saveStats();
+            saveGameState();
+            renderAll();
+            setStatus(`保險箱打開了！你用了 ${count} 次猜中密碼 ${answer}。`, 'success');
+            restartBtn.focus();
+            showResult({ won: true, isRecord });
+            return;
         }
 
-        function initGame(forceNew = false) {
-            if (forceNew) {
-                try {
-                    localStorage.removeItem(STORAGE_KEY);
-                } catch (_) {}
-                answer = generateAnswer();
-                isGameOver = false;
-                count = 0;
-                historyData = [];
-                saveGameState();
-                console.log("新局謎底: " + answer);
-            }
+        saveGameState();
+        renderAll();
+        clearInputs();
+        setStatus(`${val}：${result}，${explain(result)}。`);
+        inputs[0].focus();
+    }
 
-            guessCountSpan.textContent = count;
+    // --- 輸入框行為 ---
+    inputs.forEach((input, index) => {
+        input.addEventListener('input', () => {
+            digitGroup.classList.remove('is-invalid');
+            const digits = input.value.replace(/\D/g, '');
+            input.value = digits.slice(-1);
+            if (input.value !== '' && index < inputs.length - 1) inputs[index + 1].focus();
+        });
 
-            inputs.forEach(input => {
-                input.value = "";
-                input.disabled = false;
-                input.style.borderColor = "var(--border-color)";
-            });
-
-            submitBtn.disabled = false;
-            restartBtn.style.display = "none";
-            msgBox.textContent = "";
-
-            if (forceNew) {
-                historyList.innerHTML = "";
-                currentResultDiv.textContent = "";
-                currentResultDiv.classList.remove('show', 'win');
-                inputs[0].focus();
-            }
-        }
-
-        function generateAnswer() {
-            const nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-            for (let i = nums.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [nums[i], nums[j]] = [nums[j], nums[i]];
-            }
-            return nums.slice(0, 4).join('');
-        }
-
-        inputs.forEach((input, index) => {
-            input.addEventListener('input', (e) => {
-                const val = input.value;
-                if (!/^\d*$/.test(val)) {
-                    input.value = "";
-                    return;
-                }
-                if (val.length > 1) {
-                    input.value = val.slice(-1);
-                }
-                if (input.value !== "" && index < 3) {
-                    inputs[index + 1].focus();
-                }
-            });
-
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace') {
-                    if (input.value === "" && index > 0) {
-                        inputs[index - 1].focus();
-                    }
-                }
-                if (e.key === 'Enter') {
-                    handleGuess();
-                }
-            });
-
-            input.addEventListener('focus', () => {
-                input.select();
-            });
-
-            input.addEventListener('paste', (e) => {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && input.value === '' && index > 0) {
                 e.preventDefault();
-                const pasteData = (e.clipboardData || window.clipboardData).getData('text');
-                if (!/^\d{4}$/.test(pasteData)) return;
-                const digits = pasteData.split('');
-                inputs.forEach((inp, i) => inp.value = digits[i]);
-                inputs[3].focus();
-            });
+                inputs[index - 1].value = '';
+                inputs[index - 1].focus();
+            } else if (e.key === 'ArrowLeft' && index > 0) {
+                e.preventDefault();
+                inputs[index - 1].focus();
+            } else if (e.key === 'ArrowRight' && index < inputs.length - 1) {
+                e.preventDefault();
+                inputs[index + 1].focus();
+            }
         });
 
-        function getInputValue() {
-            let val = "";
-            inputs.forEach(input => val += input.value);
-            return val;
-        }
+        input.addEventListener('focus', () => input.select());
 
-        function validateInput(str) {
-            if (str.length !== 4) return "請填滿 4 個數字";
-            if (!/^\d+$/.test(str)) return "只能輸入數字";
-            const uniqueSet = new Set(str.split(''));
-            if (uniqueSet.size !== 4) return "數字不能重複";
-            return null;
-        }
-
-        function checkAB(guess, ans) {
-            let a = 0;
-            let b = 0;
-            for (let i = 0; i < 4; i++) {
-                if (guess[i] === ans[i]) a++;
-                else if (ans.includes(guess[i])) b++;
-            }
-            return `${a}A${b}B`;
-        }
-
-        function handleGuess() {
-            if (isGameOver) return;
-            const val = getInputValue();
-            const errorMsg = validateInput(val);
-
-            if (errorMsg) {
-                msgBox.textContent = errorMsg;
-                msgBox.style.color = "var(--error-color)";
-                const container = document.getElementById('inputContainer');
-                container.style.transform = "translateX(5px)";
-                setTimeout(() => container.style.transform = "translateX(0)", 100);
-                setTimeout(() => container.style.transform = "translateX(-5px)", 200);
-                setTimeout(() => container.style.transform = "translateX(0)", 300);
-                return;
-            }
-
-            count++;
-            guessCountSpan.textContent = count;
-            msgBox.textContent = "";
-
-            const result = checkAB(val, answer);
-
-            currentResultDiv.textContent = result;
-            currentResultDiv.classList.add('show');
-            if (result === "4A0B") {
-                currentResultDiv.classList.add('win');
-            } else {
-                currentResultDiv.classList.remove('win');
-            }
-
-            historyData.push({ guess: val, result: result });
-            renderHistoryDOM(val, result);
-
-            if (result !== "4A0B") {
-                inputs.forEach(input => input.value = "");
-                inputs[0].focus();
-                saveGameState();
-            } else {
-                isGameOver = true;
-                saveGameState();
-                gameWinUI();
-            }
-        }
-
-        function renderHistoryDOM(guess, result) {
-            const item = document.createElement('div');
-            item.className = 'history-item';
-            let resultClass = 'result-text';
-            if (result === "4A0B") resultClass += ' result-success';
-
-            item.innerHTML = `
-                <span class="guess-val">${guess}</span>
-                <span class="${resultClass}">${result}</span>
-            `;
-            historyList.prepend(item);
-        }
-
-        function gameWinUI() {
-            msgBox.textContent = `恭喜！你用了 ${count} 次猜中答案！`;
-            msgBox.style.color = "var(--success-color)";
-            inputs.forEach(input => input.disabled = true);
-            submitBtn.disabled = true;
-            restartBtn.style.display = "block";
-        }
-
-        submitBtn.addEventListener('click', handleGuess);
-
-        restartBtn.addEventListener('click', () => {
-            initGame(true);
+        input.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = ((e.clipboardData || window.clipboardData).getData('text') || '').replace(/\D/g, '');
+            if (text.length < 4) return;
+            inputs.forEach((inp, i) => { inp.value = text[i]; });
+            submitBtn.focus();
         });
+    });
 
-        loadGameState();
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleGuess();
+    });
+
+    giveupBtn.addEventListener('click', async () => {
+        if (isGameOver) return;
+        const ok = await askConfirm('放棄這一局並揭曉答案？這局不會算進過關次數。', '揭曉答案');
+        if (!ok) return;
+        isGameOver = true;
+        gaveUp = true;
+        stats.plays++;
+        saveStats();
+        saveGameState();
+        renderAll();
+        setStatus(`密碼是 ${answer}。再來一局吧！`);
+        restartBtn.focus();
+        showResult({ won: false, isRecord: false });
+    });
+
+    restartBtn.addEventListener('click', async () => {
+        if (!isGameOver && count > 0) {
+            const ok = await askConfirm('目前這局還沒猜中，確定要重新開局嗎？', '重新開局');
+            if (!ok) return;
+        }
+        newGame();
+    });
+
+    // --- 啟動 ---
+    loadStats();
+    if (loadGameState()) {
+        renderAll();
+        if (isGameOver) {
+            setStatus(gaveUp ? `上一局的答案是 ${answer}。按「重新開局」再挑戰。` : `上一局已猜中 ${answer}。按「重新開局」再挑戰。`);
+        } else if (count > 0) {
+            setStatus(`接續上一局：已經猜了 ${count} 次。`);
+        }
+    } else {
+        // 第一次進站不搶焦點，避免手機一進來就跳出鍵盤
+        newGame(false);
+    }
+})();

@@ -301,3 +301,18 @@ test('Loop 閉合迴路生成演算法拓撲與邊數驗證 (Cycle Injection)', 
 });
 
 
+
+test('Loop 實際程式的星等：用過提示要扣星', () => {
+  const { evaluateLoopStars } = require('../games/loop/loop.js');
+  // 沒用提示：與原規則相同
+  assert.equal(evaluateLoopStars(18, 20, 0), 3);
+  assert.equal(evaluateLoopStars(30, 20, 0), 2);
+  assert.equal(evaluateLoopStars(35, 20, 0), 1);
+  // 用過 1～2 次提示：最高 2 星
+  assert.equal(evaluateLoopStars(6, 38, 1), 2, '靠提示壓低步數也拿不到 3 星');
+  assert.equal(evaluateLoopStars(6, 38, 2), 2);
+  assert.equal(evaluateLoopStars(35, 20, 1), 1, '扣星只設上限，不會把 1 星加成 2 星');
+  // 用 3 次以上：最高 1 星
+  assert.equal(evaluateLoopStars(6, 38, 3), 1);
+  assert.equal(evaluateLoopStars(6, 38, 10), 1);
+});

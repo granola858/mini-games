@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "games/lights-out/**"
+        ],
+        "createdAt": "2026-11-06T13:58:36.406Z",
+        "reason": "亮燈卡片的光暈代表「燈是亮的」，屬遊戲狀態"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "games/loop/**"
+        ],
+        "createdAt": "2026-11-06T13:58:36.418Z",
+        "reason": "通電格的光暈代表電流狀態，屬遊戲狀態"
+      }
+    ]
+  }
+}

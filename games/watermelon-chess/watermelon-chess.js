@@ -22,6 +22,19 @@
   let rotated = false;
   let stats = Object.fromEntries(statFields.map(field => [field, 0]));
   const pointButtons = [];
+  const celebrate = typeof BoboCelebrate !== 'undefined' ? BoboCelebrate : null;
+  // 走子滑行與吃子淡出的時間；結果卡片等這些動畫演完才出現
+  const SLIDE_MS = 240;
+  const CAPTURE_DELAY_MS = 180;
+  const CAPTURE_MS = 320;
+
+  function reduceMotion() {
+    try {
+      return matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (_) {
+      return false;
+    }
+  }
 
   function storageWarning(message) {
     $('storage-notice').textContent = message;
@@ -204,7 +217,9 @@
         + (legal.includes(point) ? '，可移動到這裡' : '')
         + (state.lastMove?.to === point ? '，最近一步' : ''));
       button.setAttribute('aria-pressed', String(point === selected));
-      button.disabled = finished || !humanTurn || thinking;
+      // 不用 disabled：電腦思考或終局時把聚焦中的棋點 disable，鍵盤焦點會掉回 body。
+      // 改用 aria-disabled 告知「現在不能下」，實際攔截由 selectPoint() 負責。
+      button.setAttribute('aria-disabled', String(finished || !humanTurn || thinking));
     });
     for (const [prefix, player] of [['red', Core.RED], ['green', Core.GREEN]]) {
       $(prefix + '-count').textContent = Core.count(state.board, player);
@@ -237,6 +252,111 @@
     $('again-button').textContent = finished ? '再來一局' : '重新開始';
   }
 
+  // 走子動畫：棋子從出發點滑到落點，被吃的棋子在原位留下殘影後縮小淡出。
+  // 狀態（存檔、盤面、計數）在 commitMove 已同步更新，這裡只負責視覺，不會擋住任何輸入。
+  // 回傳動畫演完需要的毫秒數，讓結果卡片晚一點出現。
+  function animateMove(move) {
+    if (!move || typeof Element === 'undefined' || !Element.prototype.animate) return 0;
+    const board = $('board');
+    const dest = pointButtons[move.to];
+    const reduce = reduceMotion();
+    try {
+      if (reduce) {
+        // 減少動態效果：不位移，落點的棋子淡入
+        dest.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' });
+      } else {
+        const [fx, fy] = displayXY(move.from);
+        const [tx, ty] = displayXY(move.to);
+        const scale = board.clientWidth / 600;
+        const dx = (fx - tx) * scale;
+        const dy = (fy - ty) * scale;
+        dest.animate([
+          { transform: 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))' },
+          { transform: 'translate(-50%, -50%)' }
+        ], { duration: SLIDE_MS, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' });
+      }
+      const victim = move.player === Core.RED ? Core.GREEN : Core.RED;
+      move.captured.forEach(point => {
+        const ghost = document.createElement('span');
+        ghost.className = 'capture-ghost' + (victim === Core.GREEN ? ' green' : '');
+        ghost.setAttribute('aria-hidden', 'true');
+        ghost.textContent = victim === Core.RED ? '紅' : '綠';
+        const [x, y] = displayXY(point);
+        ghost.style.left = (x / 6) + '%';
+        ghost.style.top = (y / 6) + '%';
+        board.appendChild(ghost);
+        const frames = reduce
+          ? [{ opacity: 1 }, { opacity: 0 }]
+          : [
+            { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+            { transform: 'translate(-50%, -50%) scale(1.12)', opacity: 1, offset: .25 },
+            { transform: 'translate(-50%, -50%) scale(.35)', opacity: 0 }
+          ];
+        const anim = ghost.animate(frames, {
+          duration: reduce ? 260 : CAPTURE_MS,
+          delay: reduce ? 0 : CAPTURE_DELAY_MS,
+          easing: 'cubic-bezier(0.5, 0, 0.75, 0)',
+          fill: 'both'
+        });
+        const remove = () => ghost.remove();
+        anim.onfinish = remove;
+        anim.oncancel = remove;
+      });
+    } catch (_) {
+      return 0;
+    }
+    if (reduce) return move.captured.length ? 260 : 180;
+    return move.captured.length ? CAPTURE_DELAY_MS + CAPTURE_MS : SLIDE_MS;
+  }
+
+  // 終局時的共用結果卡片（只在這一步剛分出勝負時出現，重新整理載入終局不會再跳）
+  function showResult(previousBestMoves) {
+    if (!celebrate) return;
+    const state = Core.current(game);
+    const local = game.settings.mode === 'local';
+    const reasonText = {
+      capture: '對手只剩 2 顆或更少。',
+      blocked: '對手已經沒有合法步可走。',
+      repetition: '同一盤面重複出現三次，這局握手言和。'
+    }[state.reason] || '';
+    let outcome = 'win';
+    let title;
+    if (!state.winner) title = '平手，棋逢敵手！';
+    else if (local) title = playerName(state.winner) + '獲勝！';
+    else if (state.winner === game.settings.human) title = '你贏了！';
+    else {
+      outcome = 'lose';
+      title = '這局電腦贏了';
+    }
+    const moves = game.moves.length;
+    const cardStats = [{ label: '總步數', value: moves + ' 步' }];
+    if (local) {
+      cardStats.push({ label: '雙人完成', value: statsValue('localGames') + ' 局' });
+    } else {
+      const humanWon = state.winner && state.winner === game.settings.human;
+      cardStats[0].isBest = humanWon && celebrate.isNewRecord(previousBestMoves || null, moves, { lowerIsBetter: true });
+      cardStats.push({ label: '目前連勝', value: statsValue('streak') + ' 場' });
+      cardStats.push({ label: '累計勝場', value: statsValue('wins') + ' 勝' });
+    }
+    celebrate.show({
+      outcome,
+      confetti: !!state.winner && outcome === 'win',
+      gameName: '西瓜棋',
+      title,
+      subtitle: outcome === 'lose' ? reasonText + '換個走法，再挑戰一次！' : reasonText,
+      stats: cardStats,
+      accent: '#a52a3c',
+      accentDark: '#ff9a9f',
+      primary: { label: '再來一局', onClick: () => startGame(game.settings) },
+      secondary: { label: '看棋盤' },
+      returnFocus: $('again-button')
+    });
+  }
+
+  function statsValue(key) {
+    return stats[key] || 0;
+  }
+
   function cancelAI() {
     clearTimeout(aiTimer);
     aiTimer = null;
@@ -267,9 +387,18 @@
     selected = null;
     const state = Core.current(game);
     saveGameState();
+    const previousBestMoves = stats.bestMoves;
     if (state.status === 'finished') recordResult();
     playSound(state.lastMove.captured.length > 0, state.status === 'finished');
     render();
+    const settle = animateMove(state.lastMove);
+    if (state.status === 'finished') {
+      const finishedGame = game;
+      // 動畫演完才出結果卡片；這段時間若已開新局或悔棋就不出
+      setTimeout(() => {
+        if (game === finishedGame) showResult(previousBestMoves);
+      }, settle + 120);
+    }
     scheduleAI();
   }
 
@@ -336,6 +465,7 @@
 
   function init() {
     if (theme) theme.init();
+    $('theme-button').setAttribute('aria-pressed', String(document.documentElement.dataset.theme === 'dark'));
     const storedStats = readJson(STATS_KEY);
     if (storedStats !== null) {
       if (statFields.every(field => Number.isSafeInteger(storedStats[field]) && storedStats[field] >= 0)) stats = storedStats;
@@ -395,6 +525,7 @@
         return;
       }
       const next = theme.toggle();
+      $('theme-button').setAttribute('aria-pressed', String(next === 'dark'));
       if (readJson('bobo-home-preferences-v2')?.theme !== next) {
         storageWarning('主題已切換，但無法儲存偏好。');
       }

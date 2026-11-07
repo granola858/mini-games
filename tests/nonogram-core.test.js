@@ -281,3 +281,47 @@ test('nonogram.css 具備控制區樣式', () => {
     assert.ok(css.includes(selector), `nonogram.css 缺少 ${selector} 樣式`);
   });
 });
+
+test('圖案題庫：每個尺寸至少 8 張，id 不重複，圖面尺寸正確', () => {
+  assert.equal(core.PICTURE_MODE, 'picture');
+  const ids = new Set();
+  SIZES.forEach(size => {
+    const pictures = core.getPictures(size);
+    assert.ok(pictures.length >= 8, `${size}x${size} 圖案不足 8 張（${pictures.length}）`);
+    pictures.forEach(picture => {
+      assert.ok(!ids.has(picture.id), `圖案 id 重複：${picture.id}`);
+      ids.add(picture.id);
+      assert.ok(typeof picture.name === 'string' && picture.name.length > 0, `${picture.id} 缺少中文名稱`);
+      assert.equal(picture.art.length, size, `${picture.id} 列數不對`);
+      picture.art.forEach((row, index) => {
+        assert.match(row, new RegExp(`^[#.]{${size}}$`), `${picture.id} 第 ${index + 1} 列格式不對`);
+      });
+    });
+  });
+});
+
+test('圖案題庫：每一張都能純靠線解推理解完，且唯一解', () => {
+  core.PICTURES.forEach(picture => {
+    const puzzle = core.createPicturePuzzle(picture);
+    const label = `${picture.id}（${picture.name}）`;
+    assert.equal(puzzle.rating.solved, true, `${label} 需要猜測才能解完`);
+    assert.deepEqual(puzzle.rating.board, puzzle.solution, `${label} 線解結果與圖不同`);
+    assert.equal(core.countSolutions(puzzle.rowClues, puzzle.colClues, 2), 1, `${label} 不是唯一解`);
+    assert.ok(core.DIFFICULTY_LEVELS.includes(puzzle.difficulty), `${label} 難度評分不合法`);
+  });
+});
+
+test('圖案題庫：用答案反查圖案、依序挑下一張未解的圖', () => {
+  const [first, second] = core.getPictures(8);
+  assert.equal(core.findPictureBySolution(core.pictureToSolution(second)).id, second.id);
+  assert.equal(core.findPictureBySolution(core.createEmptyPlayerState(8)), null);
+  assert.equal(core.getPictureById(first.id).id, first.id);
+  assert.equal(core.getPictureById('nope'), null);
+
+  assert.equal(core.pickNextPicture(8, []).id, first.id);
+  assert.equal(core.pickNextPicture(8, [first.id]).id, second.id);
+  // 全部解完後輪回第一張，但不重複剛玩過的那張
+  const all = core.getPictures(8).map(picture => picture.id);
+  assert.equal(core.pickNextPicture(8, all, first.id).id, second.id);
+  assert.equal(core.pickNextPicture(8, all, all[all.length - 1]).id, first.id);
+});

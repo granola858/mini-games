@@ -17,6 +17,15 @@
   let dragged = null;
   let timer;
   const gameStats = new Map(); // id -> play count
+  const PLAY_TAG_MIN = 10; // 遊玩次數達到這個數字才在卡片上顯示
+  const RECENT_MAX = 4; // 「最近玩過」最多顯示幾款
+  const reduceMotion = () => {
+    try {
+      return matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (_) {
+      return false;
+    }
+  };
 
   const safe = (v) => (Array.isArray(v) ? v.filter((id, i, a) => ids.has(id) && a.indexOf(id) === i) : []);
 
@@ -37,9 +46,11 @@
     }
 
     return {
-      theme: ['dark', 'light'].includes(s.theme) ? s.theme : root.dataset.theme,
+      // 只有使用者按過主題鈕才會有 theme 欄位；沒有就跟隨系統，不要在載入時替他決定
+      theme: ['dark', 'light'].includes(s.theme) ? s.theme : undefined,
       order,
-      hidden: safe(s.hidden)
+      hidden: safe(s.hidden),
+      recent: safe(s.recent).slice(0, RECENT_MAX)
     };
   };
 
@@ -72,7 +83,45 @@
     [...grid.querySelectorAll('.game-card')].forEach((c, i) => c.style.setProperty('--index', i));
   };
 
+  // 記下玩家從首頁開啟的遊戲，最新的排最前面
+  const remember = (id) => {
+    if (!ids.has(id)) return;
+    prefs.recent = [id, ...prefs.recent.filter((x) => x !== id)].slice(0, RECENT_MAX);
+    save();
+  };
+
+  const renderRecent = () => {
+    const wrap = document.getElementById('recent');
+    const list = document.getElementById('recent-list');
+    if (!wrap || !list) return;
+    const hiddenSet = new Set(prefs.hidden);
+    const recent = prefs.recent.filter((id) => !hiddenSet.has(id) && byId.has(id));
+    list.replaceChildren();
+    recent.forEach((id) => {
+      const c = byId.get(id);
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.className = 'recent-link';
+      a.href = c.querySelector('.card-link').getAttribute('href');
+      a.setAttribute('style', c.getAttribute('style') || '');
+      const icon = document.createElement('span');
+      icon.className = 'recent-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      const svg = c.querySelector('.card-icon svg');
+      if (svg) icon.append(svg.cloneNode(true));
+      const name = document.createElement('span');
+      name.textContent = title(c);
+      a.append(icon, name);
+      a.addEventListener('click', () => remember(id));
+      li.append(a);
+      list.append(li);
+    });
+    // 編輯首頁時不顯示，避免和排序操作混在一起
+    wrap.hidden = !recent.length || body.classList.contains('editing');
+  };
+
   const render = () => {
+    renderRecent();
     const hidden = new Set(prefs.hidden);
     let shown = 0;
 
@@ -116,18 +165,18 @@
     document.getElementById('hidden-panel').hidden = !(body.classList.contains('editing') && prefs.hidden.length);
   };
 
-  const theme = (t) => {
-    prefs.theme = t;
+  // persist=false 只套用不寫入：載入時呼叫，避免把系統主題寫成「使用者偏好」，
+  // 否則之後系統切換深淺色，全站（各遊戲的防閃爍腳本都讀這個 key）都不會再跟著變
+  const theme = (t, persist = true) => {
+    if (persist) prefs.theme = t;
     root.dataset.theme = t;
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      metaThemeColor.content = t === 'dark' ? '#14121e' : '#fff8ed';
+      metaThemeColor.content = t === 'dark' ? '#14121e' : '#f4f3f8';
     }
     const b = document.getElementById('theme-toggle');
-    const next = t === 'dark' ? '淺色' : '深色';
-    b.ariaLabel = `切換${next}模式`;
-    b.title = `切換${next}模式`;
-    save();
+    b.setAttribute('aria-pressed', String(t === 'dark'));
+    if (persist) save();
   };
 
   const edit = (on) => {
@@ -135,6 +184,13 @@
     const b = document.getElementById('edit-toggle');
     b.setAttribute('aria-pressed', String(on));
     b.querySelector('.edit-label').textContent = on ? '完成編輯' : '編輯首頁';
+    b.setAttribute('aria-label', on ? '完成編輯' : '編輯首頁');
+    // 編輯模式下卡片連結不可被 Tab 到，避免誤按 Enter 離開頁面
+    cards.forEach((c) => {
+      const link = c.querySelector('.card-link');
+      if (on) link.setAttribute('tabindex', '-1');
+      else link.removeAttribute('tabindex');
+    });
     if (!on) {
       clearPending();
       if (dragged) endDrag(false);
@@ -313,6 +369,20 @@
   // 初始化每張卡片的結構（按鈕控制器與遊玩次數標籤）
   cards.forEach((c) => {
     c.append(document.getElementById('controls-template').content.cloneNode(true));
+    // 每張卡片的控制鈕都帶上遊戲名稱，螢幕閱讀器才分得出是哪一款
+    [['.move-prev', '向前移動'], ['.move-next', '向後移動'], ['.hide-card', '隱藏']].forEach(([sel, verb]) => {
+      const btn = c.querySelector(sel);
+      btn.setAttribute('aria-label', `${verb}「${title(c)}」`);
+      btn.title = `${verb}「${title(c)}」`;
+    });
+    // 卡片連結的名稱以遊戲名稱開頭，描述與標籤放在 aria-describedby
+    const link = c.querySelector('.card-link');
+    const h = c.querySelector('h3');
+    const desc = c.querySelector('.card-content p');
+    h.id = `card-title-${c.dataset.id}`;
+    if (desc) desc.id = `card-desc-${c.dataset.id}`;
+    link.setAttribute('aria-labelledby', h.id);
+    if (desc) link.setAttribute('aria-describedby', desc.id);
     c.querySelector('.move-prev').onclick = () => move(c, -1);
     c.querySelector('.move-next').onclick = () => move(c, 1);
     c.querySelector('.hide-card').onclick = () => {
@@ -332,6 +402,8 @@
       const playTag = document.createElement('span');
       playTag.className = 'card-play-tag';
       playTag.title = '累積遊玩次數';
+      // 次數太少（或統計服務連不上）時顯示「0 次」只是雜訊，先藏起來
+      playTag.hidden = true;
       playTag.innerHTML = `
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 23c-4.97 0-9-4.03-9-9 0-4.13 2.85-7.7 6.94-8.68.42-.1.82.21.82.64v2.1c0 .36.24.67.59.76 1.83.47 3.23 1.9 3.61 3.73.08.38.41.65.8.65h.05c.48 0 .85-.43.77-.9-.4-2.39-1.84-4.47-3.92-5.59-.39-.21-.49-.71-.22-1.04 1.77-2.18 4.41-3.67 7.37-3.67.31 0 .61.02.91.05.41.05.7.4.65.81C20.67 8.04 17.8 13.5 17.8 14c0 .66.54 1.2 1.2 1.2.5 0 .95-.31 1.12-.78.43-1.18.68-2.45.68-3.77 0-.41.34-.75.75-.75h.05c.38 0 .7.28.74.66.42 3.66-.75 7.3-3.18 9.87C17.39 22.06 14.8 23 12 23z"/>
@@ -342,6 +414,9 @@
       cardTop.replaceChild(tagsWrapper, existingBadge);
       tagsWrapper.append(existingBadge, playTag);
     }
+
+    // 點進遊戲時記到「最近玩過」
+    c.querySelector('.card-link').addEventListener('click', () => remember(c.dataset.id));
 
     // 拖曳排序：滑鼠按住卡片、觸控長按卡片或直接按住拖曳把手皆可啟動
     c.addEventListener('pointerdown', (e) => beginPointer(c, e));
@@ -380,16 +455,27 @@
     const available = cards.filter((c) => !c.hidden);
     if (!available.length) return toast('目前沒有符合條件的遊戲');
     const c = available[Math.floor(Math.random() * available.length)];
+    const href = c.querySelector('.card-link').getAttribute('href');
+    remember(c.dataset.id);
+    toast(`今天就玩「${title(c)}」！`);
+    // 減少動態效果：不捲動、不跳動，直接開遊戲
+    if (reduceMotion()) {
+      location.href = href;
+      return;
+    }
     c.scrollIntoView({ behavior: 'smooth', block: 'center' });
     c.animate(
       [
-        { transform: 'translateY(0)' },
-        { transform: 'translateY(-10px)', boxShadow: '0 0 0 5px var(--accent)' },
-        { transform: 'translateY(0)' }
+        { boxShadow: '0 0 0 0 var(--accent)' },
+        { boxShadow: '0 0 0 5px var(--accent)' },
+        { boxShadow: '0 0 0 5px var(--accent)' }
       ],
-      { duration: 700 }
+      { duration: 900, fill: 'forwards' }
     );
-    toast(`今天就玩「${title(c)}」！`);
+    // 讓玩家看到選中哪一款，再直接帶進遊戲
+    setTimeout(() => {
+      location.href = href;
+    }, 1100);
   };
   addEventListener('scroll', () => document.getElementById('site-header').classList.toggle('scrolled', scrollY > 4), {
     passive: true
@@ -449,6 +535,8 @@
         totalPlays += count;
         const el = document.getElementById(`stat-game-${id}`);
         if (el) {
+          const tag = el.closest('.card-play-tag');
+          if (tag) tag.hidden = count < PLAY_TAG_MIN;
           Stats.animateCount(el, count);
         }
       });
@@ -500,7 +588,13 @@
   });
 
   applyOrder();
-  theme(prefs.theme);
+  theme(prefs.theme || root.dataset.theme, false);
+  // 沒有明確偏好時跟隨系統深淺色的即時變化
+  try {
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (!prefs.theme) theme(e.matches ? 'dark' : 'light', false);
+    });
+  } catch (_) {}
   render();
   initStats();
   restoreScroll();

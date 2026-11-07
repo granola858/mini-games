@@ -87,6 +87,12 @@ const BIG_WIN_RATIO = 5;
 // 核心缺席時遊戲沒有任何賠付邏輯可用，init() 會直接停住並提示；
 // 主題 / 音效 / 彩帶缺席時遊戲照常可玩，只是少了那一項。
 const _sicboCore = (typeof SicBoCore !== 'undefined' && SicBoCore) ? SicBoCore : null;
+// 全站共用過關卡片（破產與分數里程碑用）；可缺席（Node 測試環境沒有）
+const _sicboCelebrate = (typeof BoboCelebrate !== 'undefined' && BoboCelebrate) ? BoboCelebrate : null;
+// 下注桌「更多玩法」的展開狀態（只存 'all' / 'basic'）
+const SICBO_TABLE_VIEW_KEY = 'sicbo_table_view_v1';
+// 會用過關卡片慶祝的分數里程碑（其他里程碑維持 toast，不打斷節奏）
+const SICBO_CELEBRATE_MILESTONE_TYPE = 'balance';
 
 // ----------------------------------------------------------------------------
 // 2. 小工具：全部對「缺少某個瀏覽器 API」做守衛。
@@ -402,6 +408,7 @@ class SicBoGame {
     this.indexCells();
     this.loadPrefs();
     this.loadGame();
+    this.loadTableView();
 
     this.setupTheme();
     this.setupSoundButton();
@@ -453,10 +460,10 @@ class SicBoGame {
       historyEmpty: _sicboById('history-empty'),
       statsModal: _sicboById('stats-modal'),
       helpModal: _sicboById('help-modal'),
-      brokeModal: _sicboById('broke-modal'),
-      statsBody: _sicboById('stats-body'),
-      brokeBody: _sicboById('broke-body'),
-      restartBtn: _sicboById('restart-btn')
+      betMoreToggle: _sicboById('bet-more-toggle'),
+      betMore: _sicboById('bet-more'),
+      betMoreText: _sicboById('bet-more-text'),
+      statsBody: _sicboById('stats-body')
     };
 
     // 三顆骰的外層與內層分開快取：外層 .die 只做位移與縮放（落桌彈跳），
@@ -470,7 +477,7 @@ class SicBoGame {
     this.el.cubes = dice.map(die => _sicboQuery('.die__cube', die));
     this.el.gambleCube = _sicboQuery('.die__cube', this.el.gambleDie);
 
-    this.modals = [this.el.statsModal, this.el.helpModal, this.el.brokeModal].filter(Boolean);
+    this.modals = [this.el.statsModal, this.el.helpModal].filter(Boolean);
   }
 
   // 注格只在這裡掃一次：之後一律用 betId 反查，不在資料裡放 DOM 參考。
@@ -606,7 +613,12 @@ class SicBoGame {
       });
     }
     if (this.el.helpBtn) this.el.helpBtn.addEventListener('click', () => this.openModal(this.el.helpModal));
-    if (this.el.restartBtn) this.el.restartBtn.addEventListener('click', () => this.restart());
+    if (this.el.betMoreToggle) {
+      this.el.betMoreToggle.addEventListener('click', () => {
+        const open = this.el.betMore ? this.el.betMore.hidden : true;
+        this.setTableExpanded(open, true);
+      });
+    }
 
     // 彈窗三條關閉路徑：點遮罩本身、任何 data-close 按鈕、Escape（在鍵盤處理裡）
     this.modals.forEach((modal) => {
@@ -674,8 +686,8 @@ class SicBoGame {
       // 標籤必須說實話：桌上還有注（keepBets 已重下）才是真的「再來一局」，
       // 否則按下去只會收下贏分並回到空桌，寫「再來一局」會讓人以為骰子要轉了。
       const willRoll = this.bets.size > 0;
-      label = willRoll ? '再來一局' : '收下贏分';
-      title = willRoll ? '收下贏分並直接開下一局（Space）' : '收下贏分，回到下注（Space）';
+      label = willRoll ? '再來一局' : '收下得分';
+      title = willRoll ? '收下得分並直接開下一局（Space）' : '收下得分，回到下注（Space）';
     } else if (this.phase === 'broke') {
       label = '重新開始';
       title = '餘額見底，重新開始（Space）';
@@ -825,6 +837,7 @@ class SicBoGame {
   // 真正改狀態的那一段。刻意與 placeBet 分開，因為「結算後自動重下上局注單」
   // 發生在 settling 階段，phase 守門會擋掉 placeBet，但那次扣款是合法的。
   applyBet(id, amount) {
+    this.revealCell(id);
     this.balance -= amount;
     this.bets.set(id, (this.bets.get(id) || 0) + amount);
     this.renderCell(id);
@@ -907,7 +920,7 @@ class SicBoGame {
     if (amount <= 0) {
       if (stack && typeof stack.remove === 'function') stack.remove();
       _sicboToggleClass(cell, 'is-active', false);
-      _sicboSetAttr(cell, 'aria-pressed', 'false');
+      // 注格按一下是「加一枚籌碼」不是開關，所以不用 aria-pressed；押了多少寫在 label 裡
       if (base) _sicboSetAttr(cell, 'aria-label', base);
       return;
     }
@@ -918,7 +931,6 @@ class SicBoGame {
     }
     _sicboSetText(stack, _sicboCore.formatNumber(amount));
     _sicboToggleClass(cell, 'is-active', true);
-    _sicboSetAttr(cell, 'aria-pressed', 'true');
     if (base) _sicboSetAttr(cell, 'aria-label', base + '，已押 ' + _sicboCore.formatNumber(amount) + ' 分');
   }
 
@@ -1585,6 +1597,13 @@ class SicBoGame {
     // 5 個里程碑，5 條 toast 一起出現 2.4 秒，在 1280 寬的畫面上正好蓋住剛中獎的
     // 金色格子 —— 全場最大的一次中獎被自己的慶祝訊息擋住。
     // 同局多解鎖時合併成一條，細節留在戰績彈窗的徽章牆。
+    // 分數里程碑（破 2,000 / 5,000 …）用過關卡片慶祝，一次只秀最高的那一個；
+    // 其他里程碑（連勝、局數、圍骰）維持 toast，不打斷連打的節奏。
+    const scoreMilestones = gained.filter(m => m.type === SICBO_CELEBRATE_MILESTONE_TYPE);
+    if (scoreMilestones.length && this.celebrateMilestone(scoreMilestones[scoreMilestones.length - 1])) {
+      this.audio.playMilestone();
+      return;
+    }
     if (gained.length === 1) {
       this.showToast('🏅 ' + gained[0].label);
     } else {
@@ -1633,7 +1652,7 @@ class SicBoGame {
       ['最高餘額', _sicboCore.formatNumber(stats.peakBalance)],
       ['最長連勝', _sicboCore.formatNumber(stats.bestStreak)],
       ['開出圍骰', _sicboCore.formatNumber(stats.triples) + ' 次'],
-      ['翻倍戰績', stats.gambleWins + ' 勝 ' + stats.gambleLosses + ' 敗'],
+      ['好運加碼', stats.gambleWins + ' 勝 ' + stats.gambleLosses + ' 敗'],
       ['目前連勝', _sicboCore.formatNumber(this.streak)]
     ]));
 
@@ -1661,31 +1680,6 @@ class SicBoGame {
       wall.appendChild(badge);
     });
     body.appendChild(wall);
-  }
-
-  renderBrokeBody() {
-    const body = this.el.brokeBody;
-    if (!body) return;
-    const stats = this.stats;
-    body.textContent = '';
-
-    const intro = document.createElement('p');
-    intro.textContent = '餘額不足最小籌碼（' + _sicboCore.formatNumber(_sicboCore.CHIPS[0]) + '），這一輪先到這裡。';
-    body.appendChild(intro);
-
-    body.appendChild(this.buildStatGrid([
-      ['總局數', _sicboCore.formatNumber(stats.rounds)],
-      ['勝率', this.winRateText()],
-      ['最大單局贏分', _sicboCore.formatNumber(stats.biggestWin)],
-      ['最高餘額', _sicboCore.formatNumber(stats.peakBalance)]
-    ]));
-
-    const note = document.createElement('p');
-    note.className = 'stats-note';
-    note.textContent = '重新開始只會把餘額補回 '
-      + _sicboCore.formatNumber(_sicboCore.START_BALANCE)
-      + ' 並把連勝歸零，戰績與里程碑都會留著。';
-    body.appendChild(note);
   }
 
   // ==========================================================================
@@ -1725,24 +1719,24 @@ class SicBoGame {
     const entry = this.gambleEntry;
     if (entry) {
       entry.net = pot;
-      if (kind === 'lose') entry.note = '翻倍失敗';
-      else if (this.gambleRounds > 0) entry.note = '翻倍 ×' + Math.pow(2, this.gambleRounds);
+      if (kind === 'lose') entry.note = '加碼沒猜中';
+      else if (this.gambleRounds > 0) entry.note = '加碼 ×' + Math.pow(2, this.gambleRounds);
       this.gambleItem = this.replaceHistoryItem(entry, this.gambleItem);
     }
 
     const msgEl = this.el.resultMsg;
     if (msgEl && msgEl.classList) msgEl.classList.remove('is-win', 'is-lose');
     if (kind === 'lose') {
-      _sicboSetText(msgEl, '翻倍失敗，剛才的 ' + _sicboCore.formatNumber(base) + ' 分飛了');
+      _sicboSetText(msgEl, '這次沒猜中，加碼的 ' + _sicboCore.formatNumber(base) + ' 分不算');
       if (msgEl && msgEl.classList) msgEl.classList.add('is-lose');
-      _sicboSetText(this.el.resultSub, '這一局的實際淨額變成 ±0 分，下一局重新開始。');
+      _sicboSetText(this.el.resultSub, '原本的分數完全不受影響，下一局再來。');
     } else {
       _sicboSetText(msgEl, '收下 ' + _sicboCore.formatNumber(pot) + ' 分');
       if (msgEl && msgEl.classList) msgEl.classList.add('is-win');
       _sicboSetText(
         this.el.resultSub,
         this.gambleRounds > 0
-          ? '翻倍 ' + this.gambleRounds + ' 次，' + _sicboCore.formatNumber(base)
+          ? '加碼 ' + this.gambleRounds + ' 次，' + _sicboCore.formatNumber(base)
             + ' 分變成 ' + _sicboCore.formatNumber(pot) + ' 分。'
           : ''
       );
@@ -1836,16 +1830,16 @@ class SicBoGame {
       this.audio.playGambleWin();
       _sicboVibrate(40);
       if (this.gambleRounds >= _sicboCore.GAMBLE_MAX_ROUNDS) {
-        this.showToast('開 ' + outcome.die + ' 點，連續翻倍 ' + this.gambleRounds + ' 次，自動收下');
+        this.showToast('開 ' + outcome.die + ' 點，連續加碼 ' + this.gambleRounds + ' 次，自動收下');
         this.takeGamble();
         return;
       }
-      this.showToast('開 ' + outcome.die + ' 點，翻倍成功！目前 ' + _sicboCore.formatNumber(this.gambleAmount) + ' 分');
+      this.showToast('開 ' + outcome.die + ' 點，猜中了！目前 ' + _sicboCore.formatNumber(this.gambleAmount) + ' 分');
       // 缺陷 F：贏了還要繼續賭時，舞台訊息也得跟上，不能停在「中獎！贏了 N 分」——
       // 那個數字在彩池翻倍之後已經不是玩家手上的金額。
       _sicboSetText(
         this.el.resultMsg,
-        '翻倍成功！開 ' + outcome.die + ' 點，彩池 ' + _sicboCore.formatNumber(this.gambleAmount) + ' 分'
+        '猜中了！開 ' + outcome.die + ' 點，目前 ' + _sicboCore.formatNumber(this.gambleAmount) + ' 分'
       );
       if (this.el.resultMsg && this.el.resultMsg.classList) {
         this.el.resultMsg.classList.remove('is-lose');
@@ -1853,7 +1847,7 @@ class SicBoGame {
       }
       _sicboSetText(
         this.el.resultSub,
-        '已翻倍 ' + this.gambleRounds + ' / ' + _sicboCore.GAMBLE_MAX_ROUNDS
+        '已加碼 ' + this.gambleRounds + ' / ' + _sicboCore.GAMBLE_MAX_ROUNDS
           + ' 次，再猜中一次變 ' + _sicboCore.formatNumber(this.gambleAmount * 2)
           + ' 分，或按「收下」落袋。'
       );
@@ -1869,7 +1863,7 @@ class SicBoGame {
     this.gambleAmount = 0;
     this.gambleStaked = false;
     this.audio.playGambleLose();
-    this.showToast('開 ' + outcome.die + ' 點，翻倍失敗，這筆贏分飛了');
+    this.showToast('開 ' + outcome.die + ' 點，沒猜中，這局加碼不算');
     this.finishGambleRound(0, 'lose');
     this.gambleRounds = 0;   // finishGambleRound 要靠它算「翻倍幾次」，所以在它之後才歸零
     this.saveGame();
@@ -1926,9 +1920,78 @@ class SicBoGame {
     return this.balance < _sicboCore.CHIPS[0] && this.bets.size === 0;
   }
 
+  // 分數用完：改用全站共用的結果卡片（outcome: lose），語氣友善、直接給下一步。
+  // 關掉卡片後 phase 還是 broke，主動作鍵寫著「重新開始」，按了會再叫出這張卡片。
   openBrokeModal() {
-    this.renderBrokeBody();
-    this.openModal(this.el.brokeModal, this.el.restartBtn);
+    const stats = this.stats;
+    const fmt = _sicboCore.formatNumber;
+    if (!_sicboCelebrate) {
+      this.showToast('分數用完了，按「重新開始」補回 ' + fmt(_sicboCore.START_BALANCE) + ' 分');
+      return;
+    }
+    _sicboCelebrate.show({
+      outcome: 'lose',
+      gameName: '骰寶',
+      title: '分數用完了',
+      subtitle: '剩下的分數不夠押最小的 ' + fmt(_sicboCore.CHIPS[0]) + ' 分，這一輪先到這裡。'
+        + '重新開始會補回 ' + fmt(_sicboCore.START_BALANCE) + ' 分，戰績與里程碑都會留著。',
+      stats: [
+        { label: '總局數', value: fmt(stats.rounds) },
+        { label: '勝率', value: this.winRateText() },
+        { label: '最高分數', value: fmt(stats.peakBalance) }
+      ],
+      accent: '#1f6b47',
+      accentDark: '#7fd1a3',
+      primary: { label: '重新開始（+' + fmt(_sicboCore.START_BALANCE) + '）', onClick: () => this.restart() },
+      secondary: { label: '先看看紀錄' }
+    });
+  }
+
+  // 達成分數里程碑時的慶祝卡片：一輪裡最值得記住的時刻，每個里程碑一生只出現一次
+  celebrateMilestone(milestone) {
+    if (!_sicboCelebrate || !milestone) return false;
+    const fmt = _sicboCore.formatNumber;
+    _sicboCelebrate.show({
+      outcome: 'win',
+      gameName: '骰寶',
+      title: '分數突破 ' + fmt(milestone.value) + '！',
+      subtitle: '從 ' + fmt(_sicboCore.START_BALANCE) + ' 分一路玩到這裡，見好就收也是一種本事。',
+      stats: [
+        { label: '目前分數', value: fmt(this.balance), isBest: true },
+        { label: '連勝', value: this.streak + ' 局' },
+        { label: '總局數', value: fmt(this.stats.rounds) }
+      ],
+      accent: '#1f6b47',
+      accentDark: '#7fd1a3',
+      primary: { label: '繼續玩' }
+    });
+    return true;
+  }
+
+  // ==========================================================================
+  // 下注桌的漸進揭露：新手先看「大／小」，其餘注格收在「更多玩法」
+  // ==========================================================================
+  loadTableView() {
+    const saved = _sicboReadJson(SICBO_TABLE_VIEW_KEY);
+    this.setTableExpanded(saved === 'all', false);
+  }
+
+  setTableExpanded(open, persist) {
+    const more = this.el.betMore;
+    if (!more) return;
+    more.hidden = !open;
+    _sicboSetAttr(this.el.betMoreToggle, 'aria-expanded', open ? 'true' : 'false');
+    _sicboSetText(this.el.betMoreText, open ? '收起更多玩法' : '更多玩法：點數、組合、雙骰、圍骰、單骰');
+    if (persist) _sicboWriteJson(SICBO_TABLE_VIEW_KEY, open ? 'all' : 'basic');
+  }
+
+  // 有注要押在收起區的格子上（同上局、結算後自動重下）時自動展開，
+  // 不然玩家會看到餘額被扣了卻找不到注在哪裡。這次展開不寫進偏好。
+  revealCell(id) {
+    const more = this.el.betMore;
+    if (!more || !more.hidden) return;
+    const cell = this.cellById.get(id);
+    if (cell && typeof more.contains === 'function' && more.contains(cell)) this.setTableExpanded(true, false);
   }
 
   restart() {
@@ -1953,7 +2016,7 @@ class SicBoGame {
     _sicboSetText(this.el.resultMsg, '選一顆籌碼，押幾注，按 PLAY 開骰。');
     _sicboSetText(this.el.resultSub, '');
     this.saveGame();
-    this.closeModal(this.el.brokeModal);
+    if (_sicboCelebrate) _sicboCelebrate.close();
     this.setPhase('betting');
     this.showToast('重新開始，補上 ' + _sicboCore.formatNumber(_sicboCore.START_BALANCE) + ' 分');
   }
@@ -2116,6 +2179,8 @@ class SicBoGame {
   // ==========================================================================
   handleKeyDown(event) {
     if (!event || event.defaultPrevented) return;
+    // 過關卡片（原生 modal dialog）開著時，Space / Enter / Esc 都交給卡片本身
+    if (_sicboCelebrate && _sicboCelebrate.isOpen()) return;
     const target = event.target;
     const tag = (target && target.tagName) ? String(target.tagName).toUpperCase() : '';
     // 本頁沒有輸入框，但守衛還是要寫：日後多一個 <input> 就會吃掉玩家打的字。
@@ -2153,8 +2218,19 @@ class SicBoGame {
     //           任何按鈕／連結上時一律交還原生啟動；焦點不在可啟動元素上
     //          （例如剛載入、焦點在 body）才當成主動作鍵。
     // index.html 的玩法彈窗快捷鍵表已同步改成這個說法。
+    // 重新稽核補充：Space／R／C／數字鍵只在「焦點在注格、骰盤，或沒有停在任何按鈕上」時
+    // 才當遊戲鍵。焦點停在其他按鈕（主題、規則、更多玩法、好運加碼的猜大／猜小…）時，
+    // 一律交還原生行為 —— 否則在「猜大」上按 Space 會被當成「領分並開下一局」，
+    // 玩家沒選的動作直接扣掉下注、無法復原。PLAY 鍵的原生啟動本來就等同主動作。
+    const closest = (sel) => !!(target && typeof target.closest === 'function' && target.closest(sel));
+    const onBetCell = closest('.bet-cell');
+    const onTray = !!(target && this.el.diceTray
+      && (target === this.el.diceTray || this.el.diceTray.contains(target)));
+    const onOtherControl = !onBetCell && !onTray
+      && closest('button, a[href], [role="button"], [role="switch"], summary, select');
+
     if (isSpace) {
-      if (target === this.el.rollBtn || target === this.el.restartBtn) return;
+      if (onOtherControl) return;
       event.preventDefault();   // 同時擋掉「Space 捲動頁面」與注格的原生啟動
       this.onPrimaryAction();
       return;
@@ -2166,6 +2242,7 @@ class SicBoGame {
       return;
     }
 
+    if (onOtherControl) return;
     if (key === 'r' || key === 'R') {
       this.rebet();
       return;
@@ -2304,11 +2381,10 @@ class SicBoGame {
     if (!btn) return;
     const dark = theme === 'dark';
     btn.innerHTML = dark
-      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
-      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+    // 全站規格：label 固定為「深色模式」，狀態只由 aria-pressed 表達，不會唸出互相矛盾的資訊
     _sicboSetAttr(btn, 'aria-pressed', dark ? 'true' : 'false');
-    _sicboSetAttr(btn, 'title', dark ? '切換為淺色模式' : '切換為深色模式');
-    _sicboSetAttr(btn, 'aria-label', dark ? '切換為淺色模式' : '切換為深色模式');
   }
 
   setupSoundButton() {
@@ -2327,12 +2403,11 @@ class SicBoGame {
     const btn = this.el.soundBtn;
     if (!btn) return;
     const on = !!(this.audio && this.audio.enabled);
-    const icon = _sicboQuery('span', btn);
-    if (icon) _sicboSetText(icon, on ? '🔊' : '🔇');
-    else _sicboSetText(btn, on ? '🔊' : '🔇');
+    btn.innerHTML = on
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m23 9-6 6"/><path d="m17 9 6 6"/></svg>';
+    // label 固定為「音效」，pressed = 音效開著
     _sicboSetAttr(btn, 'aria-pressed', on ? 'true' : 'false');
-    _sicboSetAttr(btn, 'title', on ? '關閉音效' : '開啟音效');
-    _sicboSetAttr(btn, 'aria-label', on ? '關閉音效' : '開啟音效');
   }
 
   // ==========================================================================

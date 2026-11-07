@@ -1,32 +1,55 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" data-theme="light">
 
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Nonogram</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap">
+  <meta name="theme-color" content="#ffffff" data-theme-color-light="#ffffff" data-theme-color-dark="#0f141c">
+  <title>Nonogram 數織 - 波波小遊戲</title>
+  <meta name="description" content="依照列與欄的數字塗黑格子：可以玩隨機題，也可以玩藏著小圖案的圖案題。">
+  <!-- 防止深色模式閃爍：必須 inline 且排在所有 stylesheet 之前，外連的 script 來不及。
+       內容是 BoboTheme.ANTI_FLASH_SNIPPET 的逐字複製，全站唯一的複製來源在
+       ../../assets/js/bobo-theme.js，要改請改那裡再同步過來。 -->
+  <script>
+    (() => {
+      try {
+        const homePref = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
+        const theme = ['dark', 'light'].includes(homePref.theme)
+          ? homePref.theme
+          : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+      } catch (_) {}
+    })();
+  </script>
   <link rel="stylesheet" href="nonogram.css">
 </head>
 
 <body>
 
   <div class="container">
-    <div class="top-bar">
+    <header class="top-bar">
       <a href="../../index.html" class="back-btn">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M19 12H5M12 19l-7-7 7-7"></path>
         </svg>
         回首頁
       </a>
 
       <div class="top-controls">
-        <button id="dark-mode-toggle" class="theme-toggle-btn" type="button" role="switch" aria-checked="false"
-          aria-label="切換為深色模式" title="切換為深色模式">
+        <button id="rules-btn" class="icon-btn" type="button" aria-label="遊戲規則" title="遊戲規則">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M9.5 9.2a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.3-2.5 3.8"></path>
+            <path d="M12 17.2h.01"></path>
+          </svg>
+        </button>
+
+        <!-- 主題鍵：固定名稱「深色模式」，用 aria-pressed 表示目前是否為深色 -->
+        <button id="dark-mode-toggle" class="icon-btn theme-toggle-btn" type="button" aria-label="深色模式"
+          aria-pressed="false" title="深色模式">
           <svg class="theme-icon sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="4"></circle>
@@ -46,25 +69,25 @@
         </button>
 
         <div class="menu-wrap">
-          <button id="menu-btn" class="menu-btn" type="button" aria-label="開啟設定選單" aria-expanded="false"
-            aria-controls="menu-panel">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button id="menu-btn" class="icon-btn menu-btn" type="button" aria-label="設定" title="設定"
+            aria-expanded="false" aria-controls="menu-panel">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <line x1="4" y1="7" x2="20" y2="7"></line>
               <line x1="4" y1="12" x2="20" y2="12"></line>
               <line x1="4" y1="17" x2="20" y2="17"></line>
             </svg>
           </button>
 
-          <div id="menu-panel" class="menu-panel hidden">
+          <div id="menu-panel" class="menu-panel hidden" role="region" aria-label="設定">
             <div class="menu-section">
               <div class="menu-title">螢幕設定</div>
               <div class="menu-toggle-row">
                 <label class="menu-label" for="wake-lock-checkbox">螢幕防休眠</label>
-                <label class="toggle-switch">
-                  <input id="wake-lock-checkbox" type="checkbox">
-                  <span class="toggle-slider"></span>
-                </label>
+                <span class="toggle-switch">
+                  <input id="wake-lock-checkbox" type="checkbox" role="switch">
+                  <span class="toggle-slider" aria-hidden="true"></span>
+                </span>
               </div>
               <div id="wake-lock-note" class="menu-note">防止遊戲進行期間螢幕自動變暗或休眠熄屏。</div>
             </div>
@@ -72,7 +95,7 @@
             <div class="menu-section">
               <div class="menu-title">外觀設定</div>
               <div class="menu-note">調整方塊和標題顏色，方便比賽時區分自己的盤面。</div>
-              <div class="palette-grid">
+              <div class="palette-grid" role="group" aria-label="主題色">
                 <button class="palette-swatch active" type="button" data-color="#FFB7F1"
                   style="--swatch-color: #FFB7F1;" aria-label="粉色"></button>
                 <button class="palette-swatch" type="button" data-color="#FF8A65" style="--swatch-color: #FF8A65;"
@@ -103,136 +126,182 @@
             </div>
 
             <div class="menu-section">
-              <div class="menu-title">Seed 同步</div>
-              <label class="menu-label" for="current-seed-output">目前題目 Seed</label>
+              <div class="menu-title">題目代碼（Seed）同步</div>
+              <label class="menu-label" for="current-seed-output">目前題目代碼</label>
               <textarea id="current-seed-output" class="seed-display" rows="3" readonly></textarea>
               <div class="menu-btn-row">
-                <button id="copy-seed-btn" class="secondary-btn" type="button">複製 Seed</button>
+                <button id="copy-seed-btn" class="secondary-btn" type="button">複製代碼</button>
               </div>
-              <label class="menu-label" for="seed-input">讀取 Seed</label>
+              <label class="menu-label" for="seed-input">讀取代碼</label>
               <input id="seed-input" class="seed-input" type="text" spellcheck="false" autocomplete="off"
                 placeholder="例如 NGM-10-0123ABCD...">
-              <button id="load-seed-btn" class="primary-btn menu-action-btn" type="button">載入 Seed</button>
-              <div class="menu-note">載入的 Seed 會自動判定難度，放進對應的難度分頁。</div>
+              <button id="load-seed-btn" class="primary-btn menu-action-btn" type="button">載入代碼</button>
+              <div class="menu-note">載入的題目會自動判定難度，放進隨機模式對應的難度。</div>
               <div id="seed-feedback" class="menu-feedback"></div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </header>
 
-    <h1 class="h1">Nonogram</h1>
+    <main class="game-main">
+      <h1 class="h1">Nonogram 數織</h1>
+      <p class="subtitle">照著每一列、每一欄的數字塗黑格子；選「圖案」模式，解開後會出現一張小圖。</p>
 
-    <div class="control-stack">
-      <div class="control-group">
-        <div class="control-label">盤面大小</div>
-        <div class="toggle-container" id="level-toggle">
-          <button class="mode-btn active" type="button" data-size="8">8x8</button>
-          <button class="mode-btn" type="button" data-size="10">10x10</button>
-          <button class="mode-btn" type="button" data-size="12">12x12</button>
+      <div class="control-stack">
+        <div class="control-group">
+          <div class="control-label" id="mode-label">出題方式</div>
+          <div class="toggle-container" id="mode-toggle" role="group" aria-labelledby="mode-label">
+            <button class="mode-btn active" type="button" data-mode="random" aria-pressed="true">隨機</button>
+            <button class="mode-btn" type="button" data-mode="picture" aria-pressed="false">圖案</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-label" id="size-label">盤面大小</div>
+          <div class="toggle-container" id="level-toggle" role="group" aria-labelledby="size-label">
+            <button class="mode-btn active" type="button" data-size="8" aria-pressed="true">8×8</button>
+            <button class="mode-btn" type="button" data-size="10" aria-pressed="false">10×10</button>
+            <button class="mode-btn" type="button" data-size="12" aria-pressed="false">12×12</button>
+          </div>
+        </div>
+
+        <div class="control-group" id="difficulty-group">
+          <label class="control-label" for="difficulty-select">難度</label>
+          <div class="toggle-container select-container">
+            <select id="difficulty-select" class="mode-select">
+              <option value="easy">簡單</option>
+              <option value="medium" selected>中等</option>
+              <option value="hard">困難</option>
+              <option value="random">隨機</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-group hidden" id="picture-group">
+          <div class="control-label">圖案進度</div>
+          <div class="toggle-container picture-progress" id="picture-progress">0／0</div>
         </div>
       </div>
 
-      <div class="control-group">
-        <label class="control-label" for="difficulty-select">難度</label>
-        <div class="toggle-container select-container">
-          <select id="difficulty-select" class="mode-select">
-            <option value="easy">簡單</option>
-            <option value="medium" selected>中等</option>
-            <option value="hard">困難</option>
-            <option value="random">隨機</option>
-          </select>
+      <div class="action-msg-container">
+        <div class="action-toggle" id="action-toggle" role="group" aria-label="點格子時">
+          <button class="action-btn active" type="button" data-action="fill" aria-pressed="true">塗黑</button>
+          <button class="action-btn" type="button" data-action="mark" aria-pressed="false">標記 Ｏ</button>
+        </div>
+        <button id="board-lock-btn" class="board-lock-btn" type="button" aria-label="鎖定盤面（防誤觸）"
+          aria-pressed="false" title="鎖定盤面（防誤觸）">
+          <svg class="lock-icon unlocked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+          </svg>
+          <svg class="lock-icon locked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </button>
+        <div id="top-msg" class="top-msg hidden"></div>
+      </div>
+
+      <div class="game-board-wrapper">
+        <div id="board-container" class="board-container">
+          <div id="board" class="game-board" role="grid" aria-label="數織盤面"
+            aria-describedby="board-keys-help"></div>
+        </div>
+        <p id="board-keys-help" class="visually-hidden">方向鍵移動，空白鍵或 Enter 用目前的工具，X 鍵標記 Ｏ。</p>
+      </div>
+
+      <div class="status-area">
+        <div id="main-actions" class="btn-group">
+          <button id="undo-btn" class="secondary-btn labeled-btn" type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 14L4 9l5-5"></path>
+              <path d="M4 9h10a5 5 0 1 1 0 10h-2"></path>
+            </svg>
+            <span>復原</span>
+          </button>
+          <button id="new-game-btn" class="secondary-btn labeled-btn" type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-3-6.7"></path>
+              <path d="M21 3v6h-6"></path>
+            </svg>
+            <span>新局</span>
+          </button>
+          <button id="clear-board-btn" class="secondary-btn labeled-btn" type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18"></path>
+              <path d="M8 6V4h8v2"></path>
+              <path d="M19 6l-1 14H6L5 6"></path>
+              <path d="M10 11v6"></path>
+              <path d="M14 11v6"></path>
+            </svg>
+            <span>清空</span>
+          </button>
+          <button id="hint-btn" class="secondary-btn labeled-btn" type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18h6"></path>
+              <path d="M10 22h4"></path>
+              <path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2V17h6v-.3c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z"></path>
+            </svg>
+            <span>提示</span>
+            <span id="hint-count" class="hint-count" aria-hidden="true">3</span>
+          </button>
+          <button id="check-btn" class="primary-btn labeled-btn" type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 6L9 17l-5-5"></path>
+            </svg>
+            <span>對答案</span>
+          </button>
+        </div>
+        <div id="hint-msg" class="hint-msg"></div>
+        <div id="result-box" class="status-area hidden">
+          <div id="result-btns" class="btn-group"></div>
         </div>
       </div>
-    </div>
 
-    <div class="action-msg-container">
-      <div class="action-toggle" id="action-toggle">
-        <button class="action-btn active" data-action="fill">塗黑</button>
-        <button class="action-btn" data-action="mark">標記 Ｏ</button>
-      </div>
-      <button id="board-lock-btn" class="board-lock-btn" type="button" aria-label="盤面鎖定 (防誤觸)" title="盤面鎖定 (防誤觸)">
-        <svg class="lock-icon unlocked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-          <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-        </svg>
-        <svg class="lock-icon locked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-        </svg>
-      </button>
-      <div id="top-msg" class="top-msg hidden"></div>
-    </div>
-
-    <div class="game-board-wrapper">
-      <div id="board-container" class="board-container">
-        <div id="board" class="game-board"></div>
-      </div>
-    </div>
-
-    <div class="status-area">
-      <div id="main-actions" class="btn-group">
-        <button id="undo-btn" class="secondary-btn" type="button" aria-label="返回上一步">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 14L4 9l5-5"></path>
-            <path d="M4 9h10a5 5 0 1 1 0 10h-2"></path>
-          </svg>
-        </button>
-        <button id="new-game-btn" class="secondary-btn" type="button" aria-label="新的一局">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 12a9 9 0 1 1-3-6.7"></path>
-            <path d="M21 3v6h-6"></path>
-          </svg>
-        </button>
-        <button id="clear-board-btn" class="secondary-btn" type="button" aria-label="清空盤面">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 6h18"></path>
-            <path d="M8 6V4h8v2"></path>
-            <path d="M19 6l-1 14H6L5 6"></path>
-            <path d="M10 11v6"></path>
-            <path d="M14 11v6"></path>
-          </svg>
-        </button>
-        <button id="hint-btn" class="secondary-btn" type="button" aria-label="提示" title="提示">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 18h6"></path>
-            <path d="M10 22h4"></path>
-            <path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2V17h6v-.3c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z"></path>
-          </svg>
-          <span id="hint-count" class="hint-count" aria-hidden="true">3</span>
-        </button>
-        <button id="check-btn" class="primary-btn" type="button" aria-label="確認答案">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M20 6L9 17l-5-5"></path>
-          </svg>
-        </button>
-      </div>
-      <div id="hint-msg" class="hint-msg" role="status" aria-live="polite" aria-atomic="true"></div>
-      <div id="result-box" class="status-area hidden">
-        <div id="result-btns" class="btn-group"></div>
-      </div>
-    </div>
-
-    <div id="confirm-overlay" class="confirm-overlay hidden" aria-hidden="true">
-      <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title"
-        aria-describedby="confirm-message">
-        <div id="confirm-title" class="confirm-title"></div>
-        <p id="confirm-message" class="confirm-message"></p>
-        <div class="confirm-actions">
-          <button id="confirm-cancel-btn" class="secondary-btn" type="button">取消</button>
-          <button id="confirm-ok-btn" class="primary-btn" type="button"></button>
-        </div>
-      </div>
-    </div>
+      <!-- 全頁唯一的播報區：提示、對答案結果、過關都從這裡念給螢幕閱讀器 -->
+      <div id="sr-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+    </main>
   </div>
 
+  <dialog id="confirm-dialog" class="game-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <h2 id="confirm-title" class="dialog-title"></h2>
+    <p id="confirm-message" class="dialog-message"></p>
+    <div class="dialog-actions">
+      <button id="confirm-cancel-btn" class="secondary-btn" type="button">取消</button>
+      <button id="confirm-ok-btn" class="primary-btn" type="button"></button>
+    </div>
+  </dialog>
+
+  <dialog id="rules-dialog" class="game-dialog rules-dialog" aria-labelledby="rules-title">
+    <h2 id="rules-title" class="dialog-title">怎麼玩</h2>
+    <div class="rules-body">
+      <h3>目標</h3>
+      <p>每一列左邊、每一欄上面的數字，代表這條線上連續塗黑格子的長度，數字之間至少隔一格空白。把所有該塗的格子塗黑就過關。</p>
+      <h3>兩種出題方式</h3>
+      <p><strong>隨機</strong>：每次隨機出題，可選簡單、中等、困難或隨機難度。<br>
+        <strong>圖案</strong>：每題都藏著一張小圖，解完就會看到它；每個盤面大小各有一組圖案可以收集。</p>
+      <h3>操作</h3>
+      <p>點或拖曳格子：用上方選的工具「塗黑」或「標記 Ｏ」（Ｏ 只是幫你記住留白，不影響過關）。拖曳時會連續塗過經過的格子。<br>
+        鍵盤：Tab 進入盤面，方向鍵移動，空白鍵或 Enter 使用目前的工具，X 鍵標記 Ｏ。</p>
+      <h3>提示與對答案</h3>
+      <p>每局有 3 次提示：先指出填錯的格子，沒有錯就指出一格可以推理出來的塗黑格。按「對答案」時，對不上的列與欄會標成紅色。</p>
+    </div>
+    <div class="dialog-actions">
+      <button id="rules-close-btn" class="primary-btn" type="button">知道了</button>
+    </div>
+  </dialog>
+
+  <script src="../../assets/js/bobo-theme.js"></script>
+  <script src="../../assets/js/bobo-confetti.js"></script>
+  <script src="../../assets/js/bobo-celebrate.js"></script>
   <script src="../../assets/js/stats.js"></script>
   <script src="nonogram-core.js"></script>
   <script src="nonogram.js"></script>

@@ -11,6 +11,14 @@
 const SAVE_KEY = 'minesweeper_save_state_v1';
 const STATS_KEY = 'minesweeper_stats_v1';
 const PREF_KEY = 'minesweeper_pref_v1';
+// 地宮的跨層進度（層數、生命、金幣、道具）。層與層之間沒有盤面局況可存，靠這份接回去
+const DUNGEON_RUN_KEY = 'minesweeper_dungeon_run_v1';
+// 長按插旗時允許的手指晃動距離（像素）
+const LONG_PRESS_SLOP_PX = 10;
+// 自動縮放後格子的最小邊長；再小就改成橫向捲動
+const MIN_CELL_PX = 28;
+// 窄於這個寬度且玩家沒選過難度時，預設簡單 9×9
+const NARROW_SCREEN_PX = 600;
 
 const MODES = {
   TACTICAL: 'tactical',
@@ -30,6 +38,9 @@ const MODE_SKIN_MAP = {
   [MODES.DUNGEON]: SKINS.DUNGEON,
   [MODES.CLASSIC]: SKINS.CLASSIC
 };
+
+// 全站共用過關卡片；可缺席（Node 測試環境沒有）
+const celebrate = (typeof BoboCelebrate !== 'undefined') ? BoboCelebrate : null;
 
 const SKIN_TITLES = {
   [SKINS.TACTICAL]: { text: '特工：戰術排雷', badge: 'Tactical Ops', label: '<span>🤖 戰術特工</span>' },
@@ -438,6 +449,11 @@ class MinesweeperApp {
     // Touch & Pan Zoom state
     this.zoomScale = 1.0;
     this.touchMoved = false;
+    // 長按插旗的移動容許量：手指自然晃動不超過這個距離就仍算按住不動
+    this.touchStart = null;
+    // 盤面 roving tabindex：整個盤面只有一格在 Tab 順序裡
+    this.focusCell = { r: 0, c: 0 };
+    this.cellEls = [];
     this.longPressTimer = null;
     this.suppressNextClick = false;
     this.resizeFrame = null;
@@ -456,13 +472,14 @@ class MinesweeperApp {
       titleBadge: document.getElementById('title-badge'),
       modeTabs: document.querySelectorAll('.mode-tab-btn'),
       difficultyBar: document.getElementById('difficulty-bar'),
-      diffBtns: document.querySelectorAll('.diff-btn'),
+      diffSelect: document.getElementById('diff-select'),
       skinToggleBtn: document.getElementById('skin-toggle-btn'),
       themeBtn: document.getElementById('theme-btn'),
       soundBtn: document.getElementById('sound-btn'),
       statsBtn: document.getElementById('stats-btn'),
       helpBtn: document.getElementById('help-btn'),
       restartBtn: document.getElementById('restart-btn'),
+      dungeonRestartBtn: document.getElementById('dungeon-restart-btn'),
 
       // HUD elements
       tacticalHudRow: document.getElementById('tactical-hud-row'),
@@ -598,18 +615,20 @@ class MinesweeperApp {
     this.updateThemeIcon(curTheme);
   }
 
+  // 主題鍵：圖示由 CSS 依 data-theme 切換，這裡只同步 aria-pressed（固定 label，不同時改兩者）
   updateThemeIcon(theme) {
-    if (!this.el.themeBtn) return;
-    this.el.themeBtn.innerHTML = theme === 'dark'
-      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
-      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+    if (!this.el.themeBtn || typeof this.el.themeBtn.setAttribute !== 'function') return;
+    const dark = theme === 'dark';
+    this.el.themeBtn.setAttribute('aria-pressed', String(dark));
+    this.el.themeBtn.title = dark ? '深色模式：開' : '深色模式：關';
   }
 
   updateSoundIcon() {
-    if (!this.el.soundBtn) return;
-    this.el.soundBtn.innerHTML = this.sound.enabled
-      ? '<span>🔊</span>'
-      : '<span style="opacity:0.5">🔇</span>';
+    if (!this.el.soundBtn || typeof this.el.soundBtn.setAttribute !== 'function') return;
+    const on = !!this.sound.enabled;
+    this.el.soundBtn.classList.toggle('muted', !on);
+    this.el.soundBtn.setAttribute('aria-pressed', String(on));
+    this.el.soundBtn.title = on ? '音效：開' : '音效：關';
   }
 
   // ------------------------------------------------------------------------
@@ -629,30 +648,45 @@ class MinesweeperApp {
     if (this.el.statsBtn) this.el.statsBtn.addEventListener('click', () => this.openStatsModal());
     if (this.el.helpBtn) this.el.helpBtn.addEventListener('click', () => this.openHelpModal());
     if (this.el.restartBtn) this.el.restartBtn.addEventListener('click', () => this.startNewGame());
+    // 地宮專用的重新開始：從 B1F 開一趟新的冒險（地宮 HUD 沒有戰術列的笑臉鈕）
+    if (this.el.dungeonRestartBtn) this.el.dungeonRestartBtn.addEventListener('click', () => this.startNewGame());
 
     // Mode Switcher
-    this.el.modeTabs.forEach(tab => {
+    const tabs = [...this.el.modeTabs];
+    tabs.forEach((tab, index) => {
       tab.addEventListener('click', () => {
         const mode = tab.dataset.mode;
         if (mode && mode !== this.mode) {
           this.switchMode(mode);
         }
       });
+      // 方向鍵在分頁間移動焦點；切換模式會開新局，所以要按 Enter／空白鍵才啟用
+      tab.addEventListener('keydown', (event) => {
+        let next = null;
+        if (event.key === 'ArrowRight') next = tabs[(index + 1) % tabs.length];
+        else if (event.key === 'ArrowLeft') next = tabs[(index - 1 + tabs.length) % tabs.length];
+        else if (event.key === 'Home') next = tabs[0];
+        else if (event.key === 'End') next = tabs[tabs.length - 1];
+        if (!next) return;
+        event.preventDefault();
+        tabs.forEach(t => { t.tabIndex = t === next ? 0 : -1; });
+        next.focus();
+      });
     });
 
     this.bindGridEvents();
 
     // Difficulty Selector
-    this.el.diffBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const diff = btn.dataset.diff;
+    if (this.el.diffSelect) {
+      this.el.diffSelect.addEventListener('change', () => {
+        const diff = this.el.diffSelect.value;
         if (diff === 'custom') {
           this.openCustomModal();
-        } else if (diff) {
+        } else if (DIFFICULTY_PRESETS[diff]) {
           this.switchDifficulty(diff);
         }
       });
-    });
+    }
 
     // Item Action buttons
     if (this.el.shieldBtn) this.el.shieldBtn.addEventListener('click', () => this.handleItemClick('shield'));
@@ -674,7 +708,8 @@ class MinesweeperApp {
     if (this.el.zoomResetBtn) this.el.zoomResetBtn.addEventListener('click', () => this.resetZoom());
 
     // Modals
-    if (this.el.shopCloseBtn) this.el.shopCloseBtn.addEventListener('click', () => this.closeShopModal());
+    // 商店的 ×／Esc／點遮罩都等於「離開補給站，前往下一層」，不會把這趟冒險卡在已過關的盤面
+    if (this.el.shopCloseBtn) this.el.shopCloseBtn.addEventListener('click', () => this.proceedToNextFloor());
     if (this.el.shopNextFloorBtn) this.el.shopNextFloorBtn.addEventListener('click', () => this.proceedToNextFloor());
     if (this.el.customCloseBtn) this.el.customCloseBtn.addEventListener('click', () => this.closeCustomModal());
     if (this.el.customCancelBtn) this.el.customCancelBtn.addEventListener('click', () => this.closeCustomModal());
@@ -695,14 +730,16 @@ class MinesweeperApp {
 
     document.querySelectorAll('.modal-overlay').forEach(modal => {
       modal.addEventListener('click', (event) => {
-        if (event.target === modal) this.closeModal(modal);
+        if (event.target === modal) this.dismissModal(modal);
       });
     });
 
     document.addEventListener('keydown', (event) => {
+      // 過關卡片（原生 modal dialog）開著時，按鍵交給卡片本身
+      if (celebrate && celebrate.isOpen()) return;
       const openModal = document.querySelector('.modal-overlay.open');
       if (event.key === 'Escape') {
-        if (openModal) this.closeModal(openModal);
+        if (openModal) this.dismissModal(openModal);
         return;
       }
       if (event.key === 'Tab' && openModal) {
@@ -769,6 +806,8 @@ class MinesweeperApp {
       if (!target || this.gameOver || this.gameWon) return;
       this.touchMoved = false;
       this.suppressNextClick = false;
+      this.touchStart = { x: event.clientX, y: event.clientY };
+      this.setFocusCell(target.r, target.c, false);
 
       if (event.pointerType === 'touch') {
         clearLongPress();
@@ -783,13 +822,48 @@ class MinesweeperApp {
     });
 
     this.el.gridEl.addEventListener('pointermove', (event) => {
-      if (event.pointerType === 'touch') this.touchMoved = true;
+      if (event.pointerType !== 'touch' || !this.touchStart) return;
+      // 移動超過容許量才算拖曳／平移，避免手指自然晃動把插旗變成挖開
+      const dx = event.clientX - this.touchStart.x;
+      const dy = event.clientY - this.touchStart.y;
+      if (Math.hypot(dx, dy) > LONG_PRESS_SLOP_PX) {
+        this.touchMoved = true;
+        clearLongPress();
+      }
     });
 
     this.el.gridEl.addEventListener('pointerup', clearLongPress);
     this.el.gridEl.addEventListener('pointercancel', () => {
       this.touchMoved = true;
       clearLongPress();
+    });
+
+    // 鍵盤：方向鍵移動、F 插旗；Enter／空白鍵由按鈕原生觸發 click，走同一條路徑
+    this.el.gridEl.addEventListener('keydown', (event) => {
+      const target = getTarget(event);
+      if (!target) return;
+      let { r, c } = target;
+      let moved = true;
+      switch (event.key) {
+        case 'ArrowUp': r = Math.max(0, r - 1); break;
+        case 'ArrowDown': r = Math.min(this.rows - 1, r + 1); break;
+        case 'ArrowLeft': c = Math.max(0, c - 1); break;
+        case 'ArrowRight': c = Math.min(this.cols - 1, c + 1); break;
+        case 'Home': c = 0; break;
+        case 'End': c = this.cols - 1; break;
+        case 'f':
+        case 'F':
+          moved = false;
+          event.preventDefault();
+          if (!this.gameOver && !this.gameWon) this.handleFlagToggle(r, c);
+          break;
+        default:
+          moved = false;
+      }
+      if (moved) {
+        event.preventDefault();
+        this.setFocusCell(r, c, true);
+      }
     });
 
     this.el.gridEl.addEventListener('click', (event) => {
@@ -801,6 +875,7 @@ class MinesweeperApp {
       }
 
       const { r, c } = target;
+      this.setFocusCell(r, c, false);
       if (this.activeItem) {
         this.executeActiveItem(r, c);
       } else if (this.action === ACTION_MODES.FLAG) {
@@ -821,6 +896,8 @@ class MinesweeperApp {
   // Game Setup & Initialization
   // ------------------------------------------------------------------------
   switchMode(newMode) {
+    // 離開地宮就放棄這趟冒險，重新整理時不會又被拉回地宮
+    if (newMode !== MODES.DUNGEON) this.clearDungeonRun();
     this.mode = newMode;
     this.syncControlState();
 
@@ -835,8 +912,29 @@ class MinesweeperApp {
 
   switchDifficulty(diff) {
     this.difficulty = diff;
+    this.saveDifficultyPref(diff);
     this.syncControlState();
     this.startNewGame();
+  }
+
+  // 記住玩家自己選的難度；沒選過時，窄螢幕預設簡單 9×9（標準盤在手機上格子太小）
+  saveDifficultyPref(diff) {
+    try {
+      const pref = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
+      pref.difficulty = diff;
+      localStorage.setItem(PREF_KEY, JSON.stringify(pref));
+    } catch (_) {}
+  }
+
+  readDifficultyPref() {
+    try {
+      const pref = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
+      if (pref && DIFFICULTY_PRESETS[pref.difficulty]) return pref.difficulty;
+    } catch (_) {}
+    try {
+      if (typeof window !== 'undefined' && window.innerWidth < NARROW_SCREEN_PX) return 'easy';
+    } catch (_) {}
+    return 'medium';
   }
 
   syncControlState() {
@@ -844,12 +942,14 @@ class MinesweeperApp {
       const selected = tab.dataset.mode === this.mode;
       tab.classList.toggle('active', selected);
       tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      if (selected && tab.id && this.el.boardContainer && typeof this.el.boardContainer.setAttribute === 'function') {
+        this.el.boardContainer.setAttribute('aria-labelledby', tab.id);
+      }
     });
-    this.el.diffBtns.forEach(btn => {
-      const selected = btn.dataset.diff === this.difficulty;
-      btn.classList.toggle('active', selected);
-      btn.setAttribute('aria-pressed', String(selected));
-    });
+    if (this.el.diffSelect && this.el.diffSelect.value !== this.difficulty) {
+      this.el.diffSelect.value = this.difficulty;
+    }
     this.el.actionBtns.forEach(btn => {
       btn.setAttribute('aria-pressed', String(btn.dataset.action === this.action));
     });
@@ -858,8 +958,84 @@ class MinesweeperApp {
   loadStateOrNewGame() {
     const loaded = this.loadGameState();
     if (!loaded) {
-      this.startNewGame();
+      this.difficulty = this.readDifficultyPref();
+      if (!this.restoreDungeonRun()) this.startNewGame();
     }
+  }
+
+  // 依彈窗種類決定「關掉」的意義：商店＝前往下一層，自訂視窗＝取消並把難度選單退回
+  dismissModal(modal) {
+    if (modal === this.el.shopModal) {
+      this.proceedToNextFloor();
+    } else if (modal === this.el.customModal) {
+      this.closeCustomModal();
+    } else {
+      this.closeModal(modal);
+    }
+  }
+
+  saveDungeonRun(pendingShop) {
+    if (this.mode !== MODES.DUNGEON) return;
+    try {
+      localStorage.setItem(DUNGEON_RUN_KEY, JSON.stringify({
+        floor: this.currentFloor,
+        pendingShop: !!pendingShop,
+        hp: this.hp,
+        maxHp: this.maxHp,
+        gold: this.gold,
+        shields: this.shields,
+        radars: this.radars,
+        detectors: this.detectors,
+        defusers: this.defusers,
+        energy: this.energy
+      }));
+    } catch (_) {}
+  }
+
+  clearDungeonRun() {
+    try {
+      localStorage.removeItem(DUNGEON_RUN_KEY);
+    } catch (_) {}
+  }
+
+  // 重新整理時接回層與層之間的冒險；回傳是否接回成功
+  restoreDungeonRun() {
+    let run = null;
+    try {
+      run = JSON.parse(localStorage.getItem(DUNGEON_RUN_KEY) || 'null');
+    } catch (_) {
+      run = null;
+    }
+    if (!run || !Number.isInteger(run.floor) || run.floor < 1 || run.floor > DUNGEON_FLOORS.length) return false;
+    this.mode = MODES.DUNGEON;
+    const targetSkin = MODE_SKIN_MAP[MODES.DUNGEON];
+    if (targetSkin && this.skin !== targetSkin) this.applySkin(targetSkin);
+    this.currentFloor = run.floor;
+    this.maxHp = Math.max(1, run.maxHp || 3);
+    this.hp = Math.min(this.maxHp, Math.max(1, run.hp || 1));
+    this.gold = Math.max(0, run.gold || 0);
+    this.shields = run.shields || 0;
+    this.radars = run.radars || 0;
+    this.detectors = run.detectors || 0;
+    this.defusers = run.defusers || 0;
+    this.energy = run.energy || 0;
+    this.startNewGame({ preserveDungeonRun: true });
+    if (run.pendingShop) {
+      // 上次停在補給站：這一層已經過關，直接回到商店，離開後前往下一層
+      this.gameWon = true;
+      this.setRestartFace('😎');
+      this.showToast(`📥 已接回地宮冒險：第 ${this.currentFloor} 層已完成，回到補給站`);
+      this.openShopModal();
+    } else {
+      this.showToast(`📥 已接回地宮冒險：第 ${this.currentFloor} 層`);
+    }
+    return true;
+  }
+
+  // 兩個重新開始鈕（戰術列與地宮列）的表情同步
+  setRestartFace(face) {
+    if (this.el.restartBtn) this.el.restartBtn.textContent = face;
+    if (this.el.dungeonRestartBtn) this.el.dungeonRestartBtn.textContent = face;
   }
 
   startNewGame(options = {}) {
@@ -882,6 +1058,7 @@ class MinesweeperApp {
 
     if (this.mode === MODES.DUNGEON) {
       if (!preserveDungeonRun) {
+        this.clearDungeonRun();
         this.currentFloor = 1;
         this.maxHp = 3;
         this.hp = 3;
@@ -933,7 +1110,7 @@ class MinesweeperApp {
     this.updateHUD();
     this.clearGameState();
 
-    if (this.el.restartBtn) this.el.restartBtn.textContent = '🙂';
+    this.setRestartFace('🙂');
 
   }
 
@@ -947,20 +1124,38 @@ class MinesweeperApp {
     this.el.gridEl.style.gridTemplateColumns = `repeat(${this.cols}, auto)`;
     this.el.gridEl.setAttribute('aria-rowcount', this.rows);
     this.el.gridEl.setAttribute('aria-colcount', this.cols);
+    this.cellEls = [];
 
+    // 換盤面時焦點位置留在範圍內
+    this.focusCell = {
+      r: Math.min(this.focusCell.r, this.rows - 1),
+      c: Math.min(this.focusCell.c, this.cols - 1)
+    };
+
+    // 結構：grid > row > gridcell > button。row 與 gridcell 用 display: contents，
+    // 不影響 CSS grid 排版，又讓輔助科技讀得到列與格
     for (let r = 0; r < this.rows; r++) {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'grid-row';
+      rowEl.setAttribute('role', 'row');
       for (let c = 0; c < this.cols; c++) {
         const cellData = this.grid[r][c];
+        const wrap = document.createElement('div');
+        wrap.className = 'grid-cell';
+        wrap.setAttribute('role', 'gridcell');
         const cellEl = document.createElement('button');
         cellEl.type = 'button';
         cellEl.className = 'cell';
         cellEl.dataset.row = r;
         cellEl.dataset.col = c;
-        cellEl.setAttribute('aria-label', `格子 ${r + 1} 行 ${c + 1} 列`);
+        cellEl.tabIndex = (r === this.focusCell.r && c === this.focusCell.c) ? 0 : -1;
 
         this.updateCellElement(cellEl, cellData);
-        this.el.gridEl.appendChild(cellEl);
+        wrap.appendChild(cellEl);
+        rowEl.appendChild(wrap);
+        this.cellEls.push(cellEl);
       }
+      this.el.gridEl.appendChild(rowEl);
     }
 
     this.autoScaleBoard();
@@ -1421,10 +1616,13 @@ class MinesweeperApp {
 
   proceedToNextFloor() {
     this.closeShopModal();
+    // 只有「地宮這一層已過關」時才往下走，避免重複觸發多跳一層
+    if (this.mode !== MODES.DUNGEON || !this.gameWon) return;
     if (this.currentFloor < DUNGEON_FLOORS.length) {
       this.currentFloor++;
       this.showToast(`🏰 進入地宮第 ${this.currentFloor} 層！`);
       this.startNewGame({ preserveDungeonRun: true });
+      this.saveDungeonRun(false);
     } else {
       this.handleFinalDungeonVictory();
     }
@@ -1437,7 +1635,7 @@ class MinesweeperApp {
     this.stopTimer();
     this.gameWon = true;
     this.sound.playWin();
-    if (this.el.restartBtn) this.el.restartBtn.textContent = '😎';
+    this.setRestartFace('😎');
 
     // Auto flag remaining mines
     for (let r = 0; r < this.rows; r++) {
@@ -1450,10 +1648,13 @@ class MinesweeperApp {
     }
     this.updateHUD();
     this.refreshGridDOM();
-    this.triggerConfetti();
 
     if (this.mode === MODES.DUNGEON) {
       if (this.currentFloor < DUNGEON_FLOORS.length) {
+        // 地宮中間層過關沒有結果卡片（直接進商店），彩帶由遊戲自己放；最終通關與一般過關交給卡片
+        this.triggerConfetti();
+        // 過關後到下一層開始前沒有盤面局況，先把冒險進度存起來，重新整理才接得回補給站
+        this.saveDungeonRun(true);
         this.showToast(`🎉 第 ${this.currentFloor} 層排雷完成！開啟層間商店`);
         this.shopTimer = setTimeout(() => {
           this.shopTimer = null;
@@ -1463,23 +1664,92 @@ class MinesweeperApp {
         this.handleFinalDungeonVictory();
       }
     } else {
+      const prev = this.readStatsBucket();
       this.recordStats(true);
-      this.showToast(`🏆 恭喜通關！耗時 ${this.timer} 秒，共 ${this.moves} 步`);
+      this.showResultCard('win', prev);
     }
 
     this.clearGameState();
   }
 
   handleFinalDungeonVictory() {
+    this.clearDungeonRun();
+    const prev = this.readStatsBucket();
     this.recordStats(true);
-    this.showToast('👑 恭喜征服地宮全部 5 層！獲得遠古掃雷大師榮耀！');
+    this.showResultCard('dungeon', prev);
+  }
+
+  // 讀目前模式＋難度的戰績桶（記錄這一局之前先讀，才知道有沒有刷新紀錄）
+  readStatsBucket() {
+    try {
+      const stats = JSON.parse(localStorage.getItem(STATS_KEY) || '{}');
+      return stats[`${this.mode}_${this.difficulty}`] || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  difficultyLabel() {
+    if (this.mode === MODES.DUNGEON) return `地宮 ${DUNGEON_FLOORS.length} 層`;
+    const preset = DIFFICULTY_PRESETS[this.difficulty];
+    if (preset) return `${preset.name} ${preset.cols}×${preset.rows}`;
+    return `自訂 ${this.cols}×${this.rows}`;
+  }
+
+  // 過關／失敗改用全站共用的結果卡片。kind：'win' | 'dungeon'（地宮全破）| 'lose'
+  showResultCard(kind, prev) {
+    if (!celebrate) {
+      if (kind === 'lose') this.showToast('💥 引爆地雷！遊戲結束，點擊笑臉重開一局');
+      else this.showToast(`🏆 恭喜通關！耗時 ${this.timer} 秒，共 ${this.moves} 步`);
+      return;
+    }
+    const won = kind !== 'lose';
+    const prevBest = prev && typeof prev.bestTime === 'number' ? prev.bestTime : null;
+    const newBest = won && prevBest !== null && celebrate.isNewRecord(prevBest, this.timer, { lowerIsBetter: true });
+    const after = this.readStatsBucket() || {};
+    const time = celebrate.formatDuration(this.timer);
+    let title = '排雷完成！';
+    let subtitle = `${this.difficultyLabel()}，用了 ${time}、${this.moves} 步。`;
+    if (kind === 'dungeon') {
+      title = `征服地宮全部 ${DUNGEON_FLOORS.length} 層！`;
+      subtitle = `帶著 ${this.gold} 金幣與 ${this.hp} 顆心走出地宮。`;
+    } else if (kind === 'lose') {
+      title = '踩到地雷了';
+      subtitle = this.mode === MODES.DUNGEON
+        ? `在地宮第 ${this.currentFloor} 層倒下。盤面已經攤開，看看地雷都藏在哪裡，再闖一次。`
+        : '盤面已經攤開，看看地雷都藏在哪裡，下一局會更順。';
+    } else if (newBest) {
+      subtitle += `比上次最快的 ${celebrate.formatDuration(prevBest)} 還快！`;
+    }
+    const stats = kind === 'lose'
+      ? [
+        { label: '時間', value: time },
+        { label: '步數', value: this.moves },
+        { label: '勝率', value: after.plays ? `${Math.round((after.wins / after.plays) * 100)}%` : '—' }
+      ]
+      : [
+        { label: '時間', value: time, isBest: newBest },
+        { label: '步數', value: this.moves },
+        { label: '連勝', value: `${after.streak || 1} 局` }
+      ];
+    celebrate.show({
+      outcome: won ? 'win' : 'lose',
+      gameName: '掃雷：純粹經典',
+      title,
+      subtitle,
+      stats,
+      accent: '#0f5ea8',
+      accentDark: '#7cc4ff',
+      primary: { label: '再來一局', onClick: () => this.startNewGame() },
+      secondary: { label: '看盤面' }
+    });
   }
 
   handleGameOver(explodedR, explodedC) {
     this.stopTimer();
     this.gameOver = true;
     this.sound.playExplode();
-    if (this.el.restartBtn) this.el.restartBtn.textContent = '😵';
+    this.setRestartFace('😵');
 
     // Reveal all mines
     for (let r = 0; r < this.rows; r++) {
@@ -1499,7 +1769,9 @@ class MinesweeperApp {
 
     this.refreshGridDOM();
     this.recordStats(false);
-    this.showToast('💥 引爆地雷！遊戲結束，點擊笑臉重開一局');
+    // 地宮倒下就結束這趟冒險；盤面上的地宮重新開始鈕會從 B1F 重來
+    if (this.mode === MODES.DUNGEON) this.clearDungeonRun();
+    this.showResultCard('lose', null);
     this.clearGameState();
   }
 
@@ -1727,9 +1999,20 @@ class MinesweeperApp {
     });
   }
 
+  // roving tabindex：把 Tab 停點移到 (r, c)，focus 為 true 時順便移動焦點
+  setFocusCell(r, c, focus) {
+    const prev = this.cellEls[this.focusCell.r * this.cols + this.focusCell.c];
+    if (prev) prev.tabIndex = -1;
+    this.focusCell = { r, c };
+    const next = this.cellEls[r * this.cols + c];
+    if (!next) return;
+    next.tabIndex = 0;
+    if (focus) next.focus();
+  }
+
   refreshGridDOM(changedCells = null) {
     if (!this.el.gridEl) return;
-    const cells = this.el.gridEl.children;
+    const cells = this.cellEls;
     if (Array.isArray(changedCells)) {
       const indexes = new Set(changedCells.map(cell => cell.row * this.cols + cell.col));
       indexes.forEach(index => {
@@ -1786,9 +2069,16 @@ class MinesweeperApp {
     const totalW = this.el.gridEl?.offsetWidth || 0;
 
     if (totalW > viewportW && viewportW > 0) {
-      this.zoomScale = Math.max(0.65, Math.min(1.0, viewportW / totalW));
+      // 縮小時格子不得小於 MIN_CELL_PX（WCAG 2.5.8 觸控目標），再大的盤面就改成橫向捲動
+      const cellW = this.cellEls[0]?.offsetWidth || 36;
+      const minScale = Math.min(1, MIN_CELL_PX / cellW);
+      this.zoomScale = Math.max(minScale, Math.min(1.0, viewportW / totalW));
     } else {
       this.zoomScale = 1.0;
+    }
+    // quieter：盤面放得下時不顯示縮放鈕（CSS 依 body[data-board-fits] 收起）
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.dataset.boardFits = (totalW <= viewportW || viewportW <= 0) ? 'true' : 'false';
     }
     this.applyZoom();
   }
@@ -1820,6 +2110,8 @@ class MinesweeperApp {
 
   closeCustomModal() {
     this.closeModal(this.el.customModal);
+    // 取消自訂時，難度選單要退回目前實際的難度（不能停在「自訂…」）
+    this.syncControlState();
   }
 
   startCustomGame() {

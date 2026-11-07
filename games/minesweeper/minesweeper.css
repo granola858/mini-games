@@ -5,7 +5,8 @@
 
 :root {
   /* --- Shared Foundations --- */
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* 與首頁同一套圓體系統字型，不另外載入網路字型 */
+  --font-sans: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: 'Space Mono', 'Consolas', 'Courier New', monospace;
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -13,18 +14,29 @@
   --radius-xl: 28px;
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* 進場一律用 ease-out-quart 平順減速，不用會回彈過頭的彈簧曲線 */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* 特殊格與金幣：淺色主題用深色字、淺底；深色主題在下方改成深底亮字 */
+  --gold-text: #8a5a00;
+  --tile-double-bg: #fef08a;
+  --tile-double-fg: #92400e;
+  --tile-chest-bg: #fef3c7;
+  --tile-chest-fg: #92400e;
+  --tile-stair-bg: #e0e7ff;
+  --tile-stair-fg: #4338ca;
+  --wrong-flag-fg: #b91c1c;
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.2);
 
   /* Number Colors (Accessible, Vibrant) */
   --num-1: #2563eb;
-  --num-2: #059669;
+  --num-2: #047857;
   --num-3: #dc2626;
   --num-4: #7c3aed;
   --num-5: #b45309;
-  --num-6: #0891b2;
+  --num-6: #0e7490;
   --num-7: #4b5563;
   --num-8: #9333ea;
 }
@@ -41,10 +53,11 @@
   --bg-tertiary: #e2e8f0;
   --bg-glass: rgba(255, 255, 255, 0.85);
   --border-color: #cbd5e1;
-  --border-focus: #0284c7;
+  --border-focus: #0369a1;
   --text-main: #0f172a;
-  --text-muted: #64748b;
-  --accent-primary: #0284c7;
+  --text-muted: #526075;
+  --accent-primary: #0369a1;
+  --accent-on: #ffffff;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #06b6d4;
   --accent-glow: rgba(2, 132, 199, 0.2);
   --danger: #ef4444;
@@ -73,6 +86,7 @@
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --accent-primary: #38bdf8;
+  --accent-on: #04212e;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #22d3ee;
   --accent-glow: rgba(56, 189, 248, 0.25);
   --danger: #f43f5e;
@@ -108,10 +122,11 @@
   --bg-tertiary: #e7dac9;
   --bg-glass: rgba(244, 236, 225, 0.88);
   --border-color: #d8c4ad;
-  --border-focus: #b45309;
+  --border-focus: #92400e;
   --text-main: #382413;
-  --text-muted: #7c6853;
-  --accent-primary: #b45309;
+  --text-muted: #67533f;
+  --accent-primary: #92400e;
+  --accent-on: #ffffff;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #d97706;
   --accent-glow: rgba(180, 83, 9, 0.2);
   --danger: #b91c1c;
@@ -140,6 +155,7 @@
   --text-main: #fbeee0;
   --text-muted: #bda795;
   --accent-primary: #f59e0b;
+  --accent-on: #241405;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #fbbf24;
   --accent-glow: rgba(245, 158, 11, 0.25);
   --danger: #ef4444;
@@ -189,7 +205,7 @@
   --w95-shadow: #808080;
   --w95-dark: #000000;
   --w95-titlebar: #000080;
-  --w95-titlebar-2: #1084d0;
+  --w95-titlebar-2: #0b6cb0;
   --w95-titlebar-text: #ffffff;
   --w95-led-bg: #000000;
   --w95-led-text: #ff0000;
@@ -203,6 +219,7 @@
   --text-main: #000000;
   --text-muted: #404040;
   --accent-primary: #000080;
+  --accent-on: #ffffff;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #1084d0;
   --accent-glow: transparent;
   --danger: #a80000;
@@ -221,13 +238,14 @@
 
   /* 原版踩地雷數字配色 */
   --num-1: #0000ff;
-  --num-2: #008000;
-  --num-3: #ff0000;
+  /* 原版的綠、紅、青、灰在 #c0c0c0 底上不到 4.5:1，壓暗到剛好過線，保留同樣的色相 */
+  --num-2: #005a00;
+  --num-3: #9e0000;
   --num-4: #000080;
   --num-5: #800000;
-  --num-6: #008080;
+  --num-6: #005757;
   --num-7: #000000;
-  --num-8: #808080;
+  --num-8: #4d4d4d;
 }
 
 /* --- F. Classic Skin: Dark Theme (深灰復古) --- */
@@ -263,6 +281,7 @@
   --text-main: #ececec;
   --text-muted: #b5b5b5;
   --accent-primary: #9db8ff;
+  --accent-on: #0b1530;  /* 放在主色底上的文字色，跟著主色明暗切換 */
   --accent-secondary: #7fa6f0;
   --accent-glow: transparent;
   --danger: #ff6b6b;
@@ -278,14 +297,26 @@
   --cell-mine-bg: #4a4a4a;
   --cell-flag-color: #ff5555;
 
-  --num-1: #7ab8ff;
+  --num-1: #87bfff;
   --num-2: #5fd06a;
-  --num-3: #ff7676;
+  --num-3: #ffa2a2;
   --num-4: #b3bdff;
-  --num-5: #e59a9a;
+  --num-5: #eaacac;
   --num-6: #6fd6d6;
   --num-7: #f0f0f0;
-  --num-8: #b8b8b8;
+  --num-8: #bbbbbb;
+}
+
+/* 深色主題（任一皮膚）的特殊格與金幣色 */
+[data-theme="dark"] {
+  --gold-text: #eab308;
+  --tile-double-bg: #4a3d0a;
+  --tile-double-fg: #fcd34d;
+  --tile-chest-bg: #3d2b0c;
+  --tile-chest-fg: #fbbf24;
+  --tile-stair-bg: #1e2552;
+  --tile-stair-fg: #a5b4fc;
+  --wrong-flag-fg: #f87171;
 }
 
 /* ==========================================================================
@@ -315,21 +346,6 @@ body {
 }
 
 /* Subtle Animated Ambient Background */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.6;
-  background-image: radial-gradient(circle at 20% 15%, var(--accent-glow) 0%, transparent 40%),
-                    radial-gradient(circle at 80% 85%, var(--accent-glow) 0%, transparent 40%);
-  transition: opacity var(--transition-normal);
-}
-
 #confetti-canvas {
   position: fixed;
   top: 0;
@@ -399,8 +415,8 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -419,7 +435,7 @@ body::before {
 
 .icon-btn.active {
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   border-color: var(--accent-primary);
 }
 
@@ -442,7 +458,7 @@ body::before {
 
 .skin-toggle-btn:hover {
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
 }
 
 /* ==========================================================================
@@ -463,9 +479,7 @@ body::before {
   justify-content: center;
   flex-wrap: wrap;
   gap: 8px;
-  background: linear-gradient(135deg, var(--text-main) 30%, var(--accent-primary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-main);
 }
 
 /* 標題不從中文字中間斷行，窄螢幕時整塊徽章換行到下一列 */
@@ -473,16 +487,44 @@ body::before {
   white-space: nowrap;
 }
 
+.game-goal {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* 主題鍵：深色時顯示太陽 */
+#theme-btn .sun-icon,
+#sound-btn .sound-off-icon {
+  display: none;
+}
+
+[data-theme="dark"] #theme-btn .sun-icon,
+#sound-btn.muted .sound-off-icon {
+  display: block;
+}
+
+[data-theme="dark"] #theme-btn .moon-icon,
+#sound-btn.muted .sound-on-icon {
+  display: none;
+}
+
+.top-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .main-title-badge {
   font-size: 0.75rem;
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  -webkit-text-fill-color: #ffffff;
   white-space: nowrap;
 }
 
@@ -493,7 +535,7 @@ body::before {
   }
 
   .main-title-badge {
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     padding: 2px 6px;
   }
 }
@@ -538,42 +580,38 @@ body::before {
 
 .mode-tab-btn.active {
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   box-shadow: 0 2px 10px var(--accent-glow);
 }
 
-/* Difficulty Selector for Tactical / Classic */
+/* Difficulty Selector for Tactical / Classic：五顆按鈕收成一個下拉選單（quieter） */
 .difficulty-bar {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 2px 4px 10px;
-  max-width: 100%;
-  scrollbar-width: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
-.difficulty-bar::-webkit-scrollbar {
-  display: none;
-}
-
-.diff-btn {
-  padding: 6px 14px;
+.diff-select {
+  min-height: 40px;
+  padding: 0 10px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-main);
   border-radius: var(--radius-md);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
   cursor: pointer;
-  white-space: nowrap;
-  transition: var(--transition-fast);
+  accent-color: var(--accent-primary);
 }
 
-.diff-btn.active {
-  background: var(--bg-tertiary);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-  font-weight: 700;
+.diff-select:focus-visible {
+  outline: 3px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 /* ==========================================================================
@@ -583,9 +621,8 @@ body::before {
 .hud-panel {
   width: 100%;
   max-width: 560px;
+  /* 不用大面積毛玻璃：底色本身已有 85% 以上不透明度，省掉每次重繪的模糊運算 */
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 10px 16px;
@@ -679,7 +716,7 @@ body::before {
 }
 
 .gold-counter {
-  color: #eab308;
+  color: var(--gold-text);
 }
 
 /* Energy AP Bar for Tactical Mode */
@@ -714,7 +751,6 @@ body::before {
   background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
   border-radius: 999px;
   transition: width 0.3s ease;
-  box-shadow: 0 0 8px var(--accent-primary);
 }
 
 /* ==========================================================================
@@ -762,8 +798,8 @@ body::before {
 .item-btn.active {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
-  color: #ffffff;
-  box-shadow: 0 0 12px var(--accent-glow);
+  color: var(--accent-on);
+  box-shadow: var(--shadow-sm);
 }
 
 .item-icon {
@@ -781,8 +817,8 @@ body::before {
   top: -6px;
   right: -4px;
   background: var(--accent-primary);
-  color: #ffffff;
-  font-size: 0.68rem;
+  color: var(--accent-on);
+  font-size: 0.6875rem;
   font-weight: 800;
   padding: 1px 6px;
   border-radius: 999px;
@@ -801,9 +837,7 @@ body::before {
 .board-viewport {
   width: 100%;
   max-width: 100%;
-  background: var(--bg-glass);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 12px;
@@ -843,6 +877,16 @@ body::before {
   transition: transform 0.1s ease-out;
 }
 
+/* 列與格的包裝層只為了無障礙結構，不參與排版 */
+.grid-row,
+.grid-cell {
+  display: contents;
+}
+
+.gold-text {
+  color: var(--gold-text);
+}
+
 /* Cell Style */
 .cell {
   width: 36px;
@@ -862,6 +906,15 @@ body::before {
   transition: background-color 0.12s ease, transform 0.08s ease, box-shadow 0.08s ease;
   appearance: none;
   padding: 0;
+}
+
+/* 鍵盤操作時的焦點外框：所有按鈕與連結共用，格子另有自己的版本 */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--border-focus);
+  outline-offset: 2px;
 }
 
 .cell:focus-visible {
@@ -913,7 +966,7 @@ body::before {
 /* Flagged & Question states */
 .cell.flagged {
   color: var(--cell-flag-color);
-  animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: popIn 0.2s var(--ease-out-quart);
 }
 
 .cell.question {
@@ -921,7 +974,7 @@ body::before {
 }
 
 .cell.wrong-flag {
-  color: #ef4444;
+  color: var(--wrong-flag-fg);
   background: rgba(239, 68, 68, 0.14);
   font-size: 1.3rem;
 }
@@ -940,20 +993,20 @@ body::before {
 }
 
 .cell.double-mine {
-  background: #fef08a;
-  color: #b45309;
+  background: var(--tile-double-bg);
+  color: var(--tile-double-fg);
 }
 
 /* Dungeon Tile Special states */
 .cell.chest {
-  background: #fef3c7;
-  color: #d97706;
-  animation: bounce 0.6s infinite alternate;
+  background: var(--tile-chest-bg);
+  color: var(--tile-chest-fg);
+  animation: chestFloat 0.6s ease-in-out infinite alternate;
 }
 
 .cell.stair {
-  background: #e0e7ff;
-  color: #4f46e5;
+  background: var(--tile-stair-bg);
+  color: var(--tile-stair-fg);
   font-weight: 900;
 }
 
@@ -983,8 +1036,8 @@ body::before {
   align-items: center;
   gap: 6px;
   background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   border: 1.5px solid var(--border-color);
   padding: 6px 12px;
   border-radius: var(--radius-xl);
@@ -1016,7 +1069,7 @@ body::before {
 .action-mode-btn.active {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   box-shadow: 0 4px 14px var(--accent-glow);
 }
 
@@ -1052,6 +1105,11 @@ body::before {
   background: var(--bg-tertiary);
 }
 
+/* quieter：盤面放得下時不需要縮放鈕 */
+body[data-board-fits="true"] .zoom-controls {
+  display: none;
+}
+
 /* ==========================================================================
    9. Modals & Dialogs (Shop, Custom, Stats, EndGame)
    ========================================================================== */
@@ -1063,8 +1121,6 @@ body::before {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1132,12 +1188,68 @@ body::before {
   }
 }
 
+/* 減少動態效果：逐項處理，狀態回饋改成不位移的版本 */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* 裝飾性位移：關掉（寶箱漂浮、插旗彈出、按下下沉、彈窗滑入、棋盤縮放過場） */
+  .cell.chest,
+  .cell.flagged {
+    animation: none;
+  }
+
+  .cell:not(.revealed):not(.flagged):active,
+  .btn-primary:hover {
+    transform: none;
+  }
+
+  .modal-box,
+  .modal-overlay.open .modal-box {
+    transform: none;
+    transition: none;
+  }
+
+  .minesweeper-grid {
+    transition: none;
+  }
+
+  /* 踩雷：不晃動，爆炸格本身的紅底與 💣 已足以表示 */
+  .cell.exploded {
+    animation: none;
+  }
+
+  /* 聲納掃到的格子：不脈動，改成固定的加粗外框 */
+  .cell.radar-highlight {
+    animation: none;
+    outline-width: 3px;
+  }
+
+  /* 連開：不縮放，只保留亮度變化 */
+  .cell.chord-glow {
+    transform: none;
+  }
+}
+
+/* 桌機（滑鼠操作）：操作列放回正常版面流、不再浮在棋盤上蓋住最後幾排；
+   桌機有右鍵插旗與自動縮放，縮放按鈕收起來減少初始控制項 */
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  .page-container {
+    padding-bottom: 16px;
+  }
+
+  .thumb-action-bar {
+    position: static;
+    transform: none;
+    margin: 0 auto 24px;
+    width: max-content;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .zoom-controls {
+    display: none;
   }
 }
 
@@ -1150,7 +1262,7 @@ body::before {
   width: 100%;
   box-shadow: var(--shadow-lg);
   transform: translateY(20px) scale(0.95);
-  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.25s var(--ease-out-quart);
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -1203,7 +1315,7 @@ body::before {
 .btn-primary {
   padding: 10px 20px;
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   border: none;
   border-radius: var(--radius-md);
   font-weight: 700;
@@ -1260,7 +1372,7 @@ body::before {
 
 .shop-card .price {
   font-weight: 800;
-  color: #eab308;
+  color: var(--gold-text);
   font-size: 0.85rem;
 }
 
@@ -1268,7 +1380,7 @@ body::before {
   width: 100%;
   padding: 6px;
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--accent-on);
   border: none;
   border-radius: var(--radius-sm);
   font-size: 0.8rem;
@@ -1361,7 +1473,7 @@ body::before {
   font-size: 0.9rem;
   font-weight: 700;
   box-shadow: var(--shadow-md);
-  animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: toastIn 0.3s var(--ease-out-quart);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1385,7 +1497,9 @@ body::before {
 }
 
 @keyframes radarPulse {
+  /* impeccable-disable-next-line dark-glow: 遊戲狀態（聲納掃到的格子）的視覺語意 */
   0% { transform: scale(1); box-shadow: 0 0 4px var(--accent-primary); }
+  /* impeccable-disable-next-line dark-glow: 遊戲狀態（聲納掃到的格子）的視覺語意 */
   100% { transform: scale(1.06); box-shadow: 0 0 14px var(--accent-primary); }
 }
 
@@ -1394,7 +1508,7 @@ body::before {
   100% { transform: translateY(0); opacity: 1; }
 }
 
-@keyframes bounce {
+@keyframes chestFloat {
   0% { transform: translateY(0); }
   100% { transform: translateY(-4px); }
 }
@@ -1404,11 +1518,7 @@ body::before {
    復刻 95 年代的灰色面板與立體浮凸/凹陷邊框
    ========================================================================== */
 
-/* 拿掉現代感的氛圍光暈與毛玻璃 */
-[data-skin="classic"] body::before {
-  display: none;
-}
-
+/* 拿掉現代感的毛玻璃 */
 [data-skin="classic"] .hud-panel,
 [data-skin="classic"] .board-viewport,
 [data-skin="classic"] .thumb-action-bar {
@@ -1452,7 +1562,7 @@ body::before {
 [data-skin="classic"] .back-btn,
 [data-skin="classic"] .icon-btn,
 [data-skin="classic"] .skin-toggle-btn,
-[data-skin="classic"] .diff-btn,
+[data-skin="classic"] .diff-select,
 [data-skin="classic"] .restart-btn,
 [data-skin="classic"] .action-mode-btn,
 [data-skin="classic"] .zoom-btn,
@@ -1474,7 +1584,7 @@ body::before {
 [data-skin="classic"] .back-btn:hover,
 [data-skin="classic"] .icon-btn:hover,
 [data-skin="classic"] .skin-toggle-btn:hover,
-[data-skin="classic"] .diff-btn:hover,
+[data-skin="classic"] .diff-select:hover,
 [data-skin="classic"] .restart-btn:hover,
 [data-skin="classic"] .action-mode-btn:hover,
 [data-skin="classic"] .zoom-btn:hover,
@@ -1491,7 +1601,7 @@ body::before {
 [data-skin="classic"] .back-btn:active,
 [data-skin="classic"] .icon-btn:active,
 [data-skin="classic"] .skin-toggle-btn:active,
-[data-skin="classic"] .diff-btn:active,
+[data-skin="classic"] .diff-select:active,
 [data-skin="classic"] .restart-btn:active,
 [data-skin="classic"] .action-mode-btn:active,
 [data-skin="classic"] .zoom-btn:active,
@@ -1500,7 +1610,6 @@ body::before {
 [data-skin="classic"] .shop-buy-btn:active,
 [data-skin="classic"] .item-btn:not(:disabled):active,
 [data-skin="classic"] .mode-tab-btn.active,
-[data-skin="classic"] .diff-btn.active,
 [data-skin="classic"] .action-mode-btn.active,
 [data-skin="classic"] .icon-btn.active,
 [data-skin="classic"] .item-btn.active {
@@ -1512,7 +1621,6 @@ body::before {
 }
 
 [data-skin="classic"] .mode-tab-btn.active,
-[data-skin="classic"] .diff-btn.active,
 [data-skin="classic"] .action-mode-btn.active,
 [data-skin="classic"] .item-btn.active {
   font-weight: 800;

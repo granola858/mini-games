@@ -39,13 +39,18 @@ const confirmTitleEl = document.getElementById('confirmTitle');
 const confirmMessageEl = document.getElementById('confirmMessage');
 const confirmCancelBtn = document.getElementById('confirmCancelBtn');
 const confirmOkBtn = document.getElementById('confirmOkBtn');
+const toolBtns = document.querySelectorAll('.tool-btn');
+const toolHintEl = document.getElementById('toolHint');
 let pendingConfirmAction = null;
 
 const SAVE_KEY = 'meowdoku-game-states-v1';
 const SAVE_VERSION = 2;
-const DARK_MODE_KEY = 'meowdoku-dark-mode-v1';
 const SOUND_KEY = 'meowdoku-sound-v1';
 const HOME_PREF_KEY = 'bobo-home-preferences-v2';
+const TOOL_KEY = 'meowdoku-tool-v1';
+const STATS_KEY = 'meowdoku-stats-v1';
+// 色塊的中文名稱，給螢幕閱讀器的格子標籤用（對應 CSS 的 --region-1 ~ 8）
+const REGION_TONE_NAMES = ['玫瑰', '陶土', '赭黃', '鼠尾草', '松綠', '霧藍', '靛紫', '藕紫'];
 const VALID_SIZES = [6, 7, 8];
 const CAT_STYLE_KEYS = Object.keys(catAssetPaths).map(Number).sort((a, b) => a - b);
 const REGION_TONE_COUNT = 8;
@@ -686,13 +691,12 @@ class MeowSoundEngine {
 
 const sound = new MeowSoundEngine();
 
+// 固定 aria-label「音效」，開關狀態只放在 aria-pressed
 function updateSoundButton() {
     if (!soundBtn) return;
     soundBtn.classList.toggle('active', sound.enabled);
-    soundBtn.setAttribute('aria-checked', String(sound.enabled));
-    const label = sound.enabled ? '關閉音效' : '開啟音效';
-    soundBtn.setAttribute('aria-label', label);
-    soundBtn.title = label;
+    soundBtn.setAttribute('aria-pressed', String(sound.enabled));
+    soundBtn.title = sound.enabled ? '音效：開' : '音效：關';
 }
 
 /* ==========================================================================
@@ -703,79 +707,44 @@ function updateSoundButton() {
 // 以下每個使用點都會退回本檔案自己的等價實作，遊戲照常能玩。
 const themeKit = (typeof BoboTheme !== 'undefined' && BoboTheme) ? BoboTheme : null;
 
-// 讀本遊戲自己的舊偏好鍵；沒存過或讀不到（隱私模式）時回 null
-function readLocalDarkMode() {
-    try {
-        const local = localStorage.getItem(DARK_MODE_KEY);
-        if (local !== null) return local === 'true';
-    } catch (error) {
-        /* 隱私模式讀不到就當作沒存過 */
-    }
-    return null;
+// 主題一律交給 BoboTheme：載入時只「套用」偏好（首頁偏好 → 系統色），
+// 只有玩家按下主題鍵才寫回 bobo-home-preferences-v2，避免一進頁面就把系統色釘死成全站偏好。
+function currentTheme() {
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
-// 優先序：首頁偏好 → 本遊戲舊鍵 → 系統 prefers-color-scheme
-function loadDarkModePreference() {
-    if (themeKit) {
-        if (themeKit.hasExplicitPreference()) return themeKit.read() === 'dark';
-        const local = readLocalDarkMode();
-        if (local !== null) return local;
-        return themeKit.systemTheme() === 'dark';
-    }
-
-    // 共用模組缺席時的退路，優先序與上面完全相同
-    try {
-        const prefs = JSON.parse(localStorage.getItem(HOME_PREF_KEY) || '{}');
-        if (prefs && ['dark', 'light'].includes(prefs.theme)) return prefs.theme === 'dark';
-    } catch (error) {
-        /* JSON 損毀或隱私模式時往下走 */
-    }
-    const local = readLocalDarkMode();
-    if (local !== null) return local;
-    try {
-        return Boolean(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    } catch (error) {
-        return false;
-    }
-}
-
-function applyDarkMode(nextMode) {
-    darkMode = Boolean(nextMode);
-    const theme = darkMode ? 'dark' : 'light';
-
-    if (themeKit) {
-        // 套 data-theme 並同步 meta[name="theme-color"]（色票由 meta 上的 data-theme-color-* 提供）
-        themeKit.apply(theme);
-    } else {
-        document.documentElement.dataset.theme = theme;
-        const metaThemeColor = document.getElementById('themeColor');
-        if (metaThemeColor) metaThemeColor.content = darkMode ? '#16121d' : '#fdfbff';
-    }
-
+function syncDarkModeButton() {
+    darkMode = currentTheme() === 'dark';
     darkModeToggle.classList.toggle('active', darkMode);
-    darkModeToggle.setAttribute('aria-checked', String(darkMode));
-    const toggleLabel = darkMode ? '切換為淺色模式' : '切換為深色模式';
-    darkModeToggle.setAttribute('aria-label', toggleLabel);
-    darkModeToggle.title = toggleLabel;
+    darkModeToggle.setAttribute('aria-pressed', String(darkMode));
+    darkModeToggle.title = darkMode ? '深色模式：開' : '深色模式：關';
+}
 
-    try {
-        localStorage.setItem(DARK_MODE_KEY, String(darkMode));
-    } catch (error) {
-        console.warn('Meowdoku dark mode preference could not be saved:', error);
-    }
-
-    // 首頁偏好只能改 theme 欄位，整包覆寫會清掉使用者排好的 order / hidden
+function initTheme() {
     if (themeKit) {
-        themeKit.writeHomeTheme(theme);
+        themeKit.init();
     } else {
+        // 模組缺席：沿用 <head> 防閃爍腳本已套上的主題，不寫入任何偏好
+        document.documentElement.dataset.theme = currentTheme();
+    }
+    syncDarkModeButton();
+}
+
+function toggleTheme() {
+    if (themeKit) {
+        themeKit.toggle();
+    } else {
+        const next = currentTheme() === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = next;
         try {
             const prefs = JSON.parse(localStorage.getItem(HOME_PREF_KEY) || '{}');
-            prefs.theme = theme;
+            prefs.theme = next;
             localStorage.setItem(HOME_PREF_KEY, JSON.stringify(prefs));
         } catch (error) {
-            console.warn('Meowdoku dark mode preference could not be saved:', error);
+            /* 隱私模式寫不進去就只切換當下畫面 */
         }
     }
+    syncDarkModeButton();
 }
 
 /* ==========================================================================
@@ -947,6 +916,7 @@ function normalizeSavedState(saved, size) {
         lives: clampLives(saved.lives),
         status,
         cellStates,
+        elapsed: Math.max(0, Number(saved.elapsed) || 0),
         savedAt: Number(saved.savedAt) || Date.now()
     };
 }
@@ -961,6 +931,7 @@ function serializeState(state) {
         lives: clampLives(state.lives),
         status: state.status,
         cellStates: state.cellStates,
+        elapsed: Math.max(0, Math.floor(state.elapsed || 0)),
         savedAt: Date.now()
     };
 }
@@ -1037,7 +1008,8 @@ function createFreshState(size) {
         regionCatStyles: {},
         lives: 3,
         status: 'playing',
-        cellStates: []
+        cellStates: [],
+        elapsed: 0
     };
     generatePuzzle(state, size);
     return state;
@@ -1227,6 +1199,7 @@ function countSolutions(state, maxCount = 2) {
 
 let boardCells = [];
 let renderedSize = 0;
+let focusPos = { r: 0, c: 0 };
 
 const cellAt = (r, c) => boardCells[r * renderedSize + c];
 
@@ -1239,11 +1212,19 @@ function ensureBoardDom(size) {
 
     const fragment = document.createDocumentFragment();
     boardCells = new Array(size * size);
+    focusPos = { r: Math.min(focusPos.r, size - 1), c: Math.min(focusPos.c, size - 1) };
     for (let r = 0; r < size; r++) {
+        // 列用 display: contents，保留 grid > row > gridcell 結構又不影響排版
+        const rowEl = document.createElement('div');
+        rowEl.className = 'board-row';
+        rowEl.setAttribute('role', 'row');
+        fragment.appendChild(rowEl);
         for (let c = 0; c < size; c++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
             cell.setAttribute('role', 'gridcell');
+            // roving tabindex：整個盤面只有一格在 Tab 順序裡
+            cell.tabIndex = (r === focusPos.r && c === focusPos.c) ? 0 : -1;
             cell.dataset.r = r;
             cell.dataset.c = c;
             cell.dataset.cat = 'false';
@@ -1265,7 +1246,7 @@ function ensureBoardDom(size) {
 
             cell.appendChild(face);
             cell.appendChild(paw);
-            fragment.appendChild(cell);
+            rowEl.appendChild(cell);
             boardCells[r * size + c] = cell;
         }
     }
@@ -1279,6 +1260,10 @@ function applyCellView(cellEl, cellState) {
     cellEl.dataset.cat = cellState.cat ? 'true' : 'false';
     cellEl.dataset.paw = cellState.paw ? 'true' : 'false';
     cellEl.dataset.catStyle = String(style);
+    const what = cellState.cat ? '貓咪' : (cellState.paw ? '貓爪（沒有貓）' : '空白');
+    const r = Number(cellEl.dataset.r) + 1;
+    const c = Number(cellEl.dataset.c) + 1;
+    cellEl.setAttribute('aria-label', `第 ${r} 列第 ${c} 行，${cellEl.dataset.regionName || ''}，${what}`);
     if (style) {
         // 只在真的需要時才給 src；不設 src="" 以免瀏覽器重新請求整份文件
         const img = cellEl.firstElementChild.firstElementChild;
@@ -1295,6 +1280,7 @@ function syncBoardToState(state) {
             const tone = state.regionTones[regionId] || ((regionId - 1) % REGION_TONE_COUNT) + 1;
 
             cellEl.className = 'cell region-tone-' + tone;
+            cellEl.dataset.regionName = `${REGION_TONE_NAMES[(tone - 1) % REGION_TONE_NAMES.length]}色塊`;
             if (r > 0 && state.regions[r - 1][c] !== regionId) cellEl.classList.add('region-edge-top');
             if (c > 0 && state.regions[r][c - 1] !== regionId) cellEl.classList.add('region-edge-left');
 
@@ -1423,10 +1409,12 @@ function placeCat(state, r, c) {
     sound.playHiss();
     if (state.lives === 0) {
         state.status = 'lost';
+        recordResult(state, false);
         saveNow();
-        showToast('遊戲結束！可重置盤面重新開始。', 'error');
+        showToast('3 顆心用完了。', 'error');
         updateGameOverUI(state);
         setTimeout(() => sound.playGameOver(), 380);
+        showResult(state, false);
     } else {
         saveNow();
         showToast(`那裡沒有貓咪，還剩 ${state.lives} 顆心。`, 'error');
@@ -1447,6 +1435,15 @@ function handleBoardPointerDown(event) {
     if (!hit) return;
     const { r, c } = hit;
     if (state.cellStates[r][c].cat) return;
+
+    setFocusCell(r, c, false);
+
+    // 「放貓咪」工具：點一下直接放，不進入拖曳畫貓爪
+    if (currentTool === 'cat') {
+        resetPointerState();
+        placeCat(state, r, c);
+        return;
+    }
 
     const now = event.timeStamp || performance.now();
     const key = r + '-' + c;
@@ -1542,7 +1539,9 @@ function endDrag() {
 
 function updateModeButtons() {
     modeBtns.forEach((btn) => {
-        btn.classList.toggle('active', Number(btn.dataset.size) === currentSize);
+        const on = Number(btn.dataset.size) === currentSize;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', String(on));
     });
 }
 
@@ -1566,6 +1565,7 @@ function updateLives(lives) {
     const safeLives = clampLives(lives);
     livesEl.textContent = '❤️'.repeat(safeLives) + '🖤'.repeat(3 - safeLives);
     livesEl.setAttribute('aria-label', `剩餘 ${safeLives} 顆心`);
+    livesEl.title = `剩餘 ${safeLives} 顆心`;
 }
 
 function showToast(message, type = 'info') {
@@ -1625,21 +1625,44 @@ function checkWin(state) {
 
     if (correctCats === state.size && complete) {
         state.status = 'won';
+        // 先記下舊的最快紀錄，結果卡片才知道這次是不是新紀錄
+        const prevBest = (loadStats()[state.size] || {}).bestTime;
+        recordResult(state, true);
         saveNow();
         boardEl.classList.add('celebrate');
-        showToast('恭喜幫貓咪們都放回家中！', 'success');
+        showToast('貓咪都回家了！', 'success');
         setTimeout(() => sound.playPurr(), 260);
+        showResult(state, true, prevBest);
     } else {
         scheduleSave();
     }
 }
 
+// 對話框一律用原生 <dialog>：showModal() 自帶背景 inert、Esc 關閉與焦點圈；
+// 關閉時焦點回到開啟它的按鈕
+function openDialog(dialog, focusTarget) {
+    if (!dialog || dialog.open) return;
+    const opener = document.activeElement;
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+    if (focusTarget) focusTarget.focus();
+    dialog.addEventListener('close', () => {
+        if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus();
+    }, { once: true });
+}
+
+function closeDialog(dialog) {
+    if (!dialog) return;
+    if (typeof dialog.close === 'function' && dialog.open) dialog.close();
+    else dialog.removeAttribute('open');
+}
+
 function openHelp() {
-    helpOverlay.classList.remove('hidden');
+    openDialog(helpOverlay, helpCloseBtn);
 }
 
 function closeHelp() {
-    helpOverlay.classList.add('hidden');
+    closeDialog(helpOverlay);
 }
 
 function openConfirm(action) {
@@ -1649,16 +1672,222 @@ function openConfirm(action) {
         confirmMessageEl.textContent = '確定要清空目前的標記與貓咪嗎？此動作無法復原。';
         confirmOkBtn.textContent = '清空';
     } else {
-        confirmTitleEl.textContent = '重置盤面';
-        confirmMessageEl.textContent = '確定要重置目前盤面嗎？進度將會消失。';
-        confirmOkBtn.textContent = '重置';
+        confirmTitleEl.textContent = '換新題目';
+        confirmMessageEl.textContent = '確定要換一題嗎？目前的進度會消失。';
+        confirmOkBtn.textContent = '換新題目';
     }
-    confirmOverlay.classList.remove('hidden');
+    openDialog(confirmOverlay, confirmCancelBtn);
 }
 
 function closeConfirm() {
-    confirmOverlay.classList.add('hidden');
+    closeDialog(confirmOverlay);
     pendingConfirmAction = null;
+}
+
+/* ---------- 計時、戰績與結果 ---------- */
+
+function formatTime(seconds) {
+    const s = Math.max(0, Math.floor(seconds));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function loadStats() {
+    try {
+        const data = JSON.parse(localStorage.getItem(STATS_KEY) || '{}');
+        return (data && typeof data === 'object') ? data : {};
+    } catch (error) {
+        return {};
+    }
+}
+
+function recordResult(state, won) {
+    const stats = loadStats();
+    const entry = stats[state.size] || { wins: 0, losses: 0, bestTime: null };
+    if (won) {
+        entry.wins += 1;
+        const t = Math.floor(state.elapsed || 0);
+        if (entry.bestTime === null || t < entry.bestTime) entry.bestTime = t;
+    } else {
+        entry.losses += 1;
+    }
+    stats[state.size] = entry;
+    try {
+        localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+    } catch (error) {
+        /* 隱私模式存不了就只顯示這一局 */
+    }
+    return entry;
+}
+
+// 放對的貓咪依位置排成一列（失敗時只放一隻陪著），交給共用過關卡片當個性內容
+function buildMeowParade(state, won) {
+    const list = document.createElement('ul');
+    list.className = won ? 'meow-parade' : 'meow-parade meow-parade--rest';
+    const styles = [];
+    for (let r = 0; r < state.size; r++) {
+        for (let c = 0; c < state.size; c++) {
+            if (state.solution[r][c] !== 1) continue;
+            const cell = state.cellStates[r][c];
+            styles.push(normalizeCatStyleId(cell.catStyle) || getCatStyle(state, r, c) || 1);
+        }
+    }
+    const shown = won ? styles : styles.slice(0, 1);
+    list.setAttribute('role', 'img');
+    list.setAttribute('aria-label', won ? `${shown.length} 隻貓咪都回家了` : '貓咪在旁邊等你再試一次');
+    shown.forEach((style, i) => {
+        const item = document.createElement('li');
+        item.style.setProperty('--i', String(i));
+        const img = document.createElement('img');
+        img.src = catAssetPaths[normalizeCatStyleId(style) || 1];
+        img.alt = '';
+        item.appendChild(img);
+        list.appendChild(item);
+    });
+    return list;
+}
+
+function showResult(state, won, prevBest) {
+    const entry = loadStats()[state.size] || { wins: 0, bestTime: null };
+    const elapsed = Math.floor(state.elapsed || 0);
+    const celebrate = (typeof BoboCelebrate !== 'undefined') ? BoboCelebrate : null;
+    if (!celebrate) return;
+    const isBest = won && celebrate.isNewRecord(prevBest, elapsed, { lowerIsBetter: true });
+    const options = {
+        outcome: won ? 'win' : 'lose',
+        gameName: 'Meowdoku 貓咪數獨',
+        title: won ? '貓咪都回家了！' : '愛心用完了',
+        subtitle: won
+            ? `${state.size}×${state.size} 的每一隻貓都放對了${isBest && prevBest != null ? '，刷新這個尺寸的最快紀錄' : ''}。`
+            : '這題還沒解完。盤面會保留，再試一次會清掉標記、補滿愛心。',
+        stats: won
+            ? [
+                { label: '用時', value: celebrate.formatDuration(elapsed), isBest },
+                { label: '剩餘愛心', value: `${clampLives(state.lives)} / 3` },
+                { label: '累計過關', value: `${entry.wins} 次` }
+            ]
+            : [
+                { label: '用時', value: celebrate.formatDuration(elapsed) },
+                { label: '此尺寸最快', value: entry.bestTime === null ? '還沒有' : celebrate.formatDuration(entry.bestTime) }
+            ],
+        extra: buildMeowParade(state, won),
+        accent: '#8e44ad',
+        accentDark: '#c9a3e8',
+        primary: won
+            ? { label: '下一題', onClick: () => performReset() }
+            : { label: '再試一次', onClick: () => retrySamePuzzle() },
+        secondary: won
+            ? { label: '看盤面' }
+            : { label: '換一題', onClick: () => performReset() }
+    };
+    // 等最後一隻貓的動畫與音效走完再跳出；勝利時貓咪在卡片上叫一聲打招呼（音效關閉就安靜）
+    setTimeout(() => {
+        celebrate.show(options);
+        if (won) setTimeout(() => sound.playMeow(Math.floor(Math.random() * 8)), 260);
+    }, prefersReducedMotion() ? 0 : 700);
+}
+
+function prefersReducedMotion() {
+    try {
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (error) {
+        return false;
+    }
+}
+
+// 失敗後「再試一次」：同一題、心數補滿、清掉所有標記
+function retrySamePuzzle() {
+    discardPendingSave();
+    const state = getState(currentSize);
+    state.cellStates = createEmptyCellStates(state.size);
+    state.lives = 3;
+    state.status = 'playing';
+    state.elapsed = 0;
+    saveGameStates();
+    initGame(currentSize);
+}
+
+// 一秒累計一次用時（只在進行中且頁面可見時），每 5 秒順手排一次存檔
+setInterval(() => {
+    if (document.hidden) return;
+    const state = gameStates[currentSize];
+    if (!state || state.status !== 'playing') return;
+    if (isBoardEmpty(state) && !state.elapsed) return; // 還沒開始動手就不計時
+    state.elapsed = (state.elapsed || 0) + 1;
+    if (state.elapsed % 5 === 0) scheduleSave();
+}, 1000);
+
+/* ---------- 工具與鍵盤 ---------- */
+
+let currentTool = 'paw';
+
+function loadTool() {
+    try {
+        return localStorage.getItem(TOOL_KEY) === 'cat' ? 'cat' : 'paw';
+    } catch (error) {
+        return 'paw';
+    }
+}
+
+function setTool(tool) {
+    currentTool = tool === 'cat' ? 'cat' : 'paw';
+    toolBtns.forEach((btn) => {
+        const on = btn.dataset.tool === currentTool;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', String(on));
+    });
+    if (toolHintEl) {
+        toolHintEl.textContent = currentTool === 'cat'
+            ? '點一下放貓咪；放錯會扣 1 顆心。'
+            : '點或拖曳畫貓爪，標出「確定沒有貓」的格子；雙擊直接放貓咪。';
+    }
+    boardEl.dataset.tool = currentTool;
+    try {
+        localStorage.setItem(TOOL_KEY, currentTool);
+    } catch (error) {
+        /* 寫不進去就只在這次有效 */
+    }
+}
+
+function setFocusCell(r, c, focus) {
+    const prev = cellAt(focusPos.r, focusPos.c);
+    if (prev) prev.tabIndex = -1;
+    focusPos = { r, c };
+    const next = cellAt(r, c);
+    if (!next) return;
+    next.tabIndex = 0;
+    if (focus) next.focus();
+}
+
+function handleBoardKeydown(event) {
+    const cellEl = event.target.closest ? event.target.closest('.cell') : null;
+    if (!cellEl) return;
+    let r = Number(cellEl.dataset.r);
+    let c = Number(cellEl.dataset.c);
+    const size = currentSize;
+    switch (event.key) {
+        case 'ArrowUp': r = Math.max(0, r - 1); break;
+        case 'ArrowDown': r = Math.min(size - 1, r + 1); break;
+        case 'ArrowLeft': c = Math.max(0, c - 1); break;
+        case 'ArrowRight': c = Math.min(size - 1, c + 1); break;
+        case 'Home': c = 0; break;
+        case 'End': c = size - 1; break;
+        case ' ':
+        case 'Enter': {
+            event.preventDefault();
+            const state = getState(currentSize);
+            if (state.status !== 'playing' || state.cellStates[r][c].cat) return;
+            if (event.key === 'Enter') placeCat(state, r, c);
+            else {
+                paintPaw(state, r, c, !state.cellStates[r][c].paw);
+                flushSave();
+            }
+            return;
+        }
+        default:
+            return;
+    }
+    event.preventDefault();
+    setFocusCell(r, c, true);
 }
 
 // 在 Console 呼叫： checkPlayerSolutionUnique()，會輸出是否正確與是否唯一
@@ -1726,25 +1955,25 @@ confirmOkBtn.addEventListener('click', () => {
     }
     closeConfirm();
 });
-confirmOverlay.addEventListener('click', (event) => {
-    if (event.target === confirmOverlay) closeConfirm();
+// 點對話框外的背景也可以關閉（點在 dialog 本身而非內容時，target 就是 dialog）
+[confirmOverlay, helpOverlay].forEach((dialog) => {
+    dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) closeDialog(dialog);
+    });
 });
+confirmOverlay.addEventListener('close', () => { pendingConfirmAction = null; });
 
 helpBtn.addEventListener('click', openHelp);
 helpCloseBtn.addEventListener('click', closeHelp);
-helpOverlay.addEventListener('click', (event) => {
-    if (event.target === helpOverlay) closeHelp();
-});
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-        closeHelp();
-        closeConfirm();
-    }
+
+
+toolBtns.forEach((btn) => {
+    btn.addEventListener('click', () => setTool(btn.dataset.tool));
 });
 
-darkModeToggle.addEventListener('click', () => {
-    applyDarkMode(!darkMode);
-});
+boardEl.addEventListener('keydown', handleBoardKeydown);
+
+darkModeToggle.addEventListener('click', toggleTheme);
 
 if (soundBtn) {
     soundBtn.addEventListener('click', () => {
@@ -1809,6 +2038,8 @@ const savedGameData = loadSavedGameData();
 currentSize = savedGameData.currentSize;
 gameStates = savedGameData.states;
 
-applyDarkMode(loadDarkModePreference());
+initTheme();
 updateSoundButton();
+setTool(loadTool());
 initGame(currentSize);
+// 重新整理時若這題已經結束，盤面維持凍結；不自動再跳結果對話框

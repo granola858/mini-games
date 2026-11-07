@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#fff8ed">
+  <meta name="theme-color" content="#f4f3f8">
   <meta name="description" content="波波小遊戲中心，挑一款遊戲，讓腦袋換個頻道。">
   <link rel="icon" type="image/svg+xml" href="assets/favicons/favicon.svg">
   <title>波波小遊戲｜今天玩什麼？</title>
   <script>
-    (() => { try { const p=JSON.parse(localStorage.getItem('bobo-home-preferences-v2')||'{}'); document.documentElement.dataset.theme=['dark','light'].includes(p.theme)?p.theme:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'); } catch (_) {} })();
+    // 讀不到本機儲存（隱私模式、封鎖網站資料）時仍要跟隨系統深淺色，所以兩段分開 try
+    (() => { let t; try { const p=JSON.parse(localStorage.getItem('bobo-home-preferences-v2')||'{}'); if (['dark','light'].includes(p.theme)) t=p.theme; } catch (_) {} if (!t) { try { t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'; } catch (_) { t='light'; } } document.documentElement.dataset.theme=t; })();
   </script>
   <link rel="stylesheet" href="assets/css/home.css">
 </head>
@@ -29,7 +30,7 @@
         <span class="brand-name">波波<span>小遊戲</span></span>
       </a>
       <div class="header-actions">
-        <button class="icon-button" id="theme-toggle" type="button" aria-label="切換深色模式">
+        <button class="icon-button" id="theme-toggle" type="button" aria-label="深色模式" aria-pressed="false" title="深色模式">
           <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>
           </svg>
@@ -38,7 +39,7 @@
             <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/>
           </svg>
         </button>
-        <button class="pill-button" id="edit-toggle" type="button" aria-pressed="false">
+        <button class="pill-button" id="edit-toggle" type="button" aria-pressed="false" aria-label="編輯首頁">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 20h9"/>
             <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
@@ -51,7 +52,6 @@
   <main class="page-shell">
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="eyebrow-dot"></span> 打開就能玩</p>
         <h1 id="hero-title"><span class="hero-line">休息一下，</span><br><span class="hero-highlight">玩點有意思的。</span></h1>
         <p class="hero-lead">解個謎、練反應，或揪朋友玩一輪。挑一款，立刻開局。</p>
         <div class="hero-stats" id="hero-stats">
@@ -87,22 +87,27 @@
           <p hidden><span id="visible-count"></span> 款遊戲，總有一款對味。</p>
         </div>
       </div>
+      <!-- 最近玩過：從首頁點進去的遊戲會記在這裡（最多 4 款），沒有紀錄時整塊隱藏 -->
+      <div class="recent" id="recent" hidden>
+        <h3 class="recent-title" id="recent-title">最近玩過</h3>
+        <ul class="recent-list" id="recent-list" aria-labelledby="recent-title"></ul>
+      </div>
       <div class="toolbar" aria-label="遊戲篩選工具">
         <label class="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="7"/>
             <path d="m20 20-4-4"/>
           </svg>
-          <span hidden>搜尋遊戲</span>
+          <span class="visually-hidden">搜尋遊戲</span>
           <input id="game-search" type="search" placeholder="搜尋遊戲名稱或玩法…" autocomplete="off">
         </label>
         <div class="filters" role="group" aria-label="依類型篩選">
           <button class="filter-button" data-filter="all" aria-pressed="true">全部</button>
           <button class="filter-button popular-filter" data-filter="popular" aria-pressed="false">🔥 熱門排行</button>
-          <button class="filter-button" data-filter="logic" aria-pressed="false">動動腦</button>
+          <button class="filter-button" data-filter="logic" aria-pressed="false">解謎</button>
+          <button class="filter-button" data-filter="board" aria-pressed="false">棋牌對戰</button>
           <button class="filter-button" data-filter="party" aria-pressed="false">多人同樂</button>
           <button class="filter-button" data-filter="reaction" aria-pressed="false">反應挑戰</button>
-          <button class="filter-button" data-filter="tool" aria-pressed="false">遊戲工具</button>
         </div>
       </div>
       <div class="edit-notice" role="status">
@@ -118,8 +123,8 @@
             <span class="card-top">
               <span class="card-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M9 18h6M10 22h4"/>
-                  <path d="M8.5 14.5A7 7 0 1 1 16 14c-1.2.9-1.7 1.7-1.8 2H9.8c-.1-.4-.5-1-1.3-1.5Z"/>
+                  <path d="M4 5h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/>
+                  <path d="M19 9h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1v3l-3-3h-3"/>
                 </svg>
               </span>
               <span class="card-badge">多人同樂</span>
@@ -220,12 +225,12 @@
             </span>
             <span class="card-content">
               <h3>顏色文字遊戲</h3>
-              <p>文字和顏色故意唱反調，看看你的專注力能撐多久。</p>
+              <p>彩色文字只亮幾秒，記住顏色再回答，考驗短期記憶。</p>
               <span class="card-cta">接受挑戰 →</span>
             </span>
           </a>
         </article>
-        <article class="game-card" data-id="pairs" data-category="reaction logic" data-search="配對遊戲 記憶 翻牌 眼力" style="--accent:#8f54d9;--soft:#ecddff">
+        <article class="game-card" data-id="pairs" data-category="reaction" data-search="配對遊戲 記憶 翻牌 眼力" style="--accent:#8f54d9;--soft:#ecddff">
           <a class="card-link" href="games/pair/index.html">
             <span class="card-blob"></span>
             <span class="card-top">
@@ -306,15 +311,17 @@
             <span class="card-top">
               <span class="card-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2"/>
-                  <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
+                  <rect x="3" y="3" width="8" height="8" rx="1.5"/>
+                  <rect x="13" y="3" width="8" height="8" rx="1.5" fill="currentColor"/>
+                  <rect x="3" y="13" width="8" height="8" rx="1.5" fill="currentColor" fill-opacity="0.45"/>
+                  <rect x="13" y="13" width="8" height="8" rx="1.5"/>
                 </svg>
               </span>
               <span class="card-badge">色彩解謎</span>
             </span>
             <span class="card-content">
               <h3>彩色數織</h3>
-              <p>多種顏色讓線索更有層次，拼出一幅幅像素小作品。</p>
+              <p>線索多了顏色，一格一格推理出完整的彩色盤面。</p>
               <span class="card-cta">開始上色 →</span>
             </span>
           </a>
@@ -338,7 +345,7 @@
             </span>
           </a>
         </article>
-        <article class="game-card" data-id="battleship" data-category="logic reaction party" data-search="海戰棋 Battleship 戰艦 砲擊 雷達 策略 對戰 智謀 經典" style="--accent:#0284c7;--soft:#dbeafe">
+        <article class="game-card" data-id="battleship" data-category="board party" data-search="海戰棋 Battleship 戰艦 砲擊 雷達 策略 對戰 智謀 經典" style="--accent:#0284c7;--soft:#dbeafe">
           <a class="card-link" href="games/battleship/index.html">
             <span class="card-blob"></span>
             <span class="card-top">
@@ -358,7 +365,7 @@
             </span>
           </a>
         </article>
-        <article class="game-card" data-id="minesweeper" data-category="logic reaction" data-search="踩地雷 掃雷 純粹經典 復古 懷舊 Windows 95 Minesweeper 地宮掃雷 特工 戰術 排雷 護盾 聲納 冒險 益智 邏輯" style="--accent:#4a5b8c;--soft:#e5e9f4">
+        <article class="game-card" data-id="minesweeper" data-category="logic" data-search="踩地雷 掃雷 純粹經典 復古 懷舊 Windows 95 Minesweeper 地宮掃雷 特工 戰術 排雷 護盾 聲納 冒險 益智 邏輯" style="--accent:#4a5b8c;--soft:#e5e9f4">
           <a class="card-link" href="games/minesweeper/index.html">
             <span class="card-blob"></span>
             <span class="card-top">
@@ -381,7 +388,7 @@
             </span>
           </a>
         </article>
-        <article class="game-card" data-id="reversi" data-category="logic party" data-search="黑白棋 翻轉棋 奧賽羅 Reversi Othello 人機對弈 AI 電腦對戰 策略 邏輯 棋類 佔角 翻子 棋盤 雙人同機" style="--accent:#166534;--soft:#dcfce7">
+        <article class="game-card" data-id="reversi" data-category="board party" data-search="黑白棋 翻轉棋 奧賽羅 Reversi Othello 人機對弈 AI 電腦對戰 策略 邏輯 棋類 佔角 翻子 棋盤 雙人同機" style="--accent:#166534;--soft:#dcfce7">
           <a class="card-link" href="games/reversi/index.html">
             <span class="card-blob"></span>
             <span class="card-top">
@@ -405,7 +412,7 @@
             </span>
           </a>
         </article>
-        <article class="game-card" data-id="watermelon-chess" data-category="logic party" data-search="西瓜棋 包棋 圍瓜棋 瓜棋 棋盤 策略 益智 包圍 吃子 雙人 同機 電腦 AI 人機對戰 懷舊 Watermelon Chess" style="--accent:#286b50;--soft:#e2edda">
+        <article class="game-card" data-id="watermelon-chess" data-category="board party" data-search="西瓜棋 包棋 圍瓜棋 瓜棋 棋盤 策略 益智 包圍 吃子 雙人 同機 電腦 AI 人機對戰 懷舊 Watermelon Chess" style="--accent:#286b50;--soft:#e2edda">
           <a class="card-link" href="games/watermelon-chess/index.html">
             <span class="card-blob"></span>
             <span class="card-top">
@@ -449,7 +456,7 @@
             </span>
           </a>
         </article>
-        <article class="game-card" data-id="sic-bo" data-category="party logic" data-search="骰寶 骰子 大小 圍骰 押注 下注 賭場 運氣 機率 三顆骰子 骰盅 Sic Bo Dice 派對 手氣" style="--accent:#1f6b47;--soft:#dcece3">
+        <article class="game-card" data-id="sic-bo" data-category="board party" data-search="骰寶 骰子 大小 圍骰 押注 下注 賭場 運氣 機率 三顆骰子 骰盅 Sic Bo Dice 派對 手氣" style="--accent:#1f6b47;--soft:#dcece3">
           <a class="card-link" href="games/sic-bo/index.html">
             <span class="card-blob"></span>
             <span class="card-top">
@@ -476,7 +483,7 @@
             </span>
           </a>
         </article>
-        <article class="game-card" data-id="nine-nine" data-category="party logic" data-search="九九 撲克牌 99 紙牌 電腦 AI 人機對戰 派對 功能牌 加減 手牌 桌遊" style="--accent:#197148;--soft:#d8f0df">
+        <article class="game-card" data-id="nine-nine" data-category="board party" data-search="九九 撲克牌 99 紙牌 電腦 AI 人機對戰 派對 功能牌 加減 手牌 桌遊" style="--accent:#197148;--soft:#d8f0df">
           <a class="card-link" href="games/nine-nine/index.html">
             <span class="card-blob"></span>
             <span class="card-top">

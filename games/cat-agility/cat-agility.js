@@ -1148,6 +1148,8 @@
   let ctx = canvas.getContext('2d', { alpha: false });
   const soundBtn = document.getElementById('sound-btn');
   const styleBtn = document.getElementById('style-btn');
+  const rulesBtn = document.getElementById('rules-btn');
+  const rulesDialog = document.getElementById('rules-dialog');
   const stageEl = document.getElementById('stage');
   const statusEl = document.getElementById('game-status');
   const view = { sx: 0, sy: 0 };
@@ -6355,6 +6357,8 @@
 
     window.addEventListener('keydown', (event) => {
       if (!ACTION_KEYS.has(event.code) || event.ctrlKey || event.metaKey || event.altKey) return;
+      // 規則對話框開著時，按鍵留給對話框
+      if (rulesDialog && rulesDialog.open) return;
       // 鍵盤使用者聚焦在按鈕／連結上時，空白鍵保留給該控制項
       if (event.code === 'Space' && event.target instanceof Element && event.target.closest('a, button')) return;
       event.preventDefault();
@@ -6379,6 +6383,22 @@
         setTheme(GameConfig.currentTheme === 'pixel16' ? 'classic' : 'pixel16');
         if (event.detail > 0) styleBtn.blur();
       });
+    }
+
+    // 規則：開啟時先暫停，關掉後焦點回到規則鍵，玩家點畫面或按空白鍵續玩
+    if (rulesBtn && rulesDialog && typeof rulesDialog.showModal === 'function') {
+      const closeBtn = document.getElementById('rules-close');
+      rulesBtn.addEventListener('click', () => {
+        pause();
+        rulesDialog.showModal();
+      });
+      if (closeBtn) closeBtn.addEventListener('click', () => rulesDialog.close());
+      rulesDialog.addEventListener('click', (event) => {
+        if (event.target === rulesDialog) rulesDialog.close();
+      });
+      rulesDialog.addEventListener('close', () => rulesBtn.focus());
+    } else if (rulesBtn) {
+      rulesBtn.hidden = true;
     }
   }
 

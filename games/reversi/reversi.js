@@ -1065,14 +1065,10 @@ function _appIsPlainObject(value) {
 }
 
 // 全站共用模組是「可缺席」的：Node 單元測試與模組載入失敗的頁面都沒有這些全域，
-// 此時下面三個取用函式一律回 null，遊戲照常能玩
+// 此時下面兩個取用函式一律回 null，遊戲照常能玩
 // （只是沒彩帶、沒音效、主題退回 prefers-color-scheme）。
 function _appThemeKit() {
   return (typeof BoboTheme !== 'undefined' && BoboTheme) ? BoboTheme : null;
-}
-
-function _appConfettiKit() {
-  return (typeof BoboConfetti !== 'undefined' && BoboConfetti) ? BoboConfetti : null;
 }
 
 function _appAudioKit() {
@@ -1322,17 +1318,6 @@ class ReversiApp {
       toggleHintBtn: byId('toggle-hint-btn'),
 
       // 結算彈窗
-      resultModal: byId('result-modal'),
-      resultEmoji: byId('result-emoji'),
-      resultTitleText: byId('result-title-text'),
-      resultCloseBtn: byId('result-close-btn'),
-      resultBlack: byId('result-black'),
-      resultWhite: byId('result-white'),
-      resultDetail: byId('result-detail'),
-      resultWinrate: byId('result-winrate'),
-      resultStreak: byId('result-streak'),
-      resultReviewBtn: byId('result-review-btn'),
-      resultAgainBtn: byId('result-again-btn'),
 
       // 重開確認彈窗
       confirmModal: byId('confirm-modal'),
@@ -1360,9 +1345,8 @@ class ReversiApp {
       helpCloseBtn: byId('help-close-btn'),
       helpOkBtn: byId('help-ok-btn'),
 
-      // Toast 與彩帶
-      toastContainer: byId('toast-container'),
-      confettiCanvas: byId('confetti-canvas')
+      // Toast
+      toastContainer: byId('toast-container')
     };
   }
 
@@ -1454,29 +1438,25 @@ class ReversiApp {
 
   updateThemeIcon(theme) {
     if (!this.el || !this.el.themeBtn) return;
-    // 主題鍵語意是「按下去會切到另一個模式」，不是同一個狀態的按下／未按下，
-    // 所以用會變動的 aria-label 陳述結果，而不是 aria-pressed（避免與系統偏好混淆）。
+    // 全站規格：label 固定為「深色模式」，狀態只由 aria-pressed 表達（按下 = 目前是深色）
     if (typeof this.el.themeBtn.setAttribute === 'function') {
-      const label = theme === 'dark' ? '切換為淺色模式' : '切換為深色模式';
-      this.el.themeBtn.setAttribute('aria-label', label);
-      this.el.themeBtn.setAttribute('title', label);
+      this.el.themeBtn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
     }
     this.el.themeBtn.innerHTML = theme === 'dark'
-      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
-      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
   }
 
   updateSoundIcon() {
     if (!this.el || !this.el.soundBtn) return;
     const on = !!(this.sound && this.sound.enabled);
     this.el.soundBtn.innerHTML = on
-      ? '<span>🔊</span>'
-      : '<span style="opacity:0.5">🔇</span>';
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m23 9-6 6"/><path d="m17 9 6 6"/></svg>';
     // 音效鍵是真正的開／關切換：比照底部「提示點」按鈕用 aria-pressed 表達狀態，
     // aria-label 維持固定字串，避免狀態被播報兩次。
     if (typeof this.el.soundBtn.setAttribute === 'function') {
       this.el.soundBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      this.el.soundBtn.setAttribute('title', on ? '音效開關（目前開啟）' : '音效開關（目前靜音）');
     }
   }
 
@@ -1524,14 +1504,6 @@ class ReversiApp {
     if (this.el.toggleHintBtn) this.el.toggleHintBtn.addEventListener('click', () => this.toggleHints());
 
     // 彈窗按鈕
-    if (this.el.resultCloseBtn) this.el.resultCloseBtn.addEventListener('click', () => this.closeModal(this.el.resultModal));
-    if (this.el.resultReviewBtn) this.el.resultReviewBtn.addEventListener('click', () => this.reviewFinalBoard());
-    if (this.el.resultAgainBtn) {
-      this.el.resultAgainBtn.addEventListener('click', () => {
-        this.closeModal(this.el.resultModal);
-        this.startNewGame();
-      });
-    }
     if (this.el.confirmCloseBtn) this.el.confirmCloseBtn.addEventListener('click', () => this.closeModal(this.el.confirmModal));
     if (this.el.confirmCancelBtn) this.el.confirmCancelBtn.addEventListener('click', () => this.closeModal(this.el.confirmModal));
     if (this.el.confirmOkBtn) {
@@ -1574,6 +1546,8 @@ class ReversiApp {
   // ------------------------------------------------------------------------
   handleKeydown(event) {
     if (!event || typeof document === 'undefined') return;
+    // 共用過關卡片開著時，按鍵交給卡片自己（Esc 關閉、Tab 在卡片內），不要觸發悔棋、提示等快捷鍵
+    if (typeof BoboCelebrate !== 'undefined' && BoboCelebrate && BoboCelebrate.isOpen()) return;
     const openModal = document.querySelector('.modal-overlay.open');
 
     if (event.key === 'Escape') {
@@ -1922,9 +1896,11 @@ class ReversiApp {
     return this.commitMove(sq, this.current);
   }
 
-  // 誤點回饋：抖一下並出聲，完全不動狀態
+  // 誤點回饋：格子閃紅框（一般情況另加輕微晃動）、出聲並提示文字，完全不動狀態。
+  // 文字提示保證關掉音效、開啟「減少動態效果」的玩家也知道發生了什麼。
   rejectCell(sq) {
     if (this.sound) this.sound.playInvalid();
+    this.showToast('這格不能下');
     const cell = Array.isArray(this.cells) ? this.cells[sq] : null;
     if (!cell || !cell.classList) return;
     cell.classList.add('shake');
@@ -2007,10 +1983,6 @@ class ReversiApp {
       else if (humanWin) this.sound.playWin();
       else this.sound.playLose();
     }
-    if (humanWin || (this.mode === 'duo' && this.winner !== 0)) {
-      this.triggerConfetti();
-    }
-
     this.refreshHUD();
 
     const wait = Math.max(0, (this.animUntil || 0) - _appNow()) + 260;
@@ -2286,7 +2258,7 @@ class ReversiApp {
     // 順序顛倒會先被「已經是開局囉」吃掉。鍵盤 U 會直接呼叫 undo()，
     // 沒有這道守衛就能繞過已經 disabled 的悔棋鈕、讓已結算的對局復活並重複計入戰績。
     if (this.gameOver) {
-      this.showToast('這局已經結束，按「🔄 重開」再來一場吧');
+      this.showToast('這局已經結束，按「重開」再來一場吧');
       return false;
     }
     if (this.thinking || this.animating) {
@@ -2417,7 +2389,7 @@ class ReversiApp {
     }
     this.updateActionButtons();
     this.savePreferences();
-    this.showToast(this.showHints ? '👁️ 已顯示可落子提示點' : '🙈 已隱藏可落子提示點');
+    this.showToast(this.showHints ? '已顯示可下位置' : '已隱藏可下位置');
   }
 
   // ------------------------------------------------------------------------
@@ -2802,73 +2774,91 @@ class ReversiApp {
 
   reviewFinalBoard() {
     if (!this.el) return;
-    this.closeModal(this.el.resultModal);
     this.showToast('🔍 可以慢慢看終盤，想再戰就按「重開」');
   }
 
+  // 終局黑白子數：數字加上一條比例條，一眼看出贏多少
+  buildDiscTally(counts) {
+    const total = Math.max(1, counts.black + counts.white);
+    const wrap = document.createElement('div');
+    wrap.className = 'disc-tally';
+    wrap.setAttribute('role', 'img');
+    wrap.setAttribute('aria-label', `終局黑子 ${counts.black} 顆、白子 ${counts.white} 顆`);
+    wrap.innerHTML = `
+      <div class="disc-tally-counts" aria-hidden="true">
+        <span><span class="score-disc black"></span>${counts.black}</span>
+        <span>${counts.white}<span class="score-disc white"></span></span>
+      </div>
+      <div class="disc-tally-bar" aria-hidden="true">
+        <span class="black" style="flex-basis:${(counts.black / total) * 100}%"></span>
+        <span class="white" style="flex-grow:1"></span>
+      </div>`;
+    return wrap;
+  }
+
   showResultModal(bucket) {
-    if (!this.el || !this.el.resultModal) return;
+    const celebrate = (typeof BoboCelebrate !== 'undefined' && BoboCelebrate) ? BoboCelebrate : null;
+    if (!this.el || !celebrate) return;
     const counts = countDiscs(this.board);
     const winner = this.winner;
+    const isDuo = this.mode === 'duo';
 
-    let emoji = '🤝';
     let title = '平手收場';
-    if (this.mode === 'duo') {
-      if (winner === BLACK) {
-        emoji = '⚫';
-        title = '黑方獲勝！';
-      } else if (winner === WHITE) {
-        emoji = '⚪';
-        title = '白方獲勝！';
-      }
+    let outcome = 'win';
+    let confetti = false;
+    if (isDuo) {
+      if (winner === BLACK) title = '黑方獲勝！';
+      else if (winner === WHITE) title = '白方獲勝！';
+      confetti = winner !== 0;
     } else if (winner === this.humanColor) {
-      emoji = '🏆';
       title = '你贏了！';
+      confetti = true;
     } else if (winner !== 0) {
-      emoji = '😿';
-      title = '電腦獲勝';
+      title = '電腦贏了這局';
+      outcome = 'lose';
     }
-
-    if (this.el.resultEmoji) this.el.resultEmoji.textContent = emoji;
-    if (this.el.resultTitleText) this.el.resultTitleText.textContent = title;
-    if (this.el.resultBlack) this.el.resultBlack.textContent = String(counts.black);
-    if (this.el.resultWhite) this.el.resultWhite.textContent = String(counts.white);
 
     const parts = [];
-    if (this.mode === 'duo') {
-      parts.push('雙人同機');
+    if (isDuo) {
+      parts.push('雙人同機對戰，不列入戰績');
     } else {
       const cfg = _appDifficultyCfg(this.difficulty);
-      parts.push(cfg ? cfg.label : '普通');
+      parts.push(`${cfg ? cfg.name : '普通'}難度`);
       parts.push(this.humanColor === BLACK ? '你執黑' : '你執白');
     }
-    if ((this.undosUsed || 0) > 0) parts.push(`本局悔棋 ${this.undosUsed} 次`);
-    if ((this.hintsUsed || 0) > 0) parts.push(`用了 ${this.hintsUsed} 次提示`);
+    if ((this.undosUsed || 0) > 0) parts.push(`悔棋 ${this.undosUsed} 次`);
+    if ((this.hintsUsed || 0) > 0) parts.push(`用了 ${this.hintsUsed} 次建議`);
+    let subtitle = parts.join('，') + '。';
+    if (outcome === 'lose') subtitle += '換個角落搶看看，或調低難度再來。';
+    if (!isDuo && (this.undosUsed || 0) > 0) subtitle += '悔棋局不計入連勝。';
 
-    // 兩個 .stat-val 是 1.3rem 等寬數字格，只放純數字；
-    // 補充敘述一律掛到 #result-detail 那行小字，360px 手機才不會爆版。
-    // 值改用 bucket.streak（目前連勝）讓標籤「目前連勝」名實相符 ——
-    // 歷史最高連勝在戰績彈窗的「最高連勝」已經有了，兩邊剛好分工。
-    if (this.mode === 'duo' || !bucket) {
-      if (this.el.resultWinrate) this.el.resultWinrate.textContent = '--';
-      if (this.el.resultStreak) this.el.resultStreak.textContent = '--';
-      parts.push('雙人對戰不列入戰績');
-    } else {
+    const stats = [];
+    if (!isDuo && bucket) {
       const rate = bucket.plays > 0 ? Math.round((bucket.wins / bucket.plays) * 100) : 0;
-      if (this.el.resultWinrate) this.el.resultWinrate.textContent = `${rate}%`;
-      if (this.el.resultStreak) this.el.resultStreak.textContent = String(bucket.streak || 0);
-      parts.push(`累積 ${bucket.plays} 局`);
-      if ((this.undosUsed || 0) > 0) parts.push('悔棋局不計入連勝與勝差');
+      stats.push({ label: '目前勝率', value: `${rate}%` });
+      stats.push({ label: '目前連勝', value: String(bucket.streak || 0) });
+      stats.push({ label: '累積對局', value: `${bucket.plays} 局` });
     }
 
-    // 這一行必須放在上面的分支之後，後面 push 進去的敘述才會真的顯示出來
-    if (this.el.resultDetail) this.el.resultDetail.textContent = parts.join(' · ');
-
-    this.openModal(this.el.resultModal, this.el.resultAgainBtn);
+    celebrate.show({
+      outcome,
+      confetti,
+      gameName: '黑白棋',
+      // 關閉後焦點回到棋盤上目前的落點，鍵盤玩家可以直接繼續看盤或開新局
+      returnFocus: (this.cells && this.cells[this.focusIdx || 0]) || this.el.restartBtn,
+      title,
+      subtitle,
+      stats,
+      extra: this.buildDiscTally(counts),
+      accent: '#166534',
+      accentDark: '#22c55e',
+      primary: { label: '再來一局', onClick: () => this.startNewGame() },
+      secondary: { label: '檢視終盤', onClick: () => this.reviewFinalBoard() }
+    });
   }
 
   // ------------------------------------------------------------------------
-  // Toast 與彩帶
+  // Toast
   // ------------------------------------------------------------------------
   showToast(message) {
     if (!this.el || !this.el.toastContainer || typeof document === 'undefined') return;
@@ -2884,17 +2874,6 @@ class ReversiApp {
     }, 2400);
   }
 
-  // 彩帶整段交給共用模組 BoboConfetti：
-  // prefers-reduced-motion 守衛、rAF handle 管理（重複呼叫會先收掉上一輪）、
-  // 高 DPI 與視窗縮放都在模組裡，這裡只負責「要不要放」與放在哪張 canvas。
-  // 模組缺席時安靜退場，對局結算流程完全不受影響。
-  triggerConfetti() {
-    if (!this.el || !this.el.confettiCanvas) return;
-    const confetti = _appConfettiKit();
-    if (!confetti) return;
-    // 數量 90、110 幀、六色都是模組預設值，與本遊戲原本的實作一致，不必另外傳參數
-    confetti.burst(this.el.confettiCanvas);
-  }
 }
 
 // --------------------------------------------------------------------------

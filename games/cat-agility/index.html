@@ -28,7 +28,10 @@
 
 <body>
     <main class="stage" id="stage">
-        <canvas id="game-canvas" role="img" aria-label="貓咪跳箱遊戲畫面：點擊畫面、按空白鍵、上方向鍵或 W 讓黑貓跳躍，鑽過客廳家具之間的縫隙；每穿過 7～13 組家具會出現罐頭或貓草，罐頭是擋一次撞擊的護盾，貓草是撞穿 3 組家具的拆家暴衝"></canvas>
+        <h1 class="sr-only">貓咪跳箱</h1>
+        <!-- 名稱保持簡短；完整操作說明放在 aria-describedby，報讀器不會把一整段說明當成圖片名稱 -->
+        <canvas id="game-canvas" role="img" aria-label="貓咪跳箱遊戲畫面" aria-describedby="canvas-help"></canvas>
+        <p class="sr-only" id="canvas-help">點擊畫面、按空白鍵、上方向鍵或 W 讓黑貓跳躍，鑽過客廳家具之間的縫隙；每穿過 7～13 組家具會出現罐頭或貓草，罐頭是擋一次撞擊的護盾，貓草是撞穿 3 組家具的拆家暴衝。</p>
 
         <a href="../../index.html" class="hud-btn back-btn" aria-label="返回首頁">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
@@ -44,6 +47,12 @@
             <span aria-hidden="true">像素</span>
         </button>
 
+        <!-- 規則鍵：開啟說明時遊戲自動暫停 -->
+        <button class="hud-btn rules-btn" id="rules-btn" type="button" aria-label="遊戲規則" aria-haspopup="dialog"
+            title="遊戲規則">
+            <span aria-hidden="true">?</span>
+        </button>
+
         <!-- 音效鍵是開／關兩態，用 aria-pressed 表達狀態；JS 會在 init 時依偏好同步 -->
         <button class="hud-btn sound-btn" id="sound-btn" type="button" aria-label="音效開關" aria-pressed="true"
             title="音效開關">
@@ -52,6 +61,25 @@
 
         <p class="sr-only" id="game-status" role="status" aria-live="polite"></p>
     </main>
+
+    <!-- 規則說明 -->
+    <dialog class="rules-dialog" id="rules-dialog" aria-labelledby="rules-title">
+        <h2 id="rules-title">怎麼玩</h2>
+        <h3>目標</h3>
+        <p>讓黑貓一路鑽過客廳家具之間的縫隙，穿過越多組分數越高；撞到家具或地板就結束。</p>
+        <h3>操作</h3>
+        <ul>
+            <li>觸控／滑鼠：點畫面讓貓咪蹬跳。</li>
+            <li>鍵盤：空白鍵、上方向鍵或 W 跳躍。</li>
+        </ul>
+        <h3>道具</h3>
+        <ul>
+            <li>罐頭：套上護盾，可以擋下一次撞擊。</li>
+            <li>貓草：拆家暴衝，連續撞穿 3 組家具，撞散還加分。</li>
+        </ul>
+        <p>看規則時遊戲會暫停，關掉後點畫面或按空白鍵繼續。</p>
+        <button class="rules-close" id="rules-close" type="button">知道了</button>
+    </dialog>
 
     <script src="../../assets/js/bobo-theme.js"></script>
     <script src="../../assets/js/bobo-audio.js"></script>

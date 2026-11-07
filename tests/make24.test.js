@@ -290,7 +290,6 @@ test('24 點結尾畫面包含通關算式卡片、統計網格與檢視盤面�
     { type: 'op', val: '×' },
     { type: 'num', val: '3', cardIdx: 2 }
   ];
-  game.triggerConfetti = () => {};
 
   game.handleWin();
 
@@ -301,3 +300,61 @@ test('24 點結尾畫面包含通關算式卡片、統計網格與檢視盤面�
 });
 
 
+
+test('make24 漸進式提示：第一步取最內層兩個數字的運算', () => {
+  const { firstHintStep, stripOuterParens } = require('../games/make24/make24.js');
+  assert.deepEqual(firstHintStep('((8 - 4) × (7 - 1))'), { a: 8, b: 4, op: '−', value: 4 });
+  assert.deepEqual(firstHintStep('(((8 × 4) - 7) - 1)'), { a: 8, b: 4, op: '×', value: 32 });
+  assert.deepEqual(firstHintStep('((3 ÷ 8) + 1)'), { a: 3, b: 8, op: '÷', value: 0.38 });
+  assert.equal(firstHintStep('沒有括號'), null);
+  // 只拆掉包住整條算式的那一層
+  assert.equal(stripOuterParens('((8 - 4) × (7 - 1))'), '(8 - 4) × (7 - 1)');
+  assert.equal(stripOuterParens('(1 + 2) × (3 + 4)'), '(1 + 2) × (3 + 4)');
+});
+
+test('make24 過關後換牌視同下一局、保留連勝，重新整理也接得回難度與連勝', () => {
+  const store = {};
+  const originalLocalStorage = global.localStorage;
+  global.localStorage = {
+    getItem: (k) => (k in store ? store[k] : null),
+    setItem: (k, v) => { store[k] = String(v); },
+    removeItem: (k) => { delete store[k]; }
+  };
+  try {
+    const game = new Make24Game();
+    game.currentMode = 'hard';
+    game.tokens = [{ type: 'num', val: '24', cardIdx: 0 }];
+    game.handleWin();
+    assert.equal(game.streak, 1);
+
+    // 過關後按「換牌」：開下一局但不歸零
+    game.skipOrNext();
+    assert.equal(game.isWon, false, '應該已開新局');
+    assert.equal(game.streak, 1, '過關後換牌不應清掉連勝');
+
+    // 再贏一局，然後模擬過關後立刻重新整理（局況已清掉）
+    game.tokens = [{ type: 'num', val: '24', cardIdx: 0 }];
+    game.handleWin();
+    assert.equal(game.streak, 2);
+    game.clearGameState();
+    const reloaded = new Make24Game();
+    assert.equal(reloaded.loadGameState(), false, '過關後沒有進行中的局');
+    assert.equal(reloaded.restoreStreakRecord(), true, '應能讀回連勝紀錄');
+    assert.equal(reloaded.currentMode, 'hard', '難度應沿用過關時的難度');
+    assert.equal(reloaded.streak, 2, '重新整理後連勝應保留');
+
+    // 還沒過關就換牌：這題放棄，連勝歸零並寫回紀錄
+    reloaded.startNewGame();
+    reloaded.skipOrNext();
+    assert.equal(reloaded.streak, 0);
+    assert.equal(JSON.parse(store.make24_current_streak_v1).streak, 0);
+
+    // 切換難度：連勝重新計算
+    const other = new Make24Game();
+    other.streak = 3;
+    other.switchMode('master');
+    assert.equal(other.streak, 0);
+  } finally {
+    global.localStorage = originalLocalStorage;
+  }
+});

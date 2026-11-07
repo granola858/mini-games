@@ -4,9 +4,10 @@
 
 const STORAGE_KEY = 'make24_game_state';
 const BEST_STREAK_KEY = 'make24_best_streak';
+// 目前連勝與它所屬的難度。過關時局況會被清掉，連勝要另外存，重新整理才不會歸零
+const STREAK_KEY = 'make24_current_streak_v1';
 
 // 過關彩帶的調色盤（沿用本遊戲原本的六色，交由共用模組 BoboConfetti 播放）
-const CONFETTI_COLORS = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#8B5CF6'];
 
 const SUITS = [
   { symbol: '♠', type: 'suit-black', name: 'spade' },
@@ -256,6 +257,47 @@ function isPuzzleMatchingDifficulty(puzzleInfo, mode) {
 }
 
 /* --------------------------------------------------------------------------
+   提示與顯示的純函式（node 測試直接驗證）
+   -------------------------------------------------------------------------- */
+// 從完整解法字串找出「第一步」：最內層、兩邊都是數字的那組括號
+function firstHintStep(expr) {
+  if (typeof expr !== 'string') return null;
+  const m = expr.match(/\((\d+) ([+\-×÷]) (\d+)\)/);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = Number(m[3]);
+  const op = m[2];
+  let value;
+  if (op === '+') value = a + b;
+  else if (op === '-') value = a - b;
+  else if (op === '×') value = a * b;
+  else value = a / b;
+  const shown = Number.isInteger(value) ? value : Math.round(value * 100) / 100;
+  return { a, b, op: op === '-' ? '−' : op, value: shown };
+}
+
+// 去掉包住整條算式的最外層括號，讓解法讀起來像人寫的
+function stripOuterParens(expr) {
+  if (typeof expr !== 'string' || !expr.startsWith('(') || !expr.endsWith(')')) return expr;
+  let depth = 0;
+  for (let i = 0; i < expr.length; i++) {
+    if (expr[i] === '(') depth++;
+    else if (expr[i] === ')') depth--;
+    if (depth === 0 && i < expr.length - 1) return expr;
+  }
+  return expr.slice(1, -1);
+}
+
+// 減少動態效果：系統開啟時 JS 端也不等待動畫
+function prefersReducedMotion() {
+  try {
+    return typeof window !== 'undefined' && !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  } catch (_) {
+    return false;
+  }
+}
+
+/* --------------------------------------------------------------------------
    音效管理
    - 瀏覽器樣板（AudioContext 延後建立、手勢解鎖、visibilitychange 暫停／喚醒、
      節點 stop 與 disconnect 回收）一律交給共用模組 BoboAudio，
@@ -270,7 +312,18 @@ const SOUND_FLOOR = 0.001;
 
 class SoundManager {
   constructor() {
-    this.kit = (typeof BoboAudio !== 'undefined' && BoboAudio) ? BoboAudio.create() : null;
+    // 音效開關存在 make24_sound（AGENTS.md 偏好設定持久化）
+    this.kit = (typeof BoboAudio !== 'undefined' && BoboAudio)
+      ? BoboAudio.create({ storageKey: 'make24_sound' })
+      : null;
+  }
+
+  get enabled() {
+    return this.kit ? this.kit.enabled : false;
+  }
+
+  toggleSound() {
+    return this.kit ? this.kit.toggle() : false;
   }
 
   playCardClick() {
@@ -345,11 +398,15 @@ class Make24Game {
       btnClear: isBrowser ? document.getElementById('btn-clear') : null,
       btnHint: isBrowser ? document.getElementById('btn-hint') : null,
       btnSkip: isBrowser ? document.getElementById('btn-skip') : null,
-      modalOverlay: isBrowser ? document.getElementById('modal-overlay') : null,
+      dialog: isBrowser ? document.getElementById('game-dialog') : null,
       modalTitle: isBrowser ? document.getElementById('modal-title') : null,
       modalBody: isBrowser ? document.getElementById('modal-body') : null,
-      modalCloseBtn: isBrowser ? document.getElementById('modal-close-btn') : null,
-      confettiCanvas: isBrowser ? document.getElementById('confetti-canvas') : null
+      dialogActions: isBrowser ? document.getElementById('dialog-actions') : null,
+      rulesBtn: isBrowser ? document.getElementById('rules-btn') : null,
+      rulesDialog: isBrowser ? document.getElementById('rules-dialog') : null,
+      rulesCloseBtn: isBrowser ? document.getElementById('rules-close-btn') : null,
+      soundBtn: isBrowser ? document.getElementById('sound-btn') : null,
+      statusMsg: isBrowser ? document.getElementById('status-msg') : null
     };
 
     if (isBrowser) {
@@ -361,10 +418,84 @@ class Make24Game {
     this.setupTheme();
     this.bindEvents();
     if (!this.loadGameState()) {
+      // 沒有進行中的局（例如剛過關就重新整理）：沿用上次的難度與連勝
+      this.restoreStreakRecord();
       this.bestStreak = this.getBestStreak(this.currentMode);
       this.updateStatsDisplay();
       this.startNewGame();
     }
+  }
+
+  /* 目前連勝另存一份（含難度），過關清掉局況後仍保得住 */
+  saveStreakRecord() {
+    try {
+      localStorage.setItem(STREAK_KEY, JSON.stringify({ mode: this.currentMode, streak: this.streak }));
+    } catch (_) {}
+  }
+
+  restoreStreakRecord() {
+    try {
+      const record = JSON.parse(localStorage.getItem(STREAK_KEY) || 'null');
+      if (!record || !MODES[record.mode]) return false;
+      this.currentMode = record.mode;
+      this.streak = Math.max(0, parseInt(record.streak, 10) || 0);
+      this.syncModeTabs();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  syncModeTabs() {
+    (this.dom.tabButtons || []).forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === this.currentMode);
+      btn.setAttribute('aria-pressed', btn.dataset.mode === this.currentMode ? 'true' : 'false');
+    });
+  }
+
+  /* 「換牌」：過關後等同「下一局」並保留連勝；還沒過關才算放棄這題、連勝歸零 */
+  skipOrNext() {
+    if (this.isWon) {
+      this.startNewGame();
+      return;
+    }
+    this.streak = 0;
+    this.saveStreakRecord();
+    this.updateStatsDisplay();
+    this.clearGameState();
+    this.startNewGame();
+  }
+
+  /* 過關後把「換牌」改成「下一局」，讓玩家知道按下去不會丟掉連勝 */
+  updateSkipButton() {
+    const btn = this.dom.btnSkip;
+    if (!btn) return;
+    const label = btn.querySelector('.btn-skip-label');
+    if (label) label.textContent = this.isWon ? '下一局' : '換牌';
+    btn.title = this.isWon ? '開始下一局（保留連勝）' : '更換一組卡牌（連勝會歸零）';
+  }
+
+  /* 切換難度會重新計算連勝；有連勝時先確認 */
+  requestSwitchMode(mode) {
+    if (this.currentMode === mode) return;
+    if (this.streak > 0 && typeof document !== 'undefined' && this.dom.dialog) {
+      const name = (MODES[mode] && MODES[mode].name) || mode;
+      this.showModal('切換難度？', `<div>目前連勝 ${this.streak} 局。切換到「${name}」會從 0 重新計算連勝。</div>`, [
+        // 主要按鈕（預設焦點）是不破壞進度的那個，連按 Enter 不會誤丟連勝
+        { label: '留在目前難度', primary: true, onClick: () => this.closeDialog(this.dom.dialog) },
+        {
+          label: '切換並重新計算',
+          onClick: () => {
+            this.closeDialog(this.dom.dialog, false);
+            this.switchMode(mode);
+            const tab = Array.from(this.dom.tabButtons || []).find(btn => btn.dataset.mode === mode);
+            if (tab) tab.focus();
+          }
+        }
+      ]);
+      return;
+    }
+    this.switchMode(mode);
   }
 
   getBestStreakKey(mode) {
@@ -462,22 +593,89 @@ class Make24Game {
 
   updateThemeIcon(theme) {
     if (this.dom.themeBtn) {
+      this.dom.themeBtn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
       this.dom.themeBtn.innerHTML = theme === 'dark'
-        ? '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #FBBF24;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
-        : '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+        ? '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
+        : '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
     }
+  }
+
+  /* 音效開關：圖示 + aria-pressed（label 固定為「音效」） */
+  updateSoundIcon(enabled) {
+    if (!this.dom.soundBtn) return;
+    this.dom.soundBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    this.dom.soundBtn.innerHTML = enabled
+      ? '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
+      : '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+  }
+
+  announce(text) {
+    if (!this.dom.statusMsg) return;
+    this.dom.statusMsg.textContent = '';
+    setTimeout(() => { if (this.dom.statusMsg) this.dom.statusMsg.textContent = text; }, 30);
+  }
+
+  isDialogOpen() {
+    const celebrateOpen = typeof BoboCelebrate !== 'undefined' && BoboCelebrate && BoboCelebrate.isOpen();
+    return !!(celebrateOpen || (this.dom.dialog && this.dom.dialog.open) || (this.dom.rulesDialog && this.dom.rulesDialog.open));
+  }
+
+  /* 對話框：原生 dialog.showModal()，焦點移到主要按鈕，關閉後回到開啟它的元素 */
+  openDialog(dialog) {
+    if (!dialog) return;
+    if (!dialog.open) this.lastOpener = document.activeElement;
+    if (typeof dialog.showModal === 'function') {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.setAttribute('open', '');
+    }
+    const primary = dialog.querySelector('.btn-action.primary') || dialog.querySelector('button');
+    if (primary) primary.focus();
+  }
+
+  closeDialog(dialog, restoreFocus = true) {
+    if (!dialog) return;
+    if (typeof dialog.close === 'function' && dialog.open) dialog.close();
+    else dialog.removeAttribute('open');
+    const opener = this.lastOpener;
+    this.lastOpener = null;
+    if (restoreFocus && opener && document.contains(opener) && typeof opener.focus === 'function') opener.focus();
   }
 
   /* ------------------------------------------------------------------------
      事件綁定 (Events & Keyboard Shortcuts)
      ------------------------------------------------------------------------ */
   bindEvents() {
+    // 音效開關
+    if (this.dom.soundBtn) {
+      this.updateSoundIcon(this.sound.enabled);
+      this.dom.soundBtn.addEventListener('click', () => {
+        this.updateSoundIcon(this.sound.toggleSound());
+      });
+    }
+
+    // 規則
+    if (this.dom.rulesBtn && this.dom.rulesDialog) {
+      this.dom.rulesBtn.addEventListener('click', () => this.openDialog(this.dom.rulesDialog));
+      if (this.dom.rulesCloseBtn) {
+        this.dom.rulesCloseBtn.addEventListener('click', () => this.closeDialog(this.dom.rulesDialog));
+      }
+    }
+
+    // 點 dialog 外的遮罩也能關閉；過關結果被關掉時視同「下一局」以外的檢視盤面
+    [this.dom.dialog, this.dom.rulesDialog].forEach((dialog) => {
+      if (!dialog) return;
+      dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) this.closeDialog(dialog);
+      });
+    });
+
     // 4 檔模式切換
     this.dom.tabButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const mode = btn.dataset.mode;
         if (mode && MODES[mode]) {
-          this.switchMode(mode);
+          this.requestSwitchMode(mode);
         }
       });
     });
@@ -507,39 +705,12 @@ class Make24Game {
       this.dom.btnHint.addEventListener('click', () => this.showHint());
     }
     if (this.dom.btnSkip) {
-      this.dom.btnSkip.addEventListener('click', () => {
-        this.streak = 0; // 換牌重置連勝
-        this.updateStatsDisplay();
-        this.clearGameState();
-        this.startNewGame();
-      });
+      this.dom.btnSkip.addEventListener('click', () => this.skipOrNext());
     }
 
     // 綁定算式容器之 Pointer Events (相容滑鼠與手機觸控按住拖曳選取)
     this.setupEquationContainerInteractions();
 
-    // Modal 關閉
-    if (this.dom.modalCloseBtn) {
-      this.dom.modalCloseBtn.addEventListener('click', () => {
-        this.dom.modalOverlay.classList.remove('active');
-        if (this.isWon) {
-          this.clearGameState();
-          this.startNewGame();
-        }
-      });
-    }
-
-    if (this.dom.modalOverlay) {
-      this.dom.modalOverlay.addEventListener('click', (e) => {
-        if (e.target === this.dom.modalOverlay) {
-          this.dom.modalOverlay.classList.remove('active');
-          if (this.isWon) {
-            this.clearGameState();
-            this.startNewGame();
-          }
-        }
-      });
-    }
 
     // 頁面卸載時保存進度
     window.addEventListener('beforeunload', () => {
@@ -548,13 +719,11 @@ class Make24Game {
 
     // 鍵盤快速鍵支援
     window.addEventListener('keydown', (e) => {
-      if (this.dom.modalOverlay && this.dom.modalOverlay.classList.contains('active')) {
-        if (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ') {
-          e.preventDefault();
-          if (this.dom.modalCloseBtn) this.dom.modalCloseBtn.click();
-        }
-        return;
-      }
+      // 對話框開著時完全不攔截：Enter／空白鍵交給聚焦中的按鈕，Esc 交給原生 dialog
+      if (this.isDialogOpen()) return;
+      // 焦點在一般按鈕或連結上時，Enter／空白鍵是「按下它」，不是快速鍵
+      const target = e.target;
+      if (target && target.closest && target.closest('a, input, select, textarea')) return;
 
       if (['1', '2', '3', '4'].includes(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const cardIndex = parseInt(e.key, 10) - 1;
@@ -807,10 +976,9 @@ class Make24Game {
   switchMode(mode) {
     if (this.currentMode === mode) return;
     this.currentMode = mode;
-    this.dom.tabButtons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.mode === mode);
-    });
+    this.syncModeTabs();
     this.streak = 0;
+    this.saveStreakRecord();
     this.bestStreak = this.getBestStreak(mode);
     this.updateStatsDisplay();
     this.clearGameState();
@@ -824,6 +992,9 @@ class Make24Game {
     this.stopTimer();
     this.timerSeconds = 0;
     this.isWon = false;
+    this.hintSolution = null;
+    this.hintLevel = 0;
+    this.lastMissKey = null;
     if (this.dom.timerText) this.dom.timerText.textContent = '0s';
 
     // 生成符合當前難度特徵的保證有解卡牌
@@ -835,6 +1006,7 @@ class Make24Game {
 
     this.renderCards();
     this.updateEquationDisplay();
+    this.updateSkipButton();
     this.startTimer();
     this.saveGameState();
   }
@@ -911,11 +1083,10 @@ class Make24Game {
       this.timerSeconds = state.timerSeconds || 0;
       this.isWon = false;
 
-      this.dom.tabButtons.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.mode === this.currentMode);
-      });
+      this.syncModeTabs();
 
       this.updateStatsDisplay();
+      this.updateSkipButton();
       this.renderCards();
       this.updateEquationDisplay();
       this.startTimer();
@@ -1304,10 +1475,20 @@ class Make24Game {
       const isTwentyFour = Math.abs(evalRes.val - 24) < 1e-5;
 
       if (allUsed && isTwentyFour && !this.isWon) {
-        this.dom.evalResult.textContent = '= 24 (過關！🎉)';
+        this.dom.evalResult.textContent = '= 24，過關！';
         this.dom.evalResult.className = 'eval-result success';
         if (this.dom.displayCard) this.dom.displayCard.classList.add('is-correct');
         this.handleWin();
+      } else if (allUsed && !isTwentyFour) {
+        // 四張牌都用上了卻不是 24：明確說出結果與下一步，而不是只顯示「= 3」
+        const missText = `= ${valFormatted}，不是 24。按倒退改一下，或換個順序試試`;
+        this.dom.evalResult.textContent = missText;
+        this.dom.evalResult.className = 'eval-result miss';
+        if (this.dom.displayCard) this.dom.displayCard.classList.remove('is-correct');
+        if (this.lastMissKey !== this.tokens.map(t => t.val).join('')) {
+          this.lastMissKey = this.tokens.map(t => t.val).join('');
+          this.announce(`等於 ${valFormatted}，不是 24`);
+        }
       } else {
         this.dom.evalResult.className = 'eval-result';
         if (this.dom.displayCard) this.dom.displayCard.classList.remove('is-correct');
@@ -1370,7 +1551,10 @@ class Make24Game {
     this.stopTimer();
     this.clearGameState();
     this.streak++;
-    if (this.streak > this.bestStreak) {
+    this.saveStreakRecord();
+    this.updateSkipButton();
+    const isNewBest = this.streak > this.bestStreak;
+    if (isNewBest) {
       this.bestStreak = this.streak;
       try {
         localStorage.setItem(this.getBestStreakKey(this.currentMode), this.bestStreak.toString());
@@ -1380,8 +1564,6 @@ class Make24Game {
     this.updateStatsDisplay();
     this.sound.playWin();
 
-    this.triggerConfetti();
-
     // 取得玩家過關時拼出的完整算式
     const finalEquation = this.tokens.map(t => t.val).join(' ');
     const modeName = MODES[this.currentMode]?.name || '當前';
@@ -1389,61 +1571,55 @@ class Make24Game {
       ? `<div class="puzzle-tag">${this.puzzleInfo.tag}</div>`
       : '';
 
-    const contentHtml = `
-      ${tagHtml}
-      <div class="win-equation-card">
-        <div class="win-equation-label">通關算式</div>
-        <div class="win-equation-text">${finalEquation} = 24</div>
-      </div>
-      <div class="win-stats-grid">
-        <div class="win-stat-item">
-          <span class="stat-label">難度模式</span>
-          <span class="stat-val">${modeName}</span>
-        </div>
-        <div class="win-stat-item">
-          <span class="stat-label">通關耗時</span>
-          <span class="stat-val">${this.timerSeconds}s</span>
-        </div>
-        <div class="win-stat-item">
-          <span class="stat-label">目前連勝</span>
-          <span class="stat-val highlight">${this.streak} 局</span>
-        </div>
-        <div class="win-stat-item">
-          <span class="stat-label">模式最佳</span>
-          <span class="stat-val">${this.bestStreak} 局</span>
-        </div>
-      </div>
-      <div class="win-modal-actions">
-        <button class="btn-action secondary" id="modal-view-board-btn" type="button">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 檢視盤面
-        </button>
-        <button class="btn-action primary" id="modal-next-game-btn" type="button">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> 下一局
-        </button>
-      </div>
-    `;
-
     if (typeof document === 'undefined') return;
 
+    // 過關卡片的個性內容：玩家自己拼出來的那條算式
+    const equation = document.createElement('div');
+    equation.className = 'win-equation-card';
+    equation.innerHTML = `${tagHtml}
+      <div class="win-equation-label">你的通關算式</div>
+      <div class="win-equation-text"></div>`;
+    equation.querySelector('.win-equation-text').textContent = `${finalEquation} = 24`;
+
+    this.announce(`過關！${finalEquation} = 24，連勝 ${this.streak} 局`);
+    const celebrate = (typeof BoboCelebrate !== 'undefined' && BoboCelebrate) ? BoboCelebrate : null;
+    if (!celebrate) return;
+    const delay = prefersReducedMotion() ? 0 : 450;
     setTimeout(() => {
-      this.showModal('解謎成功！🎉', contentHtml, true);
-
-      const nextBtn = document.getElementById('modal-next-game-btn');
-      if (nextBtn) {
-        nextBtn.onclick = () => {
-          this.dom.modalOverlay.classList.remove('active');
-          this.startNewGame();
-        };
-      }
-
-      const viewBoardBtn = document.getElementById('modal-view-board-btn');
-      if (viewBoardBtn) {
-        viewBoardBtn.onclick = () => {
-          // 暫時關閉彈窗以檢視盤面與算式
-          this.dom.modalOverlay.classList.remove('active');
-        };
-      }
-    }, 450);
+      celebrate.show({
+        outcome: 'win',
+        gameName: '24 點大腦算術',
+        title: '湊到 24 了！',
+        subtitle: isNewBest && this.streak > 1
+          ? `${modeName}模式連勝 ${this.streak} 局，刷新最佳紀錄。`
+          : `${modeName}模式，${celebrate.formatDuration(this.timerSeconds)}完成。`,
+        stats: [
+          { label: '通關耗時', value: celebrate.formatDuration(this.timerSeconds) },
+          { label: '目前連勝', value: `${this.streak} 局`, isBest: isNewBest && this.streak > 1 },
+          { label: '模式最佳', value: `${this.bestStreak} 局` }
+        ],
+        extra: equation,
+        accent: '#4F46E5',
+        accentDark: '#A5B4FC',
+        primary: {
+          label: '下一局',
+          onClick: () => {
+            this.startNewGame();
+            const firstCard = document.querySelector('.cards-grid button, .cards-grid [tabindex="0"]');
+            if (firstCard) firstCard.focus();
+          }
+        },
+        secondary: {
+          label: '檢視盤面',
+          // 留在完成的算式上；焦點交給已改成「下一局」的按鈕，按下去會保留連勝
+          onClick: () => {
+            if (this.dom.btnSkip) this.dom.btnSkip.focus();
+          }
+        },
+        // Esc 關掉卡片時也回到「下一局」，不會卡在無法操作的盤面
+        returnFocus: this.dom.btnSkip || undefined
+      });
+    }, delay);
   }
 
   updateStatsDisplay() {
@@ -1454,58 +1630,64 @@ class Make24Game {
   /* ------------------------------------------------------------------------
      提示與彈窗
      ------------------------------------------------------------------------ */
+  /* 漸進式提示：第一次只給第一步，第二次才給完整解法（同一題內記住進度） */
   showHint() {
     if (this.solutions.length === 0) return;
-    const randomSolution = this.solutions[Math.floor(Math.random() * this.solutions.length)];
+    if (!this.hintSolution || !this.solutions.includes(this.hintSolution)) {
+      this.hintSolution = this.solutions[Math.floor(Math.random() * this.solutions.length)];
+      this.hintLevel = 0;
+    }
+    this.hintLevel = Math.min((this.hintLevel || 0) + 1, 2);
     const tagHtml = this.puzzleInfo && this.puzzleInfo.tag
       ? `<div class="puzzle-tag">${this.puzzleInfo.tag}</div>`
       : '';
 
-    this.showModal('解法參考', `${tagHtml}<div>其中一個可行的組合算式為：</div><div class="hint-solution">${randomSolution} = 24</div>`);
-    if (this.dom.modalCloseBtn) {
-      this.dom.modalCloseBtn.onclick = () => {
-        this.dom.modalOverlay.classList.remove('active');
-      };
+    if (this.hintLevel === 1) {
+      const step = firstHintStep(this.hintSolution);
+      const stepText = step ? `${step.a} ${step.op} ${step.b} = ${step.value}` : '';
+      this.announce(step ? `提示：先算 ${stepText}` : '提示');
+      this.showModal('提示：第一步', `${tagHtml}<div>可以先算：</div><div class="hint-solution">${stepText}</div><div class="hint-note">還卡住的話，再按一次「提示」看完整解法。</div>`, [
+        { label: '看完整解法', onClick: () => { this.closeDialog(this.dom.dialog, false); this.showHint(); } },
+        { label: '我再想想', primary: true, onClick: () => this.closeDialog(this.dom.dialog) }
+      ]);
+      return;
     }
+
+    const full = stripOuterParens(this.hintSolution);
+    this.announce(`完整解法：${full} = 24`);
+    this.showModal('完整解法', `${tagHtml}<div>其中一個可行的算式：</div><div class="hint-solution">${full} = 24</div>`, [
+      { label: '知道了', primary: true, onClick: () => this.closeDialog(this.dom.dialog) }
+    ]);
   }
 
-  showModal(title, htmlContent, hideDefaultCloseBtn = false) {
-    if (!this.dom.modalTitle || !this.dom.modalBody || !this.dom.modalOverlay) return;
+  /* actions：[{ label, primary, onClick }]；按鈕每次重建，關閉後不留在焦點順序裡 */
+  showModal(title, htmlContent, actions) {
+    if (!this.dom.modalTitle || !this.dom.modalBody || !this.dom.dialog) return;
     this.dom.modalTitle.textContent = title;
     this.dom.modalBody.innerHTML = htmlContent;
-    if (this.dom.modalCloseBtn) {
-      this.dom.modalCloseBtn.style.display = hideDefaultCloseBtn ? 'none' : 'block';
+    if (this.dom.dialogActions) {
+      this.dom.dialogActions.innerHTML = '';
+      (actions && actions.length ? actions : [{ label: '確定', primary: true, onClick: () => this.closeDialog(this.dom.dialog) }])
+        .forEach((action) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `btn-action ${action.primary ? 'primary' : 'secondary'}`;
+          btn.textContent = action.label;
+          btn.addEventListener('click', action.onClick);
+          this.dom.dialogActions.appendChild(btn);
+        });
     }
-    this.dom.modalOverlay.classList.add('active');
+    this.openDialog(this.dom.dialog);
   }
 
-  /* ------------------------------------------------------------------------
-     五彩紙屑粒子特效 (Confetti)
-     改由共用模組 BoboConfetti 負責；模組可缺席，缺席時安靜退場不影響遊戲。
-     ------------------------------------------------------------------------ */
-  triggerConfetti() {
-    const confetti = (typeof BoboConfetti !== 'undefined' && BoboConfetti) ? BoboConfetti : null;
-    if (!confetti) return;
-    const canvas = this.dom.confettiCanvas;
-    if (!canvas) return;
-    // 參數完全比照本遊戲原本那份實作，接共用模組不改變既有的慶祝手感：
-    // 45 顆圓點從畫面中心爆開、帶重力落下並淡出
-    confetti.burst(canvas, {
-      colors: CONFETTI_COLORS,
-      pieces: 45,
-      origin: 'center',
-      shape: 'circle',
-      spread: 12,
-      gravity: 0.25,
-      fade: 0.022
-    });
-  }
 }
 
 // 支援 Node.js 模組匯出以供測試
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     Make24Game,
+    firstHintStep,
+    stripOuterParens,
     MODES,
     CURATED_MASTER_PUZZLES,
     solve24Detailed,

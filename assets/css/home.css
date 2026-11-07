@@ -1,17 +1,17 @@
 :root {
   color-scheme: light;
-  --bg: #fff8ed;
+  --bg: #f4f3f8;
   --surface: rgba(255, 255, 255, 0.82);
-  --solid: #fffdf8;
+  --solid: #fcfbff;
   --strong: #fff;
   --ink: #29243a;
-  --muted: #746d82;
+  --muted: #6b6478;
   --line: rgba(57, 47, 80, 0.12);
-  --shadow: 0 18px 50px rgba(78, 55, 31, 0.1);
-  --shadow-hover: 0 25px 60px rgba(78, 55, 31, 0.18);
-  --brand: #7557ff;
+  --shadow: 0 18px 50px rgba(41, 36, 58, 0.09);
+  --shadow-hover: 0 25px 60px rgba(41, 36, 58, 0.16);
+  --brand: #6346ea;
   --focus: #4c32d7;
-  --header: rgba(255, 248, 237, 0.78);
+  --header: rgba(244, 243, 248, 0.8);
   --card-text: #302a40;
   --card-muted: #716a7d;
 }
@@ -40,6 +40,17 @@ html[data-theme="dark"] {
 
 html {
   scroll-behavior: smooth;
+  /* 黏性頁首約 77px，鍵盤往回 Tab 時焦點元素不會被它蓋住 */
+  scroll-padding-top: 92px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 body {
@@ -48,9 +59,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
-  background: radial-gradient(circle at 12% 6%, rgba(255, 196, 112, 0.2), transparent 25rem),
-              radial-gradient(circle at 88% 24%, rgba(126, 94, 255, 0.14), transparent 28rem),
-              var(--bg);
+  background: var(--bg);
   color: var(--ink);
   font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
   transition: background-color 0.35s, color 0.35s;
@@ -215,6 +224,11 @@ html[data-theme="dark"] .moon-icon {
   color: #fff;
 }
 
+/* 深色主題的品牌色偏亮，白字只有 2.67:1，改用深墨色（6.9:1） */
+html[data-theme="dark"] .pill-button[aria-pressed="true"] {
+  color: #15121f;
+}
+
 .pill-button svg {
   width: 17px;
   height: 17px;
@@ -232,29 +246,6 @@ html[data-theme="dark"] .moon-icon {
 .hero-copy {
   position: relative;
   z-index: 2;
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0 0 1.2rem;
-  padding: 0.45rem 0.75rem;
-  border: 1px solid rgba(117, 87, 255, 0.22);
-  border-radius: 999px;
-  background: rgba(117, 87, 255, 0.08);
-  color: var(--brand);
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.09em;
-}
-
-.eyebrow-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #58cb8e;
-  box-shadow: 0 0 0 5px rgba(88, 203, 142, 0.14);
 }
 
 h1 {
@@ -439,6 +430,68 @@ h1 {
   font-size: 0.92rem;
 }
 
+/* 最近玩過：一列小膠囊，點了直接開遊戲 */
+.recent {
+  margin: 0 0 1.1rem;
+}
+
+.recent-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.recent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent-link {
+  --accent-ink: color-mix(in oklab, var(--accent, #7557ff) 64%, #000);
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.95rem 0.4rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--strong);
+  color: var(--card-text);
+  font-size: 0.92rem;
+  font-weight: 850;
+  text-decoration: none;
+  transition: border-color 0.18s, background-color 0.18s;
+}
+
+html[data-theme="dark"] .recent-link {
+  --accent-ink: color-mix(in oklab, var(--accent, #a58dff) 55%, #fff);
+}
+
+.recent-link:hover {
+  border-color: var(--accent-ink);
+}
+
+.recent-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--soft, #e9e3ff);
+  color: var(--accent-ink);
+}
+
+.recent-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
 #visible-count {
   font-weight: 900;
   color: var(--brand);
@@ -485,6 +538,11 @@ h1 {
   color: var(--ink);
 }
 
+.search-box input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
 .search-box input:focus {
   border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(117, 87, 255, 0.12);
@@ -527,9 +585,9 @@ h1 {
 }
 
 .filter-button.popular-filter[aria-pressed="true"] {
-  background: linear-gradient(135deg, #ff6547, #ff8c42);
+  background: #c63d1c;
   color: #fff;
-  box-shadow: 0 4px 12px rgba(255, 101, 71, 0.35);
+  box-shadow: 0 4px 12px rgba(41, 36, 58, 0.18);
 }
 
 .edit-notice {
@@ -538,9 +596,9 @@ h1 {
   gap: 0.65rem;
   margin: 0 0 1rem;
   padding: 0.8rem 1rem;
-  border: 1px solid rgba(117, 87, 255, 0.26);
+  border: 1px solid rgba(99, 70, 234, 0.26);
   border-radius: 16px;
-  background: rgba(117, 87, 255, 0.08);
+  background: rgba(99, 70, 234, 0.08);
   color: var(--brand);
   font-size: 0.86rem;
   font-weight: 750;
@@ -565,17 +623,23 @@ body.editing .edit-notice {
 .game-card {
   --accent: #7557ff;
   --soft: #e9e3ff;
+  /* 主題色直接當文字色在白卡上對比不足，文字一律用壓暗（深色主題提亮）後的墨色 */
+  --accent-ink: color-mix(in oklab, var(--accent) 64%, #000);
   position: relative;
   min-width: 0;
-  min-height: 292px;
+  min-height: 226px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 26px;
   background: var(--strong);
-  box-shadow: 0 8px 24px rgba(62, 47, 34, 0.07);
+  box-shadow: 0 8px 24px rgba(41, 36, 58, 0.07);
   animation: card-in 0.55s both;
   animation-delay: calc(var(--index, 0) * 45ms);
   transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s, opacity 0.2s, border-color 0.2s;
+}
+
+html[data-theme="dark"] .game-card {
+  --accent-ink: color-mix(in oklab, var(--accent) 55%, #fff);
 }
 
 .game-card:hover {
@@ -637,15 +701,21 @@ body.editing .game-card:hover {
 
 .card-blob {
   position: absolute;
-  top: -46px;
-  right: -34px;
-  width: 172px;
-  height: 172px;
+  top: -52px;
+  right: -44px;
+  width: 136px;
+  height: 136px;
   border-radius: 58% 42% 55% 45%;
   background: var(--soft);
   opacity: 0.72;
   transform: rotate(18deg);
   transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* 深色主題：淺色粉彩色塊在深底上像一塊污漬，改成主題色的淡色調 */
+html[data-theme="dark"] .card-blob {
+  background: color-mix(in oklab, var(--accent) 24%, transparent);
+  opacity: 1;
 }
 
 .game-card:hover .card-blob {
@@ -694,9 +764,13 @@ body.editing .game-card:hover {
   padding: 0.4rem 0.65rem;
   border-radius: 999px;
   background: var(--solid);
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: 0.72rem;
   font-weight: 900;
+}
+
+.card-play-tag[hidden] {
+  display: none;
 }
 
 .card-play-tag {
@@ -734,7 +808,7 @@ body.editing .game-card:hover {
 }
 
 .card-content h3 {
-  margin: 1.5rem 0 0.5rem;
+  margin: 1rem 0 0.4rem;
   color: var(--card-text);
   font-size: 1.32rem;
   letter-spacing: -0.025em;
@@ -752,8 +826,8 @@ body.editing .game-card:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  margin-top: 1rem;
-  color: var(--accent);
+  margin-top: 0.75rem;
+  color: var(--accent-ink);
   font-size: 0.86rem;
   font-weight: 900;
 }
@@ -830,7 +904,7 @@ body.editing .card-link {
 
 .mini-button:hover {
   background: var(--soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .mini-button.hide-card:hover {
@@ -1019,8 +1093,8 @@ footer {
     padding: 0;
   }
   .hero {
-    gap: 0.6rem;
-    padding-top: 3.4rem;
+    gap: 1.1rem;
+    padding: 1.8rem 0 1.6rem;
   }
   h1 {
     font-size: clamp(1.85rem, 9.6vw, 3rem);
@@ -1029,12 +1103,23 @@ footer {
   .hero-lead {
     font-size: 0.98rem;
   }
+  /* 手機上把插畫縮成小圖、和「幫我選一款」排成一列，讓第一排遊戲卡片進到第一個畫面 */
   .hero-visual {
-    min-height: 255px;
+    display: flex;
+    min-height: 0;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+  }
+  .hero-illustration {
+    width: 96px;
   }
   .random-button {
-    right: 12%;
-    bottom: 0;
+    position: static;
+    transform: none;
+  }
+  .hero-lead {
+    margin-top: 1rem;
   }
   .section-heading {
     align-items: start;
@@ -1042,14 +1127,69 @@ footer {
   .game-grid {
     grid-template-columns: 1fr;
   }
+  /* 手機改成精簡橫列：圖示在左、名稱與說明在右，整張卡片都可點 */
   .game-card {
-    min-height: 270px;
+    min-height: 0;
+  }
+  .card-link {
+    position: relative;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-areas: "icon content" "icon tags";
+    column-gap: 0.9rem;
+    row-gap: 0.45rem;
+    align-items: start;
+    padding: 1rem 1.05rem;
+  }
+  .card-top {
+    display: contents;
+  }
+  .card-icon {
+    grid-area: icon;
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+  }
+  .card-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+  .card-tags {
+    grid-area: tags;
+    flex-direction: row;
+    align-items: center;
+  }
+  .card-content {
+    grid-area: content;
+    margin-top: 0;
+  }
+  .card-content h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1.12rem;
+  }
+  .card-content p {
+    min-height: 0;
+    font-size: 0.86rem;
+    line-height: 1.55;
+  }
+  .card-cta {
+    display: none;
+  }
+  /* 精簡橫列的卡片右上角就是文字區，裝飾色塊會蓋到說明，手機上不顯示 */
+  .card-blob {
+    display: none;
+  }
+  body.editing .card-link {
+    padding-top: 4.2rem;
   }
   .toolbar {
     align-items: stretch;
   }
+  /* 手機上篩選鈕改成換行，不用橫向捲動也看得到全部分類 */
   .filters {
     flex-basis: 100%;
+    flex-wrap: wrap;
+    overflow: visible;
   }
   .toast {
     right: 0.8rem;
@@ -1057,11 +1197,45 @@ footer {
   }
 }
 
+/* 減少動態效果：逐項處理。位移、旋轉、漂浮、無限脈動都拿掉；
+   顏色、底色、陰影、透明度的變化保留，hover 與狀態回饋仍看得出來。 */
 @media (prefers-reduced-motion: reduce) {
-  *, *:before, *:after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  html {
+    scroll-behavior: auto;
+  }
+  .hero-illustration,
+  .stat-pulse::after {
+    animation: none;
+  }
+  .game-card {
+    animation-name: card-fade;
+  }
+  .icon-button:hover,
+  .pill-button:hover,
+  .stat-chip:hover,
+  .random-button:hover,
+  .restore-button:hover,
+  .game-card:hover,
+  body.editing .game-card:hover,
+  .game-card.dragging,
+  .game-card:hover .card-blob,
+  .game-card:hover .card-icon,
+  .game-card:hover .card-cta svg {
+    transform: none;
+  }
+  .game-card:hover .card-blob {
+    transform: rotate(18deg);
+  }
+  .game-card:hover .card-icon {
+    transform: rotate(-3deg);
+  }
+  .toast {
+    transform: none;
+  }
+}
+
+@keyframes card-fade {
+  from {
+    opacity: 0;
   }
 }

@@ -1,60 +1,133 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>聯想遊戲</title>
+    <meta name="theme-color" content="#F5F7FA" data-theme-color-light="#F5F7FA" data-theme-color-dark="#15171C">
+    <title>聯想遊戲 - 波波小遊戲</title>
+    <meta name="description" content="聯想遊戲：隨機抽一個注音或英文字母開頭，加上一個題目，大家輪流說出符合的詞。派對、教學都適用。">
+    <!-- 防止深色模式閃爍：必須 inline 且排在所有 stylesheet 之前。
+         內容是 BoboTheme.ANTI_FLASH_SNIPPET 的逐字複製，唯一來源在 ../../assets/js/bobo-theme.js，要改請改那裡再同步過來。 -->
+    <script>
+        (() => {
+            try {
+                const homePref = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
+                const theme = ['dark', 'light'].includes(homePref.theme)
+                    ? homePref.theme
+                    : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.dataset.theme = theme;
+            } catch (_) {}
+        })();
+    </script>
     <link rel="stylesheet" href="puzzle.css">
 </head>
 
 <body>
+    <div class="page">
+        <header class="top-bar">
+            <a href="../../index.html" class="back-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>回首頁</span>
+            </a>
+            <div class="top-actions">
+                <button class="icon-btn" id="rules-btn" type="button" aria-label="遊戲規則" aria-haspopup="dialog" title="遊戲規則">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6" />
+                        <path d="M12 17h.01" />
+                    </svg>
+                </button>
+                <!-- 主題鍵：固定名稱 + aria-pressed 表示目前是否為深色 -->
+                <button class="icon-btn" id="theme-btn" type="button" aria-label="深色模式" aria-pressed="false" title="深色模式">
+                    <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
+                    </svg>
+                    <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="4" />
+                        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                    </svg>
+                </button>
+            </div>
+        </header>
 
-    <div class="container">
-        <a href="../../index.html" class="back-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 12H5M12 19l-7-7 7-7"></path>
-            </svg>
-            回首頁
-        </a>
+        <main class="container">
+            <h1>聯想遊戲</h1>
+            <p class="goal">按「擲骰出題」擲出一個開頭和題目，大家輪流說出符合的詞，接不下去的人就輸了。</p>
 
-        <h1>聯想遊戲</h1>
+            <div class="toggle-container" role="group" aria-label="出題語言">
+                <button id="btn-zh" class="mode-btn" type="button" data-lang="zh" aria-pressed="true">注音</button>
+                <button id="btn-en" class="mode-btn" type="button" data-lang="en" aria-pressed="false">English</button>
+            </div>
 
-        <div class="toggle-container">
-            <button id="btn-zh" class="mode-btn active" onclick="setLang('zh')">注音</button>
-            <button id="btn-en" class="mode-btn" onclick="setLang('en')">English</button>
-        </div>
-
-        <div class="switch-container" id="doubleModeContainer">
-            <label class="switch">
-                <input type="checkbox" id="doubleModeToggle" onchange="toggleDoubleMode()">
-                <span class="slider"></span>
+            <!-- 開關文字包在 label 裡，報讀器才念得出名稱 -->
+            <label class="switch-container" id="doubleModeContainer">
+                <input type="checkbox" id="doubleModeToggle" role="switch">
+                <span class="slider" aria-hidden="true"></span>
+                <span class="switch-text">雙注音挑戰</span>
             </label>
-            <span>雙注音挑戰</span>
-        </div>
 
-        <div class="game-container" id="gameContainer">
-            <div class="card-row">
-                <div class="card symbol-card">
-                    <h3 id="symbolTitle">開頭是...</h3>
-                    <div id="symbolDisplay" class="result-text">-</div>
+            <div class="game-container" id="gameContainer">
+                <!-- 兩顆骰子：開頭 ＋ 題目（雙注音時是兩個音），讀起來就是一道題 -->
+                <div class="card-row dice-row">
+                    <section class="card die symbol-card" aria-labelledby="symbolTitle">
+                        <h2 id="symbolTitle">開頭是……</h2>
+                        <p id="symbolDisplay" class="result-text">-</p>
+                    </section>
+                    <span class="dice-plus" aria-hidden="true">＋</span>
+                    <section class="card die category-card" aria-labelledby="categoryTitle">
+                        <h2 id="categoryTitle">題目是……</h2>
+                        <p id="categoryDisplay" class="result-text result-category">-</p>
+                        <p id="categorySub" class="result-sub" hidden></p>
+                    </section>
                 </div>
-                <div class="card category-card">
-                    <h3>題目是...</h3>
-                    <div id="categoryDisplay" class="result-text result-category">-</div>
+                <p class="dice-caption" id="diceCaption" hidden>用這兩個音造一個詞，例：ㄉ＋ㄕ → 電視</p>
+
+                <button id="rollBtn" class="main-btn" type="button">擲骰出題</button>
+
+                <!-- 有題目才顯示；用 hidden 而不是透明，避免 Tab 停在看不見的按鈕上 -->
+                <div class="hint-section" id="hintSection" hidden>
+                    <a class="hint-btn" id="hintLink" href="#" target="_blank" rel="noopener noreferrer">
+                        查參考答案
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+                        </svg>
+                        <span class="sr-only">（在新分頁開啟 Google 搜尋）</span>
+                    </a>
+                    <p class="hint-note">會在新分頁開啟 Google 搜尋</p>
                 </div>
             </div>
 
-            <button id="rollBtn" class="main-btn" onclick="startRoll()">按我出題</button>
-
-            <div class="hint-section" id="hintSection">
-                <button class="hint-btn" onclick="openHint()">看參考答案</button>
-            </div>
-        </div>
+            <p class="sr-only" id="game-status" role="status" aria-live="polite"></p>
+        </main>
     </div>
 
+    <!-- 規則說明 -->
+    <dialog class="dialog rules" id="rules-dialog" aria-labelledby="rules-title">
+        <h2 id="rules-title">怎麼玩</h2>
+        <h3>目標</h3>
+        <p>按「擲骰出題」會擲出一個<strong>開頭</strong>（注音或英文字母）和一個<strong>題目</strong>，例如「ㄅ＋動物」。大家輪流說出符合的詞（例：斑馬、豹），說過的不能重複，接不下去的人就輸了。</p>
+        <h3>模式</h3>
+        <ul>
+            <li>注音／English：選開頭用注音符號還是英文字母，English 模式的題目也會是英文。</li>
+            <li>雙注音挑戰：抽兩個注音，用這兩個音造一個詞（例：ㄉ ㄕ → 電視），不分題目。</li>
+        </ul>
+        <h3>卡住了？</h3>
+        <p>出題後可以按「查參考答案」，會在新分頁用 Google 搜尋可能的答案。</p>
+        <div class="dialog-actions">
+            <button class="main-btn" id="rules-close" type="button">知道了</button>
+        </div>
+    </dialog>
+
+    <script src="../../assets/js/bobo-theme.js"></script>
     <script src="../../assets/js/stats.js"></script>
     <script src="puzzle.js"></script>
     <script>

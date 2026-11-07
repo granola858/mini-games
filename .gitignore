@@ -29,3 +29,9 @@ Thumbs.db
 
 # run-mini-games skill 的截圖產物
 .claude/skills/run-mini-games/_shots/
+
+# impeccable 設計技能包：引擎執行檔第一次執行時才下載，以及執行期的暫存狀態
+**/skills/impeccable/scripts/bin/
+**/.impeccable/hook.cache.json
+.impeccable/config.local.json
+.impeccable/live/
