@@ -483,7 +483,8 @@
       display: flex;
       flex-wrap: wrap;
       flex-direction: row;
-      align-items: center;
+      /* 同一排的分段按鈕、下拉選單、圖案進度一起撐到最高那組，外框才會等高 */
+      align-items: stretch;
       justify-content: center;
       gap: 8px 10px;
     }
@@ -492,11 +493,12 @@
       flex: 0 0 auto;
       display: flex;
       flex-direction: row;
-      align-items: center;
+      align-items: stretch;
       gap: 6px;
     }
 
     .control-label {
+      align-self: center;
       color: var(--text-muted);
       font-size: 0.8rem;
       font-weight: 700;
@@ -522,9 +524,8 @@
       white-space: nowrap;
     }
 
-    /* 等寬分段：1fr 欄位在內容寬度的容器裡會一起取最寬那顆（10x10）的寬度 */
-    #mode-toggle,
-    #level-toggle {
+    /* 等寬分段：1fr 欄位在內容寬度的容器裡會一起取最寬那顆的寬度 */
+    #mode-toggle {
       display: grid;
       grid-auto-flow: column;
       grid-auto-columns: 1fr;
@@ -554,7 +555,8 @@
       flex: 1 1 auto;
     }
 
-    /* 難度用下拉選單：四個選項塞進分段按鈕太擠，換行又會讓手機無法一頁看完盤面。
+    /* 盤面大小與難度都用下拉選單：三組分段按鈕並排在 390px 寬的手機上會擠成兩排，
+       盤面因此被往下推、無法一頁看完；出題方式只有兩項，留著分段按鈕。
        外框沿用 .toggle-container，選單本體仿照選中的 .mode-btn，兩組控制才看起來一致。
        用原生 select 是為了讓手機跳出系統自己的選取器。 */
     .select-container {
@@ -644,26 +646,13 @@
       font-size: 0.85rem;
     }
 
+    /* 鎖頭跟規則、主題、設定一起放在頂端列：原本貼在塗黑／標記旁邊，
+       標記工具收起來後那一排就只剩一顆鎖頭，平白多佔一行。外觀沿用 .icon-btn。 */
     .board-lock-btn {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 40px;
-      height: 40px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 20px;
-      border: 1px solid var(--line-color);
-      background: var(--surface-color);
       color: var(--text-secondary);
-      cursor: pointer;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-      transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
       user-select: none;
       flex-shrink: 0;
-      z-index: 5;
+      transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
     }
 
     .board-lock-btn:hover {
@@ -679,8 +668,8 @@
     }
 
     .board-lock-btn .lock-icon {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
     }
 
     .board-lock-btn .lock-icon.locked-svg {
@@ -695,14 +684,23 @@
       display: inline-block;
     }
 
-    /* 左右各留出鎖頭按鈕的寬度，長訊息才不會壓到它 */
     .top-msg {
       font-size: 1.05rem;
       font-weight: bold;
       color: var(--text-color);
       text-align: center;
       line-height: 1.5;
-      padding: 0 52px;
+      padding: 0 8px;
+    }
+
+    /* 設定裡收起標記工具：切換列不顯示；整排只在有訊息（對答案、過關）時才出現，
+       平常不佔高度。盤面尺寸不跟著放大：訊息一出現那排又回來，盤面若已撐大就會把按鈕擠出畫面。 */
+    .mark-tool-off .action-toggle {
+      display: none;
+    }
+
+    .mark-tool-off .action-msg-container:has(> .top-msg.hidden) {
+      display: none;
     }
 
     /* 網格佈局 (Grid Layout) */

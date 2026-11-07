@@ -21,6 +21,8 @@ let size = 8;
     let isBoardLocked = false;
     let wakeLockSentinel = null;
     let isWakeLockEnabled = false;
+    // 「塗黑／標記 Ｏ」切換列可以在設定裡收起；收起時點格子一律塗黑
+    let isMarkToolVisible = true;
 
     const SAVE_KEY = 'nonogram_save_data';
     // 戰績與圖案收集進度另存一把 key：跟盤面存檔的多分頁合併邏輯無關，讀寫都獨立包 try/catch。
@@ -90,7 +92,7 @@ let size = 8;
       }))
     );
 
-    const levelBtns = document.querySelectorAll('#level-toggle .mode-btn');
+    const sizeSelect = document.getElementById('size-select');
     const difficultySelect = document.getElementById('difficulty-select');
     const actionBtns = document.querySelectorAll('#action-toggle .action-btn');
     const actionToggle = document.getElementById('action-toggle');
@@ -124,6 +126,7 @@ let size = 8;
     const boardLockBtn = document.getElementById('board-lock-btn');
     const wakeLockCheckbox = document.getElementById('wake-lock-checkbox');
     const wakeLockNote = document.getElementById('wake-lock-note');
+    const markToolCheckbox = document.getElementById('mark-tool-checkbox');
     const modeBtns = document.querySelectorAll('#mode-toggle .mode-btn');
     const difficultyGroup = document.getElementById('difficulty-group');
     const pictureGroup = document.getElementById('picture-group');
@@ -477,11 +480,7 @@ let size = 8;
     }
 
     function updateSlotButtons() {
-      levelBtns.forEach(b => {
-        const isActive = parseInt(b.dataset.size, 10) === size;
-        b.classList.toggle('active', isActive);
-        b.setAttribute('aria-pressed', String(isActive));
-      });
+      sizeSelect.value = String(size);
       const pictureMode = isPictureMode();
       modeBtns.forEach(b => {
         const isActive = (b.dataset.mode === PICTURE_MODE) === pictureMode;
@@ -618,6 +617,7 @@ let size = 8;
         randomDifficulty: normalizeDifficultyChoice(lastRandomDifficulty),
         isBoardLocked: Boolean(isBoardLocked),
         isWakeLockEnabled: Boolean(isWakeLockEnabled),
+        isMarkToolVisible: Boolean(isMarkToolVisible),
         gameStates: snapshotStates,
         // actionHistory 只屬於目前操作中的槽位，退到別的槽位時必須丟棄，
         // 否則同尺寸不同題目的 undo 會通過尺寸檢查而套到錯的盤面上。
@@ -673,6 +673,10 @@ let size = 8;
         randomDifficulty: normalizeDifficultyChoice(liveData?.randomDifficulty ?? staleData?.randomDifficulty),
         isBoardLocked: Boolean((typeof liveData?.isBoardLocked === 'boolean') ? liveData.isBoardLocked : staleData?.isBoardLocked),
         isWakeLockEnabled: Boolean((typeof liveData?.isWakeLockEnabled === 'boolean') ? liveData.isWakeLockEnabled : staleData?.isWakeLockEnabled),
+        // 舊存檔沒有這個欄位時維持顯示（預設值），不能被 Boolean(undefined) 變成隱藏
+        isMarkToolVisible: (typeof liveData?.isMarkToolVisible === 'boolean')
+          ? liveData.isMarkToolVisible
+          : (typeof staleData?.isMarkToolVisible === 'boolean' ? staleData.isMarkToolVisible : true),
         gameStates: mergedStates,
         actionHistory: liveHistory.length ? liveHistory : staleHistory,
         revision: Math.max(Number(baseData?.revision) || 0, Number(incomingData?.revision) || 0),
@@ -770,6 +774,9 @@ let size = 8;
       if (typeof validatedData.isWakeLockEnabled === 'boolean') {
         handleWakeLockChange(validatedData.isWakeLockEnabled, false);
       }
+      if (typeof validatedData.isMarkToolVisible === 'boolean') {
+        setMarkToolVisible(validatedData.isMarkToolVisible);
+      }
 
       if (shouldPersist) saveData();
     }
@@ -854,10 +861,13 @@ let size = 8;
     // --- 綁定事件 (Event Listeners) ---
     // 按鈕的 active 狀態交給 switchSlot 內的 updateSlotButtons 回寫，
     // 生題失敗需要回滾時畫面才不會停在按不到的槽位上。
-    levelBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        switchSlot(parseInt(e.currentTarget.dataset.size, 10), difficulty);
-      });
+    sizeSelect.addEventListener('change', (e) => {
+      const nextSize = parseInt(e.target.value, 10);
+      if (!ALLOWED_SIZES.includes(nextSize)) {
+        sizeSelect.value = String(size);
+        return;
+      }
+      switchSlot(nextSize, difficulty);
     });
 
     difficultySelect.addEventListener('change', (e) => {
@@ -886,6 +896,20 @@ let size = 8;
       btn.addEventListener('click', (e) => {
         setCurrentAction(e.currentTarget.dataset.action);
       });
+    });
+
+    // 收起標記工具時順便切回塗黑：工具列看不到，就不能停在看不見的「標記」模式。
+    // 用 body 上的 class 控制而不是 .hidden，因為 resetUI／結算畫面會自己增減 action-toggle 的 .hidden。
+    function setMarkToolVisible(visible) {
+      isMarkToolVisible = Boolean(visible);
+      markToolCheckbox.checked = isMarkToolVisible;
+      document.body.classList.toggle('mark-tool-off', !isMarkToolVisible);
+      if (!isMarkToolVisible) setCurrentAction('fill');
+    }
+
+    markToolCheckbox.addEventListener('change', (e) => {
+      setMarkToolVisible(e.target.checked);
+      saveData();
     });
 
     menuBtn.addEventListener('click', (e) => {
@@ -1114,6 +1138,7 @@ let size = 8;
         randomDifficulty: normalizeDifficultyChoice(parsed.randomDifficulty ?? parsed.difficulty),
         isBoardLocked: Boolean(parsed.isBoardLocked),
         isWakeLockEnabled: Boolean(parsed.isWakeLockEnabled),
+        isMarkToolVisible: typeof parsed.isMarkToolVisible === 'boolean' ? parsed.isMarkToolVisible : true,
         gameStates: validatedStates,
         actionHistory: validHistory.map(snapshot => cloneGrid(snapshot)),
         revision: Number.isInteger(parsed.revision) && parsed.revision > 0 ? parsed.revision : 0,

@@ -220,7 +220,16 @@ test('index.html 在 nonogram.js 之前載入核心檔，並提供難度切換 U
   ['easy', 'medium', 'hard', 'random'].forEach(level => {
     assert.ok(html.includes(`<option value="${level}"`), `缺少難度選項: ${level}`);
   });
-  assert.match(html, /id="level-toggle"/, '盤面大小切換容器不應被移除');
+  // 盤面大小也是下拉選單：三組分段按鈕並排在手機上會擠成兩排
+  assert.match(html, /<select id="size-select"/, '缺少盤面大小下拉選單');
+  ['8', '10', '12'].forEach(boardSize => {
+    assert.ok(html.includes(`<option value="${boardSize}"`), `缺少盤面大小選項: ${boardSize}`);
+  });
+  // 標記工具可以在設定裡收起；鎖頭不再跟標記工具擠在同一排
+  assert.match(html, /id="mark-tool-checkbox"/, '設定裡缺少顯示標記工具的開關');
+  const lockIndex = html.indexOf('id="board-lock-btn"');
+  assert.ok(lockIndex !== -1, '鎖定盤面按鈕不應被移除');
+  assert.ok(lockIndex < html.indexOf('</header>'), '鎖定盤面按鈕應放在頂端列');
 });
 
 test('隨機難度只是選項，不是題目的等級', () => {
