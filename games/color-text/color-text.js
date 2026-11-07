@@ -88,10 +88,51 @@
         openDialog(rulesDialog, rulesDialog.querySelector('button'));
     });
 
-    const confettiCanvas = document.getElementById('confetti-canvas');
-    const celebrate = () => {
-        if (typeof BoboConfetti !== 'undefined') BoboConfetti.burst(confettiCanvas);
-    };
+    const MODE_LABELS = { easy: '簡單', medium: '中等', hard: '困難' };
+    const DOT_COLORS = ['var(--c-red)', 'var(--c-blue)', 'var(--c-green)', 'var(--c-yellow)', 'var(--c-black)'];
+
+    // 連對紀錄：每答對一題一顆彩色字點（最多畫 30 顆），給共用過關卡片當個性內容
+    function buildStreakDots(count, still) {
+        const list = document.createElement('ul');
+        list.className = still ? 'streak-dots streak-dots--still' : 'streak-dots';
+        list.setAttribute('role', 'img');
+        list.setAttribute('aria-label', `連對 ${count} 題`);
+        for (let i = 0; i < Math.min(count, 30); i++) {
+            const dot = document.createElement('li');
+            dot.style.setProperty('--dot', DOT_COLORS[i % DOT_COLORS.length]);
+            dot.style.setProperty('--i', String(i));
+            list.appendChild(dot);
+        }
+        return list;
+    }
+
+    // 只在值得的時刻跳出過關卡片：剛打破最佳紀錄（連對 3 題以上），
+    // 或一段 3 題以上的連對剛結束。其他每一題照常用狀態列回饋，不打斷節奏。
+    function showStreakCard(kind, count, answerLine) {
+        const kit = (typeof BoboCelebrate !== 'undefined') ? BoboCelebrate : null;
+        if (!kit) return false;
+        const win = kind === 'record';
+        kit.show({
+            outcome: win ? 'win' : 'lose',
+            gameName: '顏色文字遊戲',
+            title: win ? `新紀錄！連對 ${count} 題` : `連對 ${count} 題，在這題停下`,
+            subtitle: win
+                ? '記憶力正在升溫，繼續挑戰還能往上加。'
+                : `${answerLine}${count >= stats.best ? '這段就是你的最佳紀錄。' : `最佳紀錄是 ${stats.best} 題。`}`,
+            stats: [
+                { label: '連對', value: `${count} 題`, isBest: win },
+                { label: '累計答對', value: `${stats.correct} 題` },
+                { label: '難度', value: MODE_LABELS[prefs.mode] || '簡單' }
+            ],
+            extra: buildStreakDots(count, !win),
+            accent: '#1864ab',
+            accentDark: '#74c0fc',
+            returnFocus: startBtn,
+            primary: { label: win ? '繼續挑戰' : '再來一題', onClick: () => startRound() },
+            secondary: { label: '看卡片' }
+        });
+        return true;
+    }
 
     // ======================================================================
     // 遊戲設定
@@ -308,6 +349,8 @@
         numpad.querySelectorAll('button').forEach(btn => { btn.disabled = true; });
 
         const correct = n === question.answer;
+        const prevBest = stats.best;
+        const endedStreak = stats.streak;
         stats.plays++;
         let tone;
         let line;
@@ -346,8 +389,14 @@
         startBtn.hidden = false;
         renderSettings();
         setStatus(line, tone);
-        if (newBest && stats.streak >= 3 && typeof BoboConfetti !== 'undefined') celebrate();
-        startBtn.focus();
+        const answerLine = n === null ? `時間到，正確是 ${question.answer} 張。` : `正確是 ${question.answer} 張。`;
+        let carded = false;
+        if (correct && newBest && stats.streak === prevBest + 1 && stats.streak >= 3) {
+            carded = showStreakCard('record', stats.streak, '');
+        } else if (!correct && endedStreak >= 3) {
+            carded = showStreakCard('ended', endedStreak, answerLine);
+        }
+        if (!carded) startBtn.focus();
     }
 
     // --- 事件 ---

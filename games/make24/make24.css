@@ -780,25 +780,22 @@ body {
   line-height: 1.5;
 }
 
-/* 獲勝通關算式卡片 */
+/* 過關卡片（共用 BoboCelebrate）裡的通關算式 */
 .win-equation-card {
   background-color: var(--color-success-bg);
   border: 1.5px solid var(--color-success);
   border-radius: var(--radius-md);
   padding: 12px 14px;
-  margin: 10px 0 14px 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);
 }
 
 .win-equation-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   color: var(--color-success-text);
 }
 
@@ -809,49 +806,6 @@ body {
   color: var(--text-primary);
   letter-spacing: 0.5px;
   word-break: break-word;
-}
-
-/* 獲勝統計數據 2x2 網格 */
-.win-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 18px;
-}
-
-.win-stat-item {
-  background-color: var(--bg-elevated);
-  border-radius: var(--radius-md);
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.win-stat-item .stat-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.win-stat-item .stat-val {
-  font-family: 'Space Mono', monospace, sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.win-stat-item .stat-val.highlight {
-  color: var(--accent-primary);
-  font-weight: 800;
-}
-
-/* 獲勝彈窗雙按鈕佈局 */
-.win-modal-actions {
-  display: flex;
-  gap: 10px;
-  width: 100%;
 }
 
 .btn-action.secondary {
@@ -885,17 +839,6 @@ body {
   background-color: var(--accent-light);
   color: var(--accent-primary);
   margin-bottom: 8px;
-}
-
-/* Canvas 特效背景 */
-#confetti-canvas {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 90;
 }
 
 @media (max-width: 400px) {

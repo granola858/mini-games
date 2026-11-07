@@ -129,17 +129,9 @@ let size = 8;
     const pictureGroup = document.getElementById('picture-group');
     const pictureProgress = document.getElementById('picture-progress');
     const srStatus = document.getElementById('sr-status');
-    const resultDialog = document.getElementById('result-dialog');
-    const resultTitle = document.getElementById('result-title');
-    const resultPicture = document.getElementById('result-picture');
-    const resultDetail = document.getElementById('result-detail');
-    const resultViewBtn = document.getElementById('result-view-btn');
-    const resultAgainBtn = document.getElementById('result-again-btn');
     const rulesBtn = document.getElementById('rules-btn');
     const rulesDialog = document.getElementById('rules-dialog');
     const rulesCloseBtn = document.getElementById('rules-close-btn');
-    const confettiCanvas = document.getElementById('confetti-canvas');
-    const confetti = (typeof BoboConfetti !== 'undefined') ? BoboConfetti : null;
     const themeKit = (typeof BoboTheme !== 'undefined') ? BoboTheme : null;
 
     // 全頁唯一的播報出口；先清空再寫入，同一句話連續出現也會再念一次
@@ -923,11 +915,6 @@ let size = 8;
 
     rulesBtn.addEventListener('click', () => openDialog(rulesDialog, rulesCloseBtn));
     rulesCloseBtn.addEventListener('click', () => rulesDialog.close());
-    resultViewBtn.addEventListener('click', () => resultDialog.close());
-    resultAgainBtn.addEventListener('click', () => {
-      resultDialog.close();
-      startNewGame(size, difficulty);
-    });
 
     copySeedBtn.addEventListener('click', copyCurrentSeed);
     loadSeedBtn.addEventListener('click', loadSeedFromInput);
@@ -1776,12 +1763,27 @@ let size = 8;
       return indexes.length > 4 ? `共 ${indexes.length} ${unit}（第 ${shown}…${unit}）` : `第 ${shown} ${unit}`;
     }
 
-    function renderResultPicture(solution) {
+    // 過關卡片裡的完成圖；animate=true 時已塗的格子依序填上（減少動態效果時由 CSS 直接顯示）
+    function buildResultPicture(solution, label, animate) {
       const targetSize = solution.length;
-      resultPicture.style.setProperty('--picture-size', String(targetSize));
-      resultPicture.innerHTML = solution
-        .map(row => row.map(value => `<span class="${value === 1 ? 'on' : ''}"></span>`).join(''))
-        .join('');
+      const picture = document.createElement('div');
+      picture.className = animate ? 'result-picture is-revealing' : 'result-picture';
+      picture.setAttribute('role', 'img');
+      picture.setAttribute('aria-label', label);
+      picture.style.setProperty('--picture-size', String(targetSize));
+      const filled = solution.reduce((n, row) => n + row.filter(v => v === 1).length, 0);
+      // 不管格子多少，整張圖都在約 0.9 秒內畫完
+      picture.style.setProperty('--step', `${Math.max(6, Math.round(900 / Math.max(1, filled)))}ms`);
+      let order = 0;
+      solution.forEach(row => row.forEach(value => {
+        const cell = document.createElement('span');
+        if (value === 1) {
+          cell.className = 'on';
+          cell.style.setProperty('--i', String(order++));
+        }
+        picture.appendChild(cell);
+      }));
+      return picture;
     }
 
     function recordWin(state) {
@@ -1798,23 +1800,48 @@ let size = 8;
       const { stats, picture, isNewPicture } = info;
       const hintsUsed = normalizeHintsUsed(state.hintsUsed);
       const hintText = hintsUsed ? `用了 ${hintsUsed} 次提示` : '沒用提示';
+      const accent = (getComputedStyle(document.documentElement).getPropertyValue('--primary-display') || '').trim() || undefined;
+      let options;
       if (picture) {
         const pool = NonogramCore.getPictures(size);
         const solvedCount = pool.filter(p => stats.solvedPictures.includes(p.id)).length;
-        resultTitle.textContent = `完成！是「${picture.name}」`;
-        resultPicture.setAttribute('aria-label', `解開的圖案：${picture.name}`);
-        resultDetail.textContent = `${hintText}・${isNewPicture ? '收集到新圖案' : '這張之前解過'}・${size}×${size} 圖案已完成 ${solvedCount}／${pool.length}`;
+        options = {
+          title: `完成！是「${picture.name}」`,
+          subtitle: isNewPicture ? `收集到新圖案，${hintText}。` : `這張之前解過，${hintText}。`,
+          stats: [
+            { label: `${size}×${size} 圖案`, value: `${solvedCount}／${pool.length}`, isBest: isNewPicture },
+            { label: '累計過關', value: `${stats.wins} 次` }
+          ],
+          extra: buildResultPicture(state.solution, `解開的圖案：${picture.name}`, true)
+        };
       } else {
         const revealText = getDifficultyRevealText(state);
-        resultTitle.textContent = '答對了！';
-        resultPicture.setAttribute('aria-label', '完成的盤面');
-        resultDetail.textContent = [hintText, revealText, `總共過關 ${stats.wins} 次`].filter(Boolean).join('・');
+        options = {
+          title: '答對了！',
+          subtitle: [hintText, revealText].filter(Boolean).join('，') + '。',
+          stats: [
+            { label: '盤面', value: `${size}×${size}` },
+            { label: '累計過關', value: `${stats.wins} 次` }
+          ],
+          extra: buildResultPicture(state.solution, '完成的盤面', false)
+        };
       }
-      renderResultPicture(state.solution);
       updatePictureProgress();
-      openDialog(resultDialog, resultAgainBtn);
-      if (confetti && confettiCanvas) confetti.burst(confettiCanvas);
-      announce(`${resultTitle.textContent}。${resultDetail.textContent}`);
+      const celebrate = (typeof BoboCelebrate !== 'undefined') ? BoboCelebrate : null;
+      if (celebrate) {
+        celebrate.show(Object.assign({
+          outcome: 'win',
+          gameName: 'Nonogram 數織',
+          accent,
+          accentDark: accent,
+          // 過關後「對答案」等按鈕會收起來，焦點一律交還給盤面上的格子
+          primary: { label: '再來一局', onClick: () => { startNewGame(size, difficulty); setFocusCell(focusR, focusC, true); } },
+          secondary: { label: '看盤面' },
+          onClose: (reason) => { if (reason !== 'primary') setFocusCell(focusR, focusC, true); }
+        }, options));
+      } else {
+        announce(`${options.title}。${options.subtitle}`);
+      }
     }
 
     function showResult(isWin) {

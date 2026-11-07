@@ -384,7 +384,6 @@ const UI_METHOD_STUBS = [
   'playFlipAnimation',
   'clearSuggestion',
   'showToast',
-  'triggerConfetti',
   'renderStats',
   'showResultModal',
   'openModal',
@@ -1251,10 +1250,12 @@ test('黑白棋頁面只記錄一次遊玩 (Stats.recordGamePlay)', () => {
   assert.match(html, /href="\.\.\/\.\.\/index\.html"/, '必須有回首頁連結');
 });
 
-test('index.html 具備 4 個預設隱藏的 modal-overlay 彈窗', () => {
+test('index.html 具備 3 個預設隱藏的 modal-overlay 彈窗，結算改用共用過關卡片', () => {
   const html = fs.readFileSync(HTML_PATH, 'utf8');
   const overlays = html.match(/class="modal-overlay"[^>]*\shidden/g) || [];
-  assert.equal(overlays.length, 4, `帶 hidden 的 modal-overlay 應恰好 4 個，實際 ${overlays.length} 個`);
+  assert.equal(overlays.length, 3, `帶 hidden 的 modal-overlay 應恰好 3 個（重開確認、戰績、說明），實際 ${overlays.length} 個`);
+  assert.doesNotMatch(html, /id="result-modal"/, '結算不再用自家彈窗');
+  assert.match(html, /assets\/js\/bobo-celebrate\.js/, '結算必須載入全站共用的 bobo-celebrate.js');
 });
 
 test('index.html 具備三檔難度按鈕與所有必要的 HUD 元素', () => {

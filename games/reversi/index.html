@@ -33,7 +33,6 @@
 <body data-mode="ai">
 
   <!-- 全螢幕慶祝彩帶畫布 -->
-  <canvas id="confetti-canvas"></canvas>
 
   <!-- 浮動通知容器 -->
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
@@ -174,49 +173,6 @@
   </nav>
 
   <!-- ======================================================================
-       彈出視窗：對局結算 (Result Modal)
-       ====================================================================== -->
-  <div class="modal-overlay" id="result-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="result-title-text" hidden>
-    <div class="modal-box">
-      <div class="modal-header">
-        <h2 class="modal-title">
-          <span class="result-emoji" id="result-emoji">🎉</span>
-          <span id="result-title-text">你贏了！</span>
-        </h2>
-        <button class="modal-close-btn" id="result-close-btn" type="button" aria-label="關閉結算">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="result-score-row">
-          <div class="result-score" data-color="black">
-            <span class="score-disc black"></span>
-            <span id="result-black">2</span>
-          </div>
-          <span class="result-versus">:</span>
-          <div class="result-score" data-color="white">
-            <span class="score-disc white"></span>
-            <span id="result-white">2</span>
-          </div>
-        </div>
-        <p class="result-detail" id="result-detail">棋盤下滿了，來看看這局的表現吧。</p>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <div class="stat-label">目前勝率</div>
-            <div class="stat-val" id="result-winrate">0%</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-label">目前連勝</div>
-            <div class="stat-val" id="result-streak">0</div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" id="result-review-btn" type="button">檢視終盤</button>
-        <button class="btn-primary" id="result-again-btn" type="button">再來一局</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ======================================================================
        彈出視窗：重開確認 (Confirm Modal)
        ====================================================================== -->
   <div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="confirm-title" hidden>
@@ -324,6 +280,7 @@
   <!-- 共用、統計與遊戲模組（載入順序固定，且一律不加 defer / async） -->
   <script src="../../assets/js/bobo-audio.js"></script>
   <script src="../../assets/js/bobo-confetti.js"></script>
+  <script src="../../assets/js/bobo-celebrate.js"></script>
   <script src="../../assets/js/bobo-theme.js"></script>
   <script src="../../assets/js/stats.js"></script>
   <script src="reversi.js"></script>

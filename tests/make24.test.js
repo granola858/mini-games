@@ -290,7 +290,6 @@ test('24 點結尾畫面包含通關算式卡片、統計網格與檢視盤面�
     { type: 'op', val: '×' },
     { type: 'num', val: '3', cardIdx: 2 }
   ];
-  game.triggerConfetti = () => {};
 
   game.handleWin();
 

@@ -53,18 +53,10 @@
         const confirmOkBtn = document.getElementById('confirm-ok-btn');
         const boardLockBtn = document.getElementById('board-lock-btn');
         const srStatus = document.getElementById('sr-status');
-        const resultDialog = document.getElementById('result-dialog');
-        const resultTitle = document.getElementById('result-title');
-        const resultPicture = document.getElementById('result-picture');
-        const resultDetail = document.getElementById('result-detail');
-        const resultViewBtn = document.getElementById('result-view-btn');
-        const resultAgainBtn = document.getElementById('result-again-btn');
         const rulesBtn = document.getElementById('rules-btn');
         const rulesDialog = document.getElementById('rules-dialog');
         const rulesCloseBtn = document.getElementById('rules-close-btn');
         const themeBtn = document.getElementById('theme-btn');
-        const confettiCanvas = document.getElementById('confetti-canvas');
-        const confetti = (typeof BoboConfetti !== 'undefined') ? BoboConfetti : null;
         const themeKit = (typeof BoboTheme !== 'undefined') ? BoboTheme : null;
 
         function normalizeSize(value) {
@@ -1297,11 +1289,25 @@
             return indexes.length > 4 ? `共 ${indexes.length} ${unit}（第 ${shown}…${unit}）` : `第 ${shown} ${unit}`;
         }
 
-        function renderResultPicture() {
-            resultPicture.style.setProperty('--picture-size', String(size));
-            resultPicture.innerHTML = gameState.solution
-                .map(row => row.map(value => `<span class="${value > 0 ? `on color-${value}` : ''}"></span>`).join(''))
-                .join('');
+        // 過關卡片裡的完成彩色圖，填色格依序塗上（減少動態效果時由 CSS 直接顯示）
+        function buildResultPicture() {
+            const picture = document.createElement('div');
+            picture.className = 'result-picture is-revealing';
+            picture.setAttribute('role', 'img');
+            picture.setAttribute('aria-label', `完成的 ${size}×${size} 彩色圖`);
+            picture.style.setProperty('--picture-size', String(size));
+            const filled = gameState.solution.reduce((n, row) => n + row.filter(v => v > 0).length, 0);
+            picture.style.setProperty('--step', `${Math.max(6, Math.round(900 / Math.max(1, filled)))}ms`);
+            let order = 0;
+            gameState.solution.forEach(row => row.forEach(value => {
+                const cell = document.createElement('span');
+                if (value > 0) {
+                    cell.className = `on color-${value}`;
+                    cell.style.setProperty('--i', String(order++));
+                }
+                picture.appendChild(cell);
+            }));
+            return picture;
         }
 
         function recordWin() {
@@ -1330,12 +1336,28 @@
                 saveData();
 
                 const winCount = recordWin();
-                resultTitle.textContent = '完成了！';
-                resultDetail.textContent = `${size}×${size}・${paletteSize} 色，這個設定已完成 ${winCount} 題`;
-                renderResultPicture();
-                openDialog(resultDialog, resultAgainBtn);
-                if (confetti && confettiCanvas) confetti.burst(confettiCanvas);
-                announce(`${resultTitle.textContent}${resultDetail.textContent}`);
+                const celebrate = (typeof BoboCelebrate !== 'undefined') ? BoboCelebrate : null;
+                if (celebrate) {
+                    celebrate.show({
+                        outcome: 'win',
+                        gameName: '彩色數織',
+                        title: '完成了！',
+                        subtitle: `${paletteSize} 種顏色全部推理到位，整幅圖都上色了。`,
+                        stats: [
+                            { label: '盤面', value: `${size}×${size}・${paletteSize} 色` },
+                            { label: '這個設定已完成', value: `${winCount} 題` }
+                        ],
+                        extra: buildResultPicture(),
+                        accent: '#1d4ed8',
+                        accentDark: '#93c5fd',
+                        // 過關後「對答案」等按鈕會收起來，焦點一律交還給盤面上的格子
+                        primary: { label: '再來一局', onClick: () => { startNewGame(); setFocusCell(focusR, focusC, true); } },
+                        secondary: { label: '看盤面' },
+                        onClose: (reason) => { if (reason !== 'primary') setFocusCell(focusR, focusC, true); }
+                    });
+                } else {
+                    announce(`完成了！${size}×${size}・${paletteSize} 色，這個設定已完成 ${winCount} 題`);
+                }
                 return;
             }
 
@@ -1376,11 +1398,6 @@
         themeBtn.addEventListener('click', toggleTheme);
         rulesBtn.addEventListener('click', () => openDialog(rulesDialog, rulesCloseBtn));
         rulesCloseBtn.addEventListener('click', () => rulesDialog.close());
-        resultViewBtn.addEventListener('click', () => resultDialog.close());
-        resultAgainBtn.addEventListener('click', () => {
-            resultDialog.close();
-            startNewGame();
-        });
 
         // 盤面互動一律走事件委派，盤面重繪時也不必重新掛載
         boardEl.addEventListener('mousedown', handlePointerDown);

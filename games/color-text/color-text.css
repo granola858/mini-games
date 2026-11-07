@@ -429,13 +429,42 @@ html[data-theme="dark"] .icon-moon {
   text-align: center;
 }
 
-.confetti-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
+/* 過關卡片（共用 BoboCelebrate）裡的連對紀錄：每答對一題就是一顆彩色字點 */
+.streak-dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: 280px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.streak-dots li {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--dot, var(--c-blue));
+  animation: streak-dot-in 300ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.streak-dots--still li {
+  animation: none;
+}
+
+@keyframes streak-dot-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-dots li {
+    animation: none;
+  }
 }
 
 .visually-hidden {

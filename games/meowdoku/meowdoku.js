@@ -41,17 +41,6 @@ const confirmCancelBtn = document.getElementById('confirmCancelBtn');
 const confirmOkBtn = document.getElementById('confirmOkBtn');
 const toolBtns = document.querySelectorAll('.tool-btn');
 const toolHintEl = document.getElementById('toolHint');
-const resultDialog = document.getElementById('resultDialog');
-const resultBadgeEl = document.getElementById('resultBadge');
-const resultTitleEl = document.getElementById('resultTitle');
-const resultDescEl = document.getElementById('resultDesc');
-const resultTimeEl = document.getElementById('resultTime');
-const resultLivesEl = document.getElementById('resultLives');
-const resultBestEl = document.getElementById('resultBest');
-const resultWinsEl = document.getElementById('resultWins');
-const resultPrimaryBtn = document.getElementById('resultPrimaryBtn');
-const resultSecondaryBtn = document.getElementById('resultSecondaryBtn');
-const confettiCanvas = document.getElementById('confetti-canvas');
 let pendingConfirmAction = null;
 
 const SAVE_KEY = 'meowdoku-game-states-v1';
@@ -1636,14 +1625,14 @@ function checkWin(state) {
 
     if (correctCats === state.size && complete) {
         state.status = 'won';
+        // 先記下舊的最快紀錄，結果卡片才知道這次是不是新紀錄
+        const prevBest = (loadStats()[state.size] || {}).bestTime;
         recordResult(state, true);
         saveNow();
         boardEl.classList.add('celebrate');
         showToast('貓咪都回家了！', 'success');
         setTimeout(() => sound.playPurr(), 260);
-        const confetti = (typeof BoboConfetti !== 'undefined') ? BoboConfetti : null;
-        if (confetti && confettiCanvas) confetti.burst(confettiCanvas);
-        showResult(state, true);
+        showResult(state, true, prevBest);
     } else {
         scheduleSave();
     }
@@ -1730,25 +1719,71 @@ function recordResult(state, won) {
     return entry;
 }
 
-function showResult(state, won) {
+// 放對的貓咪依位置排成一列（失敗時只放一隻陪著），交給共用過關卡片當個性內容
+function buildMeowParade(state, won) {
+    const list = document.createElement('ul');
+    list.className = won ? 'meow-parade' : 'meow-parade meow-parade--rest';
+    const styles = [];
+    for (let r = 0; r < state.size; r++) {
+        for (let c = 0; c < state.size; c++) {
+            if (state.solution[r][c] !== 1) continue;
+            const cell = state.cellStates[r][c];
+            styles.push(normalizeCatStyleId(cell.catStyle) || getCatStyle(state, r, c) || 1);
+        }
+    }
+    const shown = won ? styles : styles.slice(0, 1);
+    list.setAttribute('role', 'img');
+    list.setAttribute('aria-label', won ? `${shown.length} 隻貓咪都回家了` : '貓咪在旁邊等你再試一次');
+    shown.forEach((style, i) => {
+        const item = document.createElement('li');
+        item.style.setProperty('--i', String(i));
+        const img = document.createElement('img');
+        img.src = catAssetPaths[normalizeCatStyleId(style) || 1];
+        img.alt = '';
+        item.appendChild(img);
+        list.appendChild(item);
+    });
+    return list;
+}
+
+function showResult(state, won, prevBest) {
     const entry = loadStats()[state.size] || { wins: 0, bestTime: null };
-    resultDialog.classList.toggle('won', won);
-    resultDialog.classList.toggle('lost', !won);
-    resultBadgeEl.textContent = won ? '🏡' : '💔';
-    resultTitleEl.textContent = won ? '貓咪都回家了！' : '心用完了';
-    resultDescEl.textContent = won
-        ? `${state.size}×${state.size} 的每一隻貓都放對了。`
-        : '這題還沒解完。可以清掉標記再試一次，或換一題。';
-    resultTimeEl.textContent = formatTime(state.elapsed || 0);
-    resultLivesEl.textContent = `${clampLives(state.lives)} / 3`;
-    resultBestEl.textContent = entry.bestTime === null ? '--' : formatTime(entry.bestTime);
-    resultWinsEl.textContent = `${entry.wins} 次`;
-    resultPrimaryBtn.textContent = won ? '下一題' : '再試一次';
-    resultSecondaryBtn.textContent = won ? '看盤面' : '換一題';
-    resultPrimaryBtn.dataset.action = won ? 'next' : 'retry';
-    resultSecondaryBtn.dataset.action = won ? 'view' : 'next';
-    // 等最後一隻貓的動畫與音效走完再跳出
-    setTimeout(() => openDialog(resultDialog, resultPrimaryBtn), prefersReducedMotion() ? 0 : 700);
+    const elapsed = Math.floor(state.elapsed || 0);
+    const celebrate = (typeof BoboCelebrate !== 'undefined') ? BoboCelebrate : null;
+    if (!celebrate) return;
+    const isBest = won && celebrate.isNewRecord(prevBest, elapsed, { lowerIsBetter: true });
+    const options = {
+        outcome: won ? 'win' : 'lose',
+        gameName: 'Meowdoku 貓咪數獨',
+        title: won ? '貓咪都回家了！' : '愛心用完了',
+        subtitle: won
+            ? `${state.size}×${state.size} 的每一隻貓都放對了${isBest && prevBest != null ? '，刷新這個尺寸的最快紀錄' : ''}。`
+            : '這題還沒解完。盤面會保留，再試一次會清掉標記、補滿愛心。',
+        stats: won
+            ? [
+                { label: '用時', value: celebrate.formatDuration(elapsed), isBest },
+                { label: '剩餘愛心', value: `${clampLives(state.lives)} / 3` },
+                { label: '累計過關', value: `${entry.wins} 次` }
+            ]
+            : [
+                { label: '用時', value: celebrate.formatDuration(elapsed) },
+                { label: '此尺寸最快', value: entry.bestTime === null ? '還沒有' : celebrate.formatDuration(entry.bestTime) }
+            ],
+        extra: buildMeowParade(state, won),
+        accent: '#8e44ad',
+        accentDark: '#c9a3e8',
+        primary: won
+            ? { label: '下一題', onClick: () => performReset() }
+            : { label: '再試一次', onClick: () => retrySamePuzzle() },
+        secondary: won
+            ? { label: '看盤面' }
+            : { label: '換一題', onClick: () => performReset() }
+    };
+    // 等最後一隻貓的動畫與音效走完再跳出；勝利時貓咪在卡片上叫一聲打招呼（音效關閉就安靜）
+    setTimeout(() => {
+        celebrate.show(options);
+        if (won) setTimeout(() => sound.playMeow(Math.floor(Math.random() * 8)), 260);
+    }, prefersReducedMotion() ? 0 : 700);
 }
 
 function prefersReducedMotion() {
@@ -1769,13 +1804,6 @@ function retrySamePuzzle() {
     state.elapsed = 0;
     saveGameStates();
     initGame(currentSize);
-}
-
-function handleResultAction(action) {
-    closeDialog(resultDialog);
-    if (action === 'next') performReset();
-    else if (action === 'retry') retrySamePuzzle();
-    // 'view'：關掉對話框看盤面即可
 }
 
 // 一秒累計一次用時（只在進行中且頁面可見時），每 5 秒順手排一次存檔
@@ -1938,8 +1966,6 @@ confirmOverlay.addEventListener('close', () => { pendingConfirmAction = null; })
 helpBtn.addEventListener('click', openHelp);
 helpCloseBtn.addEventListener('click', closeHelp);
 
-resultPrimaryBtn.addEventListener('click', () => handleResultAction(resultPrimaryBtn.dataset.action));
-resultSecondaryBtn.addEventListener('click', () => handleResultAction(resultSecondaryBtn.dataset.action));
 
 toolBtns.forEach((btn) => {
     btn.addEventListener('click', () => setTool(btn.dataset.tool));

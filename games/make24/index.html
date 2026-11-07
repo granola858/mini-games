@@ -31,7 +31,6 @@
 <body>
 
   <!-- 全螢幕 Confetti 畫布 -->
-  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
 
   <!-- 遊戲主容器 (移除卡片外框，與其他遊戲一致) -->
   <div class="container">
@@ -131,7 +130,7 @@
     </main>
   </div>
 
-  <!-- 9. 對話框（提示／過關）：原生 dialog，自帶焦點管理與 Esc -->
+  <!-- 9. 對話框（提示）：原生 dialog，自帶焦點管理與 Esc；過關改用全站共用的 BoboCelebrate -->
   <dialog class="game-dialog" id="game-dialog" aria-labelledby="modal-title">
     <h2 class="modal-title" id="modal-title">提示</h2>
     <div class="modal-body" id="modal-body"></div>
@@ -162,6 +161,7 @@
   </dialog>
 
   <script src="../../assets/js/bobo-confetti.js"></script>
+  <script src="../../assets/js/bobo-celebrate.js"></script>
   <script src="../../assets/js/bobo-theme.js"></script>
   <script src="../../assets/js/stats.js"></script>
   <script src="../../assets/js/bobo-audio.js"></script>

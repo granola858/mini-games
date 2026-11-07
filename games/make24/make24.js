@@ -6,7 +6,6 @@ const STORAGE_KEY = 'make24_game_state';
 const BEST_STREAK_KEY = 'make24_best_streak';
 
 // 過關彩帶的調色盤（沿用本遊戲原本的六色，交由共用模組 BoboConfetti 播放）
-const CONFETTI_COLORS = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#8B5CF6'];
 
 const SUITS = [
   { symbol: '♠', type: 'suit-black', name: 'spade' },
@@ -405,8 +404,7 @@ class Make24Game {
       rulesDialog: isBrowser ? document.getElementById('rules-dialog') : null,
       rulesCloseBtn: isBrowser ? document.getElementById('rules-close-btn') : null,
       soundBtn: isBrowser ? document.getElementById('sound-btn') : null,
-      statusMsg: isBrowser ? document.getElementById('status-msg') : null,
-      confettiCanvas: isBrowser ? document.getElementById('confetti-canvas') : null
+      statusMsg: isBrowser ? document.getElementById('status-msg') : null
     };
 
     if (isBrowser) {
@@ -542,7 +540,8 @@ class Make24Game {
   }
 
   isDialogOpen() {
-    return !!((this.dom.dialog && this.dom.dialog.open) || (this.dom.rulesDialog && this.dom.rulesDialog.open));
+    const celebrateOpen = typeof BoboCelebrate !== 'undefined' && BoboCelebrate && BoboCelebrate.isOpen();
+    return !!(celebrateOpen || (this.dom.dialog && this.dom.dialog.open) || (this.dom.rulesDialog && this.dom.rulesDialog.open));
   }
 
   /* 對話框：原生 dialog.showModal()，焦點移到主要按鈕，關閉後回到開啟它的元素 */
@@ -1484,7 +1483,8 @@ class Make24Game {
     this.stopTimer();
     this.clearGameState();
     this.streak++;
-    if (this.streak > this.bestStreak) {
+    const isNewBest = this.streak > this.bestStreak;
+    if (isNewBest) {
       this.bestStreak = this.streak;
       try {
         localStorage.setItem(this.getBestStreakKey(this.currentMode), this.bestStreak.toString());
@@ -1494,8 +1494,6 @@ class Make24Game {
     this.updateStatsDisplay();
     this.sound.playWin();
 
-    this.triggerConfetti();
-
     // 取得玩家過關時拼出的完整算式
     const finalEquation = this.tokens.map(t => t.val).join(' ');
     const modeName = MODES[this.currentMode]?.name || '當前';
@@ -1503,57 +1501,52 @@ class Make24Game {
       ? `<div class="puzzle-tag">${this.puzzleInfo.tag}</div>`
       : '';
 
-    const contentHtml = `
-      ${tagHtml}
-      <div class="win-equation-card">
-        <div class="win-equation-label">通關算式</div>
-        <div class="win-equation-text">${finalEquation} = 24</div>
-      </div>
-      <div class="win-stats-grid">
-        <div class="win-stat-item">
-          <span class="stat-label">難度模式</span>
-          <span class="stat-val">${modeName}</span>
-        </div>
-        <div class="win-stat-item">
-          <span class="stat-label">通關耗時</span>
-          <span class="stat-val">${this.timerSeconds}s</span>
-        </div>
-        <div class="win-stat-item">
-          <span class="stat-label">目前連勝</span>
-          <span class="stat-val highlight">${this.streak} 局</span>
-        </div>
-        <div class="win-stat-item">
-          <span class="stat-label">模式最佳</span>
-          <span class="stat-val">${this.bestStreak} 局</span>
-        </div>
-      </div>
-    `;
-
     if (typeof document === 'undefined') return;
 
+    // 過關卡片的個性內容：玩家自己拼出來的那條算式
+    const equation = document.createElement('div');
+    equation.className = 'win-equation-card';
+    equation.innerHTML = `${tagHtml}
+      <div class="win-equation-label">你的通關算式</div>
+      <div class="win-equation-text"></div>`;
+    equation.querySelector('.win-equation-text').textContent = `${finalEquation} = 24`;
+
     this.announce(`過關！${finalEquation} = 24，連勝 ${this.streak} 局`);
+    const celebrate = (typeof BoboCelebrate !== 'undefined' && BoboCelebrate) ? BoboCelebrate : null;
+    if (!celebrate) return;
     const delay = prefersReducedMotion() ? 0 : 450;
     setTimeout(() => {
-      this.showModal('解謎成功！', contentHtml, [
-        {
-          label: '檢視盤面',
-          // 只關掉結果，留在完成的算式上；焦點交給「換牌」方便直接開下一局
-          onClick: () => {
-            this.closeDialog(this.dom.dialog, false);
-            if (this.dom.btnSkip) this.dom.btnSkip.focus();
-          }
-        },
-        {
+      celebrate.show({
+        outcome: 'win',
+        gameName: '24 點大腦算術',
+        title: '湊到 24 了！',
+        subtitle: isNewBest && this.streak > 1
+          ? `${modeName}模式連勝 ${this.streak} 局，刷新最佳紀錄。`
+          : `${modeName}模式，${celebrate.formatDuration(this.timerSeconds)}完成。`,
+        stats: [
+          { label: '通關耗時', value: celebrate.formatDuration(this.timerSeconds) },
+          { label: '目前連勝', value: `${this.streak} 局`, isBest: isNewBest && this.streak > 1 },
+          { label: '模式最佳', value: `${this.bestStreak} 局` }
+        ],
+        extra: equation,
+        accent: '#4F46E5',
+        accentDark: '#A5B4FC',
+        primary: {
           label: '下一局',
-          primary: true,
           onClick: () => {
-            this.closeDialog(this.dom.dialog, false);
             this.startNewGame();
             const firstCard = document.querySelector('.cards-grid button, .cards-grid [tabindex="0"]');
             if (firstCard) firstCard.focus();
           }
+        },
+        secondary: {
+          label: '檢視盤面',
+          // 留在完成的算式上；焦點交給「換牌」方便直接開下一局
+          onClick: () => {
+            if (this.dom.btnSkip) this.dom.btnSkip.focus();
+          }
         }
-      ]);
+      });
     }, delay);
   }
 
@@ -1615,27 +1608,6 @@ class Make24Game {
     this.openDialog(this.dom.dialog);
   }
 
-  /* ------------------------------------------------------------------------
-     五彩紙屑粒子特效 (Confetti)
-     改由共用模組 BoboConfetti 負責；模組可缺席，缺席時安靜退場不影響遊戲。
-     ------------------------------------------------------------------------ */
-  triggerConfetti() {
-    const confetti = (typeof BoboConfetti !== 'undefined' && BoboConfetti) ? BoboConfetti : null;
-    if (!confetti) return;
-    const canvas = this.dom.confettiCanvas;
-    if (!canvas) return;
-    // 參數完全比照本遊戲原本那份實作，接共用模組不改變既有的慶祝手感：
-    // 45 顆圓點從畫面中心爆開、帶重力落下並淡出
-    confetti.burst(canvas, {
-      colors: CONFETTI_COLORS,
-      pieces: 45,
-      origin: 'center',
-      shape: 'circle',
-      spread: 12,
-      gravity: 0.25,
-      fade: 0.022
-    });
-  }
 }
 
 // 支援 Node.js 模組匯出以供測試

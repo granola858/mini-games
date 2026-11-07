@@ -625,14 +625,6 @@ html[data-theme="dark"] .board-lock-btn.locked {
     font-size: 0.95rem;
 }
 
-.result-dialog {
-    text-align: center;
-}
-
-.result-dialog .dialog-actions {
-    justify-content: center;
-}
-
 /* 過關時把完成的彩色圖放大秀出來 */
 .result-picture {
     --picture-size: 8;
@@ -656,6 +648,25 @@ html[data-theme="dark"] .board-lock-btn.locked {
 .result-picture span.color-2 { background: var(--c2-fill); }
 .result-picture span.color-3 { background: var(--c3-fill); }
 .result-picture span.color-4 { background: var(--c4-fill); }
+
+/* 過關時完成的彩色圖一格一格塗上去 */
+.result-picture.is-revealing span[class*="color-"] {
+    animation: picture-fill 220ms ease-out both;
+    animation-delay: calc(var(--i, 0) * var(--step, 12ms));
+}
+
+@keyframes picture-fill {
+    from {
+        background: var(--cell-bg);
+        transform: scale(0.6);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .result-picture.is-revealing span[class*="color-"] {
+        animation: none;
+    }
+}
 
 .rules-dialog {
     width: min(460px, calc(100vw - 32px));
@@ -682,15 +693,6 @@ html[data-theme="dark"] .board-lock-btn.locked {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
-}
-
-.confetti-canvas {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 100;
 }
 
 a:focus-visible,

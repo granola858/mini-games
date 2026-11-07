@@ -458,15 +458,6 @@
       border: 0;
     }
 
-    .confetti-canvas {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 100;
-    }
-
     .h1 {
       font-size: 34px;
       font-weight: 800;
@@ -1095,14 +1086,6 @@
       font-size: 0.95rem;
     }
 
-    .result-dialog {
-      text-align: center;
-    }
-
-    .result-dialog .dialog-actions {
-      justify-content: center;
-    }
-
     /* 過關時把整張圖放大秀出來 */
     .result-picture {
       --picture-size: 8;
@@ -1124,6 +1107,25 @@
 
     .result-picture span.on {
       background: var(--primary-display);
+    }
+
+    /* 圖案模式過關：完成的圖一格一格塗上去，像把作品重畫一遍 */
+    .result-picture.is-revealing span.on {
+      animation: picture-fill 220ms ease-out both;
+      animation-delay: calc(var(--i, 0) * var(--step, 12ms));
+    }
+
+    @keyframes picture-fill {
+      from {
+        background: var(--board-cell-bg);
+        transform: scale(0.6);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .result-picture.is-revealing span.on {
+        animation: none;
+      }
     }
 
     .rules-dialog {

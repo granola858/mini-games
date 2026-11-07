@@ -26,7 +26,6 @@
 </head>
 
 <body>
-  <canvas id="confetti-canvas" class="confetti-canvas" aria-hidden="true"></canvas>
 
   <div class="container">
     <header class="top-bar">
@@ -281,16 +280,6 @@
     </div>
   </dialog>
 
-  <dialog id="result-dialog" class="game-dialog result-dialog" aria-labelledby="result-title">
-    <h2 id="result-title" class="dialog-title"></h2>
-    <div id="result-picture" class="result-picture" role="img" aria-label=""></div>
-    <p id="result-detail" class="dialog-message"></p>
-    <div class="dialog-actions">
-      <button id="result-view-btn" class="secondary-btn" type="button">看盤面</button>
-      <button id="result-again-btn" class="primary-btn" type="button">再來一局</button>
-    </div>
-  </dialog>
-
   <dialog id="rules-dialog" class="game-dialog rules-dialog" aria-labelledby="rules-title">
     <h2 id="rules-title" class="dialog-title">怎麼玩</h2>
     <div class="rules-body">
@@ -312,6 +301,7 @@
 
   <script src="../../assets/js/bobo-theme.js"></script>
   <script src="../../assets/js/bobo-confetti.js"></script>
+  <script src="../../assets/js/bobo-celebrate.js"></script>
   <script src="../../assets/js/stats.js"></script>
   <script src="nonogram-core.js"></script>
   <script src="nonogram.js"></script>

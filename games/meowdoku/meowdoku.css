@@ -310,15 +310,6 @@ a:focus-visible {
     min-height: 1.4em;
 }
 
-#confetti-canvas {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 200;
-}
-
 .game-main {
     display: flex;
     flex-direction: column;
@@ -793,64 +784,51 @@ dialog.modal-card::backdrop {
     padding-left: 1.2em;
 }
 
-/* 結果：勝利暖色實框、失敗灰色虛框，一眼分得出來 */
-.result-card {
-    text-align: center;
-    align-items: center;
-}
-
-.result-card.won {
-    border: 3px solid var(--accent);
-}
-
-.result-card.lost {
-    border: 3px dashed var(--toast-error-bg);
-}
-
-.result-badge {
-    font-size: 2.8rem;
-    line-height: 1;
-}
-
-.result-card.lost .modal-title {
-    color: var(--toast-error-bg);
-}
-
-.result-stats {
-    width: 100%;
-    margin: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    padding: 12px;
-    border-radius: 12px;
-    background-color: var(--surface-alt);
-}
-
-.result-stats div {
+/* 過關卡片（共用 BoboCelebrate）裡的貓咪隊伍：放對的貓一隻隻跳出來打招呼 */
+.meow-parade {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    max-width: 300px;
+    margin: 0 auto;
+    padding: 0;
+    list-style: none;
 }
 
-.result-stats dt {
-    font-size: 0.8rem;
-    color: var(--modal-text);
+.meow-parade li {
+    width: 40px;
+    height: 40px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--surface-alt);
+    animation: meow-hop 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--i, 0) * 70ms);
 }
 
-.result-stats dd {
-    margin: 0;
-    font-size: 1.15rem;
-    font-weight: 800;
-    color: var(--text-color);
-}
-
-.result-actions {
+.meow-parade img {
+    display: block;
     width: 100%;
+    height: 100%;
 }
 
-.result-actions .modal-btn {
-    flex: 1;
+/* 失敗時只留一隻貓在旁邊陪著，不跳動 */
+.meow-parade--rest li {
+    animation: none;
+    opacity: 0.85;
+}
+
+@keyframes meow-hop {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.8);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .meow-parade li {
+        animation: none;
+    }
 }
 
 .modal-card {
