@@ -220,6 +220,19 @@
         timerCheck.checked = prefs.timer;
         marksCheck.checked = prefs.marks;
         document.body.classList.toggle('show-marks', prefs.marks);
+        // 記憶與作答是限時階段：在 body 標記目前階段，CSS 會收起設定區、縮小蓋住的卡片，
+        // 讓整個遊戲區（9 張卡片或整排答案鈕）落在同一個畫面裡，不必邊計時邊捲動
+        document.body.dataset.phase = phase;
+    }
+
+    // 限時階段開始時把要看的區塊捲進畫面；減少動態效果時直接跳過去，不做平滑捲動
+    function bringIntoView(el, block) {
+        if (!el || typeof el.scrollIntoView !== 'function') return;
+        try {
+            el.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: block || 'nearest' });
+        } catch (_) {
+            el.scrollIntoView();
+        }
     }
 
     const itemOf = key => ITEMS.find(it => it.key === key);
@@ -231,6 +244,7 @@
     function renderCards({ covered, highlight } = {}) {
         const mode = MODES[prefs.mode];
         gridEl.style.setProperty('--cols', mode.cols);
+        gridEl.style.setProperty('--rows', Math.ceil(mode.count / mode.cols));
         gridEl.innerHTML = '';
         cards.forEach((card, idx) => {
             const el = document.createElement('div');
@@ -297,7 +311,8 @@
         renderSettings();
         renderCards();
         setStatus(`記住這 ${mode.count} 張卡片的字和顏色，${mode.seconds} 秒後蓋牌。`);
-        gridEl.focus();
+        gridEl.focus({ preventScroll: true });
+        bringIntoView(document.querySelector('.play-area'), 'start');
         runCountdown(mode.seconds, '記住它們', askQuestion);
     }
 
@@ -332,7 +347,8 @@
         questionEl.hidden = false;
         renderSettings();
         setStatus('卡片蓋起來了，請作答。');
-        questionText.focus();
+        questionText.focus({ preventScroll: true });
+        bringIntoView(questionEl, 'end');
         if (prefs.timer) {
             runCountdown(ANSWER_SECONDS, '作答倒數', () => checkAnswer(null));
         } else {
@@ -451,5 +467,6 @@
     renderStats();
     renderSettings();
     gridEl.style.setProperty('--cols', MODES[prefs.mode].cols);
+    gridEl.style.setProperty('--rows', Math.ceil(MODES[prefs.mode].count / MODES[prefs.mode].cols));
     if (stats.streak > 0) setStatus(`目前連對 ${stats.streak} 題，按「開始記憶」繼續。`);
 })();

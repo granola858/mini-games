@@ -797,6 +797,28 @@ html[data-theme="dark"] {
   }
 }
 
+/* 限時階段（記憶、作答）：收起說明與設定區，騰出高度給卡片與答案鈕。
+   難度在這兩個階段本來就鎖住不能改，結算後（data-phase="result"）再展開。 */
+body[data-phase="memorize"] .goal,
+body[data-phase="memorize"] .settings,
+body[data-phase="question"] .goal,
+body[data-phase="question"] .settings {
+  display: none;
+}
+
+/* 記憶階段：卡片高度依可用畫面高度縮放，9 張（3 列）也能整組留在畫面內 */
+body[data-phase="memorize"] .card {
+  aspect-ratio: auto;
+  height: clamp(56px, calc((100dvh - 330px) / var(--rows, 2) - 10px), 140px);
+}
+
+/* 作答階段：卡片已蓋住，只需要看得出幾張與位置，壓成矮條讓題目與答案鈕上移 */
+body[data-phase="question"] .card.is-covered {
+  aspect-ratio: auto;
+  height: 40px;
+  font-size: 1.1rem;
+}
+
 /* 手機橫放：設定與遊戲區左右並排，「開始」按鈕放在標題正下方 */
 @media (max-height: 500px) and (orientation: landscape) {
   .page {

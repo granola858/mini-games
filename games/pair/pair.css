@@ -9,6 +9,9 @@
     --heading: #7A1F4B;          /* 深莓紅標題：和粉紫卡片同色系但不落入紫色調 */
     --accent: #8E24AA;           /* 已配對框線、選中難度文字 */
     --focus: #6A1B9A;
+    /* 桌布上的焦點框：一般 --focus 是莓紫，壓在莓紫桌布上幾乎看不見（1.16:1），
+       改用琥珀色，桌布 7.7:1、卡背 3.4:1 */
+    --focus-on-cloth: #FFD54F;
     --border: #DCD0E2;
     --card-back: #AB47BC;        /* 卡背底色；外圈白邊讓每張牌在桌布上輪廓清楚 */
     --card-back-ring: rgba(255, 255, 255, 0.55);
@@ -37,6 +40,7 @@ html[data-theme="dark"] {
     --heading: #F2A7C9;
     --accent: #D69AE6;
     --focus: #E8C2F3;
+    --focus-on-cloth: #FFD54F;   /* 深色桌布上 11:1 */
     --border: #45394B;
     --card-back: #9A5AAC;
     --card-back-ring: rgba(255, 255, 255, 0.4);
@@ -408,8 +412,10 @@ h1 {
 }
 
 .card:focus-visible {
-    outline: 3px solid var(--focus);
+    outline: 3px solid var(--focus-on-cloth);
     outline-offset: 2px;
+    /* 外圈再加一道深色細線，焦點框落在亮色卡面旁也看得出邊界 */
+    box-shadow: 0 0 0 7px rgba(26, 8, 32, 0.85);
 }
 
 /* ---------- 按鈕 ---------- */

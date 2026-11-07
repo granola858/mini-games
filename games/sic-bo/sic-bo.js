@@ -2218,8 +2218,19 @@ class SicBoGame {
     //           任何按鈕／連結上時一律交還原生啟動；焦點不在可啟動元素上
     //          （例如剛載入、焦點在 body）才當成主動作鍵。
     // index.html 的玩法彈窗快捷鍵表已同步改成這個說法。
+    // 重新稽核補充：Space／R／C／數字鍵只在「焦點在注格、骰盤，或沒有停在任何按鈕上」時
+    // 才當遊戲鍵。焦點停在其他按鈕（主題、規則、更多玩法、好運加碼的猜大／猜小…）時，
+    // 一律交還原生行為 —— 否則在「猜大」上按 Space 會被當成「領分並開下一局」，
+    // 玩家沒選的動作直接扣掉下注、無法復原。PLAY 鍵的原生啟動本來就等同主動作。
+    const closest = (sel) => !!(target && typeof target.closest === 'function' && target.closest(sel));
+    const onBetCell = closest('.bet-cell');
+    const onTray = !!(target && this.el.diceTray
+      && (target === this.el.diceTray || this.el.diceTray.contains(target)));
+    const onOtherControl = !onBetCell && !onTray
+      && closest('button, a[href], [role="button"], [role="switch"], summary, select');
+
     if (isSpace) {
-      if (target === this.el.rollBtn) return;
+      if (onOtherControl) return;
       event.preventDefault();   // 同時擋掉「Space 捲動頁面」與注格的原生啟動
       this.onPrimaryAction();
       return;
@@ -2231,6 +2242,7 @@ class SicBoGame {
       return;
     }
 
+    if (onOtherControl) return;
     if (key === 'r' || key === 'R') {
       this.rebet();
       return;

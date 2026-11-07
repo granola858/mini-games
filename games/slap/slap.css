@@ -18,6 +18,8 @@
     --snap-idle-bg: #DDE5D9;
     --snap-idle-ink: #4F5F57;
     --focus: #1B5E20;
+    /* 牌桌上的焦點框：一般 --focus 是深綠，壓在綠色檯面上看不見（1.22:1），改用琥珀色 4.6:1 */
+    --focus-on-felt: #FFD54F;
     --shadow: 0 10px 25px rgba(38, 50, 56, 0.12);
     --felt: #2E6B25;             /* 牌桌檯面：同一支森林綠壓深；白字 6.5:1 */
     --rail: #1D4A17;             /* 桌邊 */
@@ -47,6 +49,7 @@ html[data-theme="dark"] {
     --snap-idle-bg: #2C382C;
     --snap-idle-ink: #AFC0AC;
     --focus: #C8F0BC;
+    --focus-on-felt: #FFD54F;    /* 深色檯面上 8:1 */
     --shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
     --felt: #1F4219;
     --rail: #2C5A24;
@@ -648,6 +651,13 @@ a:focus-visible,
 button:focus-visible {
     outline: 3px solid var(--focus);
     outline-offset: 3px;
+}
+
+/* 牌桌檯面上的可操作元素（開局牌）改用琥珀色焦點框，外圈加深色細線 */
+.table a:focus-visible,
+.table button:focus-visible {
+    outline-color: var(--focus-on-felt);
+    box-shadow: 0 0 0 8px rgba(10, 30, 8, 0.85);
 }
 
 .sr-only {
