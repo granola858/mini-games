@@ -8,7 +8,7 @@
        data-theme-color-* 屬性把 content 換成當前主題的值，所以這兩個屬性不可省。 -->
   <meta name="theme-color" content="#eef2ee" data-theme-color-dark="#101410" data-theme-color-light="#eef2ee">
   <title>骰寶 - 波波小遊戲</title>
-  <meta name="description" content="賭桌風格的骰寶：三顆骰子逐一開出，押大小、點數、組合、雙骰、圍骰與單骰共 50 種注項，帶懸念停頓的開骰演出、連勝賠付加成與贏分翻倍挑戰，支援深淺主題、音效與鍵盤操作。">
+  <meta name="description" content="桌遊風格的骰寶：三顆骰子逐一開出，押大小、點數、組合、雙骰、圍骰與單骰共 50 種注項，帶懸念停頓的開骰演出、連勝加成與好運加碼小挑戰，支援深淺主題、音效與鍵盤操作。">
 
   <!-- 字型引入 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -191,7 +191,7 @@
              CSS 端可用 body[data-phase="gamble"] 收掉籌碼列與 .dock-actions，
              避免 dock 在小螢幕上長得太高。 -->
         <div class="gamble-panel" id="gamble-panel" hidden>
-          <p>翻倍挑戰：猜這顆骰子是大還是小</p>
+          <p>好運加碼：猜這顆骰子是大還是小，猜中這局得分加倍</p>
           <div class="die" id="gamble-die" aria-hidden="true">
             <div class="die__cube">
               <div class="die__face die__face--1"><i class="pip"></i></div>
@@ -202,11 +202,11 @@
               <div class="die__face die__face--6"><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i></div>
             </div>
           </div>
-          <p>可翻倍金額 <span id="gamble-amount">0</span></p>
+          <p>這局得分 <span id="gamble-amount">0</span></p>
           <div class="gamble-actions">
-            <button class="dock-btn" id="gamble-small" type="button" aria-label="押小，1 到 3 點">押小 1–3</button>
-            <button class="dock-btn" id="gamble-big" type="button" aria-label="押大，4 到 6 點">押大 4–6</button>
-            <button class="dock-btn" id="gamble-take" type="button" aria-label="收下這筆贏分">收下</button>
+            <button class="dock-btn" id="gamble-small" type="button" aria-label="猜小，1 到 3 點">猜小 1–3</button>
+            <button class="dock-btn" id="gamble-big" type="button" aria-label="猜大，4 到 6 點">猜大 4–6</button>
+            <button class="dock-btn" id="gamble-take" type="button" aria-label="收下這局得分">收下</button>
           </div>
         </div>
       </div>
@@ -239,6 +239,13 @@
           </div>
         </section>
 
+        <!-- quieter：新手先看到最直覺的「大／小」，其餘四十多個注格收在「更多玩法」裡（漸進揭露）。
+             展開狀態記在偏好裡；桌上有押在收起區的注時，JS 會自動展開，注不會被藏起來。 -->
+        <button class="bet-more-toggle" id="bet-more-toggle" type="button" aria-expanded="false" aria-controls="bet-more">
+          <span class="bet-more-toggle__text" id="bet-more-text">更多玩法：點數、組合、雙骰、圍骰、單骰</span>
+          <svg class="bet-more-toggle__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="bet-more" id="bet-more" hidden>
         <section class="bet-group">
           <h2 class="bet-group-title">點數　上排 4–10 是小・下排 11–17 是大</h2>
           <div class="bet-grid bet-grid--sum">
@@ -456,6 +463,7 @@
             </button>
           </div>
         </section>
+        </div>
       </div>
 
       <!-- 2.4 歷史紀錄：最多 50 局，最新在上。
@@ -553,13 +561,13 @@
         </ul>
         <p>加成是加在<strong>本局所有中獎注的獎金合計</strong>上，最後一次向下取整（所以小注也吃得到加成，不會因為逐注四捨五入而被抹掉）。舞台上的連勝條會顯示目前級數與加成百分比。</p>
 
-        <h3>✨ 翻倍挑戰</h3>
-        <p>只要本局<strong>淨賺</strong>，控制台就會掀開翻倍挑戰：這筆贏分會先從餘額<strong>暫時扣下來</strong>當賭本（避免中途重新整理重複入帳），然後開<strong>一顆</strong>骰子讓你猜大小。</p>
+        <h3>✨ 好運加碼</h3>
+        <p>只要本局<strong>有賺到分數</strong>，控制台就會出現好運加碼：這局得分會先<strong>暫時放到一旁</strong>（避免中途重新整理重複入帳），然後開<strong>一顆</strong>骰子讓你猜大小。完全是選配，不想玩就直接收下。</p>
         <ul>
           <li><strong>小 = 1–3，大 = 4–6</strong>，沒有和局。</li>
-          <li>猜中：金額 <strong>×2</strong>，還可以再挑戰，最多連續 <strong>3 次</strong>（等於最多 ×8），第 3 次之後自動收下。</li>
-          <li>猜錯：<strong>這筆贏分全部飛走</strong>（只輸贏分，不會動到你原本的餘額）。</li>
-          <li>按<strong>收下</strong>隨時把目前金額落袋；不想玩就直接按 PLAY 進下一局，挑戰是純選配。</li>
+          <li>猜中：這局得分 <strong>×2</strong>，還可以再挑戰，最多連續 <strong>3 次</strong>（等於最多 ×8），第 3 次之後自動收下。</li>
+          <li>猜錯：<strong>這局得分就不算了</strong>，但你原本的分數<strong>完全不受影響</strong>。</li>
+          <li>按<strong>收下</strong>隨時把目前得分收進分數；不想玩就直接按 PLAY 進下一局。</li>
         </ul>
 
         <h3>♻️ 同上局・清除・餘額歸零</h3>
@@ -567,7 +575,7 @@
           <li><strong>同上局</strong>：把上一局的注單原樣再押一次（餘額不夠時會提示並不動桌面）。</li>
           <li><strong>清除</strong>：把桌上所有注<strong>全額退回</strong>餘額。</li>
           <li>結算後注單會<strong>留在桌上</strong>方便連押，本金會重新從餘額扣一次；餘額不夠就自動清空並提示。</li>
-          <li>餘額<strong>不足 10 分</strong>（最小籌碼）且桌上沒有注時，會跳出結算視窗，可以<strong>重新開始</strong>帶著 1,000 再來。</li>
+          <li>餘額<strong>不足 10 分</strong>（最小籌碼）且桌上沒有注時，會跳出結果卡片，可以<strong>重新開始</strong>帶著 1,000 分再來。</li>
         </ul>
 
         <h3>⌨️ 鍵盤快捷鍵</h3>
@@ -589,33 +597,13 @@
     </div>
   </div>
 
-  <!-- ======================================================================
-       彈出視窗：餘額歸零 (Broke Modal)
-       結算數字由 JS 填進 #broke-body。
-       ====================================================================== -->
-  <div class="modal-overlay" id="broke-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-label="餘額歸零" hidden>
-    <div class="modal-box">
-      <div class="modal-header">
-        <h2 class="modal-title">🪙 籌碼見底了</h2>
-        <button class="modal-close-btn" type="button" data-close aria-label="關閉">✕</button>
-      </div>
-      <div class="modal-body">
-        <div id="broke-body"></div>
-        <!-- .modal-footer / .btn-primary 沿用全站彈窗慣例（見盤點筆記 03 §4.2、§4.3），
-             四款已發布遊戲的彈窗都是這組 class，所以這裡不另發明名字。 -->
-        <div class="modal-footer">
-          <button class="btn-primary" id="restart-btn" type="button">重新開始（+1,000）</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- 共用模組與遊戲主程式：順序固定，且都不加 defer / async。
        主題／音效／彩帶／統計四個共用模組必須先載入（遊戲層用 typeof 守衛，缺席也能玩），
        接著是純邏輯的 sic-bo-core.js，最後才是操作 DOM 的 sic-bo.js。 -->
   <script src="../../assets/js/bobo-theme.js"></script>
   <script src="../../assets/js/bobo-audio.js"></script>
   <script src="../../assets/js/bobo-confetti.js"></script>
+  <script src="../../assets/js/bobo-celebrate.js"></script>
   <script src="../../assets/js/stats.js"></script>
   <script src="sic-bo-core.js"></script>
   <script src="sic-bo.js"></script>

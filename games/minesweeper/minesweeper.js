@@ -37,6 +37,9 @@ const MODE_SKIN_MAP = {
   [MODES.CLASSIC]: SKINS.CLASSIC
 };
 
+// 全站共用過關卡片；可缺席（Node 測試環境沒有）
+const celebrate = (typeof BoboCelebrate !== 'undefined') ? BoboCelebrate : null;
+
 const SKIN_TITLES = {
   [SKINS.TACTICAL]: { text: '特工：戰術排雷', badge: 'Tactical Ops', label: '<span>🤖 戰術特工</span>' },
   [SKINS.DUNGEON]: { text: '地宮：掃雷冒險', badge: 'Dungeon Sweeper', label: '<span>🗺️ 地宮探險</span>' },
@@ -467,7 +470,7 @@ class MinesweeperApp {
       titleBadge: document.getElementById('title-badge'),
       modeTabs: document.querySelectorAll('.mode-tab-btn'),
       difficultyBar: document.getElementById('difficulty-bar'),
-      diffBtns: document.querySelectorAll('.diff-btn'),
+      diffSelect: document.getElementById('diff-select'),
       skinToggleBtn: document.getElementById('skin-toggle-btn'),
       themeBtn: document.getElementById('theme-btn'),
       soundBtn: document.getElementById('sound-btn'),
@@ -669,16 +672,16 @@ class MinesweeperApp {
     this.bindGridEvents();
 
     // Difficulty Selector
-    this.el.diffBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const diff = btn.dataset.diff;
+    if (this.el.diffSelect) {
+      this.el.diffSelect.addEventListener('change', () => {
+        const diff = this.el.diffSelect.value;
         if (diff === 'custom') {
           this.openCustomModal();
-        } else if (diff) {
+        } else if (DIFFICULTY_PRESETS[diff]) {
           this.switchDifficulty(diff);
         }
       });
-    });
+    }
 
     // Item Action buttons
     if (this.el.shieldBtn) this.el.shieldBtn.addEventListener('click', () => this.handleItemClick('shield'));
@@ -726,6 +729,8 @@ class MinesweeperApp {
     });
 
     document.addEventListener('keydown', (event) => {
+      // 過關卡片（原生 modal dialog）開著時，按鍵交給卡片本身
+      if (celebrate && celebrate.isOpen()) return;
       const openModal = document.querySelector('.modal-overlay.open');
       if (event.key === 'Escape') {
         if (openModal) this.closeModal(openModal);
@@ -934,11 +939,9 @@ class MinesweeperApp {
         this.el.boardContainer.setAttribute('aria-labelledby', tab.id);
       }
     });
-    this.el.diffBtns.forEach(btn => {
-      const selected = btn.dataset.diff === this.difficulty;
-      btn.classList.toggle('active', selected);
-      btn.setAttribute('aria-pressed', String(selected));
-    });
+    if (this.el.diffSelect && this.el.diffSelect.value !== this.difficulty) {
+      this.el.diffSelect.value = this.difficulty;
+    }
     this.el.actionBtns.forEach(btn => {
       btn.setAttribute('aria-pressed', String(btn.dataset.action === this.action));
     });
@@ -1558,10 +1561,11 @@ class MinesweeperApp {
     }
     this.updateHUD();
     this.refreshGridDOM();
-    this.triggerConfetti();
 
     if (this.mode === MODES.DUNGEON) {
       if (this.currentFloor < DUNGEON_FLOORS.length) {
+        // 地宮中間層過關沒有結果卡片（直接進商店），彩帶由遊戲自己放；最終通關與一般過關交給卡片
+        this.triggerConfetti();
         this.showToast(`🎉 第 ${this.currentFloor} 層排雷完成！開啟層間商店`);
         this.shopTimer = setTimeout(() => {
           this.shopTimer = null;
@@ -1571,16 +1575,84 @@ class MinesweeperApp {
         this.handleFinalDungeonVictory();
       }
     } else {
+      const prev = this.readStatsBucket();
       this.recordStats(true);
-      this.showToast(`🏆 恭喜通關！耗時 ${this.timer} 秒，共 ${this.moves} 步`);
+      this.showResultCard('win', prev);
     }
 
     this.clearGameState();
   }
 
   handleFinalDungeonVictory() {
+    const prev = this.readStatsBucket();
     this.recordStats(true);
-    this.showToast('👑 恭喜征服地宮全部 5 層！獲得遠古掃雷大師榮耀！');
+    this.showResultCard('dungeon', prev);
+  }
+
+  // 讀目前模式＋難度的戰績桶（記錄這一局之前先讀，才知道有沒有刷新紀錄）
+  readStatsBucket() {
+    try {
+      const stats = JSON.parse(localStorage.getItem(STATS_KEY) || '{}');
+      return stats[`${this.mode}_${this.difficulty}`] || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  difficultyLabel() {
+    if (this.mode === MODES.DUNGEON) return `地宮 ${DUNGEON_FLOORS.length} 層`;
+    const preset = DIFFICULTY_PRESETS[this.difficulty];
+    if (preset) return `${preset.name} ${preset.cols}×${preset.rows}`;
+    return `自訂 ${this.cols}×${this.rows}`;
+  }
+
+  // 過關／失敗改用全站共用的結果卡片。kind：'win' | 'dungeon'（地宮全破）| 'lose'
+  showResultCard(kind, prev) {
+    if (!celebrate) {
+      if (kind === 'lose') this.showToast('💥 引爆地雷！遊戲結束，點擊笑臉重開一局');
+      else this.showToast(`🏆 恭喜通關！耗時 ${this.timer} 秒，共 ${this.moves} 步`);
+      return;
+    }
+    const won = kind !== 'lose';
+    const prevBest = prev && typeof prev.bestTime === 'number' ? prev.bestTime : null;
+    const newBest = won && prevBest !== null && celebrate.isNewRecord(prevBest, this.timer, { lowerIsBetter: true });
+    const after = this.readStatsBucket() || {};
+    const time = celebrate.formatDuration(this.timer);
+    let title = '排雷完成！';
+    let subtitle = `${this.difficultyLabel()}，用了 ${time}、${this.moves} 步。`;
+    if (kind === 'dungeon') {
+      title = `征服地宮全部 ${DUNGEON_FLOORS.length} 層！`;
+      subtitle = `帶著 ${this.gold} 金幣與 ${this.hp} 顆心走出地宮。`;
+    } else if (kind === 'lose') {
+      title = '踩到地雷了';
+      subtitle = this.mode === MODES.DUNGEON
+        ? `在地宮第 ${this.currentFloor} 層倒下。盤面已經攤開，看看地雷都藏在哪裡，再闖一次。`
+        : '盤面已經攤開，看看地雷都藏在哪裡，下一局會更順。';
+    } else if (newBest) {
+      subtitle += `比上次最快的 ${celebrate.formatDuration(prevBest)} 還快！`;
+    }
+    const stats = kind === 'lose'
+      ? [
+        { label: '時間', value: time },
+        { label: '步數', value: this.moves },
+        { label: '勝率', value: after.plays ? `${Math.round((after.wins / after.plays) * 100)}%` : '—' }
+      ]
+      : [
+        { label: '時間', value: time, isBest: newBest },
+        { label: '步數', value: this.moves },
+        { label: '連勝', value: `${after.streak || 1} 局` }
+      ];
+    celebrate.show({
+      outcome: won ? 'win' : 'lose',
+      gameName: '掃雷：純粹經典',
+      title,
+      subtitle,
+      stats,
+      accent: '#0f5ea8',
+      accentDark: '#7cc4ff',
+      primary: { label: '再來一局', onClick: () => this.startNewGame() },
+      secondary: { label: '看盤面' }
+    });
   }
 
   handleGameOver(explodedR, explodedC) {
@@ -1607,7 +1679,7 @@ class MinesweeperApp {
 
     this.refreshGridDOM();
     this.recordStats(false);
-    this.showToast('💥 引爆地雷！遊戲結束，點擊笑臉重開一局');
+    this.showResultCard('lose', null);
     this.clearGameState();
   }
 
@@ -1912,6 +1984,10 @@ class MinesweeperApp {
     } else {
       this.zoomScale = 1.0;
     }
+    // quieter：盤面放得下時不顯示縮放鈕（CSS 依 body[data-board-fits] 收起）
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.dataset.boardFits = (totalW <= viewportW || viewportW <= 0) ? 'true' : 'false';
+    }
     this.applyZoom();
   }
 
@@ -1942,6 +2018,8 @@ class MinesweeperApp {
 
   closeCustomModal() {
     this.closeModal(this.el.customModal);
+    // 取消自訂時，難度選單要退回目前實際的難度（不能停在「自訂…」）
+    this.syncControlState();
   }
 
   startCustomGame() {

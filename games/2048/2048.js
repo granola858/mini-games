@@ -842,6 +842,8 @@ const TOWER_ITEM_IDS = SHOP_ITEMS.map((item) => item.id);
 // 共用彩帶模組可缺席：new Function(source) 與 require() 兩種測試環境都沒有全域，
 // 所以在頂層就固定成 null，呼叫點一律 if (confetti) 守衛。
 const confetti = (typeof BoboConfetti !== 'undefined') ? BoboConfetti : null;
+// 全站共用過關卡片；同樣可缺席（Node 測試環境沒有）
+const celebrate = (typeof BoboCelebrate !== 'undefined') ? BoboCelebrate : null;
 
 // 高解析度時鐘；Node 測試環境沒有 performance 時退回 Date
 function _appNow() {
@@ -1330,6 +1332,9 @@ class Game2048 {
       soundBtn: byId('sound-btn'),
       statsBtn: byId('stats-btn'),
       helpBtn: byId('help-btn'),
+      // 「更多」選單：戰績、進化皮膚、純圖示收在這裡
+      moreBtn: byId('more-btn'),
+      moreMenu: byId('more-menu'),
 
       // 標題（文字由 HTML 固定，JS 不覆蓋內容）
       titleText: byId('title-text'),
@@ -1338,7 +1343,7 @@ class Game2048 {
       modeTabs: byId('mode-tabs'),
       modeTabBtns: document.querySelectorAll('#mode-tabs .mode-tab-btn'),
       sizeBar: byId('size-bar'),
-      sizeBtns: document.querySelectorAll('#size-bar .size-btn'),
+      sizeSelect: byId('size-select'),
 
       // HUD
       scoreEl: byId('score'),
@@ -1370,18 +1375,6 @@ class Game2048 {
       undoBadge: byId('undo-badge'),
       restartBtn: byId('restart-btn'),
       glyphBtn: byId('glyph-btn'),
-
-      // 結算彈窗
-      resultModal: byId('result-modal'),
-      resultEmoji: byId('result-emoji'),
-      resultTitleText: byId('result-title-text'),
-      resultCloseBtn: byId('result-close-btn'),
-      resultScore: byId('result-score'),
-      resultBest: byId('result-best'),
-      resultMaxtile: byId('result-maxtile'),
-      resultDetail: byId('result-detail'),
-      resultContinueBtn: byId('result-continue-btn'),
-      resultAgainBtn: byId('result-again-btn'),
 
       // 確認彈窗
       confirmModal: byId('confirm-modal'),
@@ -1646,7 +1639,36 @@ class Game2048 {
         this.showToast(on ? '🔊 音效已開啟' : '🔇 音效已靜音');
       });
     }
-    if (this.el.statsBtn) this.el.statsBtn.addEventListener('click', () => this.openStatsModal());
+    if (this.el.statsBtn) {
+      this.el.statsBtn.addEventListener('click', () => {
+        this.setMoreMenu(false, false);
+        this.openStatsModal();
+      });
+    }
+    if (this.el.moreBtn) {
+      this.el.moreBtn.addEventListener('click', () => {
+        const open = this.el.moreMenu ? this.el.moreMenu.hidden : false;
+        this.setMoreMenu(open, open);
+      });
+    }
+    // 鍵盤 Tab 離開選單時也收起來（焦點移到選單外才收，選單內移動不受影響）
+    const moreWrap = this.el.moreBtn && typeof this.el.moreBtn.closest === 'function'
+      ? this.el.moreBtn.closest('.more-wrap') : null;
+    if (moreWrap) {
+      moreWrap.addEventListener('focusout', (event) => {
+        const next = event.relatedTarget;
+        if (next && typeof moreWrap.contains === 'function' && moreWrap.contains(next)) return;
+        if (next) this.setMoreMenu(false, false);
+      });
+    }
+    // 點選單外面就收起來
+    document.addEventListener('pointerdown', (event) => {
+      if (!this.el.moreMenu || this.el.moreMenu.hidden) return;
+      const wrap = this.el.moreBtn && typeof this.el.moreBtn.closest === 'function'
+        ? this.el.moreBtn.closest('.more-wrap') : null;
+      if (wrap && event.target && typeof wrap.contains === 'function' && wrap.contains(event.target)) return;
+      this.setMoreMenu(false, false);
+    });
     if (this.el.helpBtn) this.el.helpBtn.addEventListener('click', () => this.openHelpModal());
 
     if (this.el.modeTabBtns && this.el.modeTabBtns.forEach) {
@@ -1654,12 +1676,11 @@ class Game2048 {
         btn.addEventListener('click', () => this.setMode(btn.dataset ? btn.dataset.mode : null));
       });
     }
-    if (this.el.sizeBtns && this.el.sizeBtns.forEach) {
-      this.el.sizeBtns.forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const raw = btn.dataset ? btn.dataset.size : null;
-          this.setSize(parseInt(raw, 10));
-        });
+    if (this.el.sizeSelect) {
+      this.el.sizeSelect.addEventListener('change', () => {
+        this.setSize(parseInt(this.el.sizeSelect.value, 10));
+        // 沒有真的換成（例如模式固定 4×4）時，下拉選單要退回目前的盤面
+        this.syncControlState();
       });
     }
 
@@ -1668,15 +1689,7 @@ class Game2048 {
     if (this.el.restartBtn) this.el.restartBtn.addEventListener('click', () => this.requestRestart());
     if (this.el.glyphBtn) this.el.glyphBtn.addEventListener('click', () => this.toggleGlyphOnly());
 
-    // 彈窗按鈕
-    if (this.el.resultCloseBtn) this.el.resultCloseBtn.addEventListener('click', () => this.closeModal(this.el.resultModal));
-    if (this.el.resultContinueBtn) this.el.resultContinueBtn.addEventListener('click', () => this.continueGame());
-    if (this.el.resultAgainBtn) {
-      this.el.resultAgainBtn.addEventListener('click', () => {
-        this.closeModal(this.el.resultModal);
-        this.startNewGame();
-      });
-    }
+    // 彈窗按鈕（過關／結算改用全站共用的 BoboCelebrate 卡片，按鈕在 showResultModal 裡設定）
     if (this.el.confirmCloseBtn) this.el.confirmCloseBtn.addEventListener('click', () => this.cancelConfirm());
     if (this.el.confirmCancelBtn) this.el.confirmCancelBtn.addEventListener('click', () => this.cancelConfirm());
     if (this.el.confirmOkBtn) this.el.confirmOkBtn.addEventListener('click', () => this.acceptConfirm());
@@ -1913,6 +1926,12 @@ class Game2048 {
   // ------------------------------------------------------------------------
   handleKeydown(event) {
     if (!event || typeof document === 'undefined') return;
+    // 過關卡片開著時（原生 modal dialog）不處理遊戲按鍵；Esc 由卡片自己關
+    if (celebrate && typeof celebrate.isOpen === 'function' && celebrate.isOpen()) return;
+    if (event.key === 'Escape' && this.el.moreMenu && !this.el.moreMenu.hidden) {
+      this.setMoreMenu(false, true);
+      return;
+    }
     const openModal = (typeof document.querySelector === 'function')
       ? document.querySelector('.modal-overlay.open')
       : null;
@@ -2614,23 +2633,19 @@ class Game2048 {
         if (typeof btn.tabIndex !== 'undefined') btn.tabIndex = on ? 0 : -1;
       });
     }
-    if (this.el.sizeBtns && this.el.sizeBtns.forEach) {
-      this.el.sizeBtns.forEach((btn) => {
-        const on = !!(btn.dataset && parseInt(btn.dataset.size, 10) === this.size);
-        if (btn.classList) btn.classList.toggle('active', on);
-        _appSetAttr(btn, 'aria-pressed', on ? 'true' : 'false');
-      });
+    if (this.el.sizeSelect && String(this.el.sizeSelect.value) !== String(this.size)) {
+      this.el.sizeSelect.value = String(this.size);
     }
 
     const skinOn = this.skin === SKINS.EVOLVE;
     if (this.el.skinBtn) {
       _appSetAttr(this.el.skinBtn, 'aria-pressed', skinOn ? 'true' : 'false');
-      _appSetAttr(this.el.skinBtn, 'title', skinOn ? '皮膚：進化（點一下換回數字）' : '皮膚：數字（點一下換成進化）');
+      _appSetAttr(this.el.skinBtn, 'title', skinOn ? '目前是進化皮膚，點一下換回數字' : '目前是數字皮膚，點一下換成進化');
       if (this.el.skinBtn.classList) this.el.skinBtn.classList.toggle('active', skinOn);
     }
     if (this.el.glyphBtn) {
       _appSetAttr(this.el.glyphBtn, 'aria-pressed', this.glyphOnly ? 'true' : 'false');
-      _appSetAttr(this.el.glyphBtn, 'title', this.glyphOnly ? '純圖示模式：開啟' : '純圖示模式：關閉');
+      _appSetAttr(this.el.glyphBtn, 'title', this.glyphOnly ? '目前只顯示圖示，點一下顯示數字' : '點一下只顯示圖示、藏起數字');
     }
     this.updateSoundIcon();
     this.updateThemeIcon(this.currentTheme());
@@ -2821,6 +2836,7 @@ class Game2048 {
     // recordResult 回的是整包 { bucket, blitz, tower, reason }，
     // 攤平之後再交給結算彈窗 —— 整包塞進 bucket 欄位的話，
     // 彈窗讀到的 bucket.plays 會是 undefined（「累積 undefined 局」）。
+    const prevBest = this.bestScoreOfCurrentBucket();
     const result = this.recordResult(reason);
     this.best = this.bestScoreOfCurrentBucket();
     this.refreshHud();
@@ -2835,6 +2851,7 @@ class Game2048 {
     }
     this.showResultModal({
       reason: reason,
+      prevBest: prevBest,
       bucket: result.bucket,
       blitz: result.blitz,
       tower: result.tower
@@ -2844,7 +2861,6 @@ class Game2048 {
   // 達標後續玩：已經寫進戰績的達標紀錄絕不回頭取消 ——
   // 「續玩失敗就不算達標」會讓玩家永遠不敢按續玩，這個按鈕等於白做。
   continueGame() {
-    this.closeModal(this.el ? this.el.resultModal : null);
     this.continued = true;
     this.hideOverlay();
     this.refreshHud();
@@ -3902,27 +3918,72 @@ class Game2048 {
     this.openModal(this.el.helpModal, this.el.helpOkBtn);
   }
 
-  // 達標彈窗：與結算彈窗共用同一個 DOM，差別只在「繼續挑戰」按鈕露不露臉
+  // 「更多」選單開關。focusFirst：用鍵盤打開時把焦點放到第一個項目；
+  // restoreFocus（關閉時）：焦點回到「更多」按鈕
+  setMoreMenu(open, focus) {
+    if (!this.el || !this.el.moreMenu) return;
+    this.el.moreMenu.hidden = !open;
+    _appSetAttr(this.el.moreBtn, 'aria-expanded', open ? 'true' : 'false');
+    if (!focus) return;
+    if (open) {
+      const first = typeof this.el.moreMenu.querySelector === 'function'
+        ? this.el.moreMenu.querySelector('.menu-item') : null;
+      if (first && typeof first.focus === 'function') first.focus();
+    } else if (this.el.moreBtn && typeof this.el.moreBtn.focus === 'function') {
+      this.el.moreBtn.focus();
+    }
+  }
+
+  // 過關卡片裡的「個性」元素：一顆和盤面同款的大磚（跟著目前的皮膚走）
+  celebrateTile(value) {
+    if (typeof document === 'undefined') return null;
+    // 直接沿用盤面的 .tile / .tile-face 結構與 data-level / data-value 配色表，
+    // 卡片上的那顆磚和玩家剛合出來的長得一模一樣；位移與尺寸由 .celebrate-tile 覆蓋
+    const tile = document.createElement('div');
+    tile.className = 'tile celebrate-tile';
+    tile.setAttribute('aria-hidden', 'true');
+    _appSetAttr(tile, 'data-level', String(levelOf(value)));
+    _appSetAttr(tile, 'data-value', String(value));
+    const face = document.createElement('div');
+    face.className = 'tile-face';
+    face.textContent = this.skin === SKINS.EVOLVE ? `${_appGlyphFor(value)}` : String(value);
+    tile.appendChild(face);
+    return tile;
+  }
+
+  // 卡片的主色：沿用 2048 的木色重點色（白字 / 深字都達 4.5:1）
+  celebrateAccent() {
+    return { accent: '#94551f', accentDark: '#e8b77d' };
+  }
+
+  // 達標：合出目標磚的那一刻。紀錄已經寫入，主按鈕是「繼續挑戰」
   showTargetModal(target) {
-    if (!this.el || !this.el.resultModal) return;
+    if (!celebrate) return;
     const best = maxTile(this.grid);
-    _appSetText(this.el.resultEmoji, '🎉');
-    _appSetText(this.el.resultTitleText, `達標！合出了 ${target}`);
-    _appSetText(this.el.resultScore, String(this.score));
-    _appSetText(this.el.resultBest, String(Math.max(this.best, this.score)));
-    _appSetText(this.el.resultMaxtile, String(best));
-
-    const parts = [`${this.sizeConfig().label}`, `共 ${this.moveCount} 步`];
-    if ((this.undosUsed || 0) > 0) parts.push(`本局悔棋 ${this.undosUsed} 次 · 不列入排行榜`);
-    else parts.push('紀錄已寫入，續玩失敗也不會被收回');
-    _appSetText(this.el.resultDetail, parts.join(' · '));
-
-    if (this.el.resultContinueBtn) this.el.resultContinueBtn.hidden = false;
-    this.openModal(this.el.resultModal, this.el.resultContinueBtn || this.el.resultAgainBtn);
+    const parts = [`${this.sizeConfig().label}，共 ${this.moveCount} 步`];
+    if ((this.undosUsed || 0) > 0) parts.push(`本局悔棋 ${this.undosUsed} 次，不列入排行榜`);
+    else parts.push('紀錄已經寫入，繼續挑戰失敗也不會被收回');
+    const colors = this.celebrateAccent();
+    celebrate.show({
+      outcome: 'win',
+      gameName: '2048',
+      title: `合出 ${target}！`,
+      subtitle: parts.join('。') + '。',
+      extra: this.celebrateTile(target),
+      stats: [
+        { label: '分數', value: this.score },
+        { label: '最佳', value: Math.max(this.best, this.score), isBest: this.score > this.best },
+        { label: '最大磚塊', value: best }
+      ],
+      accent: colors.accent,
+      accentDark: colors.accentDark,
+      primary: { label: '繼續挑戰', onClick: () => this.continueGame() },
+      secondary: { label: '再來一局', onClick: () => this.startNewGame() }
+    });
   }
 
   showResultModal(info) {
-    if (!this.el || !this.el.resultModal) return;
+    if (!celebrate) return;
     const data = info || {};
     const bucket = data.bucket || null;
     const blitz = data.blitz || null;
@@ -3933,50 +3994,62 @@ class Game2048 {
     const timeup = data.reason === 'timeup';
     const cleared = data.reason === 'towerclear';
     const outOfSteps = data.reason === 'steps';
+    const bestScore = tower ? this.score : this.bestScoreOfCurrentBucket();
+    const prevBest = typeof data.prevBest === 'number' ? data.prevBest : null;
+    // 第一局沒有舊紀錄可比，不算「刷新」；要真的超過上一次的最高分才用勝利樣式
+    const newBest = !tower && (this.undosUsed || 0) === 0 && prevBest !== null && prevBest > 0
+      && celebrate.isNewRecord(prevBest, this.score);
 
-    let emoji = this.won ? '🏆' : '😿';
-    if (cleared) emoji = '👑';
-    else if (timeup) emoji = '⏱️';
-    else if (outOfSteps) emoji = '🪜';
-    _appSetText(this.el.resultEmoji, emoji);
-
-    let title = this.won ? '這局很精彩！' : '沒有路可以走了';
+    // 勝利樣式：登頂、這局合出過目標磚、或刷新最高分；其他一律是溫和的「這局結束了」
+    const win = cleared || this.won || newBest;
+    let title = '沒有路可以走了';
     if (cleared) title = '登頂！五層全部通關';
-    else if (timeup) title = '時間到！';
+    else if (timeup) title = newBest ? '時間到，刷新最高分！' : '時間到！';
     else if (outOfSteps) title = '步數用完了';
-    _appSetText(this.el.resultTitleText, title);
-
-    _appSetText(this.el.resultScore, String(this.score));
-    // 爬塔沒有最高分紀錄（契約的 tower 桶沒有這個欄位），欄位就顯示本局分數
-    _appSetText(this.el.resultBest, tower ? String(this.score) : String(this.bestScoreOfCurrentBucket()));
-    _appSetText(this.el.resultMaxtile, String(best));
+    else if (this.won) title = '這局很精彩！';
+    else if (newBest) title = '新的最高分！';
 
     const parts = [];
     if (tower) {
       const state = this.towerState();
       const cfg = this.towerFloorConfig();
-      parts.push(cleared ? '🏔️ 爬塔通關' : `🏔️ 爬到 ${cfg ? cfg.name : state.floor + 'F'}`);
+      parts.push(cleared ? '爬塔通關' : `爬到 ${cfg ? cfg.name : state.floor + 'F'}`);
       parts.push(`共 ${this.moveCount} 步`);
-      parts.push(`🪙 ${state.gold} 金幣`);
+      parts.push(`${state.gold} 金幣`);
       if ((this.undosUsed || 0) > 0) parts.push(`本局悔棋 ${this.undosUsed} 次`);
       if (towerStats && towerStats.clears > 0) parts.push(`累積登頂 ${towerStats.clears} 次`);
       else if (towerStats && towerStats.plays > 0) parts.push(`累積 ${towerStats.plays} 局`);
     } else if (this.mode === MODES.BLITZ) {
-      parts.push('⚡ 加時閃電');
+      parts.push('加時閃電');
       parts.push(`共 ${this.moveCount} 步`);
       if (this.bestChainThisGame >= BLITZ_CONFIG.chainThreshold) parts.push(`最高 ${this.bestChainThisGame} 連鎖`);
       if (blitz && blitz.longestSurvivalMs > 0) parts.push(`最久撐了 ${_appFormatMs(blitz.longestSurvivalMs)}`);
     } else {
       parts.push(this.sizeConfig().label);
       parts.push(`共 ${this.moveCount} 步`);
-      if ((this.undosUsed || 0) > 0) parts.push(`本局悔棋 ${this.undosUsed} 次 · 不列入排行榜`);
+      if ((this.undosUsed || 0) > 0) parts.push(`本局悔棋 ${this.undosUsed} 次，不列入排行榜`);
       if (bucket) parts.push(`累積 ${bucket.plays} 局`);
     }
-    _appSetText(this.el.resultDetail, parts.join(' · '));
+    if (!win) parts.push('盤面留著，可以先看看卡在哪裡');
 
-    // 已經結束的局不能再續玩
-    if (this.el.resultContinueBtn) this.el.resultContinueBtn.hidden = true;
-    this.openModal(this.el.resultModal, this.el.resultAgainBtn);
+    const colors = this.celebrateAccent();
+    celebrate.show({
+      outcome: win ? 'win' : 'lose',
+      gameName: '2048',
+      title: title,
+      subtitle: parts.join('，') + '。',
+      extra: win ? this.celebrateTile(best) : null,
+      stats: [
+        { label: '分數', value: this.score, isBest: newBest },
+        // 爬塔沒有最高分紀錄（契約的 tower 桶沒有這個欄位），欄位就顯示本局分數
+        { label: tower ? '本局' : '最佳', value: bestScore },
+        { label: '最大磚塊', value: best }
+      ],
+      accent: colors.accent,
+      accentDark: colors.accentDark,
+      primary: { label: '再來一局', onClick: () => this.startNewGame() },
+      secondary: { label: '看盤面' }
+    });
   }
 
   // ------------------------------------------------------------------------
@@ -4018,12 +4091,10 @@ class Game2048 {
     if (!confetti) return;
     if (this.prefersReducedMotion()) return;
     const canvas = this.el ? this.el.confettiCanvas : null;
+    // BoboConfetti.burst(canvas, options) 的第一個參數是 canvas 元素本身；
+    // 舊寫法傳 { canvas } 物件進去，模組取不到 getContext 就安靜退場，里程碑的彩帶從來沒放出來過。
     try {
-      const options = { canvas };
-      if (typeof confetti.burst === 'function') confetti.burst(options);
-      else if (typeof confetti.fire === 'function') confetti.fire(options);
-      else if (typeof confetti.play === 'function') confetti.play(options);
-      else if (typeof confetti === 'function') confetti(options);
+      if (canvas && typeof confetti.burst === 'function') confetti.burst(canvas);
     } catch (_) {}
   }
 }

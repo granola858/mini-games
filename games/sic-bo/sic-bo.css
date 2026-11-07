@@ -1116,7 +1116,57 @@ html[data-theme="dark"] .gamble-panel > p:first-of-type {
   border: 1px solid var(--felt-line);
   border-radius: var(--radius-md);
   padding: 8px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), var(--shadow-sm);
+  /* quieter：拿掉外陰影，只留一條內側高光，六組注格不再像六張浮起來的卡片 */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* 「更多玩法」：收起時只剩大小與圍骰一組，新手不用面對 50 個格子 */
+.bet-more {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bet-more[hidden] {
+  display: none;
+}
+
+.bet-more-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px dashed var(--felt-line);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.bet-more-toggle:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-primary);
+}
+
+.bet-more-toggle:focus-visible {
+  outline: 3px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.bet-more-toggle__icon {
+  flex: 0 0 auto;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.bet-more-toggle[aria-expanded="true"] .bet-more-toggle__icon {
+  transform: rotate(180deg);
 }
 
 .bet-group-title {
@@ -2206,6 +2256,11 @@ body[data-phase="gamble"] .dock-actions {
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
+  /* 「更多玩法」的箭頭直接翻面，不旋轉 */
+  .bet-more-toggle__icon {
+    transition: none;
+  }
+
   *,
   *::before,
   *::after {

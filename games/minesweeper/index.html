@@ -116,24 +116,28 @@
     <nav class="mode-tabs" role="tablist" aria-label="遊戲模式選擇">
       <!-- 分頁：方向鍵在分頁間移動，Enter／空白鍵切換（切換會開新局，所以不自動啟用） -->
       <button class="mode-tab-btn" data-mode="tactical" role="tab" aria-selected="false" id="tab-tactical" aria-controls="board-container" tabindex="-1" type="button">
-        <span>🧰 戰術特工</span>
+        <span>戰術特工</span>
       </button>
       <button class="mode-tab-btn active" data-mode="classic" role="tab" aria-selected="true" id="tab-classic" aria-controls="board-container" tabindex="0" type="button">
-        <span>⏱️ 純粹經典</span>
+        <span>純粹經典</span>
       </button>
       <button class="mode-tab-btn" data-mode="dungeon" role="tab" aria-selected="false" id="tab-dungeon" aria-controls="board-container" tabindex="-1" type="button">
-        <span>🏰 地宮探險</span>
+        <span>地宮探險</span>
       </button>
     </nav>
 
-    <!-- 4. 難度切換列 (戰術與經典模式專用) -->
-    <div class="difficulty-bar" id="difficulty-bar" role="group" aria-label="難度等級">
-      <button class="diff-btn" data-diff="easy" type="button" aria-pressed="false">簡單 9×9</button>
-      <button class="diff-btn active" data-diff="medium" type="button" aria-pressed="true">標準 16×16</button>
-      <button class="diff-btn" data-diff="hard" type="button" aria-pressed="false">困難 30×16</button>
-      <button class="diff-btn" data-diff="inferno" type="button" aria-pressed="false">地獄（雙重雷）</button>
-      <button class="diff-btn" data-diff="custom" type="button" aria-haspopup="dialog">自訂…</button>
-    </div>
+    <!-- 4. 難度（戰術與經典模式專用）：五顆按鈕收成一個下拉選單（quieter：開局前少四個控制項）。
+         選「自訂…」會打開自訂盤面視窗；取消時選單會退回目前的難度。 -->
+    <label class="difficulty-bar" id="difficulty-bar">
+      <span class="difficulty-label">難度</span>
+      <select class="diff-select" id="diff-select">
+        <option value="easy">簡單 9×9</option>
+        <option value="medium" selected>標準 16×16</option>
+        <option value="hard">困難 30×16</option>
+        <option value="inferno">地獄（雙重雷）</option>
+        <option value="custom">自訂…</option>
+      </select>
+    </label>
 
     <!-- 5. 狀態 HUD 面板 -->
     <section class="hud-panel" aria-label="遊戲即時狀態">
@@ -218,10 +222,11 @@
       <span>連開</span>
     </button>
 
+    <!-- 縮放只在盤面比畫面寬時才出現（JS 依實際寬度切換 body[data-board-fits]） -->
     <div class="zoom-controls">
-      <button class="zoom-btn" id="zoom-in-btn" type="button" title="放大" aria-label="放大棋盤">➕</button>
-      <button class="zoom-btn" id="zoom-out-btn" type="button" title="縮小" aria-label="縮小棋盤">➖</button>
-      <button class="zoom-btn" id="zoom-reset-btn" type="button" title="重設縮放" aria-label="重設棋盤縮放">🔍</button>
+      <button class="zoom-btn" id="zoom-in-btn" type="button" title="放大" aria-label="放大棋盤"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="zoom-btn" id="zoom-out-btn" type="button" title="縮小" aria-label="縮小棋盤"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+      <button class="zoom-btn" id="zoom-reset-btn" type="button" title="重設縮放" aria-label="重設棋盤縮放"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
     </div>
   </nav>
 
@@ -385,6 +390,7 @@
 
   <!-- 共用模組（順序固定，且一律不加 defer / async） -->
   <script src="../../assets/js/bobo-confetti.js"></script>
+  <script src="../../assets/js/bobo-celebrate.js"></script>
   <script src="../../assets/js/bobo-theme.js"></script>
   <script src="../../assets/js/bobo-audio.js"></script>
 

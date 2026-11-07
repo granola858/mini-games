@@ -584,36 +584,34 @@ body {
   box-shadow: 0 2px 10px var(--accent-glow);
 }
 
-/* Difficulty Selector for Tactical / Classic */
+/* Difficulty Selector for Tactical / Classic：五顆按鈕收成一個下拉選單（quieter） */
 .difficulty-bar {
-  /* 窄螢幕自動換行，所有難度一眼看得到，不再藏在看不見捲軸的橫向捲動裡 */
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 2px 4px 10px;
-  max-width: 100%;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
-.diff-btn {
-  min-height: 36px;
-  padding: 6px 14px;
+.diff-select {
+  min-height: 40px;
+  padding: 0 10px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-main);
   border-radius: var(--radius-md);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
   cursor: pointer;
-  white-space: nowrap;
-  transition: var(--transition-fast);
+  accent-color: var(--accent-primary);
 }
 
-.diff-btn.active {
-  background: var(--bg-tertiary);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-  font-weight: 700;
+.diff-select:focus-visible {
+  outline: 3px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 /* ==========================================================================
@@ -1107,6 +1105,11 @@ input:focus-visible {
   background: var(--bg-tertiary);
 }
 
+/* quieter：盤面放得下時不需要縮放鈕 */
+body[data-board-fits="true"] .zoom-controls {
+  display: none;
+}
+
 /* ==========================================================================
    9. Modals & Dialogs (Shop, Custom, Stats, EndGame)
    ========================================================================== */
@@ -1559,7 +1562,7 @@ input:focus-visible {
 [data-skin="classic"] .back-btn,
 [data-skin="classic"] .icon-btn,
 [data-skin="classic"] .skin-toggle-btn,
-[data-skin="classic"] .diff-btn,
+[data-skin="classic"] .diff-select,
 [data-skin="classic"] .restart-btn,
 [data-skin="classic"] .action-mode-btn,
 [data-skin="classic"] .zoom-btn,
@@ -1581,7 +1584,7 @@ input:focus-visible {
 [data-skin="classic"] .back-btn:hover,
 [data-skin="classic"] .icon-btn:hover,
 [data-skin="classic"] .skin-toggle-btn:hover,
-[data-skin="classic"] .diff-btn:hover,
+[data-skin="classic"] .diff-select:hover,
 [data-skin="classic"] .restart-btn:hover,
 [data-skin="classic"] .action-mode-btn:hover,
 [data-skin="classic"] .zoom-btn:hover,
@@ -1598,7 +1601,7 @@ input:focus-visible {
 [data-skin="classic"] .back-btn:active,
 [data-skin="classic"] .icon-btn:active,
 [data-skin="classic"] .skin-toggle-btn:active,
-[data-skin="classic"] .diff-btn:active,
+[data-skin="classic"] .diff-select:active,
 [data-skin="classic"] .restart-btn:active,
 [data-skin="classic"] .action-mode-btn:active,
 [data-skin="classic"] .zoom-btn:active,
@@ -1607,7 +1610,6 @@ input:focus-visible {
 [data-skin="classic"] .shop-buy-btn:active,
 [data-skin="classic"] .item-btn:not(:disabled):active,
 [data-skin="classic"] .mode-tab-btn.active,
-[data-skin="classic"] .diff-btn.active,
 [data-skin="classic"] .action-mode-btn.active,
 [data-skin="classic"] .icon-btn.active,
 [data-skin="classic"] .item-btn.active {
@@ -1619,7 +1621,6 @@ input:focus-visible {
 }
 
 [data-skin="classic"] .mode-tab-btn.active,
-[data-skin="classic"] .diff-btn.active,
 [data-skin="classic"] .action-mode-btn.active,
 [data-skin="classic"] .item-btn.active {
   font-weight: 800;

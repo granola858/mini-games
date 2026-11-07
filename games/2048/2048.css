@@ -209,12 +209,10 @@ body {
   border-radius: var(--radius-md);
   text-decoration: none;
   transition: var(--dur-fast) var(--ease-out);
-  box-shadow: var(--shadow-sm);
 }
 
 .back-btn:hover {
   background: var(--bg-tertiary);
-  transform: translateY(-1px);
 }
 
 .back-btn svg {
@@ -243,7 +241,6 @@ body {
   font-size: 1.05rem;
   line-height: 1;
   transition: var(--dur-fast) var(--ease-out);
-  box-shadow: var(--shadow-sm);
 }
 
 .icon-btn svg {
@@ -264,12 +261,109 @@ body {
   color: var(--accent-primary);
 }
 
-/* 本遊戲專屬鍵（戰績、皮膚）與全站統一鍵（規則・音效・主題）之間的分隔 */
+/* 「更多」選單與全站統一鍵（規則・音效・主題）之間的分隔 */
 .top-actions-divider {
   width: 1px;
   height: 24px;
   margin: 0 2px;
   background: var(--border-color);
+}
+
+/* --- 「更多」選單：戰績、進化皮膚、純圖示 ---
+   不常用的三個開關收在這裡，開局前的畫面只留模式、盤面與分數。 */
+.more-wrap {
+  display: inline-flex;
+}
+
+/* 選單對齊整排圖示鍵的右緣往左展開，窄螢幕上不會超出畫面 */
+.top-actions {
+  position: relative;
+}
+
+.more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 248px;
+  padding: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.more-menu[hidden] {
+  display: none;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.menu-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.menu-text {
+  flex: 1 1 auto;
+}
+
+.menu-icon {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.menu-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* 開關的狀態用一顆小滑桿表示（aria-pressed 才是真正的狀態來源） */
+.menu-check {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 20px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: var(--border-color);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.menu-check::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.menu-item[aria-pressed="true"] .menu-check {
+  background: var(--accent-primary);
+}
+
+.menu-item[aria-pressed="true"] .menu-check::after {
+  transform: translateX(14px);
 }
 
 /* 只給螢幕閱讀器的文字 */
@@ -304,6 +398,8 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] {
 .icon-btn:focus-visible,
 .mode-tab-btn:focus-visible,
 .size-btn:focus-visible,
+.size-select:focus-visible,
+.menu-item:focus-visible,
 .action-btn:focus-visible,
 .btn-primary:focus-visible,
 .btn-secondary:focus-visible,
@@ -338,17 +434,24 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] {
   white-space: nowrap;
 }
 
-/* --- 模式分段控制 --- */
+/* --- 開局設定列：模式分頁與盤面大小同一列 --- */
+.setup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 440px;
+  margin-bottom: 14px;
+}
+
+/* --- 模式分段控制（quieter：不再加陰影，選中狀態改用淡底 + 主色字） --- */
 .mode-tabs {
   display: flex;
-  background: var(--bg-secondary);
-  padding: 4px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 10px;
-  width: 100%;
-  max-width: 420px;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--bg-tertiary);
+  padding: 3px;
+  border-radius: var(--radius-md);
 }
 
 .mode-tab-btn {
@@ -363,20 +466,50 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] {
   color: var(--text-muted);
   font-family: var(--font-sans);
   font-size: 0.88rem;
-  font-weight: 700;
-  border-radius: var(--radius-md);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: var(--dur-fast) var(--ease-out);
   white-space: nowrap;
 }
 
 .mode-tab-btn.active {
-  background: var(--accent-primary);
-  color: var(--accent-on);
-  box-shadow: 0 2px 10px var(--accent-glow);
+  background: var(--bg-secondary);
+  color: var(--accent-primary);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(74, 47, 25, 0.14);
 }
 
-/* --- 盤面大小列（戰績彈窗的 #stats-size-tabs 共用同一套） --- */
+/* --- 盤面大小：主畫面是一個下拉選單（#size-bar 是包著它的 label） --- */
+#size-bar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.size-label {
+  white-space: nowrap;
+}
+
+.size-select {
+  min-height: 40px;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  accent-color: var(--accent-primary);
+}
+
+/* --- 戰績彈窗的盤面分頁 #stats-size-tabs（主畫面的 #size-bar 已改成下拉選單） --- */
 .size-bar {
   display: flex;
   gap: 6px;
@@ -447,16 +580,11 @@ body[data-mode="blitz"] #tower-bar {
    ========================================================================== */
 
 .hud-panel {
+  /* quieter：分數列不再是一張玻璃卡片，三欄數字直接放在頁面上，用細線分隔 */
   width: 100%;
   max-width: 440px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 10px 12px;
+  padding: 0;
   margin-bottom: 12px;
-  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -478,10 +606,11 @@ body[data-mode="blitz"] #tower-bar {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 6px 8px;
-  /* 外層 HUD 已經是卡片，這裡只用淡色塊分隔，不再疊一層框線卡片 */
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
+  padding: 2px 8px;
+}
+
+.score-box + .score-box {
+  border-left: 1px solid var(--border-color);
 }
 
 .score-label {
@@ -1269,10 +1398,10 @@ body[data-glyph-only] .tile-num {
   background: var(--bg-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1.5px solid var(--border-color);
+  border: 1px solid var(--border-color);
   padding: 6px 12px;
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-sm);
   z-index: 50;
   max-width: calc(100% - 24px);
 }
@@ -1525,20 +1654,21 @@ body[data-glyph-only] .tile-num {
   display: none;
 }
 
-/* --- 結算彈窗 --- */
-.result-emoji {
-  font-size: 1.7rem;
-  line-height: 1;
+/* --- 過關卡片（BoboCelebrate）上的那顆大磚：沿用 .tile 的配色表，覆蓋掉盤面的定位 --- */
+.celebrate-tile {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto;
+  transform: none;
+  transition: none;
 }
 
-.result-detail {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.88rem;
-  line-height: 1.6;
+.celebrate-tile .tile-face {
+  font-size: 1.75rem;
 }
 
-/* --- 戰績格線（結算與戰績彈窗共用） --- */
+/* --- 戰績格線（戰績彈窗） --- */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1810,10 +1940,6 @@ body[data-glyph-only] .tile-num {
     gap: 6px;
   }
 
-  .hud-panel {
-    padding: 8px 10px;
-  }
-
   .score-value {
     font-size: 1.05rem;
   }
@@ -1833,11 +1959,19 @@ body[data-glyph-only] .tile-num {
     padding: 10px 10px 96px;
   }
 
-  /* 三個模式分頁擠在 400px 內：左右 padding 先讓，字級維持可讀 */
+  /* 三個模式分頁與盤面選單擠在 400px 內：左右 padding 先讓，字級維持可讀 */
   .mode-tab-btn {
     padding: 8px 5px;
     font-size: 0.82rem;
     gap: 4px;
+  }
+
+  .setup-row {
+    gap: 6px;
+  }
+
+  .size-label {
+    display: none;
   }
 
   /* 爬塔狀態列：膠囊縮一號，四顆仍排得下一行；真的塞不下才靠 flex-wrap 換行 */
@@ -1966,7 +2100,7 @@ body[data-glyph-only] .tile-num {
     padding: 2px 6px;
   }
 
-  /* 三個分頁在 360px 以下必須再讓一次，否則「🎯 經典無盡」會被切字 */
+  /* 三個分頁在 360px 以下必須再讓一次，否則「經典無盡」會被切字 */
   .mode-tab-btn {
     padding: 8px 3px;
     font-size: 0.74rem;
@@ -2044,6 +2178,12 @@ body[data-glyph-only] .tile-num {
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
+  /* 「更多」選單的開關滑桿：直接換位置，不滑動 */
+  .menu-check,
+  .menu-check::after {
+    transition: none;
+  }
+
   /* 狀態轉換（hover、按下、磚塊位移）瞬間到位 */
   *,
   *::before,

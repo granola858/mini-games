@@ -1460,11 +1460,28 @@ test('index.html 具備防閃爍 snippet、四支共用模組、Stats 記錄與 
     'dice-tray', 'result-msg', 'result-sub', 'streak-meter', 'streak-fill', 'streak-label',
     'balance', 'total-bet', 'bet-table', 'chip-rail', 'roll-btn', 'rebet-btn', 'clear-btn',
     'gamble-panel', 'gamble-die', 'gamble-amount', 'gamble-small', 'gamble-big', 'gamble-take',
-    'history-list', 'history-empty', 'stats-modal', 'help-modal', 'broke-modal',
-    'stats-body', 'broke-body', 'restart-btn'
+    'history-list', 'history-empty', 'stats-modal', 'help-modal',
+    'stats-body', 'bet-more-toggle', 'bet-more'
   ].forEach(id => {
     assert.ok(html.includes('id="' + id + '"'), `缺少 id="${id}" 的元素`);
   });
+
+  // 分數用完的結算改用全站共用的過關卡片：必須載入 bobo-celebrate.js，
+  // 而且 sic-bo.js 的破產流程要真的呼叫它（不能只剩 toast）
+  assert.ok(html.includes('src="' + SHARED_PREFIX + 'bobo-celebrate.js"'),
+    'index.html 必須以 ../../assets/js/bobo-celebrate.js 載入共用過關卡片');
+  assert.match(js, /openBrokeModal\(\)\s*\{[\s\S]*?_sicboCelebrate\.show\(\{[\s\S]*?outcome:\s*'lose'/,
+    '破產時必須以 BoboCelebrate 顯示 outcome: lose 的結果卡片');
+  assert.match(js, /primary:\s*\{\s*label:\s*'重新開始[^']*'[\s\S]*?onClick:\s*\(\)\s*=>\s*this\.restart\(\)/,
+    '破產卡片的主按鈕必須是「重新開始」並呼叫 restart()');
+
+  // 下注桌的漸進揭露：除了大小與圍骰，其餘注格收在 #bet-more 裡，但 50 格一格都不能少
+  const moreStart = html.indexOf('id="bet-more"');
+  const basic = html.slice(html.indexOf('id="bet-table"'), html.indexOf('id="bet-more-toggle"'));
+  ['bs-small', 'bs-big', 'triple-any'].forEach(id => {
+    assert.ok(basic.includes('data-bet="' + id + '"'), `新手區必須直接看得到 ${id}`);
+  });
+  assert.ok(moreStart !== -1 && html.indexOf('data-bet="sum-4"') > moreStart, '點數等進階注格必須收在 #bet-more 裡');
 });
 
 test('sic-bo.css 具備深色覆寫、reduced-motion、sticky 版面與 dvh，且寬度不得用 vw', () => {
