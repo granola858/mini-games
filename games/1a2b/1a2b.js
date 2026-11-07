@@ -56,10 +56,6 @@
         }
         if (focusEl) focusEl.focus();
     }
-    function closeDialog(dialog) {
-        if (typeof dialog.close === 'function' && dialog.open) dialog.close();
-        else dialog.removeAttribute('open');
-    }
     document.querySelectorAll('dialog').forEach(dialog => {
         dialog.addEventListener('close', () => {
             const opener = dialog._opener;
@@ -88,10 +84,6 @@
         openDialog(rulesDialog, rulesDialog.querySelector('button'));
     });
 
-    const confettiCanvas = document.getElementById('confetti-canvas');
-    const celebrate = () => {
-        if (typeof BoboConfetti !== 'undefined') BoboConfetti.burst(confettiCanvas);
-    };
 
     // ======================================================================
     // 遊戲狀態
@@ -122,8 +114,9 @@
     const lastGuessEl = document.getElementById('last-guess');
     const lastAbEl = document.getElementById('last-ab');
     const lastExplainEl = document.getElementById('last-explain');
-    const resultDialog = document.getElementById('result-dialog');
-    resultDialog._fallback = restartBtn;
+    const vaultEl = document.getElementById('vault');
+    const vaultStateEl = document.getElementById('vault-state');
+    const lampEls = Array.from(document.querySelectorAll('#lamps .lamp'));
 
     function setStatus(text, tone) {
         statusEl.textContent = text;
@@ -232,13 +225,27 @@
         historyEmpty.hidden = historyData.length > 0;
     }
 
-    function renderLastResult() {
+    // 保險箱：四顆指示燈依上一次結果亮起（A 實心、B 空心環、沒中的保持熄滅）
+    function renderVault() {
         const last = historyData[historyData.length - 1];
+        const a = last ? Number(last.result[0]) : 0;
+        const b = last ? Number(last.result[2]) : 0;
+        lampEls.forEach((lamp, i) => {
+            lamp.classList.toggle('lamp-a', i < a);
+            lamp.classList.toggle('lamp-b', i >= a && i < a + b);
+        });
+        const opened = isGameOver && !gaveUp;
+        vaultEl.classList.toggle('is-open', opened);
+        vaultEl.classList.toggle('is-given-up', isGameOver && gaveUp);
+        vaultStateEl.textContent = opened ? '保險箱打開了！' : (isGameOver ? `沒打開，密碼是 ${answer}` : '保險箱上鎖中');
+
         if (!last) {
-            lastResult.hidden = true;
+            lastGuessEl.textContent = '';
+            lastAbEl.textContent = '';
+            lastExplainEl.textContent = '還沒試過密碼，先輸入 4 個數字。';
+            lastResult.classList.remove('is-win');
             return;
         }
-        lastResult.hidden = false;
         lastGuessEl.textContent = last.guess;
         lastAbEl.textContent = last.result;
         lastExplainEl.textContent = explain(last.result);
@@ -258,7 +265,7 @@
     function renderAll() {
         renderStats();
         renderHistory();
-        renderLastResult();
+        renderVault();
         setInputsEnabled(!isGameOver);
     }
 
@@ -277,14 +284,49 @@
         if (focus) inputs[0].focus();
     }
 
-    function showResult({ won }) {
-        resultDialog.dataset.tone = won ? 'win' : 'lose';
-        document.getElementById('result-emoji').textContent = won ? '🎉' : '🤔';
-        document.getElementById('result-title').textContent = won ? '猜中了！' : '下次一定行';
-        document.getElementById('result-answer').textContent = answer;
-        document.getElementById('result-count').textContent = count;
-        document.getElementById('result-best').textContent = stats.best ?? '—';
-        openDialog(resultDialog, document.getElementById('result-again'));
+    // 過關／放棄都用全站共用的結果卡片；個性元素是打開的保險箱裡的那組密碼
+    function showResult({ won, isRecord }) {
+        const reveal = document.createElement('div');
+        reveal.className = 'vault-reveal';
+        reveal.setAttribute('aria-label', `密碼 ${answer.split('').join(' ')}`);
+        reveal.setAttribute('role', 'img');
+        answer.split('').forEach(d => {
+            const chip = document.createElement('span');
+            chip.className = 'vault-reveal-digit';
+            chip.textContent = d;
+            reveal.appendChild(chip);
+        });
+        const common = {
+            gameName: '1A2B 猜數字',
+            extra: reveal,
+            accent: '#c2255c',
+            accentDark: '#f783ac',
+            primary: { label: '再來一局', onClick: () => newGame() },
+            secondary: { label: '看紀錄', onClick: () => restartBtn.focus() },
+            returnFocus: restartBtn
+        };
+        if (typeof BoboCelebrate === 'undefined') return;
+        if (won) {
+            BoboCelebrate.show({
+                ...common,
+                outcome: 'win',
+                title: '保險箱打開了！',
+                subtitle: count === 1 ? '第一次就試中密碼，運氣也是實力！' : `試了 ${count} 組密碼就破解成功。`,
+                stats: [
+                    { label: '這局次數', value: `${count} 次`, isBest: isRecord },
+                    { label: '最少次數', value: stats.best === null ? '—' : `${stats.best} 次` },
+                    { label: '過關次數', value: `${stats.wins} 次` }
+                ]
+            });
+        } else {
+            BoboCelebrate.show({
+                ...common,
+                outcome: 'lose',
+                title: '這次沒打開',
+                subtitle: '上面就是這次的密碼。換一組新密碼，再挑戰一次吧！',
+                stats: [{ label: '這局試了', value: `${count} 次` }]
+            });
+        }
     }
 
     function handleGuess() {
@@ -315,10 +357,9 @@
             saveStats();
             saveGameState();
             renderAll();
-            setStatus(`恭喜！你用了 ${count} 次猜中答案 ${answer}。`, 'success');
-            document.getElementById('result-record').hidden = !isRecord;
-            celebrate();
-            showResult({ won: true });
+            setStatus(`保險箱打開了！你用了 ${count} 次猜中密碼 ${answer}。`, 'success');
+            restartBtn.focus();
+            showResult({ won: true, isRecord });
             return;
         }
 
@@ -378,9 +419,9 @@
         saveStats();
         saveGameState();
         renderAll();
-        setStatus(`答案是 ${answer}。再來一局吧！`);
-        document.getElementById('result-record').hidden = true;
-        showResult({ won: false });
+        setStatus(`密碼是 ${answer}。再來一局吧！`);
+        restartBtn.focus();
+        showResult({ won: false, isRecord: false });
     });
 
     restartBtn.addEventListener('click', async () => {
@@ -389,17 +430,6 @@
             if (!ok) return;
         }
         newGame();
-    });
-
-    document.getElementById('result-again').addEventListener('click', () => {
-        resultDialog._skipRestore = true;
-        closeDialog(resultDialog);
-        newGame();
-    });
-    document.getElementById('result-close').addEventListener('click', () => {
-        resultDialog._skipRestore = true;
-        closeDialog(resultDialog);
-        restartBtn.focus();
     });
 
     // --- 啟動 ---

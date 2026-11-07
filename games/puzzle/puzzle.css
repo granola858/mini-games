@@ -253,42 +253,108 @@ h1 {
     justify-content: center;
 }
 
+/* 骰子：方形面、兩角的點、微微歪著放；開頭骰用焦橘、題目骰用深青綠 */
+.dice-row {
+    align-items: center;
+    gap: 10px;
+}
+
 .card {
-    flex: 1;
+    position: relative;
+    flex: 0 1 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 180px;
-    padding: 22px 16px;
-    border: 1px solid var(--border);
-    border-radius: 16px;
+    justify-content: space-between;
+    width: min(38vw, 190px);
+    aspect-ratio: 1;
+    padding: 18px 12px 22px;
+    border: 3px solid var(--die-ink);
+    border-radius: 28px;
     background: var(--card-bg);
     box-shadow: var(--shadow);
-    overflow: hidden;
-    transition: flex-basis 0.4s var(--ease-out), opacity 0.3s;
+    rotate: var(--tilt);
 }
 
-/* 雙注音模式：只留開頭卡片 */
+.symbol-card {
+    --die-ink: var(--primary);
+    --tilt: -3deg;
+}
+
+.category-card {
+    --die-ink: var(--secondary);
+    --tilt: 3deg;
+}
+
+/* 雙注音：兩顆骰子都是音，同一個顏色 */
 .double-mode-active .category-card {
-    display: none;
+    --die-ink: var(--primary);
 }
 
-.double-mode-active .symbol-card {
-    border-color: var(--secondary);
+.die::before,
+.die::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--die-ink);
+}
+
+.die::before {
+    top: 12px;
+    left: 12px;
+}
+
+.die::after {
+    right: 12px;
+    bottom: 12px;
+}
+
+.dice-plus {
+    flex: none;
+    color: var(--muted);
+    font-size: 2rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.dice-caption {
+    margin: -4px 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* 擲骰：兩顆骰子各翻滾一下再落回原本的角度 */
+.is-rolling .die {
+    animation: tumble 0.65s var(--ease-out);
+}
+
+.is-rolling .category-card {
+    animation-delay: 0.06s;
+}
+
+@keyframes tumble {
+    0% { rotate: var(--tilt); translate: 0 0; }
+    30% { rotate: calc(var(--tilt) - 16deg); translate: 0 -10px; }
+    65% { rotate: calc(var(--tilt) + 10deg); translate: 0 0; }
+    100% { rotate: var(--tilt); translate: 0 0; }
 }
 
 .card h2 {
-    margin: 0 0 18px;
+    margin: 0;
     color: var(--muted);
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
     white-space: nowrap;
 }
 
 .result-text {
-    margin: 0;
+    margin: auto 0;
     color: var(--text);
-    font-size: 3.5rem;
+    font-size: var(--result-size, 3.5rem);
     font-weight: 800;
     line-height: 1.2;
     text-align: center;
@@ -300,12 +366,18 @@ h1 {
     font-size: 2rem;
 }
 
+/* 雙注音：第二顆骰子也是一個音，字級跟第一顆一致 */
+.double-mode-active .result-category {
+    color: var(--text);
+    font-size: var(--result-size, 3.5rem);
+}
+
 .result-category.long {
     font-size: 1.45rem;
 }
 
 .result-sub {
-    margin: 6px 0 0;
+    margin: -4px 0 0;
     color: var(--muted);
     font-size: 0.95rem;
 }
@@ -334,17 +406,6 @@ h1 {
 
 .main-btn[aria-disabled="true"] {
     cursor: progress;
-}
-
-/* 出題時左右晃一下 */
-@keyframes shake {
-    0%, 100% { rotate: 0deg; }
-    20%, 60% { rotate: -3deg; }
-    40%, 80% { rotate: 3deg; }
-}
-
-.btn-animating {
-    animation: shake 0.4s ease-in-out;
 }
 
 /* ---------- 參考答案 ---------- */
@@ -483,13 +544,16 @@ button:focus-visible,
     }
 
     .card {
-        min-height: 140px;
-        padding: 16px 10px;
-        border-radius: 12px;
+        padding: 14px 8px 18px;
+        border-radius: 22px;
     }
 
-    .result-text {
-        font-size: 3rem;
+    .dice-plus {
+        font-size: 1.5rem;
+    }
+
+    .game-container {
+        --result-size: 3rem;
     }
 }
 
@@ -515,16 +579,23 @@ button:focus-visible,
     }
 
     .card {
-        min-height: 96px;
-        padding: 10px 8px;
+        width: min(34vh, 150px);
+        padding: 8px 8px 12px;
+        border-radius: 20px;
+    }
+
+    .die::before,
+    .die::after {
+        width: 8px;
+        height: 8px;
     }
 
     .card h2 {
         margin-bottom: 6px;
     }
 
-    .result-text {
-        font-size: 2.2rem;
+    .game-container {
+        --result-size: 2.2rem;
     }
 
     .result-category {
@@ -534,7 +605,7 @@ button:focus-visible,
 
 /* 減少動態效果：不晃動、不滑動，狀態改變直接到位 */
 @media (prefers-reduced-motion: reduce) {
-    .btn-animating,
+    .is-rolling .die,
     .hint-section {
         animation: none;
     }

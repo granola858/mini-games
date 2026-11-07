@@ -26,8 +26,6 @@
 </head>
 
 <body>
-    <canvas class="confetti-canvas" id="confetti-canvas" aria-hidden="true"></canvas>
-
     <div class="page">
         <header class="top-bar">
             <a href="../../index.html" class="back-btn">
@@ -72,28 +70,50 @@
                 <li class="stat"><span class="stat-label">過關次數</span><span class="stat-value" id="win-count">0</span></li>
             </ul>
 
-            <section class="last-result" id="last-result" hidden aria-label="上一次的結果">
-                <span class="last-guess" id="last-guess"></span>
-                <span class="last-ab" id="last-ab"></span>
-                <span class="last-explain" id="last-explain"></span>
-            </section>
+            <!-- 保險箱：四顆指示燈顯示上一次的 A／B，四個轉盤窗輸入密碼，猜中就開箱 -->
+            <section class="vault" id="vault" aria-labelledby="vault-state">
+                <div class="vault-head">
+                    <svg class="vault-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="4" width="18" height="16" rx="2.5" />
+                        <path class="vault-door" d="M7 8h7v8H7z" />
+                        <circle class="vault-knob" cx="10.5" cy="12" r="1.6" />
+                        <path d="M17 9v6M6 20v1.5M18 20v1.5" />
+                    </svg>
+                    <span class="vault-state" id="vault-state">保險箱上鎖中</span>
+                </div>
 
-            <form class="guess-form" id="guess-form" novalidate>
-                <fieldset class="digit-group" id="digit-group">
-                    <legend class="segmented-label">你的猜測（4 個不重複的數字）</legend>
-                    <div class="digits">
-                        <input class="digit-input" type="text" inputmode="numeric" maxlength="1" autocomplete="off"
-                            aria-label="第 1 位數字">
-                        <input class="digit-input" type="text" inputmode="numeric" maxlength="1" autocomplete="off"
-                            aria-label="第 2 位數字">
-                        <input class="digit-input" type="text" inputmode="numeric" maxlength="1" autocomplete="off"
-                            aria-label="第 3 位數字">
-                        <input class="digit-input" type="text" inputmode="numeric" maxlength="1" autocomplete="off"
-                            aria-label="第 4 位數字">
-                    </div>
-                </fieldset>
-                <button class="btn btn-primary submit-btn" id="submit-btn" type="submit">確認猜測</button>
-            </form>
+                <div class="lamps" id="lamps" aria-hidden="true">
+                    <span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span>
+                </div>
+                <p class="lamp-legend" aria-hidden="true">
+                    <span><span class="lamp lamp-a lamp-mini"></span>A 位置數字都對</span>
+                    <span><span class="lamp lamp-b lamp-mini"></span>B 數字對位置錯</span>
+                </p>
+
+                <div class="last-result" id="last-result" aria-label="上一次的結果">
+                    <span class="last-guess" id="last-guess"></span>
+                    <span class="last-ab" id="last-ab"></span>
+                    <span class="last-explain" id="last-explain">還沒試過密碼，先輸入 4 個數字。</span>
+                </div>
+
+                <form class="guess-form" id="guess-form" novalidate>
+                    <fieldset class="digit-group" id="digit-group">
+                        <legend class="segmented-label">輸入密碼（4 個不重複的數字）</legend>
+                        <div class="digits">
+                            <span class="dial"><input class="digit-input" type="text" inputmode="numeric" maxlength="1"
+                                    autocomplete="off" aria-label="第 1 位數字"></span>
+                            <span class="dial"><input class="digit-input" type="text" inputmode="numeric" maxlength="1"
+                                    autocomplete="off" aria-label="第 2 位數字"></span>
+                            <span class="dial"><input class="digit-input" type="text" inputmode="numeric" maxlength="1"
+                                    autocomplete="off" aria-label="第 3 位數字"></span>
+                            <span class="dial"><input class="digit-input" type="text" inputmode="numeric" maxlength="1"
+                                    autocomplete="off" aria-label="第 4 位數字"></span>
+                        </div>
+                    </fieldset>
+                    <button class="btn btn-primary submit-btn" id="submit-btn" type="submit">試這組密碼</button>
+                </form>
+            </section>
 
             <p class="status" id="status" role="status" aria-live="polite"></p>
 
@@ -132,21 +152,6 @@
         </form>
     </dialog>
 
-    <dialog class="sheet result-sheet" id="result-dialog" aria-labelledby="result-title">
-        <p class="result-emoji" id="result-emoji" aria-hidden="true">🎉</p>
-        <h2 class="result-title" id="result-title">猜中了！</h2>
-        <p class="result-answer">答案是 <strong id="result-answer">0000</strong></p>
-        <dl class="result-stats">
-            <div><dt>這局次數</dt><dd id="result-count">0</dd></div>
-            <div><dt>最少次數</dt><dd id="result-best">—</dd></div>
-        </dl>
-        <p class="new-record" id="result-record" hidden>新紀錄！</p>
-        <div class="sheet-actions">
-            <button class="btn" id="result-close" type="button">看紀錄</button>
-            <button class="btn btn-primary" id="result-again" type="button">再來一局</button>
-        </div>
-    </dialog>
-
     <dialog class="sheet" id="confirm-dialog" aria-labelledby="confirm-title">
         <h2 id="confirm-title">確定嗎？</h2>
         <p id="confirm-text"></p>
@@ -158,6 +163,7 @@
 
     <script src="../../assets/js/bobo-theme.js"></script>
     <script src="../../assets/js/bobo-confetti.js"></script>
+    <script src="../../assets/js/bobo-celebrate.js"></script>
     <script src="../../assets/js/stats.js"></script>
     <script src="1a2b.js"></script>
     <script>

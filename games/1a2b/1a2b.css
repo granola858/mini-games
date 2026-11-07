@@ -1,6 +1,7 @@
 /* ==========================================================================
    波波小遊戲：遊戲頁共用外殼（頂端列、標題、狀態列、對話框、主題 token）
-   1a2b / lights-out / color-text / math 四款逐字共用這一段，改動請四份同步。
+   1a2b / lights-out / color-text / math 四款共用這一段，改動請四份同步。
+   （過關結果改用全站共用的 BoboCelebrate 卡片，這份已拿掉舊的結果對話框與彩帶畫布樣式。）
    各遊戲只在檔案後段覆寫 --accent 系列變數與自己的盤面樣式。
    ========================================================================== */
 :root {
@@ -380,64 +381,6 @@ html[data-theme="dark"] .icon-moon {
   flex: 1 1 0;
 }
 
-.sheet .result-emoji {
-  margin: 0 0 4px;
-  font-size: 2.6rem;
-  line-height: 1;
-  text-align: center;
-}
-
-.result-title {
-  text-align: center;
-}
-
-.result-sheet[data-tone="lose"] .result-title {
-  color: var(--muted);
-}
-
-.result-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 12px 0 0;
-}
-
-.result-stats div {
-  padding: 10px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  text-align: center;
-}
-
-.result-stats dt {
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.result-stats dd {
-  margin: 0;
-  font-size: 1.3rem;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-}
-
-.sheet .new-record {
-  margin: 8px 0 0;
-  color: var(--success-ink);
-  font-weight: 800;
-  text-align: center;
-}
-
-.confetti-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
 .visually-hidden {
   position: absolute !important;
   width: 1px;
@@ -502,6 +445,108 @@ html[data-theme="dark"] {
   --ab-ink: #b197fc;
 }
 
+/* --- 保險箱：指示燈、上一次結果、轉盤窗與送出鈕收在同一個面板 --- */
+.vault {
+  margin: 0 0 12px;
+  padding: 14px 16px 16px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s var(--ease-out);
+}
+
+.vault.is-open {
+  border-color: var(--success-ink);
+}
+
+.vault-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.vault.is-open .vault-head {
+  color: var(--success-ink);
+}
+
+.vault-icon {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  overflow: visible;
+}
+
+/* 門板：開箱時往左轉開（減少動態效果時直接停在打開的位置） */
+.vault-door,
+.vault-knob {
+  transform-box: fill-box;
+  transform-origin: left center;
+  transition: transform 0.35s var(--ease-out);
+}
+
+.vault.is-open .vault-door,
+.vault.is-open .vault-knob {
+  transform: scaleX(0.35);
+}
+
+/* 指示燈：A 實心、B 空心環、沒中的熄滅；形狀不同，不只靠顏色辨識 */
+.lamps {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin: 12px 0 6px;
+}
+
+.lamp {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border: 2px dashed var(--line-strong);
+  border-radius: 50%;
+  background: transparent;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.lamp.lamp-a {
+  border: 2px solid var(--success-ink);
+  background: var(--success-ink);
+}
+
+.lamp.lamp-b {
+  border: 5px solid var(--ab-ink);
+  background: transparent;
+}
+
+.lamp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.lamp-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lamp.lamp-mini {
+  width: 12px;
+  height: 12px;
+}
+
+.lamp.lamp-mini.lamp-b {
+  border-width: 3px;
+}
+
 /* 上一次的結果：大字顯示，附白話解釋 */
 .last-result {
   display: grid;
@@ -510,12 +555,11 @@ html[data-theme="dark"] {
     "guess ab"
     "explain explain";
   align-items: center;
-  gap: 4px 12px;
-  margin: 0 0 16px;
-  padding: 12px 16px;
-  border: 1px solid var(--line);
+  gap: 2px 12px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-2);
 }
 
 .last-guess {
@@ -536,6 +580,11 @@ html[data-theme="dark"] {
   line-height: 1;
 }
 
+.last-ab:empty,
+.last-guess:empty {
+  display: none;
+}
+
 .last-explain {
   grid-area: explain;
   color: var(--muted);
@@ -544,6 +593,27 @@ html[data-theme="dark"] {
 
 .last-result.is-win .last-ab {
   color: var(--success-ink);
+}
+
+/* 結果卡片裡的密碼（BoboCelebrate 的 extra） */
+.vault-reveal {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.vault-reveal-digit {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 54px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 1.6rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
 }
 
 /* 猜測輸入 */
@@ -565,13 +635,45 @@ html[data-theme="dark"] {
   gap: 10px;
 }
 
+/* 轉盤窗：上下各一道刻痕，和輸入框一起像保險箱的密碼轉盤 */
+.dial {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.dial::before,
+.dial::after {
+  content: "";
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line-strong);
+  pointer-events: none;
+}
+
+.dial::before {
+  top: 7px;
+}
+
+.dial::after {
+  bottom: 7px;
+}
+
+.dial:focus-within::before,
+.dial:focus-within::after {
+  background: var(--accent);
+}
+
 .digit-input {
   width: 100%;
   min-width: 0;
-  height: 68px;
+  height: 72px;
   border: 2px solid var(--line-strong);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--ink);
   font-size: 2rem;
   font-weight: 900;
@@ -693,18 +795,6 @@ html[data-theme="dark"] {
   font-size: 0.9rem;
 }
 
-.sheet .result-answer {
-  margin: 0;
-  color: var(--muted);
-  text-align: center;
-}
-
-.result-answer strong {
-  color: var(--ink);
-  font-size: 1.2rem;
-  letter-spacing: 0.15em;
-}
-
 @media (max-width: 360px) {
   .digit-input {
     height: 58px;
@@ -746,16 +836,49 @@ html[data-theme="dark"] {
     padding: 4px;
   }
 
+  .lamp-legend,
   .last-result {
     display: none;
+  }
+
+  .vault {
+    padding: 10px 12px 12px;
+  }
+
+  .lamps {
+    margin: 6px 0 8px;
   }
 
   .digit-input {
     height: 52px;
   }
 
+  /* 結果卡片在橫放手機上要塞進 390px 高，密碼字塊縮小 */
+  .vault-reveal-digit {
+    width: 36px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+
+  .dial::before {
+    top: 5px;
+  }
+
+  .dial::after {
+    bottom: 5px;
+  }
+
   .history {
     grid-column: 2;
     grid-row: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault,
+  .vault-door,
+  .vault-knob,
+  .lamp {
+    transition: none;
   }
 }

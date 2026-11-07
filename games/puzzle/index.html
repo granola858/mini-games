@@ -60,7 +60,7 @@
 
         <main class="container">
             <h1>聯想遊戲</h1>
-            <p class="goal">按「出題」抽一個開頭和題目，大家輪流說出符合的詞，接不下去的人就輸了。</p>
+            <p class="goal">按「擲骰出題」擲出一個開頭和題目，大家輪流說出符合的詞，接不下去的人就輸了。</p>
 
             <div class="toggle-container" role="group" aria-label="出題語言">
                 <button id="btn-zh" class="mode-btn" type="button" data-lang="zh" aria-pressed="true">注音</button>
@@ -75,19 +75,22 @@
             </label>
 
             <div class="game-container" id="gameContainer">
-                <div class="card-row">
-                    <section class="card symbol-card" aria-labelledby="symbolTitle">
+                <!-- 兩顆骰子：開頭 ＋ 題目（雙注音時是兩個音），讀起來就是一道題 -->
+                <div class="card-row dice-row">
+                    <section class="card die symbol-card" aria-labelledby="symbolTitle">
                         <h2 id="symbolTitle">開頭是……</h2>
                         <p id="symbolDisplay" class="result-text">-</p>
                     </section>
-                    <section class="card category-card" aria-labelledby="categoryTitle">
+                    <span class="dice-plus" aria-hidden="true">＋</span>
+                    <section class="card die category-card" aria-labelledby="categoryTitle">
                         <h2 id="categoryTitle">題目是……</h2>
                         <p id="categoryDisplay" class="result-text result-category">-</p>
                         <p id="categorySub" class="result-sub" hidden></p>
                     </section>
                 </div>
+                <p class="dice-caption" id="diceCaption" hidden>用這兩個音造一個詞，例：ㄉ＋ㄕ → 電視</p>
 
-                <button id="rollBtn" class="main-btn" type="button">按我出題</button>
+                <button id="rollBtn" class="main-btn" type="button">擲骰出題</button>
 
                 <!-- 有題目才顯示；用 hidden 而不是透明，避免 Tab 停在看不見的按鈕上 -->
                 <div class="hint-section" id="hintSection" hidden>
@@ -111,7 +114,7 @@
     <dialog class="dialog rules" id="rules-dialog" aria-labelledby="rules-title">
         <h2 id="rules-title">怎麼玩</h2>
         <h3>目標</h3>
-        <p>按「按我出題」會抽出一個<strong>開頭</strong>（注音或英文字母）和一個<strong>題目</strong>，例如「ㄅ＋動物」。大家輪流說出符合的詞（例：斑馬、豹），說過的不能重複，接不下去的人就輸了。</p>
+        <p>按「擲骰出題」會擲出一個<strong>開頭</strong>（注音或英文字母）和一個<strong>題目</strong>，例如「ㄅ＋動物」。大家輪流說出符合的詞（例：斑馬、豹），說過的不能重複，接不下去的人就輸了。</p>
         <h3>模式</h3>
         <ul>
             <li>注音／English：選開頭用注音符號還是英文字母，English 模式的題目也會是英文。</li>

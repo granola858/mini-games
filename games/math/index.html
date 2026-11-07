@@ -26,8 +26,6 @@
 </head>
 
 <body>
-    <canvas class="confetti-canvas" id="confetti-canvas" aria-hidden="true"></canvas>
-
     <div class="page">
         <header class="top-bar">
             <a href="../../index.html" class="back-btn">
@@ -73,13 +71,24 @@
                 <li class="stat"><span class="stat-label">答對題數</span><span class="stat-value" id="total-solved">0</span></li>
             </ul>
 
-            <section class="target" aria-labelledby="target-label">
-                <span class="target-label" id="target-label">目標數字</span>
-                <span class="target-number" id="target-num">?</span>
+            <!-- 密碼鎖：目標數字是鎖的密碼窗，算式格是一排轉輪，算對就解鎖 -->
+            <section class="lock" id="lock" aria-labelledby="target-label">
+                <div class="lock-head">
+                    <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path class="lock-shackle" d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+                        <rect x="4.5" y="11" width="15" height="10" rx="2.5" />
+                        <path d="M12 15v2.2" />
+                    </svg>
+                    <span class="lock-state" id="lock-state">上鎖中</span>
+                </div>
+                <div class="target">
+                    <span class="target-label" id="target-label">目標數字</span>
+                    <span class="target-number" id="target-num">?</span>
+                </div>
+                <div class="slots" id="slots" aria-label="你的算式"></div>
+                <p class="live-value" id="live-value" aria-hidden="true">目前算出：—</p>
             </section>
-
-            <div class="slots" id="slots" aria-label="你的算式"></div>
-            <p class="live-value" id="live-value" aria-hidden="true">目前算出：—</p>
 
             <p class="status" id="status" role="status" aria-live="polite"></p>
             </div>
@@ -147,6 +156,7 @@
 
     <script src="../../assets/js/bobo-theme.js"></script>
     <script src="../../assets/js/bobo-confetti.js"></script>
+    <script src="../../assets/js/bobo-celebrate.js"></script>
     <script src="../../assets/js/stats.js"></script>
     <script src="math.js"></script>
     <script>

@@ -88,9 +88,24 @@
         openDialog(rulesDialog, rulesDialog.querySelector('button'));
     });
 
-    const confettiCanvas = document.getElementById('confetti-canvas');
-    const celebrate = () => {
-        if (typeof BoboConfetti !== 'undefined') BoboConfetti.burst(confettiCanvas);
+    // 打破最佳連對時用全站共用的過關卡片慶祝（每題都跳視窗會打斷節奏，所以只在里程碑出現）
+    const celebrate = (expr) => {
+        if (typeof BoboCelebrate === 'undefined') return;
+        BoboCelebrate.show({
+            outcome: 'win',
+            gameName: '算術遊戲',
+            title: `連對 ${stats.streak} 題！`,
+            subtitle: `${expr} ＝ ${target}，打破了你的最佳連對紀錄。`,
+            stats: [
+                { label: '連對', value: `${stats.streak} 題`, isBest: true },
+                { label: '答對題數', value: `${stats.solved} 題` }
+            ],
+            accent: '#0b7362',
+            accentDark: '#63e6be',
+            primary: { label: '下一題', onClick: () => newPuzzle() },
+            secondary: { label: '看算式' },
+            returnFocus: nextBtn
+        });
     };
 
     // ======================================================================
@@ -114,6 +129,8 @@
     const liveValueEl = document.getElementById('live-value');
     const targetEl = document.getElementById('target-num');
     const statusEl = document.getElementById('status');
+    const lockEl = document.getElementById('lock');
+    const lockStateEl = document.getElementById('lock-state');
     const keys = Array.from(document.querySelectorAll('.key'));
     const modeBtns = Array.from(document.querySelectorAll('.seg-btn[data-mode]'));
     const undoBtn = document.getElementById('undo-btn');
@@ -236,6 +253,8 @@
         const value = evaluate(steps);
         liveValueEl.textContent = `目前算出：${formatNumber(value)}`;
         liveValueEl.classList.toggle('is-match', solved);
+        lockEl.classList.toggle('is-open', solved);
+        lockStateEl.textContent = solved ? '已解鎖' : '上鎖中';
 
         const full = steps.length >= length;
         const nextIsNumber = steps.length % 2 === 0;
@@ -280,9 +299,9 @@
             saveStats();
             saveGameState();
             render();
-            setStatus(`答對了！${expr} ＝ ${target}，連對 ${stats.streak} 題。按「下一題」繼續。`, 'success');
-            if (newBest && stats.streak >= 3) celebrate();
+            setStatus(`解鎖成功！${expr} ＝ ${target}，連對 ${stats.streak} 題。按「下一題」繼續。`, 'success');
             nextBtn.focus();
+            if (newBest && stats.streak >= 3) celebrate(expr);
         } else {
             const hadStreak = stats.streak > 0;
             stats.streak = 0;

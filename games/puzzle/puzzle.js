@@ -60,6 +60,7 @@
     const categorySub = $('categorySub');
     const symbolTitle = $('symbolTitle');
     const categoryTitle = $('categoryTitle');
+    const diceCaption = $('diceCaption');
     const gameContainer = $('gameContainer');
     const hintSection = $('hintSection');
     const hintLink = $('hintLink');
@@ -137,10 +138,12 @@
         doubleContainer.hidden = state.lang === 'en';
         doubleToggle.checked = state.double;
         gameContainer.classList.toggle('double-mode-active', state.double);
+        // 雙注音：兩顆骰子各是一個音，下方說明怎麼造詞
         symbolTitle.textContent = state.double
-            ? '用這兩個音造一個詞'
+            ? '第一個音'
             : (state.lang === 'en' ? '開頭字母是……' : '開頭是……');
-        categoryTitle.textContent = '題目是……';
+        categoryTitle.textContent = state.double ? '第二個音' : '題目是……';
+        diceCaption.hidden = !state.double;
     }
 
     function renderResult() {
@@ -154,7 +157,10 @@
             return;
         }
         if (state.double) {
-            symbolDisplay.textContent = `${r.s1} ${r.s2}`;
+            symbolDisplay.textContent = r.s1;
+            categoryDisplay.textContent = r.s2;
+            categoryDisplay.classList.remove('long');
+            categorySub.hidden = true;
         } else {
             symbolDisplay.textContent = r.s1;
             const text = categoryText(r.cat);
@@ -191,7 +197,7 @@
             : { s1: pick(source), s2: null, cat: Math.floor(Math.random() * CATEGORIES.length) };
         state.rounds++;
         state.rolling = false;
-        rollBtn.classList.remove('btn-animating');
+        gameContainer.classList.remove('is-rolling');
         rollBtn.removeAttribute('aria-disabled');
         renderResult();
         saveGameState();
@@ -210,12 +216,14 @@
             return;
         }
 
-        rollBtn.classList.add('btn-animating');
+        // 骰子翻滾：唯一的動態，期間按鈕標成忙碌，結果一出來立刻可以再擲
+        gameContainer.classList.add('is-rolling');
         const source = state.lang === 'en' ? ALPHABET : ZHUYIN;
         let counter = 0;
         const timer = window.setInterval(() => {
             if (state.double) {
-                symbolDisplay.textContent = `${pick(source)} ${pick(source)}`;
+                symbolDisplay.textContent = pick(source);
+                categoryDisplay.textContent = pick(source);
             } else {
                 symbolDisplay.textContent = pick(source);
                 categoryDisplay.textContent = categoryText(Math.floor(Math.random() * CATEGORIES.length));
