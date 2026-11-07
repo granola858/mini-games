@@ -1970,12 +1970,16 @@ class Game2048 {
       return;
     }
 
+    // Z / R 單鍵快捷鍵和方向鍵一樣，只在焦點位於棋盤（或頁面本身）時生效，
+    // 避免焦點停在其他按鈕上時誤觸悔棋或重開（WCAG 2.1.4）
     if (event.key === 'z' || event.key === 'Z') {
+      if (!this.isBoardFocus(target)) return;
       event.preventDefault();
       this.undo();
       return;
     }
     if (event.key === 'r' || event.key === 'R') {
+      if (!this.isBoardFocus(target)) return;
       event.preventDefault();
       this.requestRestart();
     }
@@ -2629,8 +2633,8 @@ class Game2048 {
       this.el.modeTabBtns.forEach((btn) => {
         const on = !!(btn.dataset && btn.dataset.mode === this.mode);
         if (btn.classList) btn.classList.toggle('active', on);
-        _appSetAttr(btn, 'aria-selected', on ? 'true' : 'false');
-        if (typeof btn.tabIndex !== 'undefined') btn.tabIndex = on ? 0 : -1;
+        // 一般按鈕群組：每顆都留在 Tab 順序裡（不用 roving tabindex），選取狀態走 aria-pressed
+        _appSetAttr(btn, 'aria-pressed', on ? 'true' : 'false');
       });
     }
     if (this.el.sizeSelect && String(this.el.sizeSelect.value) !== String(this.size)) {

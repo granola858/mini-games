@@ -114,14 +114,15 @@
 
     <!-- 3. 開局設定列：模式分頁 + 盤面大小放同一列，少一整排視覺重量 -->
     <div class="setup-row">
-    <nav class="mode-tabs" id="mode-tabs" role="tablist" aria-label="遊戲模式選擇">
-      <button class="mode-tab-btn active" data-mode="classic" role="tab" aria-selected="true" type="button">
+    <!-- 模式切換會開新局，所以用一般按鈕（aria-pressed）而非分頁：每顆都能 Tab 到，按下才切換 -->
+    <nav class="mode-tabs" id="mode-tabs" role="group" aria-label="遊戲模式選擇">
+      <button class="mode-tab-btn active" data-mode="classic" aria-pressed="true" type="button">
         <span>經典無盡</span>
       </button>
-      <button class="mode-tab-btn" data-mode="blitz" role="tab" aria-selected="false" type="button">
+      <button class="mode-tab-btn" data-mode="blitz" aria-pressed="false" type="button">
         <span>加時閃電</span>
       </button>
-      <button class="mode-tab-btn" data-mode="tower" role="tab" aria-selected="false" type="button">
+      <button class="mode-tab-btn" data-mode="tower" aria-pressed="false" type="button">
         <span>爬塔</span>
       </button>
     </nav>

@@ -87,7 +87,10 @@ html[data-theme="light"] {
   --accent-glow: rgba(169, 104, 47, 0.22);
 
   --danger: #d1402f;
-  --warning: #d97706;
+  /* --warning 用在小字（金幣、商店價格），淺底上要 4.5:1：#b45309 為 4.89:1。
+     連鎖徽章是「底色＋深字」，另用較亮的 --warning-fill，深字在上面才讀得清楚。 */
+  --warning: #b45309;
+  --warning-fill: #f59e0b;
   --success: #15803d;
 
   /* 棋盤：溫潤的胡桃木底 */
@@ -117,6 +120,7 @@ html[data-theme="dark"] {
 
   --danger: #f0715e;
   --warning: #fbbf24;
+  --warning-fill: #fbbf24;
   --success: #4ade80;
 
   --board-bg: #3a2e23;
@@ -140,6 +144,11 @@ html[data-theme="dark"] {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* 鍵盤聚焦或捲動定位時，預留底部固定動作列的高度，棋盤不會停在動作列底下 */
+html {
+  scroll-padding-bottom: 96px;
 }
 
 body {
@@ -407,6 +416,16 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] {
 .board-frame:focus-visible {
   outline: 3px solid var(--border-focus);
   outline-offset: 2px;
+}
+
+/* 真正拿到焦點的是 #tile-layer（tabindex=0），外框畫在整個棋盤上才看得出來 */
+.board-frame:has(.tile-layer:focus-visible) {
+  outline: 3px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.tile-layer:focus-visible {
+  outline: none;
 }
 
 /* ==========================================================================
@@ -690,7 +709,7 @@ body[data-mode="blitz"] #tower-bar {
   flex: 0 0 auto;
   padding: 2px 9px;
   border-radius: 999px;
-  background: var(--warning);
+  background: var(--warning-fill);
   color: #3c2a1a;
   font-size: 0.72rem;
   font-weight: 800;
@@ -841,6 +860,10 @@ html[data-theme="dark"] .floor-badge {
      棋盤靠左並被 body 的 overflow-x: hidden 裁掉右緣（黑白棋踩過的坑）。 */
   width: 100%;
   max-width: 440px;
+  /* 手機橫放（高 360–390px）時，棋盤邊長不能超過「視窗高度 − 底部固定動作列」，
+     否則上緣或下緣一定被切掉或壓在動作列底下；直式與桌機算出來仍是 440px，不受影響。 */
+  max-width: min(440px, calc(100vh - 96px));
+  max-width: min(440px, calc(100dvh - 96px));
   aspect-ratio: 1;
   margin: 0 auto 10px;
   border-radius: var(--radius-lg);
