@@ -1454,29 +1454,25 @@ class ReversiApp {
 
   updateThemeIcon(theme) {
     if (!this.el || !this.el.themeBtn) return;
-    // 主題鍵語意是「按下去會切到另一個模式」，不是同一個狀態的按下／未按下，
-    // 所以用會變動的 aria-label 陳述結果，而不是 aria-pressed（避免與系統偏好混淆）。
+    // 全站規格：label 固定為「深色模式」，狀態只由 aria-pressed 表達（按下 = 目前是深色）
     if (typeof this.el.themeBtn.setAttribute === 'function') {
-      const label = theme === 'dark' ? '切換為淺色模式' : '切換為深色模式';
-      this.el.themeBtn.setAttribute('aria-label', label);
-      this.el.themeBtn.setAttribute('title', label);
+      this.el.themeBtn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
     }
     this.el.themeBtn.innerHTML = theme === 'dark'
-      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
-      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
   }
 
   updateSoundIcon() {
     if (!this.el || !this.el.soundBtn) return;
     const on = !!(this.sound && this.sound.enabled);
     this.el.soundBtn.innerHTML = on
-      ? '<span>🔊</span>'
-      : '<span style="opacity:0.5">🔇</span>';
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m23 9-6 6"/><path d="m17 9 6 6"/></svg>';
     // 音效鍵是真正的開／關切換：比照底部「提示點」按鈕用 aria-pressed 表達狀態，
     // aria-label 維持固定字串，避免狀態被播報兩次。
     if (typeof this.el.soundBtn.setAttribute === 'function') {
       this.el.soundBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      this.el.soundBtn.setAttribute('title', on ? '音效開關（目前開啟）' : '音效開關（目前靜音）');
     }
   }
 
@@ -1922,9 +1918,11 @@ class ReversiApp {
     return this.commitMove(sq, this.current);
   }
 
-  // 誤點回饋：抖一下並出聲，完全不動狀態
+  // 誤點回饋：格子閃紅框（一般情況另加輕微晃動）、出聲並提示文字，完全不動狀態。
+  // 文字提示保證關掉音效、開啟「減少動態效果」的玩家也知道發生了什麼。
   rejectCell(sq) {
     if (this.sound) this.sound.playInvalid();
+    this.showToast('這格不能下');
     const cell = Array.isArray(this.cells) ? this.cells[sq] : null;
     if (!cell || !cell.classList) return;
     cell.classList.add('shake');
@@ -2286,7 +2284,7 @@ class ReversiApp {
     // 順序顛倒會先被「已經是開局囉」吃掉。鍵盤 U 會直接呼叫 undo()，
     // 沒有這道守衛就能繞過已經 disabled 的悔棋鈕、讓已結算的對局復活並重複計入戰績。
     if (this.gameOver) {
-      this.showToast('這局已經結束，按「🔄 重開」再來一場吧');
+      this.showToast('這局已經結束，按「重開」再來一場吧');
       return false;
     }
     if (this.thinking || this.animating) {
@@ -2417,7 +2415,7 @@ class ReversiApp {
     }
     this.updateActionButtons();
     this.savePreferences();
-    this.showToast(this.showHints ? '👁️ 已顯示可落子提示點' : '🙈 已隱藏可落子提示點');
+    this.showToast(this.showHints ? '已顯示可下位置' : '已隱藏可下位置');
   }
 
   // ------------------------------------------------------------------------

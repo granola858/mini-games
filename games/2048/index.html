@@ -6,14 +6,17 @@
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#7f5539">
+  <meta name="theme-color" content="#eceff2" data-theme-color-light="#eceff2" data-theme-color-dark="#1c1916">
   <title>2048 - 波波小遊戲</title>
   <meta name="description" content="經典 2048 數字合併遊戲，提供 3×3 口袋局、4×4 正統局、5×5 大局三種盤面，外加加時閃電與五層爬塔兩種模式，支援滑動手勢、悔棋、數字與進化兩種皮膚，還有完整戰績統計。">
 
   <!-- 字型引入 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+  <!-- Space Mono 只用在分數數字：用 media="print" 先不擋首次繪製，載入後再切回 all；
+       沒載到時退回系統等寬字（--font-mono 有完整 fallback） -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&display=swap" rel="stylesheet"></noscript>
 
   <!-- 防止深色模式與皮膚閃爍：在樣式表套用前就把偏好寫進 documentElement -->
   <script>
@@ -42,10 +45,13 @@
 <body>
 
   <!-- 全螢幕慶祝彩帶畫布 -->
-  <canvas id="confetti-canvas"></canvas>
+  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
 
-  <!-- 浮動通知容器 -->
-  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+  <!-- 浮動通知容器（只負責畫面顯示；播報統一走下方的 #move-status，避免兩個 live region 重疊） -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- 唯一的播報區：每一步的方向與得分、撞牆、通知訊息 -->
+  <p class="sr-only" id="move-status" role="status" aria-live="polite"></p>
 
   <!-- 主要遊戲容器 -->
   <div class="page-container">
@@ -59,26 +65,25 @@
         <span>回首頁</span>
       </a>
 
+      <!-- 右側圖示鍵：本遊戲專屬的「戰績、進化皮膚」放前面，
+           接著是全站統一順序「規則 · 音效 · 主題」。
+           兩態開關一律固定 aria-label，狀態只由 aria-pressed 表達（JS 在 init 時同步）。 -->
       <div class="top-actions">
-        <!-- 皮膚鍵是「數字／進化」兩態切換，用 aria-pressed 表達目前是否為進化皮膚；
-             預設數字皮膚（false），JS 會在 init 時依實際偏好同步。 -->
-        <button class="icon-btn" id="skin-btn" type="button" aria-label="切換磚塊皮膚" aria-pressed="false" title="切換磚塊皮膚（數字／進化）">
-          <span aria-hidden="true">🎨</span>
+        <button class="icon-btn" id="stats-btn" type="button" aria-label="戰績" title="戰績" aria-haspopup="dialog">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
         </button>
-        <!-- 主題鍵同樣是兩態切換，aria-pressed 表示目前是否為深色；JS 會在 init 時同步。 -->
-        <button class="icon-btn" id="theme-btn" type="button" aria-label="切換深淺色模式" aria-pressed="false" title="切換深淺色">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>
-          </svg>
+        <button class="icon-btn" id="skin-btn" type="button" aria-label="進化皮膚" aria-pressed="false" title="進化皮膚（關閉時顯示數字磚）">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>
         </button>
-        <button class="icon-btn" id="sound-btn" type="button" aria-label="音效開關" aria-pressed="true" title="音效開關">
-          <span aria-hidden="true">🔊</span>
+        <span class="top-actions-divider" aria-hidden="true"></span>
+        <button class="icon-btn" id="help-btn" type="button" aria-label="遊戲規則" title="遊戲規則" aria-haspopup="dialog">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6V14"/><path d="M12 17.2v.1"/></svg>
         </button>
-        <button class="icon-btn" id="stats-btn" type="button" aria-label="戰績紀錄" title="戰績統計">
-          <span aria-hidden="true">📊</span>
+        <button class="icon-btn" id="sound-btn" type="button" aria-label="音效" aria-pressed="true" title="音效">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
         </button>
-        <button class="icon-btn" id="help-btn" type="button" aria-label="玩法教學" title="規則說明">
-          <span aria-hidden="true">❓</span>
+        <button class="icon-btn" id="theme-btn" type="button" aria-label="深色模式" aria-pressed="false" title="深色模式">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
         </button>
       </div>
     </header>
@@ -88,6 +93,7 @@
       <h1 class="main-title">
         <span class="main-title-text" id="title-text">2048</span>
       </h1>
+      <p class="goal-line">滑動或按方向鍵，把相同數字合在一起，合出 2048。</p>
     </section>
 
     <!-- 3. 遊戲模式分頁標籤 -->
@@ -164,16 +170,16 @@
   <!-- 7. 底部懸浮觸控動作列 -->
   <nav class="thumb-action-bar" aria-label="遊戲動作">
     <button class="action-btn" id="undo-btn" type="button" aria-label="悔棋，退回上一步">
-      <span class="btn-icon" aria-hidden="true">↩️</span>
+      <span class="btn-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></span>
       <span>悔棋</span>
       <span class="btn-badge" id="undo-badge"></span>
     </button>
     <button class="action-btn" id="restart-btn" type="button" aria-label="重新開始一局">
-      <span class="btn-icon" aria-hidden="true">🔄</span>
+      <span class="btn-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></span>
       <span>重開</span>
     </button>
     <button class="action-btn" id="glyph-btn" type="button" aria-label="純圖示模式，隱藏磚塊上的數字" aria-pressed="false">
-      <span class="btn-icon" aria-hidden="true">🎭</span>
+      <span class="btn-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="m14 17 2 2 4-4"/></svg></span>
       <span>純圖示</span>
     </button>
   </nav>

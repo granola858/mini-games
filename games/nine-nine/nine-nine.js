@@ -210,6 +210,20 @@
     }
   }
 
+  // 功能牌的效果標籤：牌面直接寫出它會做什麼，不必背規則
+  function cardEffect(card) {
+    if (card.id === 'spades-A') return '歸零/+1';
+    switch (card.rank) {
+      case '4': return '↺ 迴轉';
+      case '5': return '指定';
+      case '10': return '±10';
+      case 'J': return '跳過';
+      case 'Q': return '±20';
+      case 'K': return '→99';
+      default: return '';
+    }
+  }
+
   function renderHand() {
     const player = Core.getPlayer(game, 'p0');
     const humanTurn = game.status === 'active' && game.currentPlayerId === 'p0' && !thinking;
@@ -222,12 +236,14 @@
       const selected = selectedMoves.some(move => move.cardId === card.id);
       const safe = safeMoves.some(move => move.cardId === card.id);
       const blocked = humanTurn && !safe;
+      const effect = cardEffect(card);
       return '<button class="playing-card' + (red ? ' red' : '') + (selected ? ' selected' : '')
         + '" type="button" data-card-id="' + card.id + '" aria-label="出 ' + card.rank
-        + suitGlyph[card.suit] + (blocked ? '，出牌會爆點淘汰' : '') + '" '
+        + suitGlyph[card.suit] + (effect ? '，' + effect : '') + (blocked ? '，出牌會爆點淘汰' : '') + '" '
         + (humanTurn ? '' : 'disabled') + '>'
         + '<span class="rank">' + card.rank + '</span><span class="suit" aria-hidden="true">'
         + suitGlyph[card.suit] + '</span>'
+        + (effect && !blocked ? '<span class="card-effect" aria-hidden="true">' + effect + '</span>' : '')
         + (blocked ? '<span class="card-warning">會爆點</span>' : '') + '</button>';
     }).join('');
     elements.turnHint.textContent = !player.alive
@@ -345,7 +361,10 @@
         if (game.status === 'finished') recordResult();
         saveGame();
         elements.status.textContent = turnDescription();
+        // 電腦出牌前焦點若在回合標題（鍵盤玩家在等），輪回玩家時移到手牌
+        keepFocusInGame = keepFocusInGame || document.activeElement === elements.turnTitle;
         render();
+        restoreGameFocus();
       } catch (error) {
         thinking = false;
         elements.status.textContent = '電腦出牌失敗：' + error.message;
@@ -355,7 +374,23 @@
     }, 520);
   }
 
+  // 鍵盤焦點管理：手牌每次重繪都會換掉按鈕，焦點不能就此掉回 body。
+  // 只有焦點原本就在牌局裡（鍵盤或螢幕閱讀器操作中）才移動，滑鼠使用者不受影響。
+  let keepFocusInGame = false;
+
+  function restoreGameFocus() {
+    if (!keepFocusInGame || !game) return;
+    const humanTurn = game.status === 'active' && game.currentPlayerId === 'p0' && !thinking;
+    const target = humanTurn
+      ? elements.hand.querySelector('button:not(:disabled)')
+      : game.status === 'finished'
+        ? $('play-again-button')
+        : elements.turnTitle;
+    if (target && document.activeElement !== target) target.focus({ preventScroll: true });
+  }
+
   function applyHumanMove(move) {
+    keepFocusInGame = keepFocusInGame || elements.game.contains(document.activeElement);
     try {
       game = Core.applyMove(game, move);
       selectedMoves = [];
@@ -364,6 +399,7 @@
       saveGame();
       elements.status.textContent = turnDescription();
       render();
+      restoreGameFocus();
     } catch (error) {
       elements.status.textContent = '無法出牌：' + error.message;
     }
@@ -378,7 +414,10 @@
     selectedMoves = [];
     elements.resume.hidden = true;
     elements.status.textContent = '新局開始，輪到你出牌。';
+    keepFocusInGame = true;
     render();
+    // 「開始新局」按鈕會被藏起來，焦點直接交給手牌，不掉回 body
+    restoreGameFocus();
   }
 
   function openSettings() {
@@ -421,6 +460,8 @@
     if (!button || !game || game.status !== 'active' || game.currentPlayerId !== 'p0' || thinking) return;
     const moves = Core.getAvailableMoves(game).filter(move => move.cardId === button.dataset.cardId);
     if (!moves.length) return;
+    // renderHand() 會換掉被按下的那張牌，先記住焦點原本在牌局裡
+    keepFocusInGame = elements.game.contains(document.activeElement);
     selectedMoves = moves;
     renderHand();
     if (moves.length === 1) {
@@ -439,10 +480,11 @@
     applyHumanMove(selectedMoves[index]);
   }
 
+  // 主題鍵：label 固定為「深色模式」，狀態只由 aria-pressed 表達
   function syncThemeButton() {
-    const theme = document.documentElement.dataset.theme;
-    $('theme-button').textContent = theme === 'dark' ? '☀️' : '🌙';
-    $('theme-button').setAttribute('aria-label', theme === 'dark' ? '切換為淺色模式' : '切換為深色模式');
+    const dark = document.documentElement.dataset.theme === 'dark';
+    $('theme-button').innerHTML = dark ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+    $('theme-button').setAttribute('aria-pressed', dark ? 'true' : 'false');
   }
 
   function init() {

@@ -68,7 +68,7 @@ button { color: inherit; }
   cursor: pointer;
   transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
 }
-.icon-button { min-width: 44px; padding: 0 12px; font-weight: 800; }
+.icon-button { min-width: 44px; min-height: 44px; padding: 0 10px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; color: var(--text); }
 .button { padding: 0 17px; font-weight: 800; }
 .icon-button:hover, .button:hover { border-color: var(--accent); transform: translateY(-1px); }
 .button-primary { border-color: var(--accent); background: var(--accent); color: #fff; }
@@ -175,7 +175,13 @@ body.is-playing .status-line { min-height: 18px; margin: 0 auto 8px; font-size: 
 .red { color: #c4444d; }
 :root[data-theme="dark"] .red { color: #ff9298; }
 .card-warning { font-size: 0.6875rem; font-weight: 800; color: var(--danger); }
-.action-slot { min-height: 50px; padding-top: 6px; }
+/* 功能牌效果標籤：寫出這張牌會做什麼 */
+.card-effect { font-size: 0.6875rem; font-weight: 800; color: var(--muted); line-height: 1.2; white-space: nowrap; }
+/* 沒有效果選項時不留空白條；選項出現時才佔位 */
+.action-slot { padding-top: 6px; }
+.action-slot:has(> .move-options[hidden]) { display: none; }
+#turn-title:focus { outline: none; }
+#turn-title:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 .move-options { display: flex; gap: 6px; }
 .move-options:empty { display: none; }
 .move-options button { flex: 1; min-width: 0; min-height: 44px; padding: 3px 5px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); cursor: pointer; font-size: 0.8rem; font-weight: 800; }
@@ -258,6 +264,10 @@ body.is-playing .status-line { min-height: 18px; margin: 0 auto 8px; font-size: 
   .history-owner, .history-value { line-height: 1.1; }
 }
 
+/* 減少動態效果：本遊戲沒有關鍵幀動畫，只有懸停浮起與分數條伸縮。
+   浮起（位移）關掉，邊框與底色變化保留作為回饋；分數條直接到位。 */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  html { scroll-behavior: auto; }
+  .icon-button:hover, .button:hover, .playing-card:hover:not(:disabled) { transform: none; }
+  .icon-button, .button, .playing-card, .score-track span { transition-property: border-color, background-color, color, box-shadow; }
 }

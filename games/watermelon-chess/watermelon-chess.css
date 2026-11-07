@@ -47,7 +47,9 @@ a { color: inherit; }
 .skip-link { position: absolute; top: -80px; left: 16px; z-index: 20; padding: 12px; background: var(--surface); }
 .skip-link:focus { top: 8px; }
 .topbar { max-width: 1240px; margin: auto; min-height: 82px; display: flex; align-items: center; justify-content: space-between; padding: 12px 32px; border-bottom: 1px solid var(--line); gap: 12px; }
-.back-link { text-decoration: none; font-size: 14px; padding: 12px 0; font-weight: 700; }
+/* 回首頁：與全站一致的膠囊按鈕 */
+.back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; text-decoration: none; font-size: 14px; padding: 0 14px; font-weight: 700; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.back-link svg { width: 18px; height: 18px; }
 .wordmark { text-decoration: none; font-size: 19px; font-weight: 900; letter-spacing: .08em; }
 .wordmark span { font-weight: 500; margin-left: 5px; }
 .top-actions { display: flex; gap: 6px; align-items: center; }
@@ -76,14 +78,16 @@ h3 { font-size: 17px; margin-bottom: 8px; }
 .move-count { color: var(--muted); font-size: 12px; }
 .move-count strong { color: var(--text); font-variant-numeric: tabular-nums; }
 .players { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.player-card { display: flex; align-items: center; padding: 12px; gap: 10px; border: 1px solid var(--line); border-radius: 14px; min-width: 0; }
-.player-card.is-turn { border-color: var(--green); background: var(--surface-soft); }
+/* 玩家列不做成卡中卡：平常只是一列資訊，輪到誰就整列換底色，再加上「行棋」字樣 */
+.player-card { display: flex; align-items: center; padding: 12px; gap: 10px; border-radius: 14px; min-width: 0; }
+.player-card.is-turn { background: var(--green-soft); }
+.player-card.is-turn div > span { color: var(--text); }
 .player-piece { display: grid; place-items: center; height: 34px; width: 34px; flex-shrink: 0; border-radius: 50%; background: #b93245; color: #fff; font-size: 14px; font-weight: 800; }
 .green-player .player-piece { background: #286b50; }
 .player-card > div { min-width: 0; }
 .player-card strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
-.player-card div > span { display: block; font-size: 11px; color: var(--muted); }
-.turn-badge { margin-left: auto; color: var(--green); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.player-card div > span { display: block; font-size: 12px; color: var(--muted); }
+.turn-badge { margin-left: auto; color: var(--green); font-size: 12px; font-weight: 800; white-space: nowrap; }
 .board-wrap { margin: 8px -12px 0; }
 .board { position: relative; width: 100%; max-width: 560px; aspect-ratio: 1; margin: auto; }
 .board-art { width: 100%; height: 100%; position: absolute; inset: 0; pointer-events: none; }
@@ -100,7 +104,7 @@ h3 { font-size: 17px; margin-bottom: 8px; }
 .point.is-legal::before { width: 53%; height: 53%; border: 3px solid var(--green); background: var(--surface); box-shadow: 0 0 0 4px var(--green-soft); }
 .point.is-last:not(.is-selected) { outline: 2px solid var(--text); outline-offset: 2px; }
 .point.is-from::after { content: ""; position: absolute; inset: 14%; border: 2px dashed var(--board-line); border-radius: 50%; pointer-events: none; }
-.point:disabled { opacity: 1; cursor: default; }
+.point:disabled, .point[aria-disabled="true"] { opacity: 1; cursor: default; }
 .point:focus-visible { outline: 3px solid var(--text); outline-offset: 5px; z-index: 3; }
 .board-help { font-size: 12px; text-align: center; color: var(--muted); margin: 0 auto 16px; max-width: 390px; }
 .turn-status { background: var(--green-soft); color: var(--green); padding: 12px; border-radius: 12px; text-align: center; font-size: 14px; font-weight: 800; min-height: 47px; }
@@ -120,16 +124,16 @@ select { width: 100%; border: 1px solid var(--line); padding: 11px 12px; border-
 .small-copy { color: var(--muted); font-size: 12px; margin: 12px 0 0; line-height: 1.8; }
 .quick-rules ol { list-style: none; padding: 0; margin: 0; }
 .quick-rules li { display: flex; gap: 12px; margin-bottom: 16px; }
-.quick-rules li > span { color: var(--red); font-size: 11px; font-weight: 800; padding-top: 2px; }
+.quick-rules li > span { color: var(--red); font-size: 12px; font-weight: 800; padding-top: 2px; }
 .quick-rules strong { font-size: 13px; }
 .quick-rules p { font-size: 12px; color: var(--muted); margin: 3px 0 0; }
 .text-button { background: none; border: 0; font-size: 12px; font-weight: 800; color: var(--green); padding: 12px 0; min-height: 44px; }
 .record-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .record-heading h2 { font-size: 15px; }
-.record-heading > span { font-size: 11px; color: var(--muted); }
+.record-heading > span { font-size: 12px; color: var(--muted); }
 .records { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
 .records strong { font-size: 24px; line-height: 1.4; display: block; font-variant-numeric: tabular-nums; }
-.records span { font-size: 11px; color: var(--muted); }
+.records span { font-size: 12px; color: var(--muted); }
 .storage-notice { padding: 12px 16px; border: 1px solid var(--red); background: var(--red-soft); border-radius: 10px; font-size: 13px; }
 footer { max-width: 1160px; margin: 0 auto; padding: 0 32px 28px; color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; gap: 16px; }
 dialog { color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 26px; max-height: 90dvh; overflow-y: auto; }
@@ -154,6 +158,30 @@ dialog::backdrop { background: #07180fc2; }
 .confirm-dialog { width: calc(100% - 32px); max-width: 410px; }
 .confirm-dialog p { font-size: 14px; color: var(--muted); }
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+/* 桌機（≥851px）：標題與說明移到右欄頂端，對局區從畫面頂端開始；
+   棋盤依視窗高度收斂，1280×800 的筆電不用捲動就看得到棋盤、行棋狀態與操作鈕。 */
+@media (min-width: 851px) {
+  .topbar { min-height: 64px; padding-block: 8px; }
+  .page-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 310px;
+    grid-template-areas:
+      "notice notice"
+      "match intro"
+      "match side";
+    grid-template-rows: auto auto 1fr;
+    column-gap: 26px;
+    align-items: start;
+    padding-top: 16px;
+  }
+  .game-layout { display: contents; }
+  .storage-notice { grid-area: notice; margin-bottom: 16px; }
+  .intro { grid-area: intro; margin-bottom: 18px; }
+  .intro h1 { font-size: 34px; margin-bottom: 6px; }
+  .match-panel { grid-area: match; }
+  .sidebar { grid-area: side; }
+  .board { max-width: min(560px, max(320px, calc(100dvh - 400px))); }
+}
 @media (max-width: 850px) {
   .page-shell { max-width: 640px; padding: 26px 20px; }
   .game-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
@@ -175,7 +203,7 @@ dialog::backdrop { background: #07180fc2; }
   .players { gap: 8px; }
   .player-card { padding: 10px 8px; gap: 7px; }
   .player-piece { width: 28px; height: 28px; font-size: 12px; }
-  .player-card strong { font-size: 11px; }
+  .player-card strong { font-size: 12px; }
   .board-wrap { margin-inline: -12px; }
   .board-help { margin-inline: 6px; }
   .match-actions { gap: 8px; flex-wrap: nowrap; }
@@ -185,6 +213,11 @@ dialog::backdrop { background: #07180fc2; }
   .panel { padding: 20px; }
   footer { padding-inline: 16px; }
 }
+/* 減少動態效果：逐項處理。旋轉棋盤直接到位（棋點位置本身就說明了方向），
+   按鈕只保留底色變化；吃子示範的步驟靠文字與棋子狀態呈現，不靠動畫。 */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; animation: none !important; }
+  .board.is-flipping { animation: none; }
+  .button { transition: none; }
+  /* 吃子示範：被吃的棋子直接消失、目標點直接填色，不縮放不淡出 */
+  .demo-target, #demo-victim { transition: none; }
 }

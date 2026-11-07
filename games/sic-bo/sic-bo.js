@@ -907,7 +907,7 @@ class SicBoGame {
     if (amount <= 0) {
       if (stack && typeof stack.remove === 'function') stack.remove();
       _sicboToggleClass(cell, 'is-active', false);
-      _sicboSetAttr(cell, 'aria-pressed', 'false');
+      // 注格按一下是「加一枚籌碼」不是開關，所以不用 aria-pressed；押了多少寫在 label 裡
       if (base) _sicboSetAttr(cell, 'aria-label', base);
       return;
     }
@@ -918,7 +918,6 @@ class SicBoGame {
     }
     _sicboSetText(stack, _sicboCore.formatNumber(amount));
     _sicboToggleClass(cell, 'is-active', true);
-    _sicboSetAttr(cell, 'aria-pressed', 'true');
     if (base) _sicboSetAttr(cell, 'aria-label', base + '，已押 ' + _sicboCore.formatNumber(amount) + ' 分');
   }
 
@@ -2304,11 +2303,10 @@ class SicBoGame {
     if (!btn) return;
     const dark = theme === 'dark';
     btn.innerHTML = dark
-      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
-      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+    // 全站規格：label 固定為「深色模式」，狀態只由 aria-pressed 表達，不會唸出互相矛盾的資訊
     _sicboSetAttr(btn, 'aria-pressed', dark ? 'true' : 'false');
-    _sicboSetAttr(btn, 'title', dark ? '切換為淺色模式' : '切換為深色模式');
-    _sicboSetAttr(btn, 'aria-label', dark ? '切換為淺色模式' : '切換為深色模式');
   }
 
   setupSoundButton() {
@@ -2327,12 +2325,11 @@ class SicBoGame {
     const btn = this.el.soundBtn;
     if (!btn) return;
     const on = !!(this.audio && this.audio.enabled);
-    const icon = _sicboQuery('span', btn);
-    if (icon) _sicboSetText(icon, on ? '🔊' : '🔇');
-    else _sicboSetText(btn, on ? '🔊' : '🔇');
+    btn.innerHTML = on
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m23 9-6 6"/><path d="m17 9 6 6"/></svg>';
+    // label 固定為「音效」，pressed = 音效開著
     _sicboSetAttr(btn, 'aria-pressed', on ? 'true' : 'false');
-    _sicboSetAttr(btn, 'title', on ? '關閉音效' : '開啟音效');
-    _sicboSetAttr(btn, 'aria-label', on ? '關閉音效' : '開啟音效');
   }
 
   // ==========================================================================

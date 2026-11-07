@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#166534">
   <title>黑白棋 - 波波小遊戲</title>
-  <meta name="description" content="經典 8×8 黑白棋（Reversi / Othello），內建三檔 Alpha-Beta AI 人機對弈與雙人同機對戰，支援悔棋、提示、翻面動畫與戰績統計，觸控操作順手。">
+  <meta name="description" content="經典 8×8 黑白棋（Reversi / Othello），內建三檔電腦對手人機對弈與雙人同機對戰，支援悔棋、提示、翻面動畫與戰績統計，觸控操作順手。">
 
   <!-- 防止深色模式閃爍：必須 inline 且排在所有 stylesheet 之前，外連的 script 來不及。
        內容是 BoboTheme.ANTI_FLASH_SNIPPET 的逐字複製，全站唯一的複製來源在
@@ -50,24 +50,20 @@
         <span>回首頁</span>
       </a>
 
+      <!-- 右側圖示鍵：本遊戲專屬的「戰績」放前面，接著是全站統一順序「規則 · 音效 · 主題」。
+           音效、主題都是兩態開關：aria-label 固定，狀態只由 aria-pressed 表達（JS 會在 init 時同步）。 -->
       <div class="top-actions">
-        <!-- 主題鍵是「切到另一個模式」的動作而非開關狀態，用會變動的 aria-label 陳述按下後的結果；
-             預設淺色，JS 的 updateThemeIcon() 會在 init 時依實際主題覆寫 aria-label 與 title。 -->
-        <button class="icon-btn" id="theme-btn" type="button" aria-label="切換為深色模式" title="切換為深色模式">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>
-          </svg>
+        <button class="icon-btn" id="stats-btn" type="button" aria-label="戰績" title="戰績" aria-haspopup="dialog">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
         </button>
-        <!-- 音效鍵是同一件事的開／關，用 aria-pressed 表達狀態（比照底部「提示點」按鈕的慣例），
-             aria-label 維持固定字串，避免狀態被播報兩次。預設開啟，JS 會同步更新。 -->
-        <button class="icon-btn" id="sound-btn" type="button" aria-label="音效開關" aria-pressed="true" title="音效開關">
-          <span aria-hidden="true">🔊</span>
+        <button class="icon-btn" id="help-btn" type="button" aria-label="遊戲規則" title="遊戲規則" aria-haspopup="dialog">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6V14"/><path d="M12 17.2v.1"/></svg>
         </button>
-        <button class="icon-btn" id="stats-btn" type="button" aria-label="戰績紀錄" title="戰績統計">
-          <span>📊</span>
+        <button class="icon-btn" id="sound-btn" type="button" aria-label="音效" aria-pressed="true" title="音效">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
         </button>
-        <button class="icon-btn" id="help-btn" type="button" aria-label="玩法教學" title="規則說明">
-          <span>❓</span>
+        <button class="icon-btn" id="theme-btn" type="button" aria-label="深色模式" aria-pressed="false" title="深色模式">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
         </button>
       </div>
     </header>
@@ -77,6 +73,7 @@
       <h1 class="main-title">
         <span class="main-title-text" id="title-text">黑白棋</span>
       </h1>
+      <p class="goal-line">下在能夾住對方的位置，把夾住的棋子翻成你的顏色；終局子多的人贏。</p>
     </section>
 
     <!-- 3. 對戰模式分頁標籤 -->
@@ -162,15 +159,17 @@
     <button class="action-btn" id="undo-btn" type="button" aria-label="悔棋，退回上一手">
       <span>悔棋</span>
     </button>
-    <button class="action-btn" id="hint-btn" type="button" aria-label="使用提示，指出建議落點">
-      <span>提示</span>
+    <button class="action-btn" id="hint-btn" type="button" aria-label="建議一步，請電腦指出建議落點">
+      <span>建議一步</span>
       <span class="btn-badge" id="hint-badge">3</span>
     </button>
     <button class="action-btn" id="restart-btn" type="button" aria-label="重新開始對局">
       <span>重開</span>
     </button>
-    <button class="action-btn" id="toggle-hint-btn" type="button" aria-label="顯示或隱藏可下位置綠點" aria-pressed="true">
-      <span>提示點</span>
+    <!-- 開關型按鈕：外觀是勾選框，不做成實心主按鈕，避免看起來像主要動作 -->
+    <button class="action-btn toggle-btn" id="toggle-hint-btn" type="button" aria-label="顯示可下位置" aria-pressed="true">
+      <span class="toggle-check" aria-hidden="true"></span>
+      <span>可下位置</span>
     </button>
   </nav>
 
@@ -308,12 +307,13 @@
         <h3>🤖 三檔 AI 說明</h3>
         <ul>
           <li><strong>🌱 簡單</strong>：隨機挑選加上貪吃策略，偏好一次翻最多子，很容易被繞後取角。</li>
-          <li><strong>🎯 普通</strong>：Alpha-Beta 剪枝搜尋<strong>往後看 4 手</strong>，會一起衡量位置權重、<strong>行動力與穩定子</strong>，懂得避開 X 位與搶角；棋盤剩 8 格空位時會<strong>直接算到終局</strong>。</li>
+          <li><strong>🎯 普通</strong>：電腦會<strong>往後想 4 手</strong>，會一起衡量位置權重、<strong>行動力與穩定子</strong>，懂得避開 X 位與搶角；棋盤剩 8 格空位時會<strong>直接算到終局</strong>。</li>
           <li><strong>🔥 困難</strong>：看盤的重點與普通<strong>完全相同</strong>，差別在於<strong>往後看 6 手</strong>、每手多想幾倍的時間，穩定子改用更嚴謹的完整判定；殘局也提前到剩 <strong>10 格</strong>就算到終局，幾乎不會失誤。</li>
         </ul>
 
         <h3>📱 觸控與按鈕</h3>
-        <p>棋盤上的<strong>綠點</strong>就是你目前可以下的位置；點到不合法的格子只會<strong>晃一下</strong>不會亂下。底部動作列可以<strong>↩️ 悔棋</strong>退回上一手（人機模式會一併退掉電腦那手）、用<strong>💡 提示</strong>請 AI 指出建議落點（每局次數有限）、<strong>🔄 重開</strong>開新局，以及<strong>👁️ 提示點</strong>隨時開關綠點顯示。</p>
+        <p>棋盤上的<strong>綠點</strong>就是你目前可以下的位置；點到不能下的格子，格子會<strong>閃一下紅框</strong>並提示「這格不能下」，不會亂下。底部動作列可以按<strong>「悔棋」</strong>退回上一手（人機模式會一併退掉電腦那手）、按<strong>「建議一步」</strong>請電腦指出建議落點（每局次數有限）、按<strong>「重開」</strong>開新局，以及用<strong>「可下位置」</strong>開關綠點顯示。</p>
+        <p>鍵盤：方向鍵在棋盤上移動，Enter 或空白鍵落子。</p>
       </div>
       <div class="modal-footer">
         <button class="btn-primary" id="help-ok-btn" type="button">開始下棋！</button>

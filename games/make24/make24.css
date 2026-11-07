@@ -20,6 +20,8 @@
   --color-success: #10B981;
   --color-success-bg: #ECFDF5;
   --color-danger: #EF4444;
+  --color-danger-text: #B91C1C;
+  --color-success-text: #047857;
   --color-warning: #F59E0B;
   
   --card-number-bg: #E0E7FF;
@@ -61,6 +63,8 @@
   --color-success: #34D399;
   --color-success-bg: rgba(52, 211, 153, 0.15);
   --color-danger: #F87171;
+  --color-danger-text: #FCA5A5;
+  --color-success-text: #6EE7B7;
   --color-warning: #FBBF24;
 
   --card-number-bg: #312E81;
@@ -146,7 +150,41 @@ body {
 .back-btn:hover {
   color: var(--accent-primary);
   background-color: var(--accent-light);
-  transform: translateX(-3px);
+}
+
+/* 主要內容區 */
+.game-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.title-block {
+  text-align: center;
+}
+
+.goal-line {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.hint-icon {
+  color: var(--accent-primary);
+}
+
+/* 只給螢幕閱讀器的文字 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* 主標題：與 1A2B、骰寶等遊戲字體大小與位置一致 */
@@ -159,9 +197,16 @@ body {
   letter-spacing: -0.5px;
 }
 
+/* 頂端列右側：規則・音效・主題 */
+.top-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .theme-toggle-btn {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border-color);
   background-color: var(--bg-elevated);
@@ -193,6 +238,7 @@ body {
 
 .tab-btn {
   flex: 1;
+  min-height: 36px;
   padding: 7px 4px;
   font-size: 13px;
   font-weight: 700;
@@ -404,11 +450,18 @@ body {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-secondary);
-  height: 18px;
+  min-height: 18px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* 四張都用上但不是 24：用警示色與粗體明確告知，不只靠顏色（文字本身說明了結果） */
+.eval-result.miss {
+  color: var(--color-danger-text);
 }
 
 .eval-result.success {
-  color: var(--color-success);
+  color: var(--color-success-text);
 }
 
 /* ==========================================================================
@@ -645,43 +698,73 @@ body {
 /* ==========================================================================
    9. MODAL & HINT OVERLAY (彈窗與提示)
    ========================================================================== */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 100;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--transition-normal);
-}
-
-.modal-overlay.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.modal-card {
+/* 原生 dialog：關閉時瀏覽器自動移出焦點順序與無障礙樹 */
+.game-dialog {
+  margin: auto;
+  border: none;
   background-color: var(--bg-surface);
+  color: var(--text-primary);
   border-radius: var(--radius-lg);
   padding: 24px;
-  width: 100%;
-  max-width: 360px;
+  width: calc(100% - 32px);
+  max-width: 380px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
   text-align: center;
   box-shadow: var(--shadow-lg);
-  transform: scale(0.9);
-  transition: transform var(--transition-normal);
 }
 
-.modal-overlay.active .modal-card {
-  transform: scale(1);
+.game-dialog::backdrop {
+  background-color: rgba(15, 23, 42, 0.6);
+}
+
+.game-dialog[open] {
+  animation: dialogIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dialogIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.dialog-actions .btn-action {
+  flex: 1;
+}
+
+.rules-dialog {
+  max-width: 440px;
+  text-align: left;
+}
+
+.rules-dialog .modal-title {
+  text-align: center;
+}
+
+.rules-body {
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+.rules-body h3 {
+  font-size: 15px;
+  margin: 12px 0 4px;
+}
+
+.rules-body ul {
+  padding-left: 1.2em;
+}
+
+.hint-note {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .modal-title {
@@ -716,7 +799,7 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--color-success);
+  color: var(--color-success-text);
 }
 
 .win-equation-text {
@@ -838,14 +921,33 @@ body {
   outline-offset: 2px;
 }
 
-/* 減少動態效果：尊重系統設定，縮短動畫但保留 animationend 等事件 */
+/* 減少動態效果：逐項處理，不一刀切。
+   - 游標閃爍、括號鍵呼吸光、選取浮起 → 關掉，游標改為常亮（位置資訊還在）
+   - 對話框只淡入不位移；按鈕仍保留底色變化作為按下回饋 */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  .equation-caret {
+    animation: none;
+    opacity: 1;
+  }
+
+  /* 括號包裹模式：不呼吸、不浮起，實心底色本身就標示了狀態 */
+  .btn-key.paren.wrap-active {
+    animation: none;
+    transform: none;
+  }
+
+  .equation-token.selected,
+  .btn-action:active,
+  .btn-key:active {
+    transform: none;
+  }
+
+  .game-dialog[open] {
+    animation: dialogFade 0.15s linear;
+  }
+
+  @keyframes dialogFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 }

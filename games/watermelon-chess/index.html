@@ -23,16 +23,17 @@
 <body>
   <a class="skip-link" href="#board">跳到棋盤</a>
   <header class="topbar">
-    <a class="back-link" href="../../index.html">← 回首頁</a>
+    <a class="back-link" href="../../index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>回首頁</a>
     <a class="wordmark" href="../../index.html">波波<span>小遊戲</span></a>
+    <!-- 全站統一順序：規則 · 音效 · 主題；兩態開關 label 固定、狀態由 aria-pressed 表達 -->
     <div class="top-actions">
+      <button class="icon-button" id="rules-button" type="button" aria-label="遊戲規則" title="遊戲規則" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6V14"/><path d="M12 17.2v.1"/></svg></button>
       <button class="icon-button" id="sound-button" type="button" aria-label="音效" aria-pressed="true" title="音效">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5V4Z"/><path class="sound-waves" d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg>
       </button>
-      <button class="icon-button" id="theme-button" type="button" aria-label="切換深淺主題" title="切換深淺主題">
+      <button class="icon-button" id="theme-button" type="button" aria-label="深色模式" title="深色模式" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 13A9 9 0 0 1 11 3a9 9 0 1 0 10 10Z"/></svg>
       </button>
-      <button class="button button-quiet" id="rules-button" type="button">怎麼玩</button>
     </div>
   </header>
 

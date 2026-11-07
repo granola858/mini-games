@@ -301,3 +301,14 @@ test('24 點結尾畫面包含通關算式卡片、統計網格與檢視盤面�
 });
 
 
+
+test('make24 漸進式提示：第一步取最內層兩個數字的運算', () => {
+  const { firstHintStep, stripOuterParens } = require('../games/make24/make24.js');
+  assert.deepEqual(firstHintStep('((8 - 4) × (7 - 1))'), { a: 8, b: 4, op: '−', value: 4 });
+  assert.deepEqual(firstHintStep('(((8 × 4) - 7) - 1)'), { a: 8, b: 4, op: '×', value: 32 });
+  assert.deepEqual(firstHintStep('((3 ÷ 8) + 1)'), { a: 3, b: 8, op: '÷', value: 0.38 });
+  assert.equal(firstHintStep('沒有括號'), null);
+  // 只拆掉包住整條算式的那一層
+  assert.equal(stripOuterParens('((8 - 4) × (7 - 1))'), '(8 - 4) × (7 - 1)');
+  assert.equal(stripOuterParens('(1 + 2) × (3 + 4)'), '(1 + 2) × (3 + 4)');
+});

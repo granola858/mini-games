@@ -5,6 +5,35 @@
 const STORAGE_KEY = 'loop_game_state';
 const STATS_KEY = 'loop_game_stats';
 
+/* 星等規則（純函式，測試直接 require 這支檔案驗證）：
+   步數 ≤ 標準最少步數 → 3 星；≤ 1.5 倍 → 2 星；其他 1 星。
+   提示會直接幫玩家轉好一格，所以用過提示要扣星：用過 1 次最高 2 星，3 次以上最高 1 星。 */
+function evaluateLoopStars(moves, par, hintsUsed = 0) {
+  const safePar = Math.max(1, par || 1);
+  let stars = 1;
+  if (moves <= safePar) stars = 3;
+  else if (moves <= Math.ceil(safePar * 1.5)) stars = 2;
+  if (hintsUsed >= 3) stars = Math.min(stars, 1);
+  else if (hintsUsed >= 1) stars = Math.min(stars, 2);
+  return stars;
+}
+
+/* 減少動態效果：使用者在系統開啟時，JS 端也不做位移動畫 */
+function prefersReducedMotion() {
+  try {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  } catch (_) {
+    return false;
+  }
+}
+
+/* 導線開口方向：給螢幕閱讀器描述每一格 */
+const LOOP_DIR_NAMES = [[1, '上'], [2, '右'], [4, '下'], [8, '左']];
+function describeMask(mask) {
+  const dirs = LOOP_DIR_NAMES.filter(([bit]) => mask & bit).map(([, name]) => name);
+  return dirs.length ? `開口朝${dirs.join('、')}` : '沒有導線';
+}
+
 /* 音效：薄薄一層音色定義，底下的 AudioContext 樣板一律交給共用模組 BoboAudio。
    共用模組必須可缺席：載入失敗時遊戲照常玩，只是完全沒有音效。 */
 class SoundManager {
@@ -82,6 +111,8 @@ class LoopNetGame {
     this.moves = 0;
     this.parMoves = 0;  // 理論最佳最少旋轉步數
     this.isWon = false;
+    this.hintsUsed = 0;
+    this.focusIndex = 0; // 鍵盤焦點所在格（roving tabindex）
     this.lastPoweredCount = 0;
     this.lastPoweredBulbCount = 0;
     this.confettiStop = null; // BoboConfetti.burst() 回傳的收尾函式
@@ -105,10 +136,16 @@ class LoopNetGame {
       btnRestart: document.getElementById('btn-restart'),
       btnHint: document.getElementById('btn-hint'),
       btnNewGame: document.getElementById('btn-new-game'),
-      modalOverlay: document.getElementById('modal-overlay'),
+      winDialog: document.getElementById('win-dialog'),
       modalTitle: document.getElementById('modal-title'),
       modalBody: document.getElementById('modal-body'),
       modalCloseBtn: document.getElementById('modal-close-btn'),
+      modalViewBtn: document.getElementById('modal-view-btn'),
+      rulesBtn: document.getElementById('rules-btn'),
+      rulesDialog: document.getElementById('rules-dialog'),
+      rulesCloseBtn: document.getElementById('rules-close-btn'),
+      hintCount: document.getElementById('hint-count'),
+      statusMsg: document.getElementById('status-msg'),
       confettiCanvas: document.getElementById('confetti-canvas')
     };
 
@@ -177,9 +214,10 @@ class LoopNetGame {
   }
 
   updateThemeIcon(theme) {
+    this.dom.themeBtn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
     this.dom.themeBtn.innerHTML = theme === 'dark'
-      ? '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #FBBF24;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
-      : '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+      ? '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
+      : '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
   }
 
   setupSoundUI() {
@@ -191,9 +229,10 @@ class LoopNetGame {
   }
 
   updateSoundIcon(enabled) {
+    this.dom.soundBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
     this.dom.soundBtn.innerHTML = enabled
-      ? '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
-      : '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary);"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+      ? '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>'
+      : '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
   }
 
   bindEvents() {
@@ -212,16 +251,30 @@ class LoopNetGame {
       this.startNewGame();
     });
     this.dom.modalCloseBtn.addEventListener('click', () => {
-      this.dom.modalOverlay.classList.remove('active');
+      this.closeDialog(this.dom.winDialog);
       this.clearGameState(this.gridSize);
       this.startNewGame();
+      this.focusBoard();
+    });
+    // 「看盤面」只關掉結果，留在已完成的盤面上欣賞
+    this.dom.modalViewBtn.addEventListener('click', () => {
+      this.closeDialog(this.dom.winDialog);
+      this.dom.btnNewGame.focus();
+    });
+    this.dom.winDialog.addEventListener('close', () => this.stopConfetti());
+
+    this.dom.rulesBtn.addEventListener('click', () => this.openDialog(this.dom.rulesDialog));
+    this.dom.rulesCloseBtn.addEventListener('click', () => this.closeDialog(this.dom.rulesDialog));
+
+    // 點 dialog 外的遮罩也能關閉（點擊目標是 dialog 本身時才算遮罩）
+    [this.dom.winDialog, this.dom.rulesDialog].forEach((dialog) => {
+      dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) this.closeDialog(dialog);
+      });
     });
 
-    this.dom.modalOverlay.addEventListener('click', (e) => {
-      if (e.target === this.dom.modalOverlay) {
-        this.dom.modalOverlay.classList.remove('active');
-      }
-    });
+    // 棋盤鍵盤操作：方向鍵移動、Enter／空白鍵旋轉
+    this.dom.gridBoard.addEventListener('keydown', (e) => this.handleBoardKey(e));
 
     // 頁面卸載/切換時保存進度
     const persistProgress = () => {
@@ -242,9 +295,7 @@ class LoopNetGame {
 
     // 2. 切換尺寸與 Tab UI
     this.gridSize = size;
-    this.dom.tabs.forEach(tab => {
-      tab.classList.toggle('active', parseInt(tab.dataset.size, 10) === size);
-    });
+    this.syncSizeButtons();
 
     // 3. 嘗試載入目標尺寸既有的未完成進度
     const restored = this.loadGameStateForSize(size);
@@ -421,6 +472,8 @@ class LoopNetGame {
     this.stopConfetti();
     this.isWon = false;
     this.moves = 0;
+    this.hintsUsed = 0;
+    this.updateHintCount();
     this.lastPoweredCount = 0;
     this.lastPoweredBulbCount = 0;
     this.dom.movesText.textContent = '0';
@@ -455,6 +508,7 @@ class LoopNetGame {
     this.lastPoweredCount = 0;
     this.lastPoweredBulbCount = 0;
     this.dom.movesText.textContent = '0';
+    this.announce('已重置這一局');
     this.renderBoard();
     this.updatePowerFlow(false);
     this.saveGameState();
@@ -492,6 +546,7 @@ class LoopNetGame {
           grid: this.grid,
           sourcePos: this.sourcePos,
           moves: this.moves,
+          hintsUsed: this.hintsUsed,
           parMoves: this.parMoves,
           timerSeconds: this.timerSeconds,
           timestamp: Date.now()
@@ -528,9 +583,7 @@ class LoopNetGame {
       this.gridSize = targetSize;
 
       // 更新 Tab UI
-      this.dom.tabs.forEach(tab => {
-        tab.classList.toggle('active', parseInt(tab.dataset.size, 10) === this.gridSize);
-      });
+      this.syncSizeButtons();
 
       return this.loadGameStateForSize(targetSize);
     } catch (e) {
@@ -549,6 +602,8 @@ class LoopNetGame {
     this.grid = state.grid;
     this.sourcePos = state.sourcePos || { r: Math.floor(size / 2), c: Math.floor(size / 2) };
     this.moves = state.moves || 0;
+    this.hintsUsed = state.hintsUsed || 0;
+    this.updateHintCount();
     this.timerSeconds = state.timerSeconds || 0;
     
     // 若存檔無 parMoves 則根據當前盤面重新計算
@@ -570,9 +625,7 @@ class LoopNetGame {
     this.lastPoweredBulbCount = 0;
 
     // 更新 Tab UI
-    this.dom.tabs.forEach(tab => {
-      tab.classList.toggle('active', parseInt(tab.dataset.size, 10) === this.gridSize);
-    });
+    this.syncSizeButtons();
 
     this.dom.movesText.textContent = this.moves.toString();
     const mins = Math.floor(this.timerSeconds / 60).toString().padStart(2, '0');
@@ -624,20 +677,25 @@ class LoopNetGame {
   renderBoard() {
     const R = this.gridSize;
     const C = this.gridSize;
+    // 重繪前記下焦點是否在棋盤裡，重繪後放回同一格，不讓鍵盤焦點掉回 body
+    const hadFocus = this.dom.gridBoard.contains(document.activeElement);
+    this.focusIndex = Math.min(this.focusIndex, R * C - 1);
     this.dom.gridBoard.style.gridTemplateColumns = `repeat(${C}, 1fr)`;
     this.dom.gridBoard.innerHTML = '';
 
     for (let r = 0; r < R; r++) {
+      // role=row 用 display: contents，不影響原本的 CSS grid 排版
+      const row = document.createElement('div');
+      row.className = 'grid-row';
+      row.setAttribute('role', 'row');
       for (let c = 0; c < C; c++) {
         const cell = this.grid[r][c];
         const tile = document.createElement('div');
         tile.className = `cell-tile ${cell.isSource ? 'is-source' : ''} ${cell.isEndpoint ? 'is-endpoint' : ''}`;
         tile.id = `cell-${r}-${c}`;
-        
-        let tileTitle = `點擊旋轉電路 (${r + 1}, ${c + 1})`;
-        if (cell.isSource) tileTitle = `能量電池核心 (${r + 1}, ${c + 1})`;
-        else if (cell.isEndpoint) tileTitle = `電路終端燈泡 (${r + 1}, ${c + 1})`;
-        tile.title = tileTitle;
+        tile.setAttribute('role', 'gridcell');
+        tile.tabIndex = (r * C + c) === this.focusIndex ? 0 : -1;
+        tile.dataset.index = String(r * C + c);
 
         // 1. 底層旋轉導線層 (隨點擊旋轉)
         const svgWrapper = document.createElement('div');
@@ -654,10 +712,111 @@ class LoopNetGame {
           tile.appendChild(deviceWrapper);
         }
 
-        tile.addEventListener('click', () => this.handleCellClick(r, c));
-        this.dom.gridBoard.appendChild(tile);
+        tile.addEventListener('click', () => {
+          this.setFocusIndex(r * C + c, false);
+          this.handleCellClick(r, c);
+        });
+        row.appendChild(tile);
+      }
+      this.dom.gridBoard.appendChild(row);
+    }
+    this.updateCellLabels();
+    if (hadFocus) this.focusBoard();
+  }
+
+  /* 盤面大小按鈕：視覺 active 與 aria-pressed 同步 */
+  syncSizeButtons() {
+    this.dom.tabs.forEach(tab => {
+      const on = parseInt(tab.dataset.size, 10) === this.gridSize;
+      tab.classList.toggle('active', on);
+      tab.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  /* 每格的螢幕閱讀器標籤：座標、元件種類、開口方向、是否通電 */
+  updateCellLabels() {
+    if (!this.grid) return;
+    const R = this.gridSize;
+    for (let r = 0; r < R; r++) {
+      for (let c = 0; c < R; c++) {
+        const tile = document.getElementById(`cell-${r}-${c}`);
+        if (!tile) continue;
+        const cell = this.grid[r][c];
+        const kind = cell.isSource ? '電池' : (cell.isEndpoint ? '燈泡' : '導線');
+        const power = cell.isPowered ? '已通電' : '未通電';
+        tile.setAttribute('aria-label', `第 ${r + 1} 列第 ${c + 1} 行，${kind}，${describeMask(cell.currentMask)}，${power}`);
       }
     }
+  }
+
+  setFocusIndex(index, moveFocus = true) {
+    const tiles = this.dom.gridBoard.querySelectorAll('.cell-tile');
+    if (!tiles.length) return;
+    const next = Math.max(0, Math.min(index, tiles.length - 1));
+    tiles.forEach((tile, i) => { tile.tabIndex = i === next ? 0 : -1; });
+    this.focusIndex = next;
+    if (moveFocus) tiles[next].focus();
+  }
+
+  focusBoard() {
+    this.setFocusIndex(this.focusIndex, true);
+  }
+
+  handleBoardKey(e) {
+    const size = this.gridSize;
+    const r = Math.floor(this.focusIndex / size);
+    const c = this.focusIndex % size;
+    let next = null;
+    switch (e.key) {
+      case 'ArrowUp': next = r > 0 ? this.focusIndex - size : null; break;
+      case 'ArrowDown': next = r < size - 1 ? this.focusIndex + size : null; break;
+      case 'ArrowLeft': next = c > 0 ? this.focusIndex - 1 : null; break;
+      case 'ArrowRight': next = c < size - 1 ? this.focusIndex + 1 : null; break;
+      case 'Home': next = r * size; break;
+      case 'End': next = r * size + size - 1; break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        this.handleCellClick(r, c);
+        return;
+      default:
+        return;
+    }
+    e.preventDefault();
+    if (next !== null) this.setFocusIndex(next, true);
+  }
+
+  announce(text) {
+    if (!this.dom.statusMsg) return;
+    // 先清空再寫入，同樣的訊息連續出現也會被重新播報
+    this.dom.statusMsg.textContent = '';
+    window.setTimeout(() => { this.dom.statusMsg.textContent = text; }, 30);
+  }
+
+  updateHintCount() {
+    if (this.dom.hintCount) this.dom.hintCount.textContent = String(this.hintsUsed || 0);
+    if (this.dom.btnHint) this.dom.btnHint.setAttribute('aria-label', `提示，已用 ${this.hintsUsed || 0} 次`);
+  }
+
+  openDialog(dialog) {
+    if (!dialog) return;
+    this.lastOpener = document.activeElement;
+    if (typeof dialog.showModal === 'function') {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.setAttribute('open', '');
+    }
+    const primary = dialog.querySelector('.btn-action.primary');
+    if (primary) primary.focus();
+  }
+
+  closeDialog(dialog) {
+    if (!dialog) return;
+    if (typeof dialog.close === 'function' && dialog.open) dialog.close();
+    else dialog.removeAttribute('open');
+    const opener = this.lastOpener;
+    this.lastOpener = null;
+    if (opener && document.contains(opener) && typeof opener.focus === 'function') opener.focus();
   }
 
   generateWireSVG(cell) {
@@ -850,6 +1009,8 @@ class LoopNetGame {
       }
     }
 
+    this.updateCellLabels();
+
     const totalCells = R * C;
     const progressPercent = Math.round((poweredCount / totalCells) * 100);
     this.dom.progressText.textContent = `${progressPercent}%`;
@@ -902,6 +1063,9 @@ class LoopNetGame {
     if (wrongCells.length === 0) return;
 
     this.sound.playHint();
+    this.hintsUsed = (this.hintsUsed || 0) + 1;
+    this.updateHintCount();
+    const capNote = this.hintsUsed >= 3 ? '這局最高 1 星' : '這局最高 2 星';
 
     const chosen = wrongCells[Math.floor(Math.random() * wrongCells.length)];
     const { r, c, cell } = chosen;
@@ -918,6 +1082,7 @@ class LoopNetGame {
       if (wrapper) wrapper.style.transform = `rotate(${cell.rotationDeg}deg)`;
       setTimeout(() => tile.classList.remove('is-hinted'), 1000);
     }
+    this.announce(`提示：第 ${r + 1} 列第 ${c + 1} 行已轉好，${capNote}`);
     this.updatePowerFlow(true);
     this.saveGameState();
   }
@@ -931,16 +1096,9 @@ class LoopNetGame {
 
     // 依據理論最佳步數計算 1~3 星
     const par = this.parMoves || 1;
-    let stars = 1;
-    let badgeText = '🔋 順利過關';
-
-    if (this.moves <= par) {
-      stars = 3;
-      badgeText = '⚡ 完美導通！';
-    } else if (this.moves <= Math.ceil(par * 1.5)) {
-      stars = 2;
-      badgeText = '✨ 優秀通電！';
-    }
+    const hints = this.hintsUsed || 0;
+    const stars = evaluateLoopStars(this.moves, par, hints);
+    const badgeText = stars === 3 ? '完美導通' : (stars === 2 ? '優秀通電' : '順利過關');
 
     this.clearGameState(this.gridSize);
     this.saveStats(this.gridSize, this.timerSeconds, this.moves, stars);
@@ -950,33 +1108,39 @@ class LoopNetGame {
     this.triggerConfetti();
 
     const starSvg = (active) => `
-      <svg class="win-star-icon ${active ? 'active' : ''}" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+      <svg class="win-star-icon ${active ? 'active' : ''}" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
       </svg>
     `;
 
     const starsHtml = `
-      <div class="win-stars-row">
+      <div class="win-stars-row" role="img" aria-label="${stars} 星（滿分 3 星）">
         ${starSvg(stars >= 1)}
         ${starSvg(stars >= 2)}
         ${starSvg(stars >= 3)}
       </div>
-      <div class="win-stars-rating-badge">${badgeText} (${stars} 星評級)</div>
+      <div class="win-stars-rating-badge">${badgeText}・${stars} 星</div>
     `;
+    const hintLine = hints > 0
+      ? `<li>使用提示：<b>${hints} 次</b><span class="stat-note">（${hints >= 3 ? '最高 1 星' : '最高 2 星'}）</span></li>`
+      : '<li>使用提示：<b>0 次</b></li>';
 
+    this.announce(`過關！${stars} 星，${this.moves} 步，用時 ${this.dom.timerText.textContent}`);
+
+    const delay = prefersReducedMotion() ? 0 : 600;
     setTimeout(() => {
-      this.dom.modalTitle.textContent = '電力全開！⚡';
+      this.dom.modalTitle.textContent = '電力全開！';
       this.dom.modalBody.innerHTML = `
         ${starsHtml}
-        <div style="margin-top: 8px;">
-          恭喜連接電池並點亮所有終端燈泡！<br>
-          關卡規格：<b>${this.gridSize} × ${this.gridSize}</b><br>
-          總計耗時：<b>${this.dom.timerText.textContent}</b><br>
-          旋轉步數：<b>${this.moves} 步</b> <span style="font-size: 12px; color: var(--text-secondary);">(標準最少: ${par} 步)</span>
-        </div>
+        <ul class="win-stats">
+          <li>盤面：<b>${this.gridSize} × ${this.gridSize}</b></li>
+          <li>用時：<b>${this.dom.timerText.textContent}</b></li>
+          <li>旋轉步數：<b>${this.moves} 步</b><span class="stat-note">（標準最少 ${par} 步）</span></li>
+          ${hintLine}
+        </ul>
       `;
-      this.dom.modalOverlay.classList.add('active');
-    }, 600);
+      this.openDialog(this.dom.winDialog);
+    }, delay);
   }
 
   /* 彩帶改走共用模組 BoboConfetti；模組缺席時安靜退場，遊戲照常能玩 */
@@ -1008,6 +1172,13 @@ class LoopNetGame {
 }
 
 // 頁面載入啟動
-document.addEventListener('DOMContentLoaded', () => {
-  new LoopNetGame();
-});
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    new LoopNetGame();
+  });
+}
+
+// 讓 node 測試可以直接驗證純函式
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { evaluateLoopStars, describeMask };
+}

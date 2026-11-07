@@ -14,6 +14,8 @@ const DIR = Object.freeze({ UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 });
 
 // 索引與 DIR 的值一一對應：0 上、1 右、2 下、3 左
 const DIR_NAMES = ['up', 'right', 'down', 'left'];
+// 播報用的中文方向，順序與 DIR_NAMES 相同
+const DIR_LABELS = ['上', '右', '下', '左'];
 
 // 遊戲模式代號（存檔與 body[data-mode] 都用這三個字串）
 const MODES = { CLASSIC: 'classic', BLITZ: 'blitz', TOWER: 'tower' };
@@ -1348,6 +1350,7 @@ class Game2048 {
       blitzFill: byId('blitz-fill'),
       chainBadge: byId('chain-badge'),
       gainFloat: byId('gain-float'),
+      moveStatus: byId('move-status'),
 
       // 爬塔 HUD（經典與閃電模式整列隱藏）
       towerBar: byId('tower-bar'),
@@ -1620,12 +1623,10 @@ class Game2048 {
     if (!btn) return;
     const dark = theme === 'dark';
     btn.innerHTML = dark
-      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
-      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
-    // DOM 契約表要求 theme-btn 同步 aria-pressed：按下 = 目前是深色
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+    // 全站規格：label 固定為「深色模式」，狀態只由 aria-pressed 表達（按下 = 目前是深色）
     _appSetAttr(btn, 'aria-pressed', dark ? 'true' : 'false');
-    _appSetAttr(btn, 'title', dark ? '切換為淺色模式' : '切換為深色模式');
-    _appSetAttr(btn, 'aria-label', dark ? '切換為淺色模式' : '切換為深色模式');
     if (btn.classList) btn.classList.toggle('active', dark);
   }
 
@@ -2134,6 +2135,7 @@ class Game2048 {
     const plan = computeMove(this.grid, this.size, dir);
     if (!plan || !plan.changed) {
       this.bumpWall();
+      this.announce(`往${DIR_LABELS[dir]}動不了，換個方向`);
       return false;
     }
 
@@ -2191,7 +2193,8 @@ class Game2048 {
       gained: plan.gained,
       mergeCount: plan.mergeCount,
       maxMerged: plan.maxMerged,
-      bonusMs
+      bonusMs,
+      dir
     };
     this.setLocked(true);
     this.playMoveSound(plan);
@@ -2248,6 +2251,9 @@ class Game2048 {
     this.showGain(pending.gained);
     this.showChain(pending.mergeCount, pending.bonusMs);
     this.refreshHud();
+    // 播報這一步：方向、得分、總分（螢幕閱讀器用；畫面上已有分數格與 +N）
+    const gainText = pending.gained > 0 ? `，得 ${pending.gained} 分` : '';
+    this.announce(`往${DIR_LABELS[pending.dir] || ''}${gainText}，總分 ${this.score}`);
     this.saveGameState();
     const celebrated = this.checkMilestone(pending.beforeMax);
     this.checkAchievements(celebrated);
@@ -2636,9 +2642,8 @@ class Game2048 {
     const btn = this.el && this.el.soundBtn;
     if (!btn) return;
     const on = !!(this.sound && this.sound.enabled);
-    btn.innerHTML = on ? '<span>🔊</span>' : '<span>🔇</span>';
+    btn.innerHTML = on ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m23 9-6 6"/><path d="m17 9 6 6"/></svg>';
     _appSetAttr(btn, 'aria-pressed', on ? 'true' : 'false');
-    _appSetAttr(btn, 'title', on ? '音效開關（目前開啟）' : '音效開關（目前靜音）');
     if (btn.classList) btn.classList.toggle('active', on);
   }
 
@@ -3977,12 +3982,25 @@ class Game2048 {
   // ------------------------------------------------------------------------
   // Toast 與彩帶
   // ------------------------------------------------------------------------
+  // 唯一的播報出口：先清空再寫入，連續相同訊息也會重新唸
+  announce(message) {
+    const el = this.el && this.el.moveStatus;
+    if (!el) return;
+    el.textContent = '';
+    if (typeof setTimeout === 'function') {
+      setTimeout(() => { el.textContent = message; }, 30);
+    } else {
+      el.textContent = message;
+    }
+  }
+
   showToast(message) {
     if (!this.el || !this.el.toastContainer || typeof document === 'undefined') return;
     const toast = document.createElement('div');
     toast.className = 'toast-msg';
     toast.textContent = message;
     this.el.toastContainer.appendChild(toast);
+    this.announce(message);
     if (typeof setTimeout !== 'function') return;
     setTimeout(() => {
       if (toast.style) {

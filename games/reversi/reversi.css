@@ -641,12 +641,23 @@ body[data-mode="duo"] #side-bar {
    6. 棋盤：外框、座標軸、格線
    ========================================================================== */
 
+/* 標題下的一句話目標 */
+.goal-line {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 34em;
+}
+
 .board-frame {
   /* 一律以容器內容寬為基準，不用 vw：vw 含捲軸寬度、也不扣 .page-container 的左右
      padding，一旦比容器內容寬就會讓 margin auto 失效（over-constrained）而靠左溢出，
-     再被 body 的 overflow-x: hidden 裁掉右緣。 */
+     再被 body 的 overflow-x: hidden 裁掉右緣。
+     高度也要設上限：棋盤上方有約 380px 的控制列、下方有浮動動作列，
+     筆電 800px 高時若照寬度撐滿 440px，第 8 列會被動作列蓋住。 */
   width: 100%;
-  max-width: 440px;
+  max-width: min(440px, max(320px, calc(100dvh - 460px)));
   display: grid;
   grid-template-columns: 16px 1fr;
   grid-template-rows: 16px 1fr;
@@ -965,16 +976,35 @@ body[data-mode="duo"] #side-bar {
 }
 
 .action-btn:disabled {
-  opacity: 0.45;
   cursor: not-allowed;
-  filter: grayscale(0.7);
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  border-style: dashed;
 }
 
-.action-btn[aria-pressed="true"] {
-  background: var(--accent-primary);
+/* 開關型按鈕：勾選框 + 文字，開啟時只換框與勾，不變成實心主按鈕 */
+.toggle-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 2px solid var(--text-muted);
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.action-btn.toggle-btn[aria-pressed="true"] .toggle-check {
   border-color: var(--accent-primary);
-  color: var(--accent-on);
-  box-shadow: 0 4px 14px var(--accent-glow);
+  background: var(--accent-primary);
+}
+
+.action-btn.toggle-btn[aria-pressed="true"] .toggle-check::after {
+  content: '';
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid var(--accent-on);
+  border-bottom: 2px solid var(--accent-on);
+  transform: translateY(-1px) rotate(-45deg);
 }
 
 .btn-badge {
@@ -1397,13 +1427,11 @@ body[data-mode="duo"] #side-bar {
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
+  /* 狀態轉換（hover、按下、翻面）瞬間到位 */
   *,
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-delay: 0ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
   }
@@ -1411,4 +1439,36 @@ body[data-mode="duo"] #side-bar {
   .disc {
     transition-delay: 0ms !important;
   }
+
+  /* 落子彈入、回合脈動、結算表情彈出：關掉縮放 */
+  .cell.just-placed .disc,
+  .cell.just-placed[data-disc="white"] .disc,
+  .turn-disc[data-color],
+  .result-emoji {
+    animation: none;
+  }
+
+  /* 通知：只淡入，不位移 */
+  .toast-msg {
+    animation: fadeOnly 0.2s linear;
+  }
+
+  /* 不能下的格子：不晃動，改成整格紅框（不位移），搭配文字提示「這格不能下」 */
+  .cell.shake {
+    animation: cellReject 240ms linear;
+  }
+
+  /* 建議落點：外圈不呼吸，常亮 */
+  .cell.suggested::after {
+    animation: none;
+  }
+}
+
+@keyframes fadeOnly {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cellReject {
+  0%, 100% { box-shadow: inset 0 0 0 3px var(--danger); }
 }

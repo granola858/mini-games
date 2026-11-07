@@ -425,6 +425,40 @@ html[data-theme="dark"] .icon-btn[aria-pressed="true"] {
   gap: 12px;
 }
 
+/* 主要內容：標題 + 賭桌 */
+.sicbo-main {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title-block {
+  text-align: center;
+}
+
+.main-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--text-main);
+}
+
+/* 一句話目標 */
+.goal-line {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* 橫放手機與直立平板（700–899px）：放寬容器，舞台的骰盤、訊息、餘額才放得進同一列，
+   sticky 舞台只佔一列高，下注桌拿回可視空間。只用寬度斷點，不用高度斷點。 */
+@media (min-width: 700px) and (max-width: 899px) {
+  .page-container {
+    max-width: 880px;
+  }
+}
+
 
 /* ==========================================================================
    5. 舞台（骰子 + 結果訊息 + 連勝條 + 餘額）
@@ -1999,9 +2033,9 @@ body[data-phase="gamble"] .dock-actions {
     grid-row: 3;
     position: sticky;
     bottom: 16px;
-    /* 靜態位置放在左欄底部，往上被 sticky 拉到視窗下緣；
-       捲到頁尾時它自然停在左欄最底，不會擋住歷史紀錄。 */
-    align-self: end;
+    /* 靜態位置緊接在歷史紀錄下面（不再沉到左欄最底，避免中間空出一大片）；
+       左欄比視窗高時，sticky bottom 仍會把它拉在視窗下緣，PLAY 永遠看得到。 */
+    align-self: start;
     left: auto;
     right: auto;
     border: 1px solid var(--border-color);

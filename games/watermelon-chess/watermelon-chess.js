@@ -204,7 +204,9 @@
         + (legal.includes(point) ? '，可移動到這裡' : '')
         + (state.lastMove?.to === point ? '，最近一步' : ''));
       button.setAttribute('aria-pressed', String(point === selected));
-      button.disabled = finished || !humanTurn || thinking;
+      // 不用 disabled：電腦思考或終局時把聚焦中的棋點 disable，鍵盤焦點會掉回 body。
+      // 改用 aria-disabled 告知「現在不能下」，實際攔截由 selectPoint() 負責。
+      button.setAttribute('aria-disabled', String(finished || !humanTurn || thinking));
     });
     for (const [prefix, player] of [['red', Core.RED], ['green', Core.GREEN]]) {
       $(prefix + '-count').textContent = Core.count(state.board, player);
@@ -336,6 +338,7 @@
 
   function init() {
     if (theme) theme.init();
+    $('theme-button').setAttribute('aria-pressed', String(document.documentElement.dataset.theme === 'dark'));
     const storedStats = readJson(STATS_KEY);
     if (storedStats !== null) {
       if (statFields.every(field => Number.isSafeInteger(storedStats[field]) && storedStats[field] >= 0)) stats = storedStats;
@@ -395,6 +398,7 @@
         return;
       }
       const next = theme.toggle();
+      $('theme-button').setAttribute('aria-pressed', String(next === 'dark'));
       if (readJson('bobo-home-preferences-v2')?.theme !== next) {
         storageWarning('主題已切換，但無法儲存偏好。');
       }

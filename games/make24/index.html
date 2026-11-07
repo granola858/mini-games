@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="theme-color" content="#FFFFFF" data-theme-color-light="#FFFFFF" data-theme-color-dark="#0F172A">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>24 點大腦算術 - 波波小遊戲</title>
   <meta name="description" content="運用加減乘除與括號，將 4 張撲克牌湊出 24 點！考驗心算速度與邏輯反應。">
@@ -30,34 +31,45 @@
 <body>
 
   <!-- 全螢幕 Confetti 畫布 -->
-  <canvas id="confetti-canvas"></canvas>
+  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
 
   <!-- 遊戲主容器 (移除卡片外框，與其他遊戲一致) -->
   <div class="container">
 
-    <!-- 1. 頂部列：回首頁按鈕與深淺色切換 -->
-    <div class="top-bar">
+    <!-- 1. 頂端列：回首頁 ／ 規則・音效・主題（全站統一順序） -->
+    <header class="top-bar">
       <a href="../../index.html" class="back-btn">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M19 12H5M12 19l-7-7 7-7" />
         </svg>
         回首頁
       </a>
-      <button class="theme-toggle-btn" id="theme-btn" type="button" aria-label="切換深淺色模式" title="切換深淺色模式">
-        <svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
-      </button>
+      <div class="top-controls">
+        <button class="theme-toggle-btn" id="rules-btn" type="button" aria-label="遊戲規則" title="遊戲規則" aria-haspopup="dialog">
+          <svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6V14"/><path d="M12 17.2v.1"/></svg>
+        </button>
+        <!-- 音效、主題：固定 aria-label，狀態只由 aria-pressed 表達 -->
+        <button class="theme-toggle-btn" id="sound-btn" type="button" aria-label="音效" title="音效" aria-pressed="true"></button>
+        <button class="theme-toggle-btn" id="theme-btn" type="button" aria-label="深色模式" title="深色模式" aria-pressed="false">
+          <svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="game-main">
+    <!-- 2. 主標題與一句話目標 -->
+    <div class="title-block">
+      <h1 class="main-title">24 點大腦算術</h1>
+      <p class="goal-line">四張牌各用一次，用加減乘除湊出 24。</p>
     </div>
 
-    <!-- 2. 主標題 (樣式、字體與位置與其他遊戲一致) -->
-    <h1 class="main-title">24 點大腦算術</h1>
-
-    <!-- 3. 分頁切換 (Segmented Tab: 4 檔難度) -->
-    <div class="tab-container" role="tablist" aria-label="遊戲難度模式">
-      <button class="tab-btn active" data-mode="easy" id="tab-easy" type="button">簡單</button>
-      <button class="tab-btn" data-mode="medium" id="tab-medium" type="button">標準</button>
-      <button class="tab-btn" data-mode="hard" id="tab-hard" type="button">困難</button>
-      <button class="tab-btn" data-mode="master" id="tab-master" type="button">大師</button>
+    <!-- 3. 難度：一般按鈕 + aria-pressed -->
+    <div class="tab-container" role="group" aria-label="難度">
+      <button class="tab-btn active" data-mode="easy" id="tab-easy" type="button" aria-pressed="true">簡單</button>
+      <button class="tab-btn" data-mode="medium" id="tab-medium" type="button" aria-pressed="false">標準</button>
+      <button class="tab-btn" data-mode="hard" id="tab-hard" type="button" aria-pressed="false">困難</button>
+      <button class="tab-btn" data-mode="master" id="tab-master" type="button" aria-pressed="false">大師</button>
     </div>
 
     <!-- 4. 計分與狀態資訊列 -->
@@ -77,12 +89,14 @@
     </section>
 
     <!-- 5. 算式輸入與即時顯示區 -->
-    <main class="display-card" id="display-card" aria-live="polite">
+    <section class="display-card" id="display-card" aria-label="算式">
       <div class="equation-text" id="equation-container">
         <!-- 由 JS 初始化 -->
       </div>
       <div class="eval-result" id="eval-result"></div>
-    </main>
+    </section>
+    <!-- 只播報結果（過關、湊錯、提示），不逐字播報算式 -->
+    <p class="sr-only" id="status-msg" role="status" aria-live="polite"></p>
 
     <!-- 6. 撲克牌數字卡網格 (左上/右下花色，正中間大數字) -->
     <section class="cards-grid" id="cards-grid" aria-label="撲克牌數字選擇區">
@@ -100,32 +114,52 @@
     </section>
 
     <!-- 8. 輔助與控制按鈕 -->
-    <footer class="action-row">
+    <div class="action-row">
       <button class="btn-action util" id="btn-backspace" type="button" title="倒退刪除 (Backspace)">
         <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg> 倒退
       </button>
       <button class="btn-action util" id="btn-clear" type="button" title="清空重組 (Esc)">
         <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> 清空
       </button>
-      <button class="btn-action" id="btn-hint" type="button" title="獲取提示解法">
-        <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-warning);"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/></svg> 提示
+      <button class="btn-action" id="btn-hint" type="button" title="先給第一步，再按一次看完整解法">
+        <svg class="icon-svg hint-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/></svg> 提示
       </button>
       <button class="btn-action primary" id="btn-skip" type="button" title="更換一組卡牌">
         <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg> 換牌
       </button>
-    </footer>
-
-    <!-- 9. Modal 彈窗 (提示 / 獲勝) -->
-    <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div class="modal-card">
-        <h2 class="modal-title" id="modal-title">提示</h2>
-        <div class="modal-body" id="modal-body">
-          <!-- 內文動態替換 -->
-        </div>
-        <button class="btn-action primary" id="modal-close-btn" type="button" style="width: 100%;">確定</button>
-      </div>
     </div>
+    </main>
   </div>
+
+  <!-- 9. 對話框（提示／過關）：原生 dialog，自帶焦點管理與 Esc -->
+  <dialog class="game-dialog" id="game-dialog" aria-labelledby="modal-title">
+    <h2 class="modal-title" id="modal-title">提示</h2>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="dialog-actions" id="dialog-actions"></div>
+  </dialog>
+
+  <!-- 10. 規則說明 -->
+  <dialog class="game-dialog rules-dialog" id="rules-dialog" aria-labelledby="rules-title">
+    <h2 class="modal-title" id="rules-title">怎麼玩</h2>
+    <div class="rules-body">
+      <h3>目標</h3>
+      <p>四張牌的數字<strong>各用一次</strong>，搭配加、減、乘、除與括號，讓算式等於 24。</p>
+      <h3>操作</h3>
+      <ul>
+        <li>點牌或按數字鍵 1～4 放入數字；點符號或直接打 + − * / ( ) 放入運算。</li>
+        <li>倒退（Backspace）刪一格，清空（Esc）重來；方向鍵移動游標。</li>
+        <li>按住拖曳算式可以選取一段，再按倒退一次刪掉。</li>
+      </ul>
+      <h3>提示</h3>
+      <ul>
+        <li>第一次按「提示」只告訴你第一步；再按一次才看完整解法。</li>
+        <li>換牌會讓連勝歸零。</li>
+      </ul>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn-action primary" id="rules-close-btn" type="button">知道了</button>
+    </div>
+  </dialog>
 
   <script src="../../assets/js/bobo-confetti.js"></script>
   <script src="../../assets/js/bobo-theme.js"></script>

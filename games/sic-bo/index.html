@@ -58,23 +58,21 @@
         <span>回首頁</span>
       </a>
 
+      <!-- 右側圖示鍵：本遊戲專屬的「戰績」放前面，接著是全站統一順序「規則 · 音效 · 主題」。
+           兩態開關 aria-label 固定，狀態只由 aria-pressed 表達：
+           主題鍵 pressed = 目前是深色，音效鍵 pressed = 目前開著音效（JS init 時同步）。 -->
       <div class="top-actions">
-        <!-- 兩態開關一律用 aria-pressed（不是 .active class）：
-             主題鍵 pressed = 目前是深色，音效鍵 pressed = 目前開著音效。
-             HTML 先放月亮 SVG 與 pressed="false" 當首屏保底，JS init 時會同步成實際偏好。 -->
-        <button class="icon-btn" id="theme-btn" type="button" aria-label="切換深淺色模式" aria-pressed="false" title="切換深淺色">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>
-          </svg>
+        <button class="icon-btn" id="stats-btn" type="button" aria-label="戰績" title="戰績" aria-haspopup="dialog">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
         </button>
-        <button class="icon-btn" id="sound-btn" type="button" aria-label="音效開關" aria-pressed="true" title="音效開關">
-          <span aria-hidden="true">🔊</span>
+        <button class="icon-btn" id="help-btn" type="button" aria-label="遊戲規則" title="遊戲規則" aria-haspopup="dialog">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6V14"/><path d="M12 17.2v.1"/></svg>
         </button>
-        <button class="icon-btn" id="stats-btn" type="button" aria-label="戰績紀錄" title="戰績統計">
-          <span aria-hidden="true">📊</span>
+        <button class="icon-btn" id="sound-btn" type="button" aria-label="音效" aria-pressed="true" title="音效">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
         </button>
-        <button class="icon-btn" id="help-btn" type="button" aria-label="玩法教學" title="規則說明">
-          <span aria-hidden="true">❓</span>
+        <button class="icon-btn" id="theme-btn" type="button" aria-label="深色模式" aria-pressed="false" title="深色模式">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
         </button>
       </div>
     </header>
@@ -96,6 +94,12 @@
            （左欄兩列 "stage" / "dock"，右欄兩列 "bets" / "history"），
            不需要為了分欄額外包一層 wrapper、也不必用 order 打亂 DOM 順序。
          ==================================================================== -->
+    <main class="sicbo-main">
+    <div class="title-block">
+      <h1 class="main-title">骰寶</h1>
+      <p class="goal-line">選籌碼、點注格下注，按 PLAY 擲三顆骰子；押中就照賠率贏分。</p>
+    </div>
+
     <div class="table-layout">
 
       <!-- 2.1 舞台：手機上 sticky 釘在頂端，下注時骰子與餘額永遠看得到 -->
@@ -220,15 +224,15 @@
         <section class="bet-group">
           <h2 class="bet-group-title">大小與圍骰　開圍骰時大小皆輸</h2>
           <div class="bet-grid bet-grid--bs">
-            <button class="bet-cell" type="button" data-bet="bs-small" aria-pressed="false" aria-label="押小，總點數 4 到 10，開圍骰不算，賠率 1 倍">
+            <button class="bet-cell" type="button" data-bet="bs-small" aria-label="押小，總點數 4 到 10，開圍骰不算，賠率 1 倍">
               <span class="bet-cell__face">小</span>
               <span class="bet-cell__rate">×1</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="triple-any" aria-pressed="false" aria-label="押任意圍骰，三顆點數相同，賠率 30 倍">
+            <button class="bet-cell" type="button" data-bet="triple-any" aria-label="押任意圍骰，三顆點數相同，賠率 30 倍">
               <span class="bet-cell__face">任意圍骰</span>
               <span class="bet-cell__rate">×30</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="bs-big" aria-pressed="false" aria-label="押大，總點數 11 到 17，開圍骰不算，賠率 1 倍">
+            <button class="bet-cell" type="button" data-bet="bs-big" aria-label="押大，總點數 11 到 17，開圍骰不算，賠率 1 倍">
               <span class="bet-cell__face">大</span>
               <span class="bet-cell__rate">×1</span>
             </button>
@@ -238,59 +242,59 @@
         <section class="bet-group">
           <h2 class="bet-group-title">點數　上排 4–10 是小・下排 11–17 是大</h2>
           <div class="bet-grid bet-grid--sum">
-            <button class="bet-cell" type="button" data-bet="sum-4" aria-pressed="false" aria-label="押點數 4，賠率 60 倍">
+            <button class="bet-cell" type="button" data-bet="sum-4" aria-label="押點數 4，賠率 60 倍">
               <span class="bet-cell__face">4</span>
               <span class="bet-cell__rate">×60</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-5" aria-pressed="false" aria-label="押點數 5，賠率 30 倍">
+            <button class="bet-cell" type="button" data-bet="sum-5" aria-label="押點數 5，賠率 30 倍">
               <span class="bet-cell__face">5</span>
               <span class="bet-cell__rate">×30</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-6" aria-pressed="false" aria-label="押點數 6，賠率 18 倍">
+            <button class="bet-cell" type="button" data-bet="sum-6" aria-label="押點數 6，賠率 18 倍">
               <span class="bet-cell__face">6</span>
               <span class="bet-cell__rate">×18</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-7" aria-pressed="false" aria-label="押點數 7，賠率 12 倍">
+            <button class="bet-cell" type="button" data-bet="sum-7" aria-label="押點數 7，賠率 12 倍">
               <span class="bet-cell__face">7</span>
               <span class="bet-cell__rate">×12</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-8" aria-pressed="false" aria-label="押點數 8，賠率 8 倍">
+            <button class="bet-cell" type="button" data-bet="sum-8" aria-label="押點數 8，賠率 8 倍">
               <span class="bet-cell__face">8</span>
               <span class="bet-cell__rate">×8</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-9" aria-pressed="false" aria-label="押點數 9，賠率 7 倍">
+            <button class="bet-cell" type="button" data-bet="sum-9" aria-label="押點數 9，賠率 7 倍">
               <span class="bet-cell__face">9</span>
               <span class="bet-cell__rate">×7</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-10" aria-pressed="false" aria-label="押點數 10，賠率 6 倍">
+            <button class="bet-cell" type="button" data-bet="sum-10" aria-label="押點數 10，賠率 6 倍">
               <span class="bet-cell__face">10</span>
               <span class="bet-cell__rate">×6</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-11" aria-pressed="false" aria-label="押點數 11，賠率 6 倍">
+            <button class="bet-cell" type="button" data-bet="sum-11" aria-label="押點數 11，賠率 6 倍">
               <span class="bet-cell__face">11</span>
               <span class="bet-cell__rate">×6</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-12" aria-pressed="false" aria-label="押點數 12，賠率 7 倍">
+            <button class="bet-cell" type="button" data-bet="sum-12" aria-label="押點數 12，賠率 7 倍">
               <span class="bet-cell__face">12</span>
               <span class="bet-cell__rate">×7</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-13" aria-pressed="false" aria-label="押點數 13，賠率 8 倍">
+            <button class="bet-cell" type="button" data-bet="sum-13" aria-label="押點數 13，賠率 8 倍">
               <span class="bet-cell__face">13</span>
               <span class="bet-cell__rate">×8</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-14" aria-pressed="false" aria-label="押點數 14，賠率 12 倍">
+            <button class="bet-cell" type="button" data-bet="sum-14" aria-label="押點數 14，賠率 12 倍">
               <span class="bet-cell__face">14</span>
               <span class="bet-cell__rate">×12</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-15" aria-pressed="false" aria-label="押點數 15，賠率 18 倍">
+            <button class="bet-cell" type="button" data-bet="sum-15" aria-label="押點數 15，賠率 18 倍">
               <span class="bet-cell__face">15</span>
               <span class="bet-cell__rate">×18</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-16" aria-pressed="false" aria-label="押點數 16，賠率 30 倍">
+            <button class="bet-cell" type="button" data-bet="sum-16" aria-label="押點數 16，賠率 30 倍">
               <span class="bet-cell__face">16</span>
               <span class="bet-cell__rate">×30</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="sum-17" aria-pressed="false" aria-label="押點數 17，賠率 60 倍">
+            <button class="bet-cell" type="button" data-bet="sum-17" aria-label="押點數 17，賠率 60 倍">
               <span class="bet-cell__face">17</span>
               <span class="bet-cell__rate">×60</span>
             </button>
@@ -300,63 +304,63 @@
         <section class="bet-group">
           <h2 class="bet-group-title">組合　兩個點數各開出一顆就中</h2>
           <div class="bet-grid bet-grid--combo">
-            <button class="bet-cell" type="button" data-bet="combo-1-2" aria-pressed="false" aria-label="押組合 1 加 2，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-1-2" aria-label="押組合 1 加 2，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-1-3" aria-pressed="false" aria-label="押組合 1 加 3，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-1-3" aria-label="押組合 1 加 3，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-1-4" aria-pressed="false" aria-label="押組合 1 加 4，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-1-4" aria-label="押組合 1 加 4，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-1-5" aria-pressed="false" aria-label="押組合 1 加 5，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-1-5" aria-label="押組合 1 加 5，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-1-6" aria-pressed="false" aria-label="押組合 1 加 6，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-1-6" aria-label="押組合 1 加 6，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-2-3" aria-pressed="false" aria-label="押組合 2 加 3，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-2-3" aria-label="押組合 2 加 3，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-2-4" aria-pressed="false" aria-label="押組合 2 加 4，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-2-4" aria-label="押組合 2 加 4，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-2-5" aria-pressed="false" aria-label="押組合 2 加 5，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-2-5" aria-label="押組合 2 加 5，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-2-6" aria-pressed="false" aria-label="押組合 2 加 6，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-2-6" aria-label="押組合 2 加 6，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-3-4" aria-pressed="false" aria-label="押組合 3 加 4，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-3-4" aria-label="押組合 3 加 4，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-3-5" aria-pressed="false" aria-label="押組合 3 加 5，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-3-5" aria-label="押組合 3 加 5，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-3-6" aria-pressed="false" aria-label="押組合 3 加 6，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-3-6" aria-label="押組合 3 加 6，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-4-5" aria-pressed="false" aria-label="押組合 4 加 5，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-4-5" aria-label="押組合 4 加 5，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-4-6" aria-pressed="false" aria-label="押組合 4 加 6，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-4-6" aria-label="押組合 4 加 6，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="combo-5-6" aria-pressed="false" aria-label="押組合 5 加 6，兩個點數各至少開出一顆，賠率 5 倍">
+            <button class="bet-cell" type="button" data-bet="combo-5-6" aria-label="押組合 5 加 6，兩個點數各至少開出一顆，賠率 5 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×5</span>
             </button>
@@ -366,27 +370,27 @@
         <section class="bet-group">
           <h2 class="bet-group-title">雙骰　同一點數至少開兩顆</h2>
           <div class="bet-grid bet-grid--double">
-            <button class="bet-cell" type="button" data-bet="double-1" aria-pressed="false" aria-label="押雙骰 1，至少開出兩顆 1 點，賠率 11 倍">
+            <button class="bet-cell" type="button" data-bet="double-1" aria-label="押雙骰 1，至少開出兩顆 1 點，賠率 11 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×11</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="double-2" aria-pressed="false" aria-label="押雙骰 2，至少開出兩顆 2 點，賠率 11 倍">
+            <button class="bet-cell" type="button" data-bet="double-2" aria-label="押雙骰 2，至少開出兩顆 2 點，賠率 11 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×11</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="double-3" aria-pressed="false" aria-label="押雙骰 3，至少開出兩顆 3 點，賠率 11 倍">
+            <button class="bet-cell" type="button" data-bet="double-3" aria-label="押雙骰 3，至少開出兩顆 3 點，賠率 11 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×11</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="double-4" aria-pressed="false" aria-label="押雙骰 4，至少開出兩顆 4 點，賠率 11 倍">
+            <button class="bet-cell" type="button" data-bet="double-4" aria-label="押雙骰 4，至少開出兩顆 4 點，賠率 11 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×11</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="double-5" aria-pressed="false" aria-label="押雙骰 5，至少開出兩顆 5 點，賠率 11 倍">
+            <button class="bet-cell" type="button" data-bet="double-5" aria-label="押雙骰 5，至少開出兩顆 5 點，賠率 11 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×11</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="double-6" aria-pressed="false" aria-label="押雙骰 6，至少開出兩顆 6 點，賠率 11 倍">
+            <button class="bet-cell" type="button" data-bet="double-6" aria-label="押雙骰 6，至少開出兩顆 6 點，賠率 11 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×11</span>
             </button>
@@ -396,27 +400,27 @@
         <section class="bet-group">
           <h2 class="bet-group-title">特定圍骰　三顆都是同一個點數</h2>
           <div class="bet-grid bet-grid--triple">
-            <button class="bet-cell" type="button" data-bet="triple-1" aria-pressed="false" aria-label="押特定圍骰 1，三顆都是 1 點，賠率 180 倍">
+            <button class="bet-cell" type="button" data-bet="triple-1" aria-label="押特定圍骰 1，三顆都是 1 點，賠率 180 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×180</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="triple-2" aria-pressed="false" aria-label="押特定圍骰 2，三顆都是 2 點，賠率 180 倍">
+            <button class="bet-cell" type="button" data-bet="triple-2" aria-label="押特定圍骰 2，三顆都是 2 點，賠率 180 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×180</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="triple-3" aria-pressed="false" aria-label="押特定圍骰 3，三顆都是 3 點，賠率 180 倍">
+            <button class="bet-cell" type="button" data-bet="triple-3" aria-label="押特定圍骰 3，三顆都是 3 點，賠率 180 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×180</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="triple-4" aria-pressed="false" aria-label="押特定圍骰 4，三顆都是 4 點，賠率 180 倍">
+            <button class="bet-cell" type="button" data-bet="triple-4" aria-label="押特定圍骰 4，三顆都是 4 點，賠率 180 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×180</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="triple-5" aria-pressed="false" aria-label="押特定圍骰 5，三顆都是 5 點，賠率 180 倍">
+            <button class="bet-cell" type="button" data-bet="triple-5" aria-label="押特定圍骰 5，三顆都是 5 點，賠率 180 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×180</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="triple-6" aria-pressed="false" aria-label="押特定圍骰 6，三顆都是 6 點，賠率 180 倍">
+            <button class="bet-cell" type="button" data-bet="triple-6" aria-label="押特定圍骰 6，三顆都是 6 點，賠率 180 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×180</span>
             </button>
@@ -426,27 +430,27 @@
         <section class="bet-group">
           <h2 class="bet-group-title">單骰　開幾顆就賠幾倍</h2>
           <div class="bet-grid bet-grid--single">
-            <button class="bet-cell" type="button" data-bet="single-1" aria-pressed="false" aria-label="押單骰 1，開出 1、2、3 顆分別賠 1、2、3 倍">
+            <button class="bet-cell" type="button" data-bet="single-1" aria-label="押單骰 1，開出 1、2、3 顆分別賠 1、2、3 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="1"><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×1</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="single-2" aria-pressed="false" aria-label="押單骰 2，開出 1、2、3 顆分別賠 1、2、3 倍">
+            <button class="bet-cell" type="button" data-bet="single-2" aria-label="押單骰 2，開出 1、2、3 顆分別賠 1、2、3 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="2"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×1</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="single-3" aria-pressed="false" aria-label="押單骰 3，開出 1、2、3 顆分別賠 1、2、3 倍">
+            <button class="bet-cell" type="button" data-bet="single-3" aria-label="押單骰 3，開出 1、2、3 顆分別賠 1、2、3 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="3"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×1</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="single-4" aria-pressed="false" aria-label="押單骰 4，開出 1、2、3 顆分別賠 1、2、3 倍">
+            <button class="bet-cell" type="button" data-bet="single-4" aria-label="押單骰 4，開出 1、2、3 顆分別賠 1、2、3 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="4"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×1</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="single-5" aria-pressed="false" aria-label="押單骰 5，開出 1、2、3 顆分別賠 1、2、3 倍">
+            <button class="bet-cell" type="button" data-bet="single-5" aria-label="押單骰 5，開出 1、2、3 顆分別賠 1、2、3 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="5"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×1</span>
             </button>
-            <button class="bet-cell" type="button" data-bet="single-6" aria-pressed="false" aria-label="押單骰 6，開出 1、2、3 顆分別賠 1、2、3 倍">
+            <button class="bet-cell" type="button" data-bet="single-6" aria-label="押單骰 6，開出 1、2、3 顆分別賠 1、2、3 倍">
               <span class="bet-cell__face"><span class="bet-pips"><span class="bet-pips__die" data-pips="6"><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i><i class="bet-pips__dot"></i></span></span></span>
               <span class="bet-cell__rate">×1</span>
             </button>
@@ -463,6 +467,7 @@
         <p id="history-empty">還沒有紀錄。押一注、按 PLAY 就開始。</p>
       </section>
     </div>
+    </main>
   </div>
 
   <!-- ======================================================================

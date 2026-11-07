@@ -24,9 +24,10 @@
   <header class="topbar">
     <a class="back-link" href="../../index.html" aria-label="回到波波小遊戲首頁">← <span>回首頁</span></a>
     <span class="table-brand" aria-hidden="true">九九 <b>99</b></span>
+    <!-- 全站統一順序：規則 · 主題（本遊戲沒有音效）。主題鍵 label 固定，狀態只由 aria-pressed 表達。 -->
     <div class="top-actions">
-      <button class="icon-button" id="theme-button" type="button" aria-label="切換主題" title="切換主題">🌙</button>
-      <button class="icon-button" id="rules-button" type="button">玩法</button>
+      <button class="icon-button" id="rules-button" type="button" aria-label="遊戲規則" title="遊戲規則" aria-haspopup="dialog"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6V14"/><path d="M12 17.2v.1"/></svg></button>
+      <button class="icon-button" id="theme-button" type="button" aria-label="深色模式" title="深色模式" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></button>
     </div>
   </header>
 
@@ -36,7 +37,7 @@
       <p>輪流出牌，讓點數留在 99 以內。撐到最後的玩家獲勝！</p>
     </section>
 
-    <p class="storage-notice" id="storage-notice" role="status" hidden></p>
+    <p class="storage-notice" id="storage-notice" hidden></p>
     <p class="status-line" id="status-line" role="status" aria-live="polite"></p>
 
     <section class="panel setup-panel" id="setup-panel" aria-labelledby="setup-title">
@@ -44,7 +45,7 @@
         <div>
           <h2 id="setup-title">準備開局</h2>
         </div>
-        <div class="record-chip" id="record-chip" aria-live="polite">勝 0 · 敗 0</div>
+        <div class="record-chip" id="record-chip">勝 0 · 敗 0</div>
       </div>
       <div class="settings-grid">
         <label class="field">
@@ -81,11 +82,11 @@
     <section class="game-panel" id="game-panel" hidden aria-label="九九牌局">
       <div class="table-top panel">
         <div class="table-heading">
-          <h2 id="turn-title" aria-live="polite">準備中</h2>
+          <h2 id="turn-title" tabindex="-1">準備中</h2>
           <button class="button button-quiet" id="new-game-button" type="button">新局設定</button>
         </div>
         <div class="players-list" id="players-list" aria-label="玩家狀態"></div>
-        <div class="score-board" aria-live="polite">
+        <div class="score-board">
           <span class="score-label">海中點數</span>
           <strong id="current-value">0</strong>
           <div class="score-track" aria-hidden="true"><span id="score-fill"></span></div>
@@ -111,7 +112,7 @@
         </div>
       </div>
 
-      <section class="result-panel panel" id="result-panel" hidden aria-live="polite">
+      <section class="result-panel panel" id="result-panel" hidden aria-labelledby="result-title">
         <div class="result-icon" aria-hidden="true">🏆</div>
         <div>
           <h2 id="result-title">本局結束</h2>
