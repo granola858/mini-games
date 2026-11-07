@@ -474,31 +474,33 @@
        盤面就會被擠到需要捲動才看得完，併成一排才能一頁檢視。
        兩組都只佔內容寬度、整排置中，跟下方的塗黑／標記切換同樣是一組收攏的控制；
        撐滿整列的話，只有兩三個字的按鈕會被灌進大量留白，看起來反而鬆散又擁擠。 */
+    /* 出題方式、盤面大小、難度（或圖案進度）併成一列：
+       「隨機／圖案」「8×8／10×10／12×12」本身就看得懂，標籤只留給螢幕閱讀器；
+       難度與圖案進度的標籤放在控制項左邊同一行，不再各自多佔一行，盤面才不會被往下擠。 */
     .control-stack {
       width: 100%;
       max-width: 560px;
       display: flex;
       flex-wrap: wrap;
       flex-direction: row;
-      align-items: stretch;
+      align-items: center;
       justify-content: center;
-      gap: 16px;
+      gap: 8px 10px;
     }
 
     .control-group {
       flex: 0 0 auto;
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       align-items: center;
       gap: 6px;
     }
 
     .control-label {
-      width: 100%;
       color: var(--text-muted);
       font-size: 0.8rem;
       font-weight: 700;
-      padding-left: 8px;
+      white-space: nowrap;
     }
 
     .toggle-container {
@@ -714,10 +716,24 @@
       padding: 0 10px;
     }
 
-    /* 桌機／筆電：盤面寬度也受視窗高度限制，12×12 在 1280×800 上不會一路長到畫面外 */
+    /* 盤面寬度也受視窗高度限制：--layout-chrome 是盤面以外（頂端列、標題、控制列、動作列與間距）
+       約佔的高度，盤面只拿剩下的空間，按鈕才能和盤面一起留在同一個畫面。
+       盤面接近正方形（左側列線索寬 ≈ 上方欄線索高），所以用寬度上限就能控制高度。
+       格子仍有 --cell-min 下限，空間真的不夠時改成捲動，不會縮到點不到。 */
+    .game-board-wrapper {
+      --layout-chrome: 372px;
+      max-width: min(560px, calc(100vh - var(--layout-chrome)));
+      max-width: min(560px, calc(100dvh - var(--layout-chrome)));
+    }
+
+    /* 寬螢幕橫向空間充足：高度上限比 12×12 的最小盤面（列線索＋12 格 26px）還窄時，
+       盤面區跟著撐到最小盤面，不要為了幾個像素出現橫向捲動 */
     @media (min-width: 600px) {
       .game-board-wrapper {
-        max-width: min(560px, max(380px, calc(100dvh - 300px)));
+        width: fit-content;
+        min-width: min(560px, calc(100vh - var(--layout-chrome)));
+        min-width: min(560px, calc(100dvh - var(--layout-chrome)));
+        max-width: none;
       }
     }
 
@@ -1167,13 +1183,13 @@
         font-size: 0.9rem;
       }
 
-      h1 {
+      .h1 {
         font-size: 28px;
       }
 
       .control-stack {
         max-width: 390px;
-        gap: 14px;
+        gap: 6px 8px;
       }
 
       .control-group {
@@ -1181,7 +1197,6 @@
       }
 
       .control-label {
-        padding-left: 6px;
         font-size: 0.74rem;
       }
 
@@ -1192,7 +1207,7 @@
 
       .mode-btn {
         font-size: 0.84rem;
-        padding: 7px 12px;
+        padding: 7px 10px;
       }
 
       /* 只有列線索需要最小寬度；欄線索若也撐到 36px，12×12 的格子就被迫變寬而需要捲動 */
@@ -1242,8 +1257,8 @@
         gap: 8px;
       }
 
-      h1 {
-        font-size: 22px;
+      .h1 {
+        font-size: 24px;
       }
 
       .game-info {
@@ -1251,12 +1266,7 @@
       }
 
       .control-stack {
-        gap: 12px;
-        margin-bottom: 4px;
-      }
-
-      .control-group {
-        gap: 3px;
+        gap: 6px 8px;
       }
 
       .control-label {
@@ -1264,7 +1274,149 @@
       }
 
       .mode-btn {
-        padding: 6px 12px;
+        padding: 6px 10px;
+      }
+
+      .game-board-wrapper {
+        --layout-chrome: 300px;
+      }
+    }
+
+    /* 矮螢幕（小手機直向）：一句話目標收進規則說明、控制列與間距再收緊，
+       把高度讓給盤面與按鈕，12×12 在 375×667、360×640 也能一頁看完 */
+    @media (max-height: 700px) {
+      .container,
+      .game-main {
+        gap: 8px;
+      }
+
+      .subtitle {
+        display: none;
+      }
+
+      .icon-btn {
+        width: 40px;
+        height: 40px;
+      }
+
+      .back-btn {
+        min-height: 40px;
+      }
+
+      .control-stack {
+        gap: 6px;
+      }
+
+      /* 難度與圖案進度的文字標籤只留給螢幕閱讀器（難度有 <label for> 提供名稱；
+         進度本身寫著「已完成 N／M」），控制項才排得進一列 */
+      #difficulty-group .control-label,
+      #picture-group .control-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+      }
+
+      .mode-btn {
+        font-size: 0.8rem;
+        padding: 6px 7px;
+      }
+
+      /* 下拉選單維持 16px 字（iOS 低於 16px 會在點選時放大整頁），只收窄左右留白 */
+      .mode-select {
+        padding: 6px 24px 6px 10px;
+      }
+
+      .picture-progress {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+      }
+
+      .select-container::after {
+        right: 11px;
+      }
+
+      .action-btn {
+        min-height: 34px;
+        padding: 5px 14px;
+      }
+
+      .game-board-wrapper {
+        --layout-chrome: 250px;
+        margin-bottom: 0;
+      }
+    }
+
+    /* 360–380px 寬的手機：12×12 的列線索加 12 格 25px 剛好比可用寬度多一點，
+       格子降到 24px（仍符合 WCAG 2.5.8 的最小觸控目標）就不用橫向捲動 */
+    @media (max-width: 380px) {
+      .game-board {
+        --cell-min: 24px;
+      }
+
+      /* 列線索數字之間的間距與左右留白再收一點，五個數字的列也放得下 */
+      .clue-cell.row-clue {
+        gap: 3px;
+        padding: 0 3px;
+      }
+    }
+
+    /* 手機橫放：上下疊放一定放不下，改成左邊盤面、右邊其他控制與按鈕 */
+    @media (orientation: landscape) and (max-height: 540px) {
+      body {
+        padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      }
+
+      .game-main {
+        display: grid;
+        grid-template-columns: auto minmax(260px, 360px);
+        grid-auto-rows: auto;
+        align-content: start;
+        justify-content: center;
+        align-items: center;
+        column-gap: 20px;
+        row-gap: 8px;
+      }
+
+      .game-main > * {
+        grid-column: 2;
+      }
+
+      .game-main > .game-board-wrapper {
+        --layout-chrome: 20px;
+        grid-column: 1;
+        grid-row: 1 / span 8;
+        align-self: start;
+        /* 至少拿到整個畫面高度那麼寬；12×12 的最小盤面若更寬就跟著撐開，
+           不能被右欄切掉最後一欄 */
+        width: fit-content;
+        min-width: calc(100vh - var(--layout-chrome));
+        min-width: calc(100dvh - var(--layout-chrome));
+        max-width: none;
+        margin-bottom: 0;
+        padding: 0;
+      }
+
+      .game-main > .game-board-wrapper .board-container {
+        overflow-x: visible;
+      }
+
+      .top-bar,
+      .control-stack,
+      .action-msg-container,
+      .btn-group {
+        max-width: none;
+        width: 100%;
+      }
+
+      .h1 {
+        font-size: 24px;
+      }
+
+      .subtitle {
+        display: none;
       }
     }
 

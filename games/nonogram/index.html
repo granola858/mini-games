@@ -28,129 +28,130 @@
 <body>
 
   <div class="container">
-    <header class="top-bar">
-      <a href="../../index.html" class="back-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M19 12H5M12 19l-7-7 7-7"></path>
-        </svg>
-        回首頁
-      </a>
 
-      <div class="top-controls">
-        <button id="rules-btn" class="icon-btn" type="button" aria-label="遊戲規則" title="遊戲規則">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9"></circle>
-            <path d="M9.5 9.2a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.3-2.5 3.8"></path>
-            <path d="M12 17.2h.01"></path>
-          </svg>
-        </button>
-
-        <!-- 主題鍵：固定名稱「深色模式」，用 aria-pressed 表示目前是否為深色 -->
-        <button id="dark-mode-toggle" class="icon-btn theme-toggle-btn" type="button" aria-label="深色模式"
-          aria-pressed="false" title="深色模式">
-          <svg class="theme-icon sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    <main class="game-main">
+      <header class="top-bar">
+        <a href="../../index.html" class="back-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4"></circle>
-            <path d="M12 2v2"></path>
-            <path d="M12 20v2"></path>
-            <path d="m4.93 4.93 1.41 1.41"></path>
-            <path d="m17.66 17.66 1.41 1.41"></path>
-            <path d="M2 12h2"></path>
-            <path d="M20 12h2"></path>
-            <path d="m6.34 17.66-1.41 1.41"></path>
-            <path d="m19.07 4.93-1.41 1.41"></path>
+            <path d="M19 12H5M12 19l-7-7 7-7"></path>
           </svg>
-          <svg class="theme-icon moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12 3a6 6 0 1 0 9 9 9 9 0 1 1-9-9z"></path>
-          </svg>
-        </button>
+          回首頁
+        </a>
 
-        <div class="menu-wrap">
-          <button id="menu-btn" class="icon-btn menu-btn" type="button" aria-label="設定" title="設定"
-            aria-expanded="false" aria-controls="menu-panel">
+        <div class="top-controls">
+          <button id="rules-btn" class="icon-btn" type="button" aria-label="遊戲規則" title="遊戲規則">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="4" y1="7" x2="20" y2="7"></line>
-              <line x1="4" y1="12" x2="20" y2="12"></line>
-              <line x1="4" y1="17" x2="20" y2="17"></line>
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M9.5 9.2a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.3-2.5 3.8"></path>
+              <path d="M12 17.2h.01"></path>
             </svg>
           </button>
 
-          <div id="menu-panel" class="menu-panel hidden" role="region" aria-label="設定">
-            <div class="menu-section">
-              <div class="menu-title">螢幕設定</div>
-              <div class="menu-toggle-row">
-                <label class="menu-label" for="wake-lock-checkbox">螢幕防休眠</label>
-                <span class="toggle-switch">
-                  <input id="wake-lock-checkbox" type="checkbox" role="switch">
-                  <span class="toggle-slider" aria-hidden="true"></span>
-                </span>
-              </div>
-              <div id="wake-lock-note" class="menu-note">防止遊戲進行期間螢幕自動變暗或休眠熄屏。</div>
-            </div>
+          <!-- 主題鍵：固定名稱「深色模式」，用 aria-pressed 表示目前是否為深色 -->
+          <button id="dark-mode-toggle" class="icon-btn theme-toggle-btn" type="button" aria-label="深色模式"
+            aria-pressed="false" title="深色模式">
+            <svg class="theme-icon sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2"></path>
+              <path d="M12 20v2"></path>
+              <path d="m4.93 4.93 1.41 1.41"></path>
+              <path d="m17.66 17.66 1.41 1.41"></path>
+              <path d="M2 12h2"></path>
+              <path d="M20 12h2"></path>
+              <path d="m6.34 17.66-1.41 1.41"></path>
+              <path d="m19.07 4.93-1.41 1.41"></path>
+            </svg>
+            <svg class="theme-icon moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3a6 6 0 1 0 9 9 9 9 0 1 1-9-9z"></path>
+            </svg>
+          </button>
 
-            <div class="menu-section">
-              <div class="menu-title">外觀設定</div>
-              <div class="menu-note">調整方塊和標題顏色，方便比賽時區分自己的盤面。</div>
-              <div class="palette-grid" role="group" aria-label="主題色">
-                <button class="palette-swatch active" type="button" data-color="#FFB7F1"
-                  style="--swatch-color: #FFB7F1;" aria-label="粉色"></button>
-                <button class="palette-swatch" type="button" data-color="#FF8A65" style="--swatch-color: #FF8A65;"
-                  aria-label="橘色"></button>
-                <button class="palette-swatch" type="button" data-color="#F28482" style="--swatch-color: #F28482;"
-                  aria-label="珊瑚紅"></button>
-                <button class="palette-swatch" type="button" data-color="#FFD166" style="--swatch-color: #FFD166;"
-                  aria-label="金黃色"></button>
-                <button class="palette-swatch" type="button" data-color="#6BCB77" style="--swatch-color: #6BCB77;"
-                  aria-label="綠色"></button>
-                <button class="palette-swatch" type="button" data-color="#00B8A9" style="--swatch-color: #00B8A9;"
-                  aria-label="青綠色"></button>
-                <button class="palette-swatch" type="button" data-color="#4D96FF" style="--swatch-color: #4D96FF;"
-                  aria-label="藍色"></button>
-                <button class="palette-swatch" type="button" data-color="#577590" style="--swatch-color: #577590;"
-                  aria-label="灰藍色"></button>
-                <button class="palette-swatch" type="button" data-color="#9B5DE5" style="--swatch-color: #9B5DE5;"
-                  aria-label="紫色"></button>
-                <button class="palette-swatch" type="button" data-color="#EF476F" style="--swatch-color: #EF476F;"
-                  aria-label="莓果紅"></button>
-                <button class="palette-swatch" type="button" data-color="#118AB2" style="--swatch-color: #118AB2;"
-                  aria-label="湖水藍"></button>
-                <button class="palette-swatch" type="button" data-color="#3A86FF" style="--swatch-color: #3A86FF;"
-                  aria-label="亮藍色"></button>
-              </div>
-              <label class="menu-label" for="custom-color-input">自訂顏色</label>
-              <input id="custom-color-input" class="custom-color-input" type="color" value="#ffb7f1">
-            </div>
+          <div class="menu-wrap">
+            <button id="menu-btn" class="icon-btn menu-btn" type="button" aria-label="設定" title="設定"
+              aria-expanded="false" aria-controls="menu-panel">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="4" y1="7" x2="20" y2="7"></line>
+                <line x1="4" y1="12" x2="20" y2="12"></line>
+                <line x1="4" y1="17" x2="20" y2="17"></line>
+              </svg>
+            </button>
 
-            <div class="menu-section">
-              <div class="menu-title">題目代碼（Seed）同步</div>
-              <label class="menu-label" for="current-seed-output">目前題目代碼</label>
-              <textarea id="current-seed-output" class="seed-display" rows="3" readonly></textarea>
-              <div class="menu-btn-row">
-                <button id="copy-seed-btn" class="secondary-btn" type="button">複製代碼</button>
+            <div id="menu-panel" class="menu-panel hidden" role="region" aria-label="設定">
+              <div class="menu-section">
+                <div class="menu-title">螢幕設定</div>
+                <div class="menu-toggle-row">
+                  <label class="menu-label" for="wake-lock-checkbox">螢幕防休眠</label>
+                  <span class="toggle-switch">
+                    <input id="wake-lock-checkbox" type="checkbox" role="switch">
+                    <span class="toggle-slider" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div id="wake-lock-note" class="menu-note">防止遊戲進行期間螢幕自動變暗或休眠熄屏。</div>
               </div>
-              <label class="menu-label" for="seed-input">讀取代碼</label>
-              <input id="seed-input" class="seed-input" type="text" spellcheck="false" autocomplete="off"
-                placeholder="例如 NGM-10-0123ABCD...">
-              <button id="load-seed-btn" class="primary-btn menu-action-btn" type="button">載入代碼</button>
-              <div class="menu-note">載入的題目會自動判定難度，放進隨機模式對應的難度。</div>
-              <div id="seed-feedback" class="menu-feedback"></div>
+
+              <div class="menu-section">
+                <div class="menu-title">外觀設定</div>
+                <div class="menu-note">調整方塊和標題顏色，方便比賽時區分自己的盤面。</div>
+                <div class="palette-grid" role="group" aria-label="主題色">
+                  <button class="palette-swatch active" type="button" data-color="#FFB7F1"
+                    style="--swatch-color: #FFB7F1;" aria-label="粉色"></button>
+                  <button class="palette-swatch" type="button" data-color="#FF8A65" style="--swatch-color: #FF8A65;"
+                    aria-label="橘色"></button>
+                  <button class="palette-swatch" type="button" data-color="#F28482" style="--swatch-color: #F28482;"
+                    aria-label="珊瑚紅"></button>
+                  <button class="palette-swatch" type="button" data-color="#FFD166" style="--swatch-color: #FFD166;"
+                    aria-label="金黃色"></button>
+                  <button class="palette-swatch" type="button" data-color="#6BCB77" style="--swatch-color: #6BCB77;"
+                    aria-label="綠色"></button>
+                  <button class="palette-swatch" type="button" data-color="#00B8A9" style="--swatch-color: #00B8A9;"
+                    aria-label="青綠色"></button>
+                  <button class="palette-swatch" type="button" data-color="#4D96FF" style="--swatch-color: #4D96FF;"
+                    aria-label="藍色"></button>
+                  <button class="palette-swatch" type="button" data-color="#577590" style="--swatch-color: #577590;"
+                    aria-label="灰藍色"></button>
+                  <button class="palette-swatch" type="button" data-color="#9B5DE5" style="--swatch-color: #9B5DE5;"
+                    aria-label="紫色"></button>
+                  <button class="palette-swatch" type="button" data-color="#EF476F" style="--swatch-color: #EF476F;"
+                    aria-label="莓果紅"></button>
+                  <button class="palette-swatch" type="button" data-color="#118AB2" style="--swatch-color: #118AB2;"
+                    aria-label="湖水藍"></button>
+                  <button class="palette-swatch" type="button" data-color="#3A86FF" style="--swatch-color: #3A86FF;"
+                    aria-label="亮藍色"></button>
+                </div>
+                <label class="menu-label" for="custom-color-input">自訂顏色</label>
+                <input id="custom-color-input" class="custom-color-input" type="color" value="#ffb7f1">
+              </div>
+
+              <div class="menu-section">
+                <div class="menu-title">題目代碼（Seed）同步</div>
+                <label class="menu-label" for="current-seed-output">目前題目代碼</label>
+                <textarea id="current-seed-output" class="seed-display" rows="3" readonly></textarea>
+                <div class="menu-btn-row">
+                  <button id="copy-seed-btn" class="secondary-btn" type="button">複製代碼</button>
+                </div>
+                <label class="menu-label" for="seed-input">讀取代碼</label>
+                <input id="seed-input" class="seed-input" type="text" spellcheck="false" autocomplete="off"
+                  placeholder="例如 NGM-10-0123ABCD...">
+                <button id="load-seed-btn" class="primary-btn menu-action-btn" type="button">載入代碼</button>
+                <div class="menu-note">載入的題目會自動判定難度，放進隨機模式對應的難度。</div>
+                <div id="seed-feedback" class="menu-feedback"></div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
 
-    <main class="game-main">
       <h1 class="h1">Nonogram 數織</h1>
-      <p class="subtitle">照著每一列、每一欄的數字塗黑格子；選「圖案」模式，解開後會出現一張小圖。</p>
+      <p class="subtitle">照數字塗黑格子；「圖案」模式解開會出現一張小圖。</p>
 
       <div class="control-stack">
         <div class="control-group">
-          <div class="control-label" id="mode-label">出題方式</div>
+          <div class="visually-hidden" id="mode-label">出題方式</div>
           <div class="toggle-container" id="mode-toggle" role="group" aria-labelledby="mode-label">
             <button class="mode-btn active" type="button" data-mode="random" aria-pressed="true">隨機</button>
             <button class="mode-btn" type="button" data-mode="picture" aria-pressed="false">圖案</button>
@@ -158,7 +159,7 @@
         </div>
 
         <div class="control-group">
-          <div class="control-label" id="size-label">盤面大小</div>
+          <div class="visually-hidden" id="size-label">盤面大小</div>
           <div class="toggle-container" id="level-toggle" role="group" aria-labelledby="size-label">
             <button class="mode-btn active" type="button" data-size="8" aria-pressed="true">8×8</button>
             <button class="mode-btn" type="button" data-size="10" aria-pressed="false">10×10</button>
