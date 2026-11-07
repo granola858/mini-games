@@ -11,6 +11,8 @@
 const SAVE_KEY = 'minesweeper_save_state_v1';
 const STATS_KEY = 'minesweeper_stats_v1';
 const PREF_KEY = 'minesweeper_pref_v1';
+// 地宮的跨層進度（層數、生命、金幣、道具）。層與層之間沒有盤面局況可存，靠這份接回去
+const DUNGEON_RUN_KEY = 'minesweeper_dungeon_run_v1';
 // 長按插旗時允許的手指晃動距離（像素）
 const LONG_PRESS_SLOP_PX = 10;
 // 自動縮放後格子的最小邊長；再小就改成橫向捲動
@@ -477,6 +479,7 @@ class MinesweeperApp {
       statsBtn: document.getElementById('stats-btn'),
       helpBtn: document.getElementById('help-btn'),
       restartBtn: document.getElementById('restart-btn'),
+      dungeonRestartBtn: document.getElementById('dungeon-restart-btn'),
 
       // HUD elements
       tacticalHudRow: document.getElementById('tactical-hud-row'),
@@ -645,6 +648,8 @@ class MinesweeperApp {
     if (this.el.statsBtn) this.el.statsBtn.addEventListener('click', () => this.openStatsModal());
     if (this.el.helpBtn) this.el.helpBtn.addEventListener('click', () => this.openHelpModal());
     if (this.el.restartBtn) this.el.restartBtn.addEventListener('click', () => this.startNewGame());
+    // 地宮專用的重新開始：從 B1F 開一趟新的冒險（地宮 HUD 沒有戰術列的笑臉鈕）
+    if (this.el.dungeonRestartBtn) this.el.dungeonRestartBtn.addEventListener('click', () => this.startNewGame());
 
     // Mode Switcher
     const tabs = [...this.el.modeTabs];
@@ -703,7 +708,8 @@ class MinesweeperApp {
     if (this.el.zoomResetBtn) this.el.zoomResetBtn.addEventListener('click', () => this.resetZoom());
 
     // Modals
-    if (this.el.shopCloseBtn) this.el.shopCloseBtn.addEventListener('click', () => this.closeShopModal());
+    // 商店的 ×／Esc／點遮罩都等於「離開補給站，前往下一層」，不會把這趟冒險卡在已過關的盤面
+    if (this.el.shopCloseBtn) this.el.shopCloseBtn.addEventListener('click', () => this.proceedToNextFloor());
     if (this.el.shopNextFloorBtn) this.el.shopNextFloorBtn.addEventListener('click', () => this.proceedToNextFloor());
     if (this.el.customCloseBtn) this.el.customCloseBtn.addEventListener('click', () => this.closeCustomModal());
     if (this.el.customCancelBtn) this.el.customCancelBtn.addEventListener('click', () => this.closeCustomModal());
@@ -724,7 +730,7 @@ class MinesweeperApp {
 
     document.querySelectorAll('.modal-overlay').forEach(modal => {
       modal.addEventListener('click', (event) => {
-        if (event.target === modal) this.closeModal(modal);
+        if (event.target === modal) this.dismissModal(modal);
       });
     });
 
@@ -733,7 +739,7 @@ class MinesweeperApp {
       if (celebrate && celebrate.isOpen()) return;
       const openModal = document.querySelector('.modal-overlay.open');
       if (event.key === 'Escape') {
-        if (openModal) this.closeModal(openModal);
+        if (openModal) this.dismissModal(openModal);
         return;
       }
       if (event.key === 'Tab' && openModal) {
@@ -890,6 +896,8 @@ class MinesweeperApp {
   // Game Setup & Initialization
   // ------------------------------------------------------------------------
   switchMode(newMode) {
+    // 離開地宮就放棄這趟冒險，重新整理時不會又被拉回地宮
+    if (newMode !== MODES.DUNGEON) this.clearDungeonRun();
     this.mode = newMode;
     this.syncControlState();
 
@@ -951,8 +959,83 @@ class MinesweeperApp {
     const loaded = this.loadGameState();
     if (!loaded) {
       this.difficulty = this.readDifficultyPref();
-      this.startNewGame();
+      if (!this.restoreDungeonRun()) this.startNewGame();
     }
+  }
+
+  // 依彈窗種類決定「關掉」的意義：商店＝前往下一層，自訂視窗＝取消並把難度選單退回
+  dismissModal(modal) {
+    if (modal === this.el.shopModal) {
+      this.proceedToNextFloor();
+    } else if (modal === this.el.customModal) {
+      this.closeCustomModal();
+    } else {
+      this.closeModal(modal);
+    }
+  }
+
+  saveDungeonRun(pendingShop) {
+    if (this.mode !== MODES.DUNGEON) return;
+    try {
+      localStorage.setItem(DUNGEON_RUN_KEY, JSON.stringify({
+        floor: this.currentFloor,
+        pendingShop: !!pendingShop,
+        hp: this.hp,
+        maxHp: this.maxHp,
+        gold: this.gold,
+        shields: this.shields,
+        radars: this.radars,
+        detectors: this.detectors,
+        defusers: this.defusers,
+        energy: this.energy
+      }));
+    } catch (_) {}
+  }
+
+  clearDungeonRun() {
+    try {
+      localStorage.removeItem(DUNGEON_RUN_KEY);
+    } catch (_) {}
+  }
+
+  // 重新整理時接回層與層之間的冒險；回傳是否接回成功
+  restoreDungeonRun() {
+    let run = null;
+    try {
+      run = JSON.parse(localStorage.getItem(DUNGEON_RUN_KEY) || 'null');
+    } catch (_) {
+      run = null;
+    }
+    if (!run || !Number.isInteger(run.floor) || run.floor < 1 || run.floor > DUNGEON_FLOORS.length) return false;
+    this.mode = MODES.DUNGEON;
+    const targetSkin = MODE_SKIN_MAP[MODES.DUNGEON];
+    if (targetSkin && this.skin !== targetSkin) this.applySkin(targetSkin);
+    this.currentFloor = run.floor;
+    this.maxHp = Math.max(1, run.maxHp || 3);
+    this.hp = Math.min(this.maxHp, Math.max(1, run.hp || 1));
+    this.gold = Math.max(0, run.gold || 0);
+    this.shields = run.shields || 0;
+    this.radars = run.radars || 0;
+    this.detectors = run.detectors || 0;
+    this.defusers = run.defusers || 0;
+    this.energy = run.energy || 0;
+    this.startNewGame({ preserveDungeonRun: true });
+    if (run.pendingShop) {
+      // 上次停在補給站：這一層已經過關，直接回到商店，離開後前往下一層
+      this.gameWon = true;
+      this.setRestartFace('😎');
+      this.showToast(`📥 已接回地宮冒險：第 ${this.currentFloor} 層已完成，回到補給站`);
+      this.openShopModal();
+    } else {
+      this.showToast(`📥 已接回地宮冒險：第 ${this.currentFloor} 層`);
+    }
+    return true;
+  }
+
+  // 兩個重新開始鈕（戰術列與地宮列）的表情同步
+  setRestartFace(face) {
+    if (this.el.restartBtn) this.el.restartBtn.textContent = face;
+    if (this.el.dungeonRestartBtn) this.el.dungeonRestartBtn.textContent = face;
   }
 
   startNewGame(options = {}) {
@@ -975,6 +1058,7 @@ class MinesweeperApp {
 
     if (this.mode === MODES.DUNGEON) {
       if (!preserveDungeonRun) {
+        this.clearDungeonRun();
         this.currentFloor = 1;
         this.maxHp = 3;
         this.hp = 3;
@@ -1026,7 +1110,7 @@ class MinesweeperApp {
     this.updateHUD();
     this.clearGameState();
 
-    if (this.el.restartBtn) this.el.restartBtn.textContent = '🙂';
+    this.setRestartFace('🙂');
 
   }
 
@@ -1532,10 +1616,13 @@ class MinesweeperApp {
 
   proceedToNextFloor() {
     this.closeShopModal();
+    // 只有「地宮這一層已過關」時才往下走，避免重複觸發多跳一層
+    if (this.mode !== MODES.DUNGEON || !this.gameWon) return;
     if (this.currentFloor < DUNGEON_FLOORS.length) {
       this.currentFloor++;
       this.showToast(`🏰 進入地宮第 ${this.currentFloor} 層！`);
       this.startNewGame({ preserveDungeonRun: true });
+      this.saveDungeonRun(false);
     } else {
       this.handleFinalDungeonVictory();
     }
@@ -1548,7 +1635,7 @@ class MinesweeperApp {
     this.stopTimer();
     this.gameWon = true;
     this.sound.playWin();
-    if (this.el.restartBtn) this.el.restartBtn.textContent = '😎';
+    this.setRestartFace('😎');
 
     // Auto flag remaining mines
     for (let r = 0; r < this.rows; r++) {
@@ -1566,6 +1653,8 @@ class MinesweeperApp {
       if (this.currentFloor < DUNGEON_FLOORS.length) {
         // 地宮中間層過關沒有結果卡片（直接進商店），彩帶由遊戲自己放；最終通關與一般過關交給卡片
         this.triggerConfetti();
+        // 過關後到下一層開始前沒有盤面局況，先把冒險進度存起來，重新整理才接得回補給站
+        this.saveDungeonRun(true);
         this.showToast(`🎉 第 ${this.currentFloor} 層排雷完成！開啟層間商店`);
         this.shopTimer = setTimeout(() => {
           this.shopTimer = null;
@@ -1584,6 +1673,7 @@ class MinesweeperApp {
   }
 
   handleFinalDungeonVictory() {
+    this.clearDungeonRun();
     const prev = this.readStatsBucket();
     this.recordStats(true);
     this.showResultCard('dungeon', prev);
@@ -1659,7 +1749,7 @@ class MinesweeperApp {
     this.stopTimer();
     this.gameOver = true;
     this.sound.playExplode();
-    if (this.el.restartBtn) this.el.restartBtn.textContent = '😵';
+    this.setRestartFace('😵');
 
     // Reveal all mines
     for (let r = 0; r < this.rows; r++) {
@@ -1679,6 +1769,8 @@ class MinesweeperApp {
 
     this.refreshGridDOM();
     this.recordStats(false);
+    // 地宮倒下就結束這趟冒險；盤面上的地宮重新開始鈕會從 B1F 重來
+    if (this.mode === MODES.DUNGEON) this.clearDungeonRun();
     this.showResultCard('lose', null);
     this.clearGameState();
   }

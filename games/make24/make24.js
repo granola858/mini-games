@@ -4,6 +4,8 @@
 
 const STORAGE_KEY = 'make24_game_state';
 const BEST_STREAK_KEY = 'make24_best_streak';
+// 目前連勝與它所屬的難度。過關時局況會被清掉，連勝要另外存，重新整理才不會歸零
+const STREAK_KEY = 'make24_current_streak_v1';
 
 // 過關彩帶的調色盤（沿用本遊戲原本的六色，交由共用模組 BoboConfetti 播放）
 
@@ -416,10 +418,84 @@ class Make24Game {
     this.setupTheme();
     this.bindEvents();
     if (!this.loadGameState()) {
+      // 沒有進行中的局（例如剛過關就重新整理）：沿用上次的難度與連勝
+      this.restoreStreakRecord();
       this.bestStreak = this.getBestStreak(this.currentMode);
       this.updateStatsDisplay();
       this.startNewGame();
     }
+  }
+
+  /* 目前連勝另存一份（含難度），過關清掉局況後仍保得住 */
+  saveStreakRecord() {
+    try {
+      localStorage.setItem(STREAK_KEY, JSON.stringify({ mode: this.currentMode, streak: this.streak }));
+    } catch (_) {}
+  }
+
+  restoreStreakRecord() {
+    try {
+      const record = JSON.parse(localStorage.getItem(STREAK_KEY) || 'null');
+      if (!record || !MODES[record.mode]) return false;
+      this.currentMode = record.mode;
+      this.streak = Math.max(0, parseInt(record.streak, 10) || 0);
+      this.syncModeTabs();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  syncModeTabs() {
+    (this.dom.tabButtons || []).forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === this.currentMode);
+      btn.setAttribute('aria-pressed', btn.dataset.mode === this.currentMode ? 'true' : 'false');
+    });
+  }
+
+  /* 「換牌」：過關後等同「下一局」並保留連勝；還沒過關才算放棄這題、連勝歸零 */
+  skipOrNext() {
+    if (this.isWon) {
+      this.startNewGame();
+      return;
+    }
+    this.streak = 0;
+    this.saveStreakRecord();
+    this.updateStatsDisplay();
+    this.clearGameState();
+    this.startNewGame();
+  }
+
+  /* 過關後把「換牌」改成「下一局」，讓玩家知道按下去不會丟掉連勝 */
+  updateSkipButton() {
+    const btn = this.dom.btnSkip;
+    if (!btn) return;
+    const label = btn.querySelector('.btn-skip-label');
+    if (label) label.textContent = this.isWon ? '下一局' : '換牌';
+    btn.title = this.isWon ? '開始下一局（保留連勝）' : '更換一組卡牌（連勝會歸零）';
+  }
+
+  /* 切換難度會重新計算連勝；有連勝時先確認 */
+  requestSwitchMode(mode) {
+    if (this.currentMode === mode) return;
+    if (this.streak > 0 && typeof document !== 'undefined' && this.dom.dialog) {
+      const name = (MODES[mode] && MODES[mode].name) || mode;
+      this.showModal('切換難度？', `<div>目前連勝 ${this.streak} 局。切換到「${name}」會從 0 重新計算連勝。</div>`, [
+        // 主要按鈕（預設焦點）是不破壞進度的那個，連按 Enter 不會誤丟連勝
+        { label: '留在目前難度', primary: true, onClick: () => this.closeDialog(this.dom.dialog) },
+        {
+          label: '切換並重新計算',
+          onClick: () => {
+            this.closeDialog(this.dom.dialog, false);
+            this.switchMode(mode);
+            const tab = Array.from(this.dom.tabButtons || []).find(btn => btn.dataset.mode === mode);
+            if (tab) tab.focus();
+          }
+        }
+      ]);
+      return;
+    }
+    this.switchMode(mode);
   }
 
   getBestStreakKey(mode) {
@@ -599,7 +675,7 @@ class Make24Game {
       btn.addEventListener('click', () => {
         const mode = btn.dataset.mode;
         if (mode && MODES[mode]) {
-          this.switchMode(mode);
+          this.requestSwitchMode(mode);
         }
       });
     });
@@ -629,12 +705,7 @@ class Make24Game {
       this.dom.btnHint.addEventListener('click', () => this.showHint());
     }
     if (this.dom.btnSkip) {
-      this.dom.btnSkip.addEventListener('click', () => {
-        this.streak = 0; // 換牌重置連勝
-        this.updateStatsDisplay();
-        this.clearGameState();
-        this.startNewGame();
-      });
+      this.dom.btnSkip.addEventListener('click', () => this.skipOrNext());
     }
 
     // 綁定算式容器之 Pointer Events (相容滑鼠與手機觸控按住拖曳選取)
@@ -905,11 +976,9 @@ class Make24Game {
   switchMode(mode) {
     if (this.currentMode === mode) return;
     this.currentMode = mode;
-    this.dom.tabButtons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.mode === mode);
-      btn.setAttribute('aria-pressed', btn.dataset.mode === mode ? 'true' : 'false');
-    });
+    this.syncModeTabs();
     this.streak = 0;
+    this.saveStreakRecord();
     this.bestStreak = this.getBestStreak(mode);
     this.updateStatsDisplay();
     this.clearGameState();
@@ -937,6 +1006,7 @@ class Make24Game {
 
     this.renderCards();
     this.updateEquationDisplay();
+    this.updateSkipButton();
     this.startTimer();
     this.saveGameState();
   }
@@ -1013,12 +1083,10 @@ class Make24Game {
       this.timerSeconds = state.timerSeconds || 0;
       this.isWon = false;
 
-      this.dom.tabButtons.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.mode === this.currentMode);
-        btn.setAttribute('aria-pressed', btn.dataset.mode === this.currentMode ? 'true' : 'false');
-      });
+      this.syncModeTabs();
 
       this.updateStatsDisplay();
+      this.updateSkipButton();
       this.renderCards();
       this.updateEquationDisplay();
       this.startTimer();
@@ -1483,6 +1551,8 @@ class Make24Game {
     this.stopTimer();
     this.clearGameState();
     this.streak++;
+    this.saveStreakRecord();
+    this.updateSkipButton();
     const isNewBest = this.streak > this.bestStreak;
     if (isNewBest) {
       this.bestStreak = this.streak;
@@ -1541,11 +1611,13 @@ class Make24Game {
         },
         secondary: {
           label: '檢視盤面',
-          // 留在完成的算式上；焦點交給「換牌」方便直接開下一局
+          // 留在完成的算式上；焦點交給已改成「下一局」的按鈕，按下去會保留連勝
           onClick: () => {
             if (this.dom.btnSkip) this.dom.btnSkip.focus();
           }
-        }
+        },
+        // Esc 關掉卡片時也回到「下一局」，不會卡在無法操作的盤面
+        returnFocus: this.dom.btnSkip || undefined
       });
     }, delay);
   }

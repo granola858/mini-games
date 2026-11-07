@@ -951,10 +951,18 @@ dialog.modal-card::backdrop {
         gap: 10px;
     }
 
-    .theme-toggle-btn,
-    .action-btn {
+    /* 只縮頂端的圖示按鈕；「換新題目」「清空標記」是文字按鈕，
+       壓成 38×38 會讓字一個一個斷行、還溢出盤面 */
+    .theme-toggle-btn {
         width: 38px;
         height: 38px;
+    }
+
+    .action-btn {
+        min-height: 38px;
+        padding: 0 12px;
+        font-size: 0.95rem;
+        white-space: nowrap;
     }
 
     .mode-btn {

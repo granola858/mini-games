@@ -157,6 +157,8 @@
       <!-- 地宮探險 HUD 列 -->
       <div class="hud-row" id="dungeon-hud-row" style="display: none;">
         <div class="floor-badge" id="floor-badge">🏰 B1F</div>
+        <!-- 地宮專用的重新開始：戰術列的笑臉鈕在地宮模式是隱藏的 -->
+        <button class="restart-btn" id="dungeon-restart-btn" type="button" aria-label="重新開始地宮冒險（從 B1F 開始）" title="從 B1F 重新開始">🙂</button>
         <div class="hp-bar" id="hp-bar" title="當前生命值">❤️❤️❤️</div>
         <div class="gold-counter" id="gold-counter" title="冒險金幣">🪙 0</div>
       </div>
@@ -237,7 +239,7 @@
     <div class="modal-box">
       <div class="modal-header">
         <h2 class="modal-title" id="shop-title">🧙‍♂️ 地宮神秘補給站</h2>
-        <button class="modal-close-btn" id="shop-close-btn" type="button" aria-label="關閉商店">&times;</button>
+        <button class="modal-close-btn" id="shop-close-btn" type="button" aria-label="離開補給站，前往下一層" title="離開補給站，前往下一層">&times;</button>
       </div>
       <div class="modal-body">
         <p>通往深處的階梯已開啟！你擁有 <strong id="shop-player-gold" class="gold-text">0</strong> 金幣，可採購裝備強化自己：</p>
