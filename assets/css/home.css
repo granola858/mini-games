@@ -40,6 +40,17 @@ html[data-theme="dark"] {
 
 html {
   scroll-behavior: smooth;
+  /* 黏性頁首約 77px，鍵盤往回 Tab 時焦點元素不會被它蓋住 */
+  scroll-padding-top: 92px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 body {
@@ -549,7 +560,7 @@ body.editing .edit-notice {
   --accent-ink: color-mix(in oklab, var(--accent) 64%, #000);
   position: relative;
   min-width: 0;
-  min-height: 292px;
+  min-height: 226px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 26px;
@@ -623,10 +634,10 @@ body.editing .game-card:hover {
 
 .card-blob {
   position: absolute;
-  top: -46px;
-  right: -34px;
-  width: 172px;
-  height: 172px;
+  top: -52px;
+  right: -44px;
+  width: 136px;
+  height: 136px;
   border-radius: 58% 42% 55% 45%;
   background: var(--soft);
   opacity: 0.72;
@@ -685,6 +696,10 @@ body.editing .game-card:hover {
   font-weight: 900;
 }
 
+.card-play-tag[hidden] {
+  display: none;
+}
+
 .card-play-tag {
   display: inline-flex;
   align-items: center;
@@ -720,7 +735,7 @@ body.editing .game-card:hover {
 }
 
 .card-content h3 {
-  margin: 1.5rem 0 0.5rem;
+  margin: 1rem 0 0.4rem;
   color: var(--card-text);
   font-size: 1.32rem;
   letter-spacing: -0.025em;
@@ -738,7 +753,7 @@ body.editing .game-card:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  margin-top: 1rem;
+  margin-top: 0.75rem;
   color: var(--accent-ink);
   font-size: 0.86rem;
   font-weight: 900;
@@ -1005,8 +1020,8 @@ footer {
     padding: 0;
   }
   .hero {
-    gap: 0.6rem;
-    padding-top: 3.4rem;
+    gap: 1.1rem;
+    padding: 1.8rem 0 1.6rem;
   }
   h1 {
     font-size: clamp(1.85rem, 9.6vw, 3rem);
@@ -1015,12 +1030,23 @@ footer {
   .hero-lead {
     font-size: 0.98rem;
   }
+  /* 手機上把插畫縮成小圖、和「幫我選一款」排成一列，讓第一排遊戲卡片進到第一個畫面 */
   .hero-visual {
-    min-height: 255px;
+    display: flex;
+    min-height: 0;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+  }
+  .hero-illustration {
+    width: 96px;
   }
   .random-button {
-    right: 12%;
-    bottom: 0;
+    position: static;
+    transform: none;
+  }
+  .hero-lead {
+    margin-top: 1rem;
   }
   .section-heading {
     align-items: start;
@@ -1028,14 +1054,71 @@ footer {
   .game-grid {
     grid-template-columns: 1fr;
   }
+  /* 手機改成精簡橫列：圖示在左、名稱與說明在右，整張卡片都可點 */
   .game-card {
-    min-height: 270px;
+    min-height: 0;
+  }
+  .card-link {
+    position: relative;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-areas: "icon content" "icon tags";
+    column-gap: 0.9rem;
+    row-gap: 0.45rem;
+    align-items: start;
+    padding: 1rem 1.05rem;
+  }
+  .card-top {
+    display: contents;
+  }
+  .card-icon {
+    grid-area: icon;
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+  }
+  .card-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+  .card-tags {
+    grid-area: tags;
+    flex-direction: row;
+    align-items: center;
+  }
+  .card-content {
+    grid-area: content;
+    margin-top: 0;
+  }
+  .card-content h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1.12rem;
+  }
+  .card-content p {
+    min-height: 0;
+    font-size: 0.86rem;
+    line-height: 1.55;
+  }
+  .card-cta {
+    display: none;
+  }
+  .card-blob {
+    top: -60px;
+    right: -60px;
+    width: 120px;
+    height: 120px;
+  }
+  body.editing .card-link {
+    padding-top: 4.2rem;
   }
   .toolbar {
     align-items: stretch;
   }
+  /* 手機上篩選鈕改成換行，不用橫向捲動也看得到全部分類 */
   .filters {
     flex-basis: 100%;
+    flex-wrap: wrap;
+    overflow: visible;
   }
   .toast {
     right: 0.8rem;
@@ -1043,11 +1126,45 @@ footer {
   }
 }
 
+/* 減少動態效果：逐項處理。位移、旋轉、漂浮、無限脈動都拿掉；
+   顏色、底色、陰影、透明度的變化保留，hover 與狀態回饋仍看得出來。 */
 @media (prefers-reduced-motion: reduce) {
-  *, *:before, *:after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  html {
+    scroll-behavior: auto;
+  }
+  .hero-illustration,
+  .stat-pulse::after {
+    animation: none;
+  }
+  .game-card {
+    animation-name: card-fade;
+  }
+  .icon-button:hover,
+  .pill-button:hover,
+  .stat-chip:hover,
+  .random-button:hover,
+  .restore-button:hover,
+  .game-card:hover,
+  body.editing .game-card:hover,
+  .game-card.dragging,
+  .game-card:hover .card-blob,
+  .game-card:hover .card-icon,
+  .game-card:hover .card-cta svg {
+    transform: none;
+  }
+  .game-card:hover .card-blob {
+    transform: rotate(18deg);
+  }
+  .game-card:hover .card-icon {
+    transform: rotate(-3deg);
+  }
+  .toast {
+    transform: none;
+  }
+}
+
+@keyframes card-fade {
+  from {
+    opacity: 0;
   }
 }

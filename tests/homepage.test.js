@@ -91,7 +91,20 @@ test('搜尋、類型篩選與隨機選擇控制均存在', () => {
   assert.match(html, /data-filter="logic"/);
   assert.match(html, /data-filter="party"/);
   assert.match(html, /data-filter="reaction"/);
+  assert.match(html, /data-filter="board"/);
   assert.match(html, /id="random-game"/);
+});
+
+test('每個分類篩選至少對應一款遊戲，不會出現永遠空白的分類', () => {
+  const filters = [...html.matchAll(/data-filter="([^"]+)"/g)]
+    .map(([, f]) => f)
+    .filter(f => !['all', 'popular'].includes(f));
+  assert.ok(filters.length > 0, '找不到分類篩選鈕');
+  filters.forEach(f => {
+    const matched = cards.filter(card => card.category.split(' ').includes(f));
+    assert.ok(matched.length > 0, `分類「${f}」沒有任何遊戲`);
+    assert.ok(matched.length < cards.length, `分類「${f}」包含所有遊戲，篩不出東西`);
+  });
 });
 
 test('卡片排序改用 Pointer Events，觸控與滑鼠皆可拖曳', () => {
