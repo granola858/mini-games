@@ -100,6 +100,9 @@ h3 { font-size: 17px; margin-bottom: 8px; }
 .point.has-piece::before { display: none; }
 .point.has-piece { background: #b93245; color: #fff; border: 2px solid #fff9; box-shadow: 0 3px 5px #31241c26; font-size: clamp(14px, 2vw, 19px); font-weight: 800; }
 .point.green { background: #286b50; }
+/* 被吃的棋子：落子後在原位留下殘影，縮小淡出（純視覺，不可點） */
+.capture-ghost { position: absolute; transform: translate(-50%, -50%); width: 13%; max-width: 52px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: #b93245; color: #fff; border: 2px solid #fff9; font-size: clamp(14px, 2vw, 19px); font-weight: 800; pointer-events: none; z-index: 2; }
+.capture-ghost.green { background: #286b50; }
 .point.is-selected { outline: 3px solid var(--text); outline-offset: 3px; }
 .point.is-legal::before { width: 53%; height: 53%; border: 3px solid var(--green); background: var(--surface); box-shadow: 0 0 0 4px var(--green-soft); }
 .point.is-last:not(.is-selected) { outline: 2px solid var(--text); outline-offset: 2px; }

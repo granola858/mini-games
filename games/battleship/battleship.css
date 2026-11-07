@@ -170,15 +170,6 @@ button, .cell, .back-btn {
   touch-action: manipulation;
 }
 
-#confetti-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 2000;
-}
-
 /* Container */
 .game-container {
   width: 100%;
@@ -949,70 +940,10 @@ dialog.modal-card::backdrop {
   background: var(--overlay);
 }
 
-.result-dialog.victory {
-  border-color: var(--win-border);
-}
-
-/* 落敗：不同邊框色與虛線，和勝利一眼分得出來 */
-.result-dialog.defeat {
-  border-color: var(--lose-border);
-  border-style: dashed;
-}
-
-.modal-badge {
-  font-size: 3.2rem;
-  line-height: 1;
-}
-
 .modal-title {
   font-size: 1.7rem;
   font-weight: 800;
   color: var(--text-bright);
-}
-
-.result-dialog.victory .modal-title {
-  color: var(--win-text);
-}
-
-.result-dialog.defeat .modal-title {
-  color: var(--lose-text);
-}
-
-.modal-desc {
-  line-height: 1.5;
-}
-
-.modal-stats {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  background: var(--stats-bg);
-  padding: 16px;
-  border-radius: var(--radius-md);
-}
-
-.modal-stat-box {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.modal-stat-label {
-  font-size: 0.8rem;
-  color: var(--text-dim);
-}
-
-.modal-stat-val {
-  font-family: var(--font-mono);
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: var(--text-bright);
-}
-
-.modal-record {
-  font-size: 0.875rem;
-  color: var(--text-dim);
 }
 
 .modal-actions {
@@ -1117,6 +1048,65 @@ dialog.modal-card::backdrop {
   }
 }
 
+/* 砲彈：從開砲方海域飛向目標（位置由 JS 設在落點，transform 負責飛行） */
+.shell {
+  position: fixed;
+  z-index: 50;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-radar);
+  border: 2px solid var(--on-radar);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+/* 砲彈還在空中：目標格先鎖定（黃銅色內框），結果等落地才顯示 */
+.cell.awaiting-shot,
+.cell.awaiting-shot.hit,
+.cell.awaiting-shot.miss,
+.cell.awaiting-shot.sunk {
+  background: var(--cell-bg);
+  border-color: var(--color-radar);
+  box-shadow: inset 0 0 0 2px var(--color-radar);
+  animation: none;
+}
+
+.cell.has-ship.awaiting-shot {
+  background: var(--ship-body-bg);
+}
+
+.cell.awaiting-shot::after {
+  content: none;
+}
+
+/* 落空：水花從落點擴散一圈 */
+.cell.miss-splash::before {
+  content: '';
+  position: absolute;
+  inset: 15%;
+  border-radius: 50%;
+  border: 2px solid var(--color-miss);
+  animation: miss-splash 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes miss-splash {
+  from { transform: scale(0.3); opacity: 0.9; }
+  to { transform: scale(1.7); opacity: 0; }
+}
+
+/* 擊沉：整艘船從落點往外依序閃一下、微微下沉（延遲由 JS 設定） */
+.cell.sunk-flash {
+  animation: sunk-flash 0.5s ease-out both;
+}
+
+@keyframes sunk-flash {
+  0% { background-color: var(--color-sunk); transform: scale(1.08); }
+  60% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
 /* 鍵盤焦點外框 */
 button:focus-visible,
 a:focus-visible,
@@ -1170,10 +1160,29 @@ summary:focus-visible,
     animation: impact-flash 0.35s linear;
   }
 
+  /* 落空：水花不擴散，原地淡出一圈 */
+  .cell.miss-splash::before {
+    animation: miss-fade 0.42s linear forwards;
+  }
+
+  /* 擊沉：不縮放，只依序閃一下底色 */
+  .cell.sunk-flash {
+    animation: sunk-color 0.5s linear both;
+  }
+
   /* 放不下：不晃動，外框閃紅 */
   .player-grid.placement-error {
     animation: flash-outline 0.6s linear;
     outline: 3px solid transparent;
     outline-offset: 2px;
   }
+}
+
+@keyframes miss-fade {
+  from { opacity: 0.9; }
+  to { opacity: 0; }
+}
+
+@keyframes sunk-color {
+  0% { background-color: var(--color-sunk); }
 }

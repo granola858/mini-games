@@ -109,16 +109,6 @@
     </main>
   </div>
 
-  <!-- 6. 過關結果：原生 dialog，自帶焦點管理與 Esc -->
-  <dialog class="game-dialog" id="win-dialog" aria-labelledby="modal-title">
-    <h2 class="modal-title" id="modal-title">電力全開！</h2>
-    <div class="modal-body" id="modal-body"></div>
-    <div class="dialog-actions">
-      <button class="btn-action" id="modal-view-btn" type="button">看盤面</button>
-      <button class="btn-action primary" id="modal-close-btn" type="button">再玩一局</button>
-    </div>
-  </dialog>
-
   <!-- 7. 規則說明 -->
   <dialog class="game-dialog rules-dialog" id="rules-dialog" aria-labelledby="rules-title">
     <h2 class="modal-title" id="rules-title">怎麼玩</h2>
@@ -143,9 +133,9 @@
   </dialog>
 
   <!-- 全螢幕 Confetti 畫布 -->
-  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
 
   <script src="../../assets/js/bobo-confetti.js"></script>
+  <script src="../../assets/js/bobo-celebrate.js"></script>
   <script src="../../assets/js/bobo-theme.js"></script>
   <script src="../../assets/js/stats.js"></script>
   <script src="../../assets/js/bobo-audio.js"></script>

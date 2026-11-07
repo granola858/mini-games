@@ -489,7 +489,10 @@ class BattleshipGame {
     this.selectedShipId = null;
     this.isHorizontal = true;
     this.enemyTurnTimer = null;
-    this.confettiStop = null;
+    // 飛行中的砲彈：落點揭曉前，盤面先不顯示命中／落空（避免結果比砲彈先到）
+    this.pendingShots = new Set();
+    // 每開一局就加一，舊局還在飛的砲彈落地時發現世代不同就不處理
+    this.round = 0;
 
     // 兩個盤面各自記住鍵盤焦點所在的格子（roving tabindex）
     this.focusPos = {
@@ -543,18 +546,6 @@ class BattleshipGame {
       enemyManifest: byId('enemy-manifest'),
       playerFleetHealth: byId('player-fleet-health'),
       enemyFleetHealth: byId('enemy-fleet-health'),
-      gameOverModal: byId('game-over-modal'),
-      modalBadge: byId('modal-badge'),
-      modalTitle: byId('modal-title'),
-      modalDesc: byId('modal-desc'),
-      modalAccuracy: byId('modal-accuracy'),
-      modalShots: byId('modal-shots'),
-      modalTime: byId('modal-time'),
-      modalBest: byId('modal-best'),
-      modalRecord: byId('modal-record'),
-      modalRestartBtn: byId('modal-restart-btn'),
-      modalViewBtn: byId('modal-view-btn'),
-      confettiCanvas: byId('confetti-canvas')
     };
   }
 
@@ -979,19 +970,7 @@ class BattleshipGame {
     this.dom.playerGrid.addEventListener('keydown', (e) => this.handleGridKeydown(e, 'player'));
     this.dom.enemyGrid.addEventListener('keydown', (e) => this.handleGridKeydown(e, 'enemy'));
 
-    this.dom.modalRestartBtn.addEventListener('click', () => {
-      this.dom.gameOverModal.close();
-      this.restart();
-    });
-    this.dom.modalViewBtn.addEventListener('click', () => {
-      this.dom.gameOverModal.close();
-    });
     this.dom.replayBtn.addEventListener('click', () => this.restart());
-
-    // 結果對話框關閉後，焦點交給戰況列的「再來一局」
-    this.dom.gameOverModal.addEventListener('close', () => {
-      if (this.gameState === 'game-over') this.dom.replayBtn.focus();
-    });
   }
 
   openDialog(dialog, focusTarget) {
@@ -1005,8 +984,7 @@ class BattleshipGame {
     if (focusTarget) focusTarget.focus();
     const restore = () => {
       dialog.removeEventListener('close', restore);
-      if (opener && typeof opener.focus === 'function' && document.contains(opener)
-        && dialog !== this.dom.gameOverModal) {
+      if (opener && typeof opener.focus === 'function' && document.contains(opener)) {
         opener.focus();
       }
     };
@@ -1014,10 +992,7 @@ class BattleshipGame {
   }
 
   restart() {
-    if (this.confettiStop) {
-      this.confettiStop();
-      this.confettiStop = null;
-    }
+    if (typeof BoboCelebrate !== 'undefined') BoboCelebrate.close();
     this.clearGameState();
     this.startPlacementPhase();
     const firstShip = this.dom.shipDock.querySelector('.dock-ship');
@@ -1109,6 +1084,9 @@ class BattleshipGame {
 
   startPlacementPhase() {
     clearTimeout(this.enemyTurnTimer);
+    this.round++;
+    this.pendingShots.clear();
+    document.querySelectorAll('.shell').forEach(el => el.remove());
     this.gameState = 'placement';
     this.playerBoard.reset();
     this.enemyBoard.reset();
@@ -1272,7 +1250,7 @@ class BattleshipGame {
     }
   }
 
-  // 玩家開火（即時判定、立即回饋）
+  // 玩家開火：判定與存檔立即完成；畫面上砲彈從我方海域飛向目標，落地才揭曉命中或落空
   handlePlayerAttack(r, c) {
     const coordName = `${ROWS[r]}${c + 1}`;
     if (this.gameState === 'enemy-turn') {
@@ -1287,38 +1265,51 @@ class BattleshipGame {
     }
 
     this.stats.playerShots++;
+    if (res.hit) this.stats.playerHits++;
+    const victory = this.enemyBoard.allShipsSunk();
 
-    if (res.hit) {
-      this.stats.playerHits++;
-      this.triggerCellImpact(this.dom.enemyGrid, r, c);
-      if (res.isSunk) {
-        this.sound.playSunk();
-        this.setStatus(`擊沉敵方${res.ship.name}（${coordName}）！`);
-      } else {
-        this.sound.playHit();
-        this.setStatus(`命中（${coordName}）！`);
-      }
+    if (victory) {
+      // 最後一發：先鎖住盤面，等砲彈落地再宣布勝利
+      this.gameState = 'resolving';
+      this.dom.enemyGrid.setAttribute('aria-disabled', 'true');
     } else {
-      this.sound.playMiss();
-      this.setStatus(`${coordName} 落空。`);
+      // 先切換狀態再存檔：重新整理時才會接著讓電腦開砲（修正重整多打一發的漏洞）
+      this.enterEnemyTurnUI();
+      this.saveGameState();
     }
 
-    this.updateAccuracy();
+    const key = `enemy:${r},${c}`;
+    this.pendingShots.add(key);
     this.renderEnemyGrid();
-    this.renderManifests();
 
-    if (this.enemyBoard.allShipsSunk()) {
-      this.handleGameOver('victory');
-      return;
-    }
+    this.launchShell(this.dom.playerGrid, this.dom.enemyGrid, r, c, () => {
+      this.pendingShots.delete(key);
+      if (res.hit) {
+        if (res.isSunk) {
+          this.sound.playSunk();
+          this.setStatus(`擊沉敵方${res.ship.name}（${coordName}）！`);
+        } else {
+          this.sound.playHit();
+          this.setStatus(`命中（${coordName}）！`);
+        }
+      } else {
+        this.sound.playMiss();
+        this.setStatus(`${coordName} 落空。`);
+      }
+      this.updateAccuracy();
+      this.renderEnemyGrid();
+      this.renderManifests();
+      this.playLandingEffect(this.dom.enemyGrid, r, c, res);
 
-    // 先切換狀態再存檔：重新整理時才會接著讓電腦開砲（修正重整多打一發的漏洞）
-    this.enterEnemyTurnUI();
-    this.saveGameState();
-    this.enemyTurnTimer = setTimeout(() => this.executeEnemyTurn(), 450);
+      if (victory) {
+        this.handleGameOver('victory');
+        return;
+      }
+      this.enemyTurnTimer = setTimeout(() => this.executeEnemyTurn(), 450);
+    });
   }
 
-  // 電腦回合
+  // 電腦回合：一樣先判定，砲彈從敵方海域飛過來，落地才揭曉並換手
   executeEnemyTurn() {
     if (this.gameState !== 'enemy-turn') return;
 
@@ -1328,38 +1319,110 @@ class BattleshipGame {
     const { r, c } = move;
     const res = this.playerBoard.receiveAttack(r, c);
     this.stats.enemyShots++;
+    if (res.hit) this.stats.enemyHits++;
 
     this.ai.recordShotResult(r, c, res.hit, res.isSunk, res.ship);
     const coordName = `${ROWS[r]}${c + 1}`;
-    let message;
-
-    if (res.hit) {
-      this.stats.enemyHits++;
-      this.triggerCellImpact(this.dom.playerGrid, r, c);
-      if (res.isSunk) {
-        this.sound.playSunk();
-        message = `我方${res.ship.name}被擊沉（${coordName}）！`;
-      } else {
-        this.sound.playHit();
-        message = `我方船艦在 ${coordName} 中彈！`;
-      }
-    } else {
-      this.sound.playMiss();
-      message = `敵方砲火落在 ${coordName}，沒打中。`;
-    }
-
+    const key = `player:${r},${c}`;
+    this.pendingShots.add(key);
     this.renderPlayerGrid();
-    this.renderManifests();
 
-    if (this.playerBoard.allShipsSunk()) {
-      this.setStatus(message);
-      this.handleGameOver('defeat');
+    this.launchShell(this.dom.enemyGrid, this.dom.playerGrid, r, c, () => {
+      this.pendingShots.delete(key);
+      let message;
+      if (res.hit) {
+        if (res.isSunk) {
+          this.sound.playSunk();
+          message = `我方${res.ship.name}被擊沉（${coordName}）！`;
+        } else {
+          this.sound.playHit();
+          message = `我方船艦在 ${coordName} 中彈！`;
+        }
+      } else {
+        this.sound.playMiss();
+        message = `敵方砲火落在 ${coordName}，沒打中。`;
+      }
+
+      this.renderPlayerGrid();
+      this.renderManifests();
+      this.playLandingEffect(this.dom.playerGrid, r, c, res);
+
+      if (this.playerBoard.allShipsSunk()) {
+        this.setStatus(message);
+        this.handleGameOver('defeat');
+        return;
+      }
+
+      this.enterPlayerTurnUI();
+      this.setStatus(`${message}輪到你了。`);
+      this.saveGameState();
+    });
+  }
+
+  // 砲彈飛行：從開砲方海域的中心飛到目標格，中段放大做出拋物線的感覺。
+  // 減少動態效果或瀏覽器不支援時不飛，直接落地（同步呼叫 onLand）。
+  launchShell(fromGrid, toGrid, r, c, onLand) {
+    const cell = toGrid.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+    if (!cell || prefersReducedMotion() || typeof cell.animate !== 'function') {
+      onLand();
       return;
     }
+    const from = fromGrid.getBoundingClientRect();
+    const to = cell.getBoundingClientRect();
+    const ex = to.left + to.width / 2;
+    const ey = to.top + to.height / 2;
+    const dx = from.left + from.width / 2 - ex;
+    const dy = from.top + from.height / 2 - ey;
+    // 距離越遠飛越久，但控制在 220–380ms，不讓玩家覺得在等
+    const duration = Math.round(Math.min(380, Math.max(220, Math.hypot(dx, dy) * 0.5)));
 
-    this.enterPlayerTurnUI();
-    this.setStatus(`${message}輪到你了。`);
-    this.saveGameState();
+    const shell = document.createElement('span');
+    shell.className = 'shell';
+    shell.setAttribute('aria-hidden', 'true');
+    shell.style.left = `${ex}px`;
+    shell.style.top = `${ey}px`;
+    document.body.appendChild(shell);
+
+    const generation = this.round;
+    const anim = shell.animate([
+      { transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(0.6)`, opacity: 0 },
+      { transform: `translate(-50%, -50%) translate(${dx * 0.85}px, ${dy * 0.85}px) scale(0.9)`, opacity: 1, offset: 0.15 },
+      { transform: `translate(-50%, -50%) translate(${dx * 0.45}px, ${dy * 0.45}px) scale(1.45)`, offset: 0.55 },
+      { transform: 'translate(-50%, -50%) scale(0.7)', opacity: 1 }
+    ], { duration, easing: 'cubic-bezier(0.4, 0, 0.9, 0.6)' });
+    anim.onfinish = () => {
+      shell.remove();
+      if (generation === this.round) onLand();
+    };
+    anim.oncancel = () => shell.remove();
+  }
+
+  // 落地效果：命中、落空、擊沉各不相同（減少動態效果時由 CSS 改成只變色）
+  playLandingEffect(gridEl, r, c, res) {
+    const cellAt = (row, col) => gridEl.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    const restartClass = (el, cls) => {
+      if (!el) return;
+      el.classList.remove(cls);
+      void el.offsetWidth;
+      el.classList.add(cls);
+      el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+    };
+    if (res.isSunk && res.ship && Array.isArray(res.ship.positions)) {
+      // 擊沉：整艘船從落點往外一格一格閃過去
+      const ordered = [...res.ship.positions]
+        .sort((a, b) => (Math.abs(a.r - r) + Math.abs(a.c - c)) - (Math.abs(b.r - r) + Math.abs(b.c - c)));
+      ordered.forEach((pos, index) => {
+        const el = cellAt(pos.r, pos.c);
+        if (!el) return;
+        el.style.animationDelay = `${index * 55}ms`;
+        restartClass(el, 'sunk-flash');
+        el.addEventListener('animationend', () => { el.style.animationDelay = ''; }, { once: true });
+      });
+    } else if (res.hit) {
+      this.triggerCellImpact(gridEl, r, c);
+    } else {
+      restartClass(cellAt(r, c), 'miss-splash');
+    }
   }
 
   updateAccuracy() {
@@ -1408,37 +1471,45 @@ class BattleshipGame {
     this.saveRecords();
     this.updateRecordSummary();
 
-    this.dom.modalAccuracy.textContent = `${acc}%`;
-    this.dom.modalShots.textContent = `${this.stats.playerShots} 發`;
-    this.dom.modalTime.textContent = this.formatTime(this.stats.elapsedSeconds);
-    this.dom.modalBest.textContent = this.records.bestAccuracy === null ? '--' : `${this.records.bestAccuracy}%`;
-    this.dom.modalRecord.textContent = `戰績 ${this.records.wins} 勝 ${this.records.losses} 敗`
-      + (this.records.fastestWin !== null ? ` · 最快勝利 ${this.formatTime(this.records.fastestWin)}` : '');
+    // 共用過關卡片：勝利附彩帶，戰敗用虛線色帶；關掉後焦點回到戰況列的「再來一局」
+    const fastest = this.records.fastestWin;
+    const cardStats = [
+      { label: '命中率', value: `${acc}%`, isBest: isNewBest },
+      { label: '消耗彈藥', value: `${this.stats.playerShots} 發` },
+      { label: '作戰耗時', value: this.formatTime(this.stats.elapsedSeconds),
+        isBest: result === 'victory' && fastest === this.stats.elapsedSeconds && this.records.wins > 1 }
+    ];
+    const recordLine = `目前戰績 ${this.records.wins} 勝 ${this.records.losses} 敗。`;
+    const show = () => {
+      if (this.gameState !== 'game-over' || typeof BoboCelebrate === 'undefined') {
+        this.dom.replayBtn.focus();
+        return;
+      }
+      BoboCelebrate.show({
+        outcome: result === 'victory' ? 'win' : 'lose',
+        gameName: 'Battleship 海戰棋',
+        title: result === 'victory' ? '海上大捷！' : '艦隊覆沒',
+        subtitle: (result === 'victory'
+          ? (isNewBest ? `命中率 ${acc}%，刷新你的最佳紀錄！` : '敵方艦隊全數沉沒。')
+          : '這次被搶先一步。換個陣型，再戰一次吧！') + recordLine,
+        stats: cardStats,
+        accent: '#8a5a00',
+        accentDark: '#e0b04a',
+        primary: { label: '再來一局', onClick: () => this.restart() },
+        secondary: { label: '看盤面' },
+        returnFocus: this.dom.replayBtn
+      });
+    };
 
-    const modal = this.dom.gameOverModal;
     if (result === 'victory') {
       this.sound.playVictory();
       this.setStatus('勝利！敵方艦隊全數沉沒。');
-      modal.className = 'modal-card result-dialog victory';
-      this.dom.modalBadge.textContent = '🏆';
-      this.dom.modalTitle.textContent = '海上大捷！';
-      this.dom.modalDesc.textContent = isNewBest
-        ? `命中率 ${acc}%，刷新你的最佳紀錄！`
-        : '你成功全殲敵方艦隊！';
-      const confetti = (typeof BoboConfetti !== 'undefined') ? BoboConfetti : null;
-      if (confetti && this.dom.confettiCanvas) this.confettiStop = confetti.burst(this.dom.confettiCanvas);
     } else {
       this.sound.playDefeat();
       this.setStatus('戰敗：我方艦隊全數沉沒。');
-      modal.className = 'modal-card result-dialog defeat';
-      this.dom.modalBadge.textContent = '⚓';
-      this.dom.modalTitle.textContent = '艦隊覆沒';
-      this.dom.modalDesc.textContent = '這次被搶先一步。換個陣型，再戰一次吧！';
     }
-
-    setTimeout(() => {
-      this.openDialog(modal, this.dom.modalRestartBtn);
-    }, prefersReducedMotion() ? 0 : 600);
+    // 讓最後一發的落地效果演完再出卡片
+    setTimeout(show, prefersReducedMotion() ? 0 : 600);
   }
 
   /* ---------- 渲染 ---------- */
@@ -1457,6 +1528,7 @@ class BattleshipGame {
       let label;
 
       if (shipId) cell.classList.add('has-ship', 'ship-body');
+      if (this.pendingShots.has(`player:${r},${c}`)) cell.classList.add('awaiting-shot');
 
       if (shot === 'hit') {
         const ship = this.playerBoard.ships.find(s => s.id === shipId);
@@ -1491,6 +1563,7 @@ class BattleshipGame {
       const shipId = this.enemyBoard.grid[r][c];
       const coord = `${ROWS[r]}${c + 1}`;
       let label = `${coord}，未射擊`;
+      if (this.pendingShots.has(`enemy:${r},${c}`)) cell.classList.add('awaiting-shot');
 
       if (shot === 'hit') {
         const ship = this.enemyBoard.ships.find(s => s.id === shipId);

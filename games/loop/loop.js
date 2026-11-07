@@ -115,7 +115,6 @@ class LoopNetGame {
     this.focusIndex = 0; // 鍵盤焦點所在格（roving tabindex）
     this.lastPoweredCount = 0;
     this.lastPoweredBulbCount = 0;
-    this.confettiStop = null; // BoboConfetti.burst() 回傳的收尾函式
 
     // 音效管理器
     this.sound = new SoundManager();
@@ -136,17 +135,11 @@ class LoopNetGame {
       btnRestart: document.getElementById('btn-restart'),
       btnHint: document.getElementById('btn-hint'),
       btnNewGame: document.getElementById('btn-new-game'),
-      winDialog: document.getElementById('win-dialog'),
-      modalTitle: document.getElementById('modal-title'),
-      modalBody: document.getElementById('modal-body'),
-      modalCloseBtn: document.getElementById('modal-close-btn'),
-      modalViewBtn: document.getElementById('modal-view-btn'),
       rulesBtn: document.getElementById('rules-btn'),
       rulesDialog: document.getElementById('rules-dialog'),
       rulesCloseBtn: document.getElementById('rules-close-btn'),
       hintCount: document.getElementById('hint-count'),
-      statusMsg: document.getElementById('status-msg'),
-      confettiCanvas: document.getElementById('confetti-canvas')
+      statusMsg: document.getElementById('status-msg')
     };
 
     this.init();
@@ -250,24 +243,11 @@ class LoopNetGame {
       this.clearGameState(this.gridSize);
       this.startNewGame();
     });
-    this.dom.modalCloseBtn.addEventListener('click', () => {
-      this.closeDialog(this.dom.winDialog);
-      this.clearGameState(this.gridSize);
-      this.startNewGame();
-      this.focusBoard();
-    });
-    // 「看盤面」只關掉結果，留在已完成的盤面上欣賞
-    this.dom.modalViewBtn.addEventListener('click', () => {
-      this.closeDialog(this.dom.winDialog);
-      this.dom.btnNewGame.focus();
-    });
-    this.dom.winDialog.addEventListener('close', () => this.stopConfetti());
-
     this.dom.rulesBtn.addEventListener('click', () => this.openDialog(this.dom.rulesDialog));
     this.dom.rulesCloseBtn.addEventListener('click', () => this.closeDialog(this.dom.rulesDialog));
 
     // 點 dialog 外的遮罩也能關閉（點擊目標是 dialog 本身時才算遮罩）
-    [this.dom.winDialog, this.dom.rulesDialog].forEach((dialog) => {
+    [this.dom.rulesDialog].forEach((dialog) => {
       dialog.addEventListener('click', (e) => {
         if (e.target === dialog) this.closeDialog(dialog);
       });
@@ -469,7 +449,8 @@ class LoopNetGame {
      遊戲流程與狀態控制
      ------------------------------------------------------------------------ */
   startNewGame() {
-    this.stopConfetti();
+    // 開新局時收掉還開著的結果卡片（連同還在飛的彩帶）
+    if (typeof BoboCelebrate !== 'undefined') BoboCelebrate.close();
     this.isWon = false;
     this.moves = 0;
     this.hintsUsed = 0;
@@ -654,7 +635,8 @@ class LoopNetGame {
     } catch (_) {}
   }
 
-  saveStats(size, seconds, moves, stars = 1) {
+  // 最佳時間／步數只記「沒用提示」的通關：提示會直接幫忙轉好格子，否則用提示破關會留下 0 步的假紀錄
+  saveStats(size, seconds, moves, stars = 1, hintsUsed = 0) {
     try {
       const raw = localStorage.getItem(STATS_KEY);
       const stats = raw ? JSON.parse(raw) : {};
@@ -662,8 +644,10 @@ class LoopNetGame {
       const cur = stats[key] || { bestTime: null, bestMoves: null, bestStars: 0, clears: 0 };
 
       cur.clears = (cur.clears || 0) + 1;
-      if (cur.bestTime === null || seconds < cur.bestTime) cur.bestTime = seconds;
-      if (cur.bestMoves === null || moves < cur.bestMoves) cur.bestMoves = moves;
+      if (hintsUsed === 0) {
+        if (cur.bestTime === null || seconds < cur.bestTime) cur.bestTime = seconds;
+        if (cur.bestMoves === null || moves < cur.bestMoves) cur.bestMoves = moves;
+      }
       if (!cur.bestStars || stars > cur.bestStars) cur.bestStars = stars;
 
       stats[key] = cur;
@@ -826,19 +810,19 @@ class LoopNetGame {
 
     if (mask & this.DIR.UP) {
       bgLines += `<line class="wire-line" x1="50" y1="50" x2="50" y2="0"/>`;
-      sparkLines += `<line class="wire-spark" x1="50" y1="50" x2="50" y2="0"/>`;
+      sparkLines += `<line class="wire-spark" pathLength="1" x1="50" y1="50" x2="50" y2="0"/>`;
     }
     if (mask & this.DIR.RIGHT) {
       bgLines += `<line class="wire-line" x1="50" y1="50" x2="100" y2="50"/>`;
-      sparkLines += `<line class="wire-spark" x1="50" y1="50" x2="100" y2="50"/>`;
+      sparkLines += `<line class="wire-spark" pathLength="1" x1="50" y1="50" x2="100" y2="50"/>`;
     }
     if (mask & this.DIR.DOWN) {
       bgLines += `<line class="wire-line" x1="50" y1="50" x2="50" y2="100"/>`;
-      sparkLines += `<line class="wire-spark" x1="50" y1="50" x2="50" y2="100"/>`;
+      sparkLines += `<line class="wire-spark" pathLength="1" x1="50" y1="50" x2="50" y2="100"/>`;
     }
     if (mask & this.DIR.LEFT) {
       bgLines += `<line class="wire-line" x1="50" y1="50" x2="0" y2="50"/>`;
-      sparkLines += `<line class="wire-spark" x1="50" y1="50" x2="0" y2="50"/>`;
+      sparkLines += `<line class="wire-spark" pathLength="1" x1="50" y1="50" x2="0" y2="50"/>`;
     }
 
     let centerStud = '';
@@ -932,21 +916,26 @@ class LoopNetGame {
     const R = this.gridSize;
     const C = this.gridSize;
 
-    // 1. 重置所有格子通電狀態
+    // 1. 重置所有格子通電狀態（先記下原本誰有電，用來找出「這一步新接通」的格子）
+    const wasPowered = [];
     for (let r = 0; r < R; r++) {
       for (let c = 0; c < C; c++) {
+        wasPowered.push(this.grid[r][c].isPowered);
         this.grid[r][c].isPowered = false;
       }
     }
 
-    // 2. 從電池核心開始做 BFS 電流遍歷
+    // 2. 從電池核心開始做 BFS 電流遍歷；depth 是離電池的步數，用來讓電流依序流過去
     const queue = [[this.sourcePos.r, this.sourcePos.c]];
+    const depth = new Map([[this.sourcePos.r * C + this.sourcePos.c, 0]]);
     this.grid[this.sourcePos.r][this.sourcePos.c].isPowered = true;
     let poweredCount = 0;
     let poweredBulbCount = 0;
 
     while (queue.length > 0) {
       const [r, c] = queue.shift();
+      const d = depth.get(r * C + c) || 0;
+      const reach = (nr, nc) => depth.set(nr * C + nc, d + 1);
       poweredCount++;
       if (this.grid[r][c].isEndpoint) {
         poweredBulbCount++;
@@ -959,6 +948,7 @@ class LoopNetGame {
         const nextCell = this.grid[r - 1][c];
         if ((nextCell.currentMask & this.DIR.DOWN) && !nextCell.isPowered) {
           nextCell.isPowered = true;
+          reach(r - 1, c);
           queue.push([r - 1, c]);
         }
       }
@@ -967,6 +957,7 @@ class LoopNetGame {
         const nextCell = this.grid[r][c + 1];
         if ((nextCell.currentMask & this.DIR.LEFT) && !nextCell.isPowered) {
           nextCell.isPowered = true;
+          reach(r, c + 1);
           queue.push([r, c + 1]);
         }
       }
@@ -975,6 +966,7 @@ class LoopNetGame {
         const nextCell = this.grid[r + 1][c];
         if ((nextCell.currentMask & this.DIR.UP) && !nextCell.isPowered) {
           nextCell.isPowered = true;
+          reach(r + 1, c);
           queue.push([r + 1, c]);
         }
       }
@@ -983,6 +975,7 @@ class LoopNetGame {
         const nextCell = this.grid[r][c - 1];
         if ((nextCell.currentMask & this.DIR.RIGHT) && !nextCell.isPowered) {
           nextCell.isPowered = true;
+          reach(r, c - 1);
           queue.push([r, c - 1]);
         }
       }
@@ -999,15 +992,21 @@ class LoopNetGame {
     this.lastPoweredCount = poweredCount;
     this.lastPoweredBulbCount = poweredBulbCount;
 
-    // 4. 更新 DOM 通電與燈泡發光樣式
+    // 4. 更新 DOM 通電與燈泡發光樣式。
+    //    玩家操作造成的新接通格子，依離電池的距離錯開時間點亮，看得出電流沿著線路流過去。
+    const fresh = [];
     for (let r = 0; r < R; r++) {
       for (let c = 0; c < C; c++) {
         const tile = document.getElementById(`cell-${r}-${c}`);
         if (tile) {
           tile.classList.toggle('is-powered', this.grid[r][c].isPowered);
+          if (playSoundEffect && this.grid[r][c].isPowered && !wasPowered[r * C + c]) {
+            fresh.push({ tile, d: depth.get(r * C + c) || 0 });
+          }
         }
       }
     }
+    this.animatePowerArrival(fresh);
 
     this.updateCellLabels();
 
@@ -1019,6 +1018,24 @@ class LoopNetGame {
     if (poweredCount === totalCells && this.validateNoDanglingEnds()) {
       this.handleWin();
     }
+  }
+
+  // 電流流過：新接通的格子從離電池最近的開始，每往外一格晚 45ms 亮起（最多延遲 600ms）。
+  // 視覺效果全交給 CSS 的 .power-arrive（減少動態效果時改成只淡入、不描線）。
+  animatePowerArrival(fresh) {
+    if (!fresh.length) return;
+    const start = Math.min(...fresh.map(item => item.d));
+    fresh.forEach(({ tile, d }) => {
+      tile.style.setProperty('--flow-delay', `${Math.min(600, (d - start) * 45)}ms`);
+      tile.classList.remove('power-arrive');
+      void tile.offsetWidth;
+      tile.classList.add('power-arrive');
+      clearTimeout(tile._flowTimer);
+      tile._flowTimer = setTimeout(() => {
+        tile.classList.remove('power-arrive');
+        tile.style.removeProperty('--flow-delay');
+      }, 1000);
+    });
   }
 
   validateNoDanglingEnds() {
@@ -1099,74 +1116,73 @@ class LoopNetGame {
     const hints = this.hintsUsed || 0;
     const stars = evaluateLoopStars(this.moves, par, hints);
     const badgeText = stars === 3 ? '完美導通' : (stars === 2 ? '優秀通電' : '順利過關');
+    const previous = this.readSizeStats(this.gridSize);
 
     this.clearGameState(this.gridSize);
-    this.saveStats(this.gridSize, this.timerSeconds, this.moves, stars);
+    this.saveStats(this.gridSize, this.timerSeconds, this.moves, stars, hints);
     this.dom.gridBoard.classList.add('is-won');
-
     this.sound.playWin();
-    this.triggerConfetti();
 
+    this.announce(`過關！${stars} 星，${this.moves} 步，用時 ${this.dom.timerText.textContent}`);
+
+    // 共用過關卡片：星星放在卡片的個性區，提示扣星的原因寫進副標
     const starSvg = (active) => `
       <svg class="win-star-icon ${active ? 'active' : ''}" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
       </svg>
     `;
-
-    const starsHtml = `
+    const extra = document.createElement('div');
+    extra.className = 'loop-win-stars';
+    extra.innerHTML = `
       <div class="win-stars-row" role="img" aria-label="${stars} 星（滿分 3 星）">
-        ${starSvg(stars >= 1)}
-        ${starSvg(stars >= 2)}
-        ${starSvg(stars >= 3)}
+        ${starSvg(stars >= 1)}${starSvg(stars >= 2)}${starSvg(stars >= 3)}
       </div>
       <div class="win-stars-rating-badge">${badgeText}・${stars} 星</div>
     `;
-    const hintLine = hints > 0
-      ? `<li>使用提示：<b>${hints} 次</b><span class="stat-note">（${hints >= 3 ? '最高 1 星' : '最高 2 星'}）</span></li>`
-      : '<li>使用提示：<b>0 次</b></li>';
-
-    this.announce(`過關！${stars} 星，${this.moves} 步，用時 ${this.dom.timerText.textContent}`);
+    const subtitle = hints > 0
+      ? `用了 ${hints} 次提示，這局最高 ${hints >= 3 ? 1 : 2} 星。不用提示、${par} 步內完成就能拿 3 星。`
+      : (stars === 3 ? `${this.moves} 步就接通，達到標準最少步數！` : `標準最少 ${par} 步，少轉幾下就能多拿星星。`);
 
     const delay = prefersReducedMotion() ? 0 : 600;
     setTimeout(() => {
-      this.dom.modalTitle.textContent = '電力全開！';
-      this.dom.modalBody.innerHTML = `
-        ${starsHtml}
-        <ul class="win-stats">
-          <li>盤面：<b>${this.gridSize} × ${this.gridSize}</b></li>
-          <li>用時：<b>${this.dom.timerText.textContent}</b></li>
-          <li>旋轉步數：<b>${this.moves} 步</b><span class="stat-note">（標準最少 ${par} 步）</span></li>
-          ${hintLine}
-        </ul>
-      `;
-      this.openDialog(this.dom.winDialog);
+      if (!this.isWon || typeof BoboCelebrate === 'undefined') return;
+      BoboCelebrate.show({
+        outcome: 'win',
+        gameName: 'Loop 電流接接樂',
+        title: '電力全開！',
+        subtitle,
+        extra,
+        stats: [
+          { label: '旋轉步數', value: `${this.moves} 步`,
+            isBest: hints === 0 && BoboCelebrate.isNewRecord(previous.bestMoves, this.moves, { lowerIsBetter: true }) },
+          { label: '用時', value: this.dom.timerText.textContent,
+            isBest: hints === 0 && BoboCelebrate.isNewRecord(previous.bestTime, this.timerSeconds, { lowerIsBetter: true }) },
+          { label: '使用提示', value: `${hints} 次` }
+        ],
+        accent: '#b45309',
+        accentDark: '#fbbf24',
+        primary: {
+          label: '再玩一局',
+          onClick: () => {
+            this.clearGameState(this.gridSize);
+            this.startNewGame();
+            this.focusBoard();
+          }
+        },
+        secondary: { label: '看盤面' },
+        returnFocus: this.dom.btnNewGame
+      });
     }, delay);
   }
 
-  /* 彩帶改走共用模組 BoboConfetti；模組缺席時安靜退場，遊戲照常能玩 */
-  triggerConfetti() {
-    const canvas = this.dom.confettiCanvas;
-    if (!canvas) return;
-    const confetti = (typeof BoboConfetti !== 'undefined') ? BoboConfetti : null;
-    if (!confetti) return;
-    // 參數完全比照本遊戲原本那份實作，接共用模組不改變既有的慶祝手感：
-    // 45 顆圓點從畫面中心爆開、帶重力落下並淡出，配電力色票（琥珀／翠綠／天藍／靛紫）
-    this.confettiStop = confetti.burst(canvas, {
-      colors: ['#F59E0B', '#FBBF24', '#10B981', '#38BDF8', '#818CF8'],
-      pieces: 45,
-      origin: 'center',
-      shape: 'circle',
-      spread: 14,
-      gravity: 0.28,
-      fade: 0.022
-    });
-  }
-
-  /* 開新局時收掉還在飛的彩帶（模組會 cancelAnimationFrame 並清空畫布） */
-  stopConfetti() {
-    if (typeof this.confettiStop === 'function') {
-      this.confettiStop();
-      this.confettiStop = null;
+  // 讀取某個盤面尺寸的歷史紀錄（過關卡片判斷新紀錄用；讀不到就當沒有紀錄）
+  readSizeStats(size) {
+    try {
+      const stats = JSON.parse(localStorage.getItem(STATS_KEY) || '{}');
+      const cur = stats[`${size}x${size}`] || {};
+      return { bestTime: cur.bestTime ?? null, bestMoves: cur.bestMoves ?? null };
+    } catch (_) {
+      return { bestTime: null, bestMoves: null };
     }
   }
 }

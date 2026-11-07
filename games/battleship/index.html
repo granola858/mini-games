@@ -27,7 +27,6 @@
 </head>
 
 <body>
-  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
 
   <div class="game-container">
     <!-- 頂端列：回首頁 · 規則 · 音效 · 主題（全站統一順序） -->
@@ -189,36 +188,6 @@
   </div>
 
   <!-- 對局結果：原生 dialog，showModal() 自帶 inert、Esc 與焦點圈 -->
-  <dialog class="modal-card" id="game-over-modal" aria-labelledby="modal-title" aria-describedby="modal-desc">
-    <div class="modal-badge" id="modal-badge" aria-hidden="true">🏆</div>
-    <h2 class="modal-title" id="modal-title">海上大捷！</h2>
-    <p class="modal-desc" id="modal-desc">你成功全殲敵方艦隊！</p>
-
-    <div class="modal-stats">
-      <div class="modal-stat-box">
-        <span class="modal-stat-label">命中率</span>
-        <span class="modal-stat-val" id="modal-accuracy">0%</span>
-      </div>
-      <div class="modal-stat-box">
-        <span class="modal-stat-label">消耗彈藥</span>
-        <span class="modal-stat-val" id="modal-shots">0 發</span>
-      </div>
-      <div class="modal-stat-box">
-        <span class="modal-stat-label">作戰耗時</span>
-        <span class="modal-stat-val" id="modal-time">00:00</span>
-      </div>
-      <div class="modal-stat-box">
-        <span class="modal-stat-label">最佳命中率</span>
-        <span class="modal-stat-val" id="modal-best">--</span>
-      </div>
-    </div>
-    <p class="modal-record" id="modal-record">戰績 0 勝 0 敗</p>
-
-    <div class="modal-actions">
-      <button id="modal-restart-btn" class="action-btn primary" type="button">再來一局</button>
-      <button id="modal-view-btn" class="action-btn" type="button">看盤面</button>
-    </div>
-  </dialog>
 
   <!-- 規則說明 -->
   <dialog class="modal-card rules-dialog" id="rules-dialog" aria-labelledby="rules-title">
@@ -254,6 +223,7 @@
   <script src="../../assets/js/bobo-theme.js"></script>
   <script src="../../assets/js/bobo-audio.js"></script>
   <script src="../../assets/js/bobo-confetti.js"></script>
+  <script src="../../assets/js/bobo-celebrate.js"></script>
   <script src="battleship.js"></script>
   <script>
     if (typeof Stats !== 'undefined') Stats.recordGamePlay('battleship');
