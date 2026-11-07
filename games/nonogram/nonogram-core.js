@@ -32,6 +32,324 @@ const NonogramCore = (() => {
   const DEFAULT_HARD_THRESHOLD = { minPasses: 4, maxFirstYield: 0.45 };
 
   const MAX_GENERATION_ATTEMPTS = 600;
+
+  // 「圖案」出題模式：原創像素圖題庫。'#' 塗黑、'.' 留白。
+  // 每一張都必須能純靠線解推理解完（必然唯一解、不需猜測），由測試逐張驗證。
+  const PICTURE_MODE = 'picture';
+  const PICTURES = [
+    { id: 'heart', name: '愛心', size: 8, art: [
+      '........',
+      '.##..##.',
+      '########',
+      '########',
+      '.######.',
+      '..####..',
+      '...##...',
+      '........'
+    ] },
+    { id: 'cat', name: '貓咪', size: 8, art: [
+      '#......#',
+      '##....##',
+      '########',
+      '#..##..#',
+      '########',
+      '##.##.##',
+      '.######.',
+      '..####..'
+    ] },
+    { id: 'house', name: '小房子', size: 8, art: [
+      '...##...',
+      '..####..',
+      '.######.',
+      '########',
+      '.#....#.',
+      '.#.##.#.',
+      '.#.##.#.',
+      '.######.'
+    ] },
+    { id: 'cup', name: '熱可可', size: 8, art: [
+      '.#.#.#..',
+      '........',
+      '######..',
+      '######.#',
+      '######.#',
+      '######..',
+      '.####...',
+      '########'
+    ] },
+    { id: 'umbrella', name: '雨傘', size: 8, art: [
+      '...##...',
+      '.######.',
+      '########',
+      '#.####.#',
+      '...##...',
+      '...##...',
+      '.#.##...',
+      '..##....'
+    ] },
+    { id: 'fish', name: '小魚', size: 8, art: [
+      '...##...',
+      '.#####.#',
+      '###.####',
+      '########',
+      '.#####.#',
+      '...##...',
+      '........',
+      '........'
+    ] },
+    { id: 'tree', name: '聖誕樹', size: 8, art: [
+      '...##...',
+      '..####..',
+      '.######.',
+      '..####..',
+      '.######.',
+      '########',
+      '...##...',
+      '...##...'
+    ] },
+    { id: 'note', name: '音符', size: 8, art: [
+      '...#####',
+      '...#####',
+      '...#...#',
+      '...#...#',
+      '...#...#',
+      '.###.###',
+      '####.###',
+      '.##..##.'
+    ] },
+    { id: 'star', name: '星星', size: 8, art: [
+      '...##...',
+      '...##...',
+      '########',
+      '.######.',
+      '..####..',
+      '.######.',
+      '.##..##.',
+      '.#....#.'
+    ] },
+    { id: 'rabbit', name: '兔子', size: 10, art: [
+      '.##....##.',
+      '.##....##.',
+      '.##....##.',
+      '.########.',
+      '##########',
+      '##.####.##',
+      '##########',
+      '###.##.###',
+      '.########.',
+      '..######..'
+    ] },
+    { id: 'boat', name: '帆船', size: 10, art: [
+      '....#.....',
+      '....##....',
+      '....###...',
+      '....####..',
+      '....#.....',
+      '##########',
+      '.########.',
+      '..######..',
+      '..........',
+      '..........'
+    ] },
+    { id: 'mushroom', name: '蘑菇', size: 10, art: [
+      '...####...',
+      '.########.',
+      '###.##.###',
+      '##########',
+      '#.######.#',
+      '..........',
+      '....##....',
+      '...####...',
+      '...####...',
+      '..........'
+    ] },
+    { id: 'apple', name: '蘋果', size: 10, art: [
+      '.....#....',
+      '....#.....',
+      '..##.###..',
+      '.########.',
+      '##########',
+      '##########',
+      '##########',
+      '.########.',
+      '..######..',
+      '...##.##..'
+    ] },
+    { id: 'car', name: '小汽車', size: 10, art: [
+      '..........',
+      '...####...',
+      '..#.##.#..',
+      '.########.',
+      '##########',
+      '##########',
+      '.##....##.',
+      '.##....##.',
+      '..........',
+      '..........'
+    ] },
+    { id: 'moon', name: '月亮', size: 10, art: [
+      '...####...',
+      '..###.....',
+      '.###......',
+      '.##.......',
+      '###.......',
+      '###.......',
+      '.##.......',
+      '.###......',
+      '..###.....',
+      '...####...'
+    ] },
+    { id: 'crown', name: '皇冠', size: 10, art: [
+      '..........',
+      '#...##...#',
+      '##..##..##',
+      '###.##.###',
+      '##########',
+      '##########',
+      '#.#.##.#.#',
+      '##########',
+      '..........',
+      '..........'
+    ] },
+    { id: 'snowman', name: '雪人', size: 10, art: [
+      '....##....',
+      '...####...',
+      '...#..#...',
+      '...####...',
+      '..######..',
+      '.###..###.',
+      '.########.',
+      '.########.',
+      '..######..',
+      '..........'
+    ] },
+    { id: 'bigcat', name: '大貓', size: 12, art: [
+      '.#........#.',
+      '.##......##.',
+      '.###....###.',
+      '.##########.',
+      '############',
+      '##..####..##',
+      '##..####..##',
+      '############',
+      '#####..#####',
+      '.####..####.',
+      '..########..',
+      '...######...'
+    ] },
+    { id: 'castle', name: '城堡', size: 12, art: [
+      '#.#.#..#.#.#',
+      '#####..#####',
+      '#####..#####',
+      '.###....###.',
+      '.###.##.###.',
+      '.##########.',
+      '.####..####.',
+      '.###....###.',
+      '.###....###.',
+      '.###....###.',
+      '############',
+      '............'
+    ] },
+    { id: 'rocket', name: '火箭', size: 12, art: [
+      '.....##.....',
+      '....####....',
+      '....####....',
+      '...######...',
+      '...##..##...',
+      '...##..##...',
+      '...######...',
+      '...######...',
+      '..########..',
+      '.###.##.###.',
+      '.##..##..##.',
+      '.....##.....'
+    ] },
+    { id: 'bear', name: '小熊', size: 12, art: [
+      '.##......##.',
+      '####....####',
+      '############',
+      '.##########.',
+      '.##.####.##.',
+      '.##.####.##.',
+      '.##########.',
+      '.####..####.',
+      '..###..###..',
+      '...######...',
+      '....####....',
+      '............'
+    ] },
+    { id: 'flower', name: '小花', size: 12, art: [
+      '....####....',
+      '...#.##.#...',
+      '..###..###..',
+      '..##.##.##..',
+      '...######...',
+      '.....##.....',
+      '.##..##.....',
+      '..##.##.....',
+      '...####..##.',
+      '.....######.',
+      '.....##.....',
+      '...######...'
+    ] },
+    { id: 'whale', name: '鯨魚', size: 12, art: [
+      '............',
+      '.......#.#..',
+      '........#...',
+      '..######....',
+      '.########..#',
+      '###.#####.##',
+      '###########.',
+      '###########.',
+      '.##########.',
+      '..#########.',
+      '....#####...',
+      '............'
+    ] },
+    { id: 'teapot', name: '茶壺', size: 12, art: [
+      '.....##.....',
+      '....####....',
+      '..########..',
+      '.##########.',
+      '############',
+      '#.##########',
+      '#.##########',
+      '############',
+      '.##########.',
+      '..########..',
+      '...######...',
+      '.##########.'
+    ] },
+    { id: 'leaf', name: '葉子', size: 12, art: [
+      '.........###',
+      '.......#####',
+      '.....#######',
+      '....####.###',
+      '...####.####',
+      '..####.#####',
+      '..###.######',
+      '..##.######.',
+      '..#.######..',
+      '.##.#####...',
+      '##...###....',
+      '#...........'
+    ] },
+    { id: 'watermelon', name: '西瓜', size: 12, art: [
+      '............',
+      '############',
+      '############',
+      '.##########.',
+      '.###.##.###.',
+      '..########..',
+      '..##.##.##..',
+      '...######...',
+      '....####....',
+      '.....##.....',
+      '............',
+      '............'
+    ] }
+  ];
   const linePatternCache = new Map();
 
   // --- 基礎工具 (Primitives) ---
@@ -461,11 +779,62 @@ const NonogramCore = (() => {
     throw new Error(`Unable to generate a ${targetDifficulty} ${targetSize}x${targetSize} puzzle.`);
   }
 
+  // --- 圖案題庫 (Picture Catalog) ---
+  function pictureToSolution(picture) {
+    return picture.art.map(row => row.split('').map(ch => (ch === '#' ? 1 : 0)));
+  }
+
+  function getPictures(targetSize) {
+    return PICTURES.filter(picture => picture.size === targetSize);
+  }
+
+  function getPictureById(id) {
+    return PICTURES.find(picture => picture.id === id) || null;
+  }
+
+  // 用答案反查是哪一張圖：存檔只需要存盤面，不必另外記圖案 id。
+  function findPictureBySolution(solution) {
+    if (!Array.isArray(solution) || !solution.length) return null;
+    const targetSize = solution.length;
+    return getPictures(targetSize).find(picture => {
+      const pictureSolution = pictureToSolution(picture);
+      return pictureSolution.every((row, r) => row.every((value, c) => solution[r] && solution[r][c] === value));
+    }) || null;
+  }
+
+  // 依序挑下一張還沒解過的圖；全部解完就從頭輪一遍（避開剛玩過的那張）。
+  function pickNextPicture(targetSize, solvedIds = [], lastId = null) {
+    const pool = getPictures(targetSize);
+    if (!pool.length) return null;
+    const solved = new Set(Array.isArray(solvedIds) ? solvedIds : []);
+    const unsolved = pool.find(picture => !solved.has(picture.id) && picture.id !== lastId)
+      || pool.find(picture => !solved.has(picture.id));
+    if (unsolved) return unsolved;
+    const lastIndex = pool.findIndex(picture => picture.id === lastId);
+    return pool[(lastIndex + 1) % pool.length];
+  }
+
+  function createPicturePuzzle(picture) {
+    const solution = pictureToSolution(picture);
+    const { rowClues, colClues } = buildCluesFromSolution(solution);
+    const rating = solveByLineLogic(rowClues, colClues);
+    return {
+      solution,
+      rowClues,
+      colClues,
+      rating,
+      difficulty: classifyDifficulty(rating, picture.size),
+      picture
+    };
+  }
+
   return {
     DIFFICULTY_LEVELS,
     DEFAULT_DIFFICULTY,
     RANDOM_DIFFICULTY,
     DIFFICULTY_CHOICES,
+    PICTURE_MODE,
+    PICTURES,
     GENERATION_PROFILES,
     RATING_THRESHOLDS,
     MAX_GENERATION_ATTEMPTS,
@@ -489,7 +858,13 @@ const NonogramCore = (() => {
     countSolutions,
     classifyDifficulty,
     ratePuzzle,
-    generatePuzzle
+    generatePuzzle,
+    pictureToSolution,
+    getPictures,
+    getPictureById,
+    findPictureBySolution,
+    pickNextPicture,
+    createPicturePuzzle
   };
 })();
 

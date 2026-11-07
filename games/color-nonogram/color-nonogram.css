@@ -1,750 +1,742 @@
 :root {
-            --primary-color: #1f1f1f;
-            --primary-shadow: rgba(0, 0, 0, 0.2);
-            --error-color: #D6334A; /* 錯誤訊息文字，白底 ≥4.5:1 */
-            --secondary-text: #6b6b6b; /* 次要說明文字，原 #999／#a6a6a6 對比不足 */
-            --inactive-btn-text: #333;
-            --line-color: #f0f0f0;
-            /* 標題彩色字：保留原色相、調深到大字 ≥3:1 */
-            --title-red: #E8475F;
-            --title-yellow: #B88400;
-            --title-green: #37A247;
-            --title-blue: #3B82F6;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
-        }
-
-        body {
-            background-color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
-            min-height: 100vh;
-            min-height: 100dvh;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 18px;
-        }
-
-        .top-bar {
-            width: 100%;
-            max-width: 420px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 16px;
-        }
-
-        .back-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 40px;
-            gap: 6px;
-            color: var(--inactive-btn-text);
-            background-color: #fff;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-            padding: 8px 12px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 1rem;
-            align-self: flex-start;
-            transition: opacity 0.2s;
-            border: 1px solid var(--line-color);
-        }
-
-        .palette-size-badge {
-            min-width: 58px;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 12px;
-            border-radius: 12px;
-            border: 1px solid var(--line-color);
-            background: #fff;
-            color: var(--inactive-btn-text);
-            font-size: 0.92rem;
-            font-weight: 800;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-            white-space: nowrap;
-        }
-
-        .title-wrap {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .h1 {
-            font-family: 'Baloo 2', 'Trebuchet MS', 'Segoe UI', sans-serif;
-            font-size: 36px;
-            font-weight: 800;
-            letter-spacing: 1.2px;
-            text-align: center;
-            margin: 0;
-            line-height: 1.1;
-            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
-        }
-
-        .color-title {
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-            gap: 4px;
-        }
-
-        .color-title span {
-            display: inline-block;
-            font-family: inherit;
-        }
-
-        .color-title span:nth-child(1) {
-            color: var(--title-red);
-            transform: rotate(-6deg);
-        }
-
-        .color-title span:nth-child(2) {
-            color: var(--title-yellow);
-            transform: translateY(-2px);
-        }
-
-        .color-title span:nth-child(3) {
-            color: var(--title-green);
-            transform: rotate(4deg);
-        }
-
-        .color-title span:nth-child(4) {
-            color: var(--title-blue);
-            transform: translateY(1px);
-        }
-
-        .color-title span:nth-child(5) {
-            color: var(--title-red);
-            transform: rotate(-4deg);
-        }
-
-        .title-sub {
-            font-size: 0.82rem;
-            font-weight: 800;
-            letter-spacing: 2px;
-            color: var(--secondary-text);
-        }
-
-        .control-stack {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .control-group {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .control-label {
-            width: 100%;
-            max-width: 320px;
-            color: var(--secondary-text);
-            font-size: 0.8rem;
-            font-weight: 700;
-            padding-left: 8px;
-        }
-
-        .toggle-container {
-            display: flex;
-            width: 100%;
-            max-width: 320px;
-            gap: 4px;
-            background-color: #f5f5f5;
-            padding: 4px;
-            border-radius: 10px;
-        }
-
-        .mode-btn {
-            background-color: transparent;
-            flex: 1;
-            border: none;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 1rem;
-            padding: 8px 0;
-            cursor: pointer;
-            color: #666666;
-        }
-
-        .mode-btn.active {
-            background-color: #ffffff;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-            color: var(--inactive-btn-text);
-        }
-
-        .palette-row {
-            width: 100%;
-            max-width: 320px;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .palette-btn {
-            width: 44px;
-            height: 44px;
-            border-radius: 999px;
-            border: 3px solid transparent;
-            background: var(--swatch-color);
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-            transition: transform 0.2s, border-color 0.2s, opacity 0.2s;
-        }
-
-        .palette-btn.active {
-            border-color: #222;
-            transform: scale(1.06);
-        }
-
-        .palette-btn.disabled {
-            opacity: 0.35;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        .action-msg-container {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 34px;
-            width: 100%;
-            max-width: 420px;
-        }
-
-        .top-msg {
-            font-size: 1rem;
-            font-weight: bold;
-            color: #555;
-            text-align: center;
-            min-height: 20px;
-        }
-
-        .top-msg.success {
-            color: var(--primary-color);
-        }
-
-        .top-msg.error {
-            color: var(--error-color);
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        .game-board-wrapper {
-            width: 100%;
-            max-width: 420px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 14px;
-            padding: 0 14px;
-        }
-
-        .board-lock-btn {
-            position: absolute;
-            right: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 34px;
-            height: 34px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 18px;
-            border: 1px solid var(--line-color);
-            background: #ffffff;
-            color: var(--inactive-btn-text);
-            cursor: pointer;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-            transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
-            user-select: none;
-            flex-shrink: 0;
-            z-index: 5;
-        }
-
-        .board-lock-btn:hover {
-            border-color: #222;
-        }
-
-        .board-lock-btn.locked {
-            background: #D6334A;
-            color: #ffffff;
-            border-color: #D6334A;
-            box-shadow: 0 2px 8px rgba(214, 51, 74, 0.3);
-        }
-
-        .board-lock-btn .lock-icon {
-            width: 18px;
-            height: 18px;
-        }
-
-        .board-lock-btn .lock-icon.locked-svg {
-            display: none;
-        }
-
-        .board-lock-btn.locked .lock-icon.unlocked-svg {
-            display: none;
-        }
-
-        .board-lock-btn.locked .lock-icon.locked-svg {
-            display: inline-block;
-        }
-
-        .board-container {
-            position: relative;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            overflow-x: auto;
-        }
-
-        .game-board {
-            display: grid;
-            background-color: #ffffff;
-            border: 2px solid var(--line-color);
-            border-radius: 12px;
-            overflow: hidden;
-            user-select: none;
-            touch-action: none;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
-            width: max-content;
-            --cell-size: 36px;
-            transition: border-color 0.25s ease, box-shadow 0.25s ease;
-        }
-
-        .game-board.board-locked {
-            border-color: #D6334A;
-            box-shadow: 0 0 0 3px rgba(214, 51, 74, 0.3), 0 8px 24px rgba(0, 0, 0, 0.08);
-        }
-
-        .cell,
-        .clue-cell {
-            background-color: #ffffff;
-            border-right: 1px solid var(--line-color);
-            border-bottom: 1px solid var(--line-color);
-        }
-
-        .cell {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            width: var(--cell-size);
-            height: var(--cell-size);
-            position: relative;
-            transition: background-color 0.2s;
-        }
-
-        .cell::after {
-            content: '';
-            position: absolute;
-            inset: 3px;
-            border-radius: 8px;
-            background: transparent;
-        }
-
-        .cell.filled::after {
-            background: var(--fill-color);
-        }
-
-        .clue-cell {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #707070;
-            flex-direction: column;
-            font-size: 0.82rem;
-            min-height: var(--cell-size);
-            min-width: 44px;
-            padding: 4px 2px;
-        }
-
-        .clue-cell.row-clue {
-            flex-direction: row;
-            justify-content: flex-end;
-            gap: 4px;
-            padding: 0 8px;
-            min-width: 58px;
-        }
-
-        .clue-number {
-            line-height: 1.15;
-            font-weight: 800;
-        }
-
-        .clue-number.empty {
-            color: #767676;
-        }
-
-        .status-area {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            width: 100%;
-        }
-
-        .primary-btn {
-            background-color: var(--primary-color);
-            color: #fff;
-            border: none;
-            padding: 12px 32px;
-            border-radius: 20px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 5px 14px var(--primary-shadow);
-            transition: 0.2s;
-        }
-
-        .primary-btn:active {
-            transform: scale(0.95);
-        }
-
-        .secondary-btn {
-            background-color: #f4f4f4;
-            color: #444;
-            border: 1px solid #e4e4e4;
-            padding: 12px 24px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        }
-
-        .secondary-btn:disabled,
-        .primary-btn:disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-            box-shadow: none;
-            transform: none;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            align-items: center;
-            width: min(100%, 420px);
-            margin: 0 auto;
-        }
-
-        /* 動作按鈕：等分寬度回到原本尺寸，並鎖定高度避免 Android 上被拉伸變形 */
-        #main-actions > .primary-btn,
-        #main-actions > .secondary-btn {
-            flex: 1 1 100px;
-            min-width: 0;
-            max-width: 100px;
-            height: 44px;
-            padding: 0 8px;
-            border-radius: 12px;
-            line-height: 1;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* 圖示不隨按鈕寬度縮放，維持固定比例（Android WebView 防變形） */
-        .btn-group button > svg {
-            flex: 0 0 auto;
-            width: 18px;
-            height: 18px;
-        }
-
-        .confirm-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(17, 24, 39, 0.45);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-            z-index: 60;
-        }
-
-        .confirm-card {
-            width: min(360px, 100%);
-            background: #fff;
-            border-radius: 18px;
-            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
-            padding: 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .confirm-title {
-            font-size: 1.05rem;
-            font-weight: 800;
-            color: #222;
-        }
-
-        .confirm-message {
-            font-size: 0.95rem;
-            line-height: 1.5;
-            color: #555;
-        }
-
-        .confirm-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 4px;
-        }
-
-        .confirm-actions .secondary-btn,
-        .confirm-actions .primary-btn {
-            padding: 10px 14px;
-            border-radius: 14px;
-            font-size: 0.92rem;
-        }
-
-        @media (max-width: 480px) {
-            body {
-                padding: 16px 12px 12px;
-            }
-
-            .container {
-                gap: 14px;
-            }
-
-            .top-bar {
-                max-width: 390px;
-            }
-
-            .back-btn {
-                padding: 7px 10px;
-                font-size: 0.92rem;
-            }
-
-            .palette-size-badge {
-                min-width: 52px;
-                padding: 8px 10px;
-                font-size: 0.84rem;
-            }
-
-            .h1 {
-                font-size: 32px;
-            }
-
-            .title-sub {
-                font-size: 0.74rem;
-                letter-spacing: 1.5px;
-            }
-
-            .control-stack {
-                gap: 12px;
-            }
-
-            .control-group {
-                gap: 6px;
-            }
-
-            .control-label {
-                max-width: 300px;
-                padding-left: 6px;
-                font-size: 0.74rem;
-            }
-
-            .toggle-container {
-                max-width: 300px;
-                padding: 3px;
-            }
-
-            .mode-btn {
-                font-size: 0.92rem;
-                padding: 7px 0;
-            }
-
-            .palette-row {
-                max-width: 300px;
-                gap: 8px;
-            }
-
-            .palette-btn {
-                width: 36px;
-                height: 36px;
-            }
-
-            .action-msg-container {
-                min-height: 22px;
-            }
-
-            .game-board-wrapper {
-                margin-bottom: 8px;
-                padding: 8px 0 2px;
-            }
-
-            .clue-cell {
-                min-width: 40px;
-                padding: 3px 2px;
-                font-size: 0.74rem;
-            }
-
-            .clue-cell.row-clue {
-                min-width: 52px;
-                padding: 0 6px;
-            }
-
-            .status-area {
-                gap: 12px;
-            }
-
-            .btn-group {
-                gap: 10px;
-                width: min(100%, 390px);
-            }
-
-            #main-actions>.primary-btn,
-            #main-actions>.secondary-btn {
-                height: 42px;
-            }
-        }
-
-        @media (max-height: 760px) {
-            body {
-                padding: 10px 10px 8px;
-            }
-
-            .container {
-                gap: 8px;
-            }
-
-            .top-bar {
-                max-width: 380px;
-            }
-
-            .back-btn {
-                padding: 6px 9px;
-                font-size: 0.88rem;
-            }
-
-            .palette-size-badge {
-                min-width: 48px;
-                padding: 7px 9px;
-                font-size: 0.8rem;
-            }
-
-            .title-wrap {
-                gap: 3px;
-            }
-
-            .h1 {
-                font-size: 26px;
-            }
-
-            .title-sub {
-                display: block;
-                font-size: 0.75rem;
-                letter-spacing: 1.2px;
-            }
-
-            .control-stack {
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .control-group {
-                width: 100%;
-                gap: 4px;
-            }
-
-            .control-label {
-                max-width: 300px;
-                padding-left: 4px;
-                font-size: 0.72rem;
-            }
-
-            .toggle-container {
-                max-width: 300px;
-            }
-
-            .palette-row {
-                max-width: 300px;
-                gap: 6px;
-            }
-
-            .palette-btn {
-                width: 30px;
-                height: 30px;
-            }
-
-            .action-msg-container {
-                min-height: 0;
-            }
-
-            .game-board-wrapper {
-                margin-bottom: 4px;
-                padding: 2px 0 0;
-            }
-
-            .clue-cell {
-                min-width: 36px;
-                font-size: 0.7rem;
-            }
-
-            .clue-cell.row-clue {
-                min-width: 48px;
-            }
-
-            #main-actions>.primary-btn,
-            #main-actions>.secondary-btn {
-                height: 42px;
-            }
-        }
-
-        /* 鍵盤操作時的焦點框 */
-        a:focus-visible,
-        button:focus-visible {
-            outline: 3px solid #1f1f1f;
-            outline-offset: 2px;
-        }
-
-        /* 系統要求減少動態效果時，把動畫與轉場縮到幾乎瞬間（事件仍會觸發） */
-        @media (prefers-reduced-motion: reduce) {
-            *,
-            *::before,
-            *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-                scroll-behavior: auto !important;
-            }
-        }
+    color-scheme: light;
+    --page-bg: #ffffff;
+    --surface: #ffffff;
+    --surface-muted: #f3f4f6;
+    --surface-strong: #e9eaee;
+    --cell-bg: #ffffff;
+    --clue-bg: #fafafa;
+    --line: #e5e7eb;
+    --grid-line: #e2e4e9;
+    --text: #1f2328;
+    --text-secondary: #4b5058;
+    --text-muted: #5f646c;
+    --primary: #1f2328;
+    --primary-text: #ffffff;
+    --focus: #2563eb;
+    --error: #c92a3e;
+    --error-soft: #fdecef;
+    --success: #1e7d45;
+    --overlay: rgba(17, 24, 39, 0.45);
+    --lock: #c92a3e;
+
+    /* 四種顏色：fill 是格子底色；ink 是線索數字與標題用的文字色（白底 ≥ 4.5:1） */
+    --c1-fill: #F87171;
+    --c2-fill: #2DD4BF;
+    --c3-fill: #FBBF24;
+    --c4-fill: #60A5FA;
+    --c1-ink: #B91C1C;
+    --c2-ink: #0F766E;
+    --c3-ink: #8A5A00;
+    --c4-ink: #1D4ED8;
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+    --page-bg: #0f141c;
+    --surface: #1a212c;
+    --surface-muted: #232c3b;
+    --surface-strong: #2a3446;
+    --cell-bg: #202837;
+    --clue-bg: #161d28;
+    --line: #384456;
+    --grid-line: #313c4f;
+    --text: #edf2f7;
+    --text-secondary: #d1dae5;
+    --text-muted: #a9b6c8;
+    --primary: #edf2f7;
+    --primary-text: #0f141c;
+    --focus: #93c5fd;
+    --error: #ff8a9b;
+    --error-soft: #3a1e26;
+    --success: #6ee7a0;
+    --overlay: rgba(4, 8, 16, 0.72);
+    --lock: #ff6b81;
+
+    /* 深色底上的文字色：同色相提亮，≥ 4.5:1 */
+    --c1-ink: #FCA5A5;
+    --c2-ink: #5EEAD4;
+    --c3-ink: #FDE047;
+    --c4-ink: #93C5FD;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+    background-color: var(--page-bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+button,
+a {
+    touch-action: manipulation;
+}
+
+.container,
+.game-main {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+/* --- 頂端列 --- */
+.top-bar {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.top-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    gap: 6px;
+    color: var(--text);
+    background-color: var(--surface);
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.icon-btn {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.icon-btn > svg {
+    width: 20px;
+    height: 20px;
+}
+
+.icon-btn:hover,
+.back-btn:hover {
+    border-color: var(--text-muted);
+}
+
+.sun-icon,
+html[data-theme="dark"] .moon-icon {
+    display: none;
+}
+
+html[data-theme="dark"] .sun-icon {
+    display: block;
+}
+
+/* --- 標題 --- */
+.h1 {
+    font-size: 34px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    line-height: 1.15;
+    text-align: center;
+}
+
+.color-title .t1 { color: var(--c1-ink); }
+.color-title .t2 { color: var(--c3-ink); }
+.color-title .t3 { color: var(--c2-ink); }
+.color-title .t4 { color: var(--c4-ink); }
+
+.subtitle {
+    max-width: 420px;
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    text-align: center;
+}
+
+/* --- 控制列 --- */
+.control-stack {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.control-label {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding-left: 6px;
+}
+
+.toggle-container {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 4px;
+    background-color: var(--surface-muted);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.mode-btn {
+    min-height: 36px;
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.92rem;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.mode-btn.active {
+    background-color: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.palette-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.palette-row {
+    display: flex;
+    gap: 8px;
+}
+
+/* 畫筆：色塊＋文字標籤，不只靠顏色辨識 */
+.palette-btn {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 48px;
+    padding: 4px 4px 3px;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.palette-btn .swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--swatch);
+    box-shadow: inset 0 0 0 2px var(--swatch-ink);
+}
+
+.palette-btn .glyph {
+    display: none;
+    color: #1f2328;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.palette-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.palette-btn.active {
+    border-color: var(--text);
+    background: var(--surface-muted);
+}
+
+.palette-btn.color-1 { --swatch: var(--c1-fill); --swatch-ink: var(--c1-ink); }
+.palette-btn.color-2 { --swatch: var(--c2-fill); --swatch-ink: var(--c2-ink); }
+.palette-btn.color-3 { --swatch: var(--c3-fill); --swatch-ink: var(--c3-ink); }
+.palette-btn.color-4 { --swatch: var(--c4-fill); --swatch-ink: var(--c4-ink); }
+
+.assist-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 10px;
+    border-radius: 10px;
+    background: var(--surface-muted);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.assist-toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+}
+
+/* --- 訊息與鎖頭 --- */
+.action-msg-container {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.top-msg {
+    padding: 0 52px;
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.5;
+    text-align: center;
+    color: var(--text);
+}
+
+.top-msg.success {
+    color: var(--success);
+}
+
+.top-msg.error {
+    color: var(--error);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.board-lock-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.board-lock-btn .lock-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.board-lock-btn .locked-svg,
+.board-lock-btn.locked .unlocked-svg {
+    display: none;
+}
+
+.board-lock-btn.locked .locked-svg {
+    display: inline-block;
+}
+
+.board-lock-btn.locked {
+    background: var(--lock);
+    border-color: var(--lock);
+    color: #ffffff;
+}
+
+html[data-theme="dark"] .board-lock-btn.locked {
+    color: #0f141c;
+}
+
+/* --- 盤面 ---
+   格子最小 26px（觸控目標）並隨可用寬度放大；畫面不夠寬時改成橫向捲動，
+   不再用 transform 縮放（舊做法會把盤面縮到點不到，還會被裁切）。 */
+.game-board-wrapper {
+    width: 100%;
+    max-width: 560px;
+}
+
+/* 桌機／筆電：盤面寬度也受視窗高度限制，12×12 在 1280×800 上不會一路長到畫面外 */
+@media (min-width: 600px) {
+    .game-board-wrapper {
+        max-width: min(560px, max(380px, calc(100dvh - 300px)));
+    }
+}
+
+.board-container {
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 2px;
+}
+
+.game-board {
+    --cell-min: 26px;
+    display: grid;
+    grid-template-columns: max-content repeat(var(--board-size, 8), minmax(var(--cell-min), 1fr));
+    min-width: max-content;
+    margin: 0 auto;
+    background-color: var(--surface);
+    border: 2px solid var(--grid-line);
+    border-radius: 12px;
+    overflow: hidden;
+    user-select: none;
+    touch-action: none;
+}
+
+.game-board.board-locked {
+    border-color: var(--lock);
+}
+
+.board-row {
+    display: contents;
+}
+
+.cell,
+.clue-cell {
+    border-right: 1px solid var(--grid-line);
+    border-bottom: 1px solid var(--grid-line);
+}
+
+.cell {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    background-color: var(--cell-bg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 填色格：底色＋同色系深色內框，跟空白格的邊界對比 ≥ 3:1 */
+.cell.filled {
+    background-color: var(--fill);
+    box-shadow: inset 0 0 0 2px var(--fill-ink);
+}
+
+.cell.color-1 { --fill: var(--c1-fill); --fill-ink: var(--c1-ink); }
+.cell.color-2 { --fill: var(--c2-fill); --fill-ink: var(--c2-ink); }
+.cell.color-3 { --fill: var(--c3-fill); --fill-ink: var(--c3-ink); }
+.cell.color-4 { --fill: var(--c4-fill); --fill-ink: var(--c4-ink); }
+
+.cell:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: -3px;
+    z-index: 2;
+}
+
+.clue-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1px;
+    padding: 4px 2px;
+    background-color: var(--clue-bg);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.clue-cell.row-clue {
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 5px;
+    padding: 0 8px;
+    min-width: 40px;
+}
+
+.clue-number {
+    line-height: 1.15;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 1px;
+}
+
+.clue-number.color-1 { color: var(--c1-ink); }
+.clue-number.color-2 { color: var(--c2-ink); }
+.clue-number.color-3 { color: var(--c3-ink); }
+.clue-number.color-4 { color: var(--c4-ink); }
+
+.clue-glyph {
+    display: none;
+    font-size: 0.7em;
+}
+
+/* 對答案時對不上的列／欄：紅框（不只靠顏色，框線本身就是記號） */
+.clue-cell.line-error {
+    background-color: var(--error-soft);
+    box-shadow: inset 0 0 0 2px var(--error);
+}
+
+/* 圖形輔助：每種顏色多一個形狀，格子、線索、畫筆都看得到 */
+.pattern-assist .clue-glyph,
+.pattern-assist .palette-btn .glyph {
+    display: inline;
+}
+
+.pattern-assist .cell.filled::after {
+    color: #1f2328;
+    font-size: 0.85em;
+    line-height: 1;
+}
+
+.pattern-assist .cell.color-1::after { content: "●"; }
+.pattern-assist .cell.color-2::after { content: "▲"; }
+.pattern-assist .cell.color-3::after { content: "■"; }
+.pattern-assist .cell.color-4::after { content: "◆"; }
+
+/* --- 動作按鈕 --- */
+.status-area {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    width: min(100%, 420px);
+}
+
+.primary-btn,
+.secondary-btn {
+    border: none;
+    border-radius: 14px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.primary-btn {
+    background-color: var(--primary);
+    color: var(--primary-text);
+}
+
+.secondary-btn {
+    background-color: var(--surface-strong);
+    color: var(--text);
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* 圖示＋文字：圖示在上、文字在下 */
+.labeled-btn {
+    flex: 1 1 0;
+    max-width: 100px;
+    height: 52px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 0.8rem;
+}
+
+.labeled-btn > svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+}
+
+/* --- 對話框 --- */
+.game-dialog {
+    width: min(380px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    margin: auto;
+    border: none;
+    border-radius: 18px;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    overflow: auto;
+}
+
+.game-dialog[open] {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.game-dialog::backdrop {
+    background: var(--overlay);
+}
+
+.dialog-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.dialog-message {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.dialog-actions button {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+}
+
+.result-dialog {
+    text-align: center;
+}
+
+.result-dialog .dialog-actions {
+    justify-content: center;
+}
+
+/* 過關時把完成的彩色圖放大秀出來 */
+.result-picture {
+    --picture-size: 8;
+    width: min(240px, 70vw);
+    aspect-ratio: 1 / 1;
+    margin: 4px auto;
+    display: grid;
+    grid-template-columns: repeat(var(--picture-size), 1fr);
+    gap: 2px;
+    padding: 8px;
+    border-radius: 14px;
+    background: var(--surface-muted);
+}
+
+.result-picture span {
+    border-radius: 2px;
+    background: var(--cell-bg);
+}
+
+.result-picture span.color-1 { background: var(--c1-fill); }
+.result-picture span.color-2 { background: var(--c2-fill); }
+.result-picture span.color-3 { background: var(--c3-fill); }
+.result-picture span.color-4 { background: var(--c4-fill); }
+
+.rules-dialog {
+    width: min(460px, calc(100vw - 32px));
+}
+
+.rules-body h3 {
+    font-size: 1rem;
+    margin: 12px 0 4px;
+}
+
+.rules-body p {
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+}
+
+.visually-hidden {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.confetti-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+    body {
+        padding-left: max(10px, env(safe-area-inset-left));
+        padding-right: max(10px, env(safe-area-inset-right));
+    }
+
+    .container,
+    .game-main {
+        gap: 10px;
+    }
+
+    .h1 {
+        font-size: 28px;
+    }
+
+    .mode-btn {
+        font-size: 0.84rem;
+        padding: 6px 10px;
+    }
+
+    .game-board {
+        --cell-min: 25px;
+    }
+
+    .clue-cell {
+        font-size: 0.75rem;
+    }
+
+    .clue-cell.row-clue {
+        padding: 0 4px;
+        gap: 3px;
+    }
+}
+
+/* 減少動態效果：這頁沒有位移動畫（彩帶模組自己會判斷），只關掉平滑捲動 */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        scroll-behavior: auto;
+    }
+}

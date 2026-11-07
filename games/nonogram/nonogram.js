@@ -23,11 +23,15 @@ let size = 8;
     let isWakeLockEnabled = false;
 
     const SAVE_KEY = 'nonogram_save_data';
+    // 戰績與圖案收集進度另存一把 key：跟盤面存檔的多分頁合併邏輯無關，讀寫都獨立包 try/catch。
+    const STATS_KEY = 'nonogram_stats_v1';
     const ALLOWED_SIZES = [8, 10, 12];
     const DEFAULT_THEME_COLOR = '#FFB7F1';
     const PRIMARY_DARK_TEXT = '#13212F';
     const LIGHT_SURFACE_COLOR = '#FFFFFF';
     const DARK_SURFACE_COLOR = '#0F141C';
+    // 深色模式下會承載主題色文字的底色：頁面、卡片／分段按鈕、格子、靜音底
+    const DARK_SURFACES = [DARK_SURFACE_COLOR, '#1A212C', '#202837', '#232C3B'];
     const SHARED_SEED_PREFIX = 'NGM';
     const HINT_LIMIT = 3; // 每一局可用的提示次數，清空盤面或返回上一步都不會退還
     const RESULT_STATE = {
@@ -55,6 +59,20 @@ let size = 8;
 
     difficulty = DEFAULT_DIFFICULTY;
 
+    // 「圖案」模式沿用同一套槽位機制：槽位 key 是「尺寸 x picture」，存檔格式不必另開欄位。
+    const PICTURE_MODE = NonogramCore.PICTURE_MODE;
+    const SLOT_CHOICES = [...DIFFICULTY_CHOICES, PICTURE_MODE];
+    // 切回隨機模式時要回到玩家上次選的難度，所以另外記住
+    let lastRandomDifficulty = DEFAULT_DIFFICULTY;
+
+    function normalizeSlotChoice(value) {
+      return SLOT_CHOICES.includes(value) ? value : DEFAULT_DIFFICULTY;
+    }
+
+    function isPictureMode() {
+      return difficulty === PICTURE_MODE;
+    }
+
     const DIFFICULTY_LABELS = {
       easy: '簡單',
       medium: '中等',
@@ -65,7 +83,7 @@ let size = 8;
     // 每個「盤面尺寸 × 難度」是一個獨立槽位，各自保存一局進度。
     // 「隨機」也是一個槽位：否則抽到的難度會蓋掉該難度槽位裡進行中的那一局。
     const ALLOWED_SLOTS = ALLOWED_SIZES.flatMap(allowedSize =>
-      DIFFICULTY_CHOICES.map(allowedDifficulty => ({
+      SLOT_CHOICES.map(allowedDifficulty => ({
         size: allowedSize,
         difficulty: allowedDifficulty,
         key: getSlotKey(allowedSize, allowedDifficulty)
@@ -88,7 +106,7 @@ let size = 8;
     const clearBoardBtn = document.getElementById('clear-board-btn');
     const resultBox = document.getElementById('result-box');
     const resultBtns = document.getElementById('result-btns');
-    const confirmOverlay = document.getElementById('confirm-overlay');
+    const confirmDialog = document.getElementById('confirm-dialog');
     const confirmTitle = document.getElementById('confirm-title');
     const confirmMessage = document.getElementById('confirm-message');
     const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
@@ -106,6 +124,58 @@ let size = 8;
     const boardLockBtn = document.getElementById('board-lock-btn');
     const wakeLockCheckbox = document.getElementById('wake-lock-checkbox');
     const wakeLockNote = document.getElementById('wake-lock-note');
+    const modeBtns = document.querySelectorAll('#mode-toggle .mode-btn');
+    const difficultyGroup = document.getElementById('difficulty-group');
+    const pictureGroup = document.getElementById('picture-group');
+    const pictureProgress = document.getElementById('picture-progress');
+    const srStatus = document.getElementById('sr-status');
+    const resultDialog = document.getElementById('result-dialog');
+    const resultTitle = document.getElementById('result-title');
+    const resultPicture = document.getElementById('result-picture');
+    const resultDetail = document.getElementById('result-detail');
+    const resultViewBtn = document.getElementById('result-view-btn');
+    const resultAgainBtn = document.getElementById('result-again-btn');
+    const rulesBtn = document.getElementById('rules-btn');
+    const rulesDialog = document.getElementById('rules-dialog');
+    const rulesCloseBtn = document.getElementById('rules-close-btn');
+    const confettiCanvas = document.getElementById('confetti-canvas');
+    const confetti = (typeof BoboConfetti !== 'undefined') ? BoboConfetti : null;
+    const themeKit = (typeof BoboTheme !== 'undefined') ? BoboTheme : null;
+
+    // 全頁唯一的播報出口；先清空再寫入，同一句話連續出現也會再念一次
+    function announce(message) {
+      if (!srStatus) return;
+      srStatus.textContent = '';
+      window.setTimeout(() => { srStatus.textContent = message; }, 30);
+    }
+
+    // --- 戰績與圖案收集 (Stats) ---
+    function readStats() {
+      const empty = { wins: 0, solvedPictures: [], lastPicture: {} };
+      try {
+        const raw = localStorage.getItem(STATS_KEY);
+        if (!raw) return empty;
+        const parsed = JSON.parse(raw);
+        const known = new Set(NonogramCore.PICTURES.map(picture => picture.id));
+        return {
+          wins: Number.isInteger(parsed?.wins) && parsed.wins > 0 ? parsed.wins : 0,
+          solvedPictures: Array.isArray(parsed?.solvedPictures)
+            ? parsed.solvedPictures.filter(id => known.has(id))
+            : [],
+          lastPicture: parsed && typeof parsed.lastPicture === 'object' && parsed.lastPicture ? parsed.lastPicture : {}
+        };
+      } catch (error) {
+        return empty;
+      }
+    }
+
+    function writeStats(stats) {
+      try {
+        localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+      } catch (error) {
+        console.warn('Unable to save Nonogram stats', error);
+      }
+    }
 
 
     function isValidHexColor(value) {
@@ -210,13 +280,15 @@ let size = 8;
     function getReadableAccentColor(value) {
       if (!darkMode) return getDarkenedReadableColor(value);
 
-      if (getContrastRatio(value, DARK_SURFACE_COLOR) >= 4.5) {
+      // 深色模式的文字會出現在頁面底、卡片底、格子底與分段按鈕底上，全部都要 ≥ 4.5:1
+      const passesDark = color => DARK_SURFACES.every(surface => getContrastRatio(color, surface) >= 4.5);
+      if (passesDark(value)) {
         return value;
       }
 
-      for (let step = 1; step <= 10; step++) {
-        const candidate = mixHexColors(value, LIGHT_SURFACE_COLOR, step / 10);
-        if (getContrastRatio(candidate, DARK_SURFACE_COLOR) >= 4.5) {
+      for (let step = 1; step <= 20; step++) {
+        const candidate = mixHexColors(value, LIGHT_SURFACE_COLOR, step / 20);
+        if (passesDark(candidate)) {
           return candidate;
         }
       }
@@ -244,22 +316,35 @@ let size = 8;
       updatePaletteSelection();
     }
 
+    // 只同步畫面；主題的套用與保存一律交給 BoboTheme（全站共用偏好 bobo-home-preferences-v2）
     function applyDarkMode(nextMode) {
       darkMode = Boolean(nextMode);
-      document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
       document.documentElement.style.colorScheme = darkMode ? 'dark' : 'light';
 
       darkModeToggle.classList.toggle('active', darkMode);
-      darkModeToggle.setAttribute('aria-checked', String(darkMode));
-      const toggleLabel = darkMode ? '切換為淺色模式' : '切換為深色模式';
-      darkModeToggle.setAttribute('aria-label', toggleLabel);
-      darkModeToggle.title = toggleLabel;
+      darkModeToggle.setAttribute('aria-pressed', String(darkMode));
 
       applyThemeColor(themeColor);
     }
 
-    function closeMenu() {
+    function readDomTheme() {
+      return document.documentElement.dataset.theme === 'dark';
+    }
+
+    function toggleTheme() {
+      if (themeKit) {
+        applyDarkMode(themeKit.toggle() === 'dark');
+        return;
+      }
+      // 共用模組載入失敗時的退路：只切換這一頁，不寫入偏好
+      document.documentElement.dataset.theme = darkMode ? 'light' : 'dark';
+      applyDarkMode(readDomTheme());
+    }
+
+    function closeMenu(returnFocus = false) {
+      const wasOpen = !menuPanel.classList.contains('hidden');
       menuPanel.classList.add('hidden');
+      if (wasOpen && returnFocus) menuBtn.focus();
       menuBtn.classList.remove('active');
       menuBtn.setAttribute('aria-expanded', 'false');
     }
@@ -401,9 +486,28 @@ let size = 8;
 
     function updateSlotButtons() {
       levelBtns.forEach(b => {
-        b.classList.toggle('active', parseInt(b.dataset.size, 10) === size);
+        const isActive = parseInt(b.dataset.size, 10) === size;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-pressed', String(isActive));
       });
-      difficultySelect.value = difficulty;
+      const pictureMode = isPictureMode();
+      modeBtns.forEach(b => {
+        const isActive = (b.dataset.mode === PICTURE_MODE) === pictureMode;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-pressed', String(isActive));
+      });
+      if (!pictureMode) lastRandomDifficulty = normalizeDifficultyChoice(difficulty);
+      difficultySelect.value = lastRandomDifficulty;
+      difficultyGroup.classList.toggle('hidden', pictureMode);
+      pictureGroup.classList.toggle('hidden', !pictureMode);
+      updatePictureProgress();
+    }
+
+    function updatePictureProgress() {
+      const pool = NonogramCore.getPictures(size);
+      const solved = new Set(readStats().solvedPictures);
+      const count = pool.filter(picture => solved.has(picture.id)).length;
+      pictureProgress.textContent = `已完成 ${count}／${pool.length}`;
     }
 
     function showGenerationFailure() {
@@ -519,7 +623,7 @@ let size = 8;
         size: snapshotSlot.size,
         difficulty: snapshotSlot.difficulty,
         themeColor: normalizeThemeColor(themeColor),
-        darkMode: Boolean(darkMode),
+        randomDifficulty: normalizeDifficultyChoice(lastRandomDifficulty),
         isBoardLocked: Boolean(isBoardLocked),
         isWakeLockEnabled: Boolean(isWakeLockEnabled),
         gameStates: snapshotStates,
@@ -558,8 +662,8 @@ let size = 8;
       const availableKeys = Object.keys(mergedStates);
       if (!availableKeys.length) return null;
 
-      const liveKey = getSlotKey(Number(liveData?.size), normalizeDifficultyChoice(liveData?.difficulty));
-      const staleKey = getSlotKey(Number(staleData?.size), normalizeDifficultyChoice(staleData?.difficulty));
+      const liveKey = getSlotKey(Number(liveData?.size), normalizeSlotChoice(liveData?.difficulty));
+      const staleKey = getSlotKey(Number(staleData?.size), normalizeSlotChoice(staleData?.difficulty));
       const mergedKey = mergedStates[liveKey]
         ? liveKey
         : (mergedStates[staleKey] ? staleKey : availableKeys[0]);
@@ -574,7 +678,7 @@ let size = 8;
         size: mergedSize,
         difficulty: mergedSlot.difficulty,
         themeColor: normalizeThemeColor(liveData?.themeColor ?? staleData?.themeColor),
-        darkMode: Boolean((typeof liveData?.darkMode === 'boolean') ? liveData.darkMode : staleData?.darkMode),
+        randomDifficulty: normalizeDifficultyChoice(liveData?.randomDifficulty ?? staleData?.randomDifficulty),
         isBoardLocked: Boolean((typeof liveData?.isBoardLocked === 'boolean') ? liveData.isBoardLocked : staleData?.isBoardLocked),
         isWakeLockEnabled: Boolean((typeof liveData?.isWakeLockEnabled === 'boolean') ? liveData.isWakeLockEnabled : staleData?.isWakeLockEnabled),
         gameStates: mergedStates,
@@ -658,13 +762,14 @@ let size = 8;
       size = validatedData.size;
       difficulty = validatedData.difficulty;
       themeColor = validatedData.themeColor;
-      darkMode = validatedData.darkMode;
+      // 舊版存檔的 darkMode 欄位不再採用：主題一律跟著全站偏好走
+      lastRandomDifficulty = normalizeDifficultyChoice(validatedData.randomDifficulty);
       gameStates = validatedData.gameStates;
       actionHistory = validatedData.actionHistory || [];
       saveRevision = Math.max(saveRevision, validatedData.revision || 0);
       lastSavedAt = Math.max(lastSavedAt, validatedData.savedAt || 0);
 
-      applyDarkMode(darkMode);
+      applyThemeColor(themeColor);
       updateSlotButtons();
 
       if (typeof validatedData.isBoardLocked === 'boolean') {
@@ -677,22 +782,37 @@ let size = 8;
       if (shouldPersist) saveData();
     }
 
+    // 讀不到（隱私模式、封鎖網站資料）就當作沒有存檔，絕不能讓盤面因此載不出來
+    function removeSavedData() {
+      try {
+        localStorage.removeItem(SAVE_KEY);
+      } catch (error) {
+        console.warn('Unable to clear Nonogram save', error);
+      }
+    }
+
     function readSavedData() {
-      const data = localStorage.getItem(SAVE_KEY);
+      let data = null;
+      try {
+        data = localStorage.getItem(SAVE_KEY);
+      } catch (error) {
+        console.warn('Unable to read Nonogram save', error);
+        return null;
+      }
       if (!data) return null;
 
       try {
         const parsed = JSON.parse(data);
         const validatedData = validateSavedData(parsed);
         if (!validatedData) {
-          localStorage.removeItem(SAVE_KEY);
+          removeSavedData();
           return null;
         }
 
         return validatedData;
       } catch (e) {
         console.error('localStorage parsing error', e);
-        localStorage.removeItem(SAVE_KEY);
+        removeSavedData();
         return null;
       }
     }
@@ -749,14 +869,30 @@ let size = 8;
     });
 
     difficultySelect.addEventListener('change', (e) => {
-      switchSlot(size, e.target.value);
+      lastRandomDifficulty = normalizeDifficultyChoice(e.target.value);
+      switchSlot(size, lastRandomDifficulty);
     });
+
+    modeBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const nextMode = e.currentTarget.dataset.mode === PICTURE_MODE ? PICTURE_MODE : lastRandomDifficulty;
+        if (nextMode === difficulty) return;
+        switchSlot(size, nextMode);
+      });
+    });
+
+    function setCurrentAction(action) {
+      currentAction = action === 'mark' ? 'mark' : 'fill';
+      actionBtns.forEach(b => {
+        const isActive = b.dataset.action === currentAction;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-pressed', String(isActive));
+      });
+    }
 
     actionBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
-        actionBtns.forEach(b => b.classList.remove('active'));
-        e.currentTarget.classList.add('active');
-        currentAction = e.currentTarget.dataset.action;
+        setCurrentAction(e.currentTarget.dataset.action);
       });
     });
 
@@ -783,9 +919,14 @@ let size = 8;
       saveData();
     });
 
-    darkModeToggle.addEventListener('click', () => {
-      applyDarkMode(!darkMode);
-      saveData();
+    darkModeToggle.addEventListener('click', toggleTheme);
+
+    rulesBtn.addEventListener('click', () => openDialog(rulesDialog, rulesCloseBtn));
+    rulesCloseBtn.addEventListener('click', () => rulesDialog.close());
+    resultViewBtn.addEventListener('click', () => resultDialog.close());
+    resultAgainBtn.addEventListener('click', () => {
+      resultDialog.close();
+      startNewGame(size, difficulty);
     });
 
     copySeedBtn.addEventListener('click', copyCurrentSeed);
@@ -810,15 +951,20 @@ let size = 8;
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeMenu();
+      if (e.key === 'Escape') closeMenu(menuPanel.contains(document.activeElement));
     });
 
-    // 盤面互動一律走事件委派：這四個監聽器取代原本每格各掛四個的做法，
+    // 盤面互動一律走事件委派：這幾個監聽器取代原本每格各掛四個的做法，
     // 盤面重繪時也不必重新掛載
     boardEl.addEventListener('mousedown', handlePointerDown);
     boardEl.addEventListener('mouseover', handlePointerEnter);
     boardEl.addEventListener('touchstart', handlePointerDown, { passive: false });
     boardEl.addEventListener('touchmove', handleTouchMove, { passive: false });
+    boardEl.addEventListener('keydown', handleBoardKeydown);
+    boardEl.addEventListener('focusin', (e) => {
+      const cell = e.target.closest('.cell');
+      if (cell) setFocusCell(Number(cell.dataset.r), Number(cell.dataset.c), false);
+    });
 
     document.addEventListener('mouseup', handlePointerUp);
     document.addEventListener('touchend', handlePointerUp);
@@ -847,8 +993,8 @@ let size = 8;
     function setBoardLockState(locked) {
       isBoardLocked = Boolean(locked);
       boardLockBtn.classList.toggle('locked', isBoardLocked);
-      boardLockBtn.setAttribute('aria-label', isBoardLocked ? '解鎖盤面' : '鎖定盤面 (防誤觸)');
-      boardLockBtn.title = isBoardLocked ? '解鎖盤面' : '鎖定盤面 (防誤觸)';
+      boardLockBtn.setAttribute('aria-pressed', String(isBoardLocked));
+      boardLockBtn.title = isBoardLocked ? '盤面已鎖定，按一下解鎖' : '鎖定盤面（防誤觸）';
       boardEl.classList.toggle('board-locked', isBoardLocked);
       if (isBoardLocked && isDragging) {
         handlePointerUp();
@@ -963,7 +1109,7 @@ let size = 8;
       const availableKeys = Object.keys(validatedStates);
       if (!availableKeys.length) return null;
 
-      const candidateKey = getSlotKey(parsed.size, normalizeDifficultyChoice(parsed.difficulty));
+      const candidateKey = getSlotKey(parsed.size, normalizeSlotChoice(parsed.difficulty));
       const validatedKey = validatedStates[candidateKey] ? candidateKey : availableKeys[0];
       const validatedSlot = parseSlotKey(validatedKey);
       const validatedSize = validatedSlot.size;
@@ -977,7 +1123,8 @@ let size = 8;
         size: validatedSize,
         difficulty: validatedSlot.difficulty,
         themeColor: normalizeThemeColor(parsed.themeColor),
-        darkMode: Boolean(parsed.darkMode),
+        // 舊存檔沒有這個欄位時，從當時所在的難度推回來
+        randomDifficulty: normalizeDifficultyChoice(parsed.randomDifficulty ?? parsed.difficulty),
         isBoardLocked: Boolean(parsed.isBoardLocked),
         isWakeLockEnabled: Boolean(parsed.isWakeLockEnabled),
         gameStates: validatedStates,
@@ -987,9 +1134,22 @@ let size = 8;
       };
     }
 
+    function createPuzzleForSlot(targetSize, targetDifficulty) {
+      if (targetDifficulty !== PICTURE_MODE) {
+        return NonogramCore.generatePuzzle(targetSize, targetDifficulty);
+      }
+      // 圖案模式：依序出還沒解過的圖，並記住這一張，下一局才不會重複
+      const stats = readStats();
+      const picture = NonogramCore.pickNextPicture(targetSize, stats.solvedPictures, stats.lastPicture[targetSize]);
+      if (!picture) throw new Error(`No picture puzzles for ${targetSize}x${targetSize}.`);
+      stats.lastPicture[targetSize] = picture.id;
+      writeStats(stats);
+      return NonogramCore.createPicturePuzzle(picture);
+    }
+
     function initGameData(targetSize, targetDifficulty) {
       // 隨機槽位每開一局都由核心重新抽一次難度，題目仍存回隨機槽位本身。
-      const { solution, rowClues, colClues } = NonogramCore.generatePuzzle(targetSize, targetDifficulty);
+      const { solution, rowClues, colClues } = createPuzzleForSlot(targetSize, targetDifficulty);
       const slotKey = getSlotKey(targetSize, targetDifficulty);
 
       gameStates[slotKey] = {
@@ -1012,7 +1172,7 @@ let size = 8;
       const previousKey = getCurrentSlotKey();
 
       size = nextSize;
-      difficulty = normalizeDifficultyChoice(nextDifficulty);
+      difficulty = normalizeSlotChoice(nextDifficulty);
 
       if (!getCurrentState()) {
         try {
@@ -1040,13 +1200,13 @@ let size = 8;
       const ngBtn = document.createElement('button');
       ngBtn.className = 'primary-btn';
       ngBtn.type = 'button';
-      ngBtn.setAttribute('aria-label', '新的一局');
       ngBtn.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 12a9 9 0 1 1-3-6.7"></path>
           <path d="M21 3v6h-6"></path>
-        </svg>`;
+        </svg>
+        <span>再來一局</span>`;
       ngBtn.onclick = () => confirmStartNewGame(size, difficulty);
       return ngBtn;
     }
@@ -1054,6 +1214,10 @@ let size = 8;
     // 隨機槽位作答期間不透露抽到哪個難度，結算時才揭曉。
     // 難度是盤面的純函式，直接從線索重算，存檔就不必多存一個欄位。
     function getDifficultyRevealText(state) {
+      if (isPictureMode()) {
+        const picture = NonogramCore.findPictureBySolution(state.solution);
+        return picture ? `圖案：${picture.name}` : '';
+      }
       if (difficulty !== RANDOM_DIFFICULTY) return '';
       const revealed = NonogramCore.ratePuzzle(state.globalRowClues, state.globalColClues).difficulty;
       return revealed ? `本題難度：${DIFFICULTY_LABELS[revealed]}` : '';
@@ -1071,7 +1235,7 @@ let size = 8;
 
       if (state.resultState === RESULT_STATE.WIN) {
         topMsg.style.color = 'var(--primary-display)';
-        topMsg.innerText = `答對了！${revealText}`;
+        topMsg.innerText = revealText ? `答對了！${revealText}` : '答對了！';
         return;
       }
 
@@ -1123,35 +1287,54 @@ let size = 8;
       return doesPlayerLineMatchClues(columnValues, state.globalColClues[colIndex]);
     }
 
+    // rowClueEls[r] / colClueEls[c] → 該列／欄的線索格
+    let rowClueEls = [];
+    let colClueEls = [];
+
     function updateCompletedClueStatus(state) {
-      const rowClues = boardEl.querySelectorAll('.clue-cell');
-      const clueCells = Array.from(rowClues);
-
       for (let r = 0; r < size; r++) {
-        const clueCell = clueCells[r + size + 1];
-        if (clueCell) {
-          clueCell.classList.toggle('completed', isRowCompleted(state, r));
-        }
+        if (rowClueEls[r]) rowClueEls[r].classList.toggle('completed', isRowCompleted(state, r));
       }
-
       for (let c = 0; c < size; c++) {
-        const clueCell = clueCells[c + 1];
-        if (clueCell) {
-          clueCell.classList.toggle('completed', isColumnCompleted(state, c));
-        }
+        if (colClueEls[c]) colClueEls[c].classList.toggle('completed', isColumnCompleted(state, c));
       }
     }
 
-    // 依格子數值套用外觀。單格更新與整盤重建共用同一套規則
+    function clearLineErrors() {
+      rowClueEls.concat(colClueEls).forEach(el => el && el.classList.remove('line-error'));
+    }
+
+    const CELL_STATE_LABELS = { 0: '空白', 1: '塗黑', 2: '標記 Ｏ' };
+
+    // 依格子數值套用外觀與無障礙名稱。單格更新與整盤重建共用同一套規則
     function paintCell(cell, value) {
       if (!cell) return;
       cell.classList.remove('error-wrong', 'error-miss');
       cell.classList.toggle('filled', value === 1);
       cell.classList.toggle('marked', value === 2);
+      const r = Number(cell.dataset.r) + 1;
+      const c = Number(cell.dataset.c) + 1;
+      cell.setAttribute('aria-label', `第 ${r} 列第 ${c} 欄，${CELL_STATE_LABELS[value] || '空白'}`);
     }
 
     // cellEls[r][c] → 該格的 DOM 節點，讓單格更新不必每次查詢 DOM
     let cellEls = [];
+    // 鍵盤焦點所在格（roving tabindex：整個盤面只有這一格可被 Tab 到）
+    let focusR = 0;
+    let focusC = 0;
+
+    function setFocusCell(r, c, moveFocus = true) {
+      if (!cellEls.length) return;
+      const nextR = Math.min(size - 1, Math.max(0, r));
+      const nextC = Math.min(size - 1, Math.max(0, c));
+      const previous = cellEls[focusR] && cellEls[focusR][focusC];
+      if (previous) previous.tabIndex = -1;
+      focusR = nextR;
+      focusC = nextC;
+      const next = cellEls[focusR][focusC];
+      next.tabIndex = 0;
+      if (moveFocus) next.focus();
+    }
 
     function clearHint() {
       boardEl.querySelectorAll('.hint-cell').forEach(cell => cell.classList.remove('hint-cell', 'hint-mistake'));
@@ -1178,7 +1361,8 @@ let size = 8;
       clearHint();
       const hint = NonogramCore.getNextHint(state.globalRowClues, state.globalColClues, state.playerState, state.solution);
       if (hint.status === 'complete') {
-        hintMsg.textContent = '都完成了，按 ✓ 確認答案';
+        hintMsg.textContent = '都完成了，按「對答案」確認';
+        announce(hintMsg.textContent);
         return;
       }
 
@@ -1188,57 +1372,85 @@ let size = 8;
       updateHintButtonState();
 
       cellEls[hint.row][hint.col].classList.add('hint-cell');
+      const where = `第 ${hint.row + 1} 列第 ${hint.col + 1} 欄`;
       if (hint.status === 'mistake') {
         cellEls[hint.row][hint.col].classList.add('hint-mistake');
-        hintMsg.textContent = '這格填錯了';
+        hintMsg.textContent = `${where}填錯了`;
       } else {
         const source = hint.axis ? `看第 ${hint.lineIndex + 1} ${hint.axis === 'row' ? '列' : '欄'}：` : '';
-        hintMsg.textContent = `${source}這格要塗黑`;
+        hintMsg.textContent = `${source}${where}要塗黑`;
       }
+      announce(hintMsg.textContent);
     }
 
     function renderBoard() {
       clearHint();
-      let state = getCurrentState();
-      boardEl.style.gridTemplateColumns = `max-content repeat(${size}, minmax(0, 1fr))`;
+      const state = getCurrentState();
+      const hadFocus = boardEl.contains(document.activeElement);
+      boardEl.style.setProperty('--board-size', String(size));
       boardEl.innerHTML = '';
       cellEls = Array.from({ length: size }, () => new Array(size));
+      rowClueEls = new Array(size);
+      colClueEls = new Array(size);
+      if (focusR >= size || focusC >= size) {
+        focusR = 0;
+        focusC = 0;
+      }
 
+      // 每一列用 display: contents 的 row 包起來：視覺上仍是同一個 CSS grid，
+      // 輔助科技則看得到「列 → 欄標題／列標題／格子」的表格結構。
+      const headerRow = document.createElement('div');
+      headerRow.className = 'board-row';
+      headerRow.setAttribute('role', 'row');
       const emptyCorner = document.createElement('div');
-      emptyCorner.className = 'clue-cell';
-      boardEl.appendChild(emptyCorner);
+      emptyCorner.className = 'clue-cell clue-corner';
+      emptyCorner.setAttribute('role', 'columnheader');
+      emptyCorner.setAttribute('aria-label', '線索');
+      headerRow.appendChild(emptyCorner);
 
       for (let c = 0; c < size; c++) {
         const el = document.createElement('div');
-        el.className = 'clue-cell';
-        el.innerHTML = state.globalColClues[c].map(n => `<span>${n}</span>`).join('');
-        boardEl.appendChild(el);
+        el.className = 'clue-cell col-clue';
+        el.setAttribute('role', 'columnheader');
+        el.setAttribute('aria-label', `第 ${c + 1} 欄：${state.globalColClues[c].join(' ')}`);
+        el.innerHTML = state.globalColClues[c].map(n => `<span aria-hidden="true">${n}</span>`).join('');
+        colClueEls[c] = el;
+        headerRow.appendChild(el);
       }
+      boardEl.appendChild(headerRow);
 
       for (let r = 0; r < size; r++) {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'board-row';
+        rowEl.setAttribute('role', 'row');
+
         const rClue = document.createElement('div');
-        rClue.className = 'clue-cell';
-        rClue.style.flexDirection = 'row';
-        rClue.style.gap = '4px';
-        rClue.style.padding = '0 8px';
-        rClue.innerHTML = state.globalRowClues[r].map(n => `<span>${n}</span>`).join('');
-        boardEl.appendChild(rClue);
+        rClue.className = 'clue-cell row-clue';
+        rClue.setAttribute('role', 'rowheader');
+        rClue.setAttribute('aria-label', `第 ${r + 1} 列：${state.globalRowClues[r].join(' ')}`);
+        rClue.innerHTML = state.globalRowClues[r].map(n => `<span aria-hidden="true">${n}</span>`).join('');
+        rowClueEls[r] = rClue;
+        rowEl.appendChild(rClue);
 
         for (let c = 0; c < size; c++) {
           const cell = document.createElement('div');
           cell.className = 'cell';
           cell.dataset.r = r;
           cell.dataset.c = c;
+          cell.setAttribute('role', 'gridcell');
+          cell.tabIndex = (r === focusR && c === focusC) ? 0 : -1;
 
           paintCell(cell, state.playerState[r][c]);
           cellEls[r][c] = cell;
 
           // 互動事件統一委派給 boardEl，這裡不逐格掛載
-          boardEl.appendChild(cell);
+          rowEl.appendChild(cell);
         }
+        boardEl.appendChild(rowEl);
       }
 
       updateCompletedClueStatus(state);
+      boardEl.setAttribute('aria-disabled', String(Boolean(state.isGameOver)));
 
       if (state.isGameOver) {
         renderFinishedUI(state);
@@ -1248,6 +1460,10 @@ let size = 8;
       updateClearBoardButtonState();
       updateUndoButtonState();
       updateHintButtonState();
+      updatePictureProgress();
+
+      // 重繪後把焦點放回原本那一格，鍵盤玩家不會被丟回頁首
+      if (hadFocus) setFocusCell(focusR, focusC, true);
     }
 
     function startNewGame(targetSize = size, targetDifficulty = difficulty) {
@@ -1278,24 +1494,40 @@ let size = 8;
       }
     }
 
+    // 原生 <dialog>：showModal() 自帶背景 inert、Esc 關閉與焦點困在對話框內；
+    // 關閉後把焦點還給開啟它的按鈕
+    function openDialog(dialog, initialFocus) {
+      const opener = document.activeElement;
+      closeMenu();
+      if (typeof dialog.showModal === 'function') {
+        if (!dialog.open) dialog.showModal();
+      } else {
+        dialog.setAttribute('open', '');
+      }
+      if (initialFocus) initialFocus.focus();
+      dialog.addEventListener('close', () => {
+        if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus();
+      }, { once: true });
+    }
+
     function showConfirmDialog(title, message, confirmLabel) {
       return new Promise(resolve => {
         confirmTitle.textContent = title;
         confirmMessage.textContent = message;
         confirmOkBtn.textContent = confirmLabel;
-        confirmOverlay.classList.remove('hidden');
-        confirmOverlay.setAttribute('aria-hidden', 'false');
+        let result = false;
 
-        const finish = (result) => {
-          confirmOverlay.classList.add('hidden');
-          confirmOverlay.setAttribute('aria-hidden', 'true');
+        const onClose = () => {
           confirmCancelBtn.onclick = null;
           confirmOkBtn.onclick = null;
           resolve(result);
         };
+        confirmDialog.addEventListener('close', onClose, { once: true });
 
-        confirmCancelBtn.onclick = () => finish(false);
-        confirmOkBtn.onclick = () => finish(true);
+        confirmCancelBtn.onclick = () => { result = false; confirmDialog.close(); };
+        confirmOkBtn.onclick = () => { result = true; confirmDialog.close(); };
+        // 會清掉進度的確認一律先停在「取消」，避免連按 Enter 誤刪
+        openDialog(confirmDialog, confirmCancelBtn);
       });
     }
 
@@ -1349,7 +1581,11 @@ let size = 8;
 
     function handlePointerDown(e) {
       if (isBoardLocked || getCurrentState().isGameOver) return;
-      if (e.type === 'touchstart') e.preventDefault();
+      if (e.type === 'touchstart') {
+        // 兩指以上是捏合縮放，不當作塗格
+        if (e.touches && e.touches.length > 1) return;
+        e.preventDefault();
+      }
 
       const cell = e.target.closest('.cell');
       if (!cell) return;
@@ -1358,9 +1594,10 @@ let size = 8;
       lastHoveredCell = cell;
       dragSnapshot = cloneGrid(getCurrentState().playerState);
       dragHistoryCommitted = false;
-      const r = cell.dataset.r;
-      const c = cell.dataset.c;
+      const r = Number(cell.dataset.r);
+      const c = Number(cell.dataset.c);
       const currentState = getCurrentState().playerState[r][c];
+      setFocusCell(r, c, false);
 
       if (currentAction === 'fill') {
         dragAction = (currentState === 1) ? 'unfill' : 'fill';
@@ -1375,12 +1612,34 @@ let size = 8;
     // 在同一格內移動會重複觸發，因此記住上一格避免多餘工作
     let lastHoveredCell = null;
 
+    // 手指或滑鼠移動很快時，兩次事件之間可能跳過好幾格；
+    // 用直線插值把中間經過的格子補上（做法同 meowdoku）
+    function applyAlongPath(fromCell, toCell) {
+      const r0 = Number(fromCell.dataset.r);
+      const c0 = Number(fromCell.dataset.c);
+      const r1 = Number(toCell.dataset.r);
+      const c1 = Number(toCell.dataset.c);
+      const steps = Math.max(Math.abs(r1 - r0), Math.abs(c1 - c0));
+      for (let i = 1; i <= steps; i++) {
+        const r = Math.round(r0 + (r1 - r0) * (i / steps));
+        const c = Math.round(c0 + (c1 - c0) * (i / steps));
+        if (cellEls[r] && cellEls[r][c]) applyAction(cellEls[r][c], r, c);
+      }
+    }
+
+    function dragTo(cell) {
+      if (!cell || cell === lastHoveredCell) return;
+      if (lastHoveredCell) {
+        applyAlongPath(lastHoveredCell, cell);
+      } else {
+        applyAction(cell, Number(cell.dataset.r), Number(cell.dataset.c));
+      }
+      lastHoveredCell = cell;
+    }
+
     function handlePointerEnter(e) {
       if (isBoardLocked || !isDragging || getCurrentState().isGameOver) return;
-      const cell = e.target.closest('.cell');
-      if (!cell || cell === lastHoveredCell) return;
-      lastHoveredCell = cell;
-      applyAction(cell, cell.dataset.r, cell.dataset.c);
+      dragTo(e.target.closest('.cell'));
     }
 
     function handleTouchMove(e) {
@@ -1389,10 +1648,8 @@ let size = 8;
 
       const touch = e.touches[0];
       const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
-
-      if (targetElement && targetElement.classList.contains('cell')) {
-        applyAction(targetElement, targetElement.dataset.r, targetElement.dataset.c);
-      }
+      const cell = targetElement && targetElement.closest ? targetElement.closest('.cell') : null;
+      if (cell && boardEl.contains(cell)) dragTo(cell);
     }
 
     function handlePointerUp() {
@@ -1403,6 +1660,58 @@ let size = 8;
         dragSnapshot = null;
         dragHistoryCommitted = false;
         saveData(); // 拖曳結束後存檔
+      }
+    }
+
+    // 鍵盤單格操作：等同按一下該格（各自是一步，可單獨復原）
+    function toggleCellByKeyboard(r, c, action) {
+      const state = getCurrentState();
+      if (!state || state.isGameOver) return;
+      if (isBoardLocked) {
+        announce('盤面已鎖定，先按鎖頭解鎖');
+        return;
+      }
+      const current = state.playerState[r][c];
+      dragSnapshot = cloneGrid(state.playerState);
+      dragHistoryCommitted = false;
+      if (action === 'fill') {
+        dragAction = current === 1 ? 'unfill' : 'fill';
+      } else {
+        dragAction = current === 2 ? 'unmark' : 'mark';
+      }
+      applyAction(cellEls[r][c], r, c);
+      dragAction = null;
+      dragSnapshot = null;
+      dragHistoryCommitted = false;
+      saveData();
+    }
+
+    function handleBoardKeydown(e) {
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      const r = Number(cell.dataset.r);
+      const c = Number(cell.dataset.c);
+      const moves = {
+        ArrowUp: [r - 1, c],
+        ArrowDown: [r + 1, c],
+        ArrowLeft: [r, c - 1],
+        ArrowRight: [r, c + 1],
+        Home: [r, 0],
+        End: [r, size - 1]
+      };
+      if (moves[e.key]) {
+        e.preventDefault();
+        setFocusCell(moves[e.key][0], moves[e.key][1], true);
+        return;
+      }
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        toggleCellByKeyboard(r, c, currentAction);
+        return;
+      }
+      if (e.key === 'x' || e.key === 'X') {
+        e.preventDefault();
+        toggleCellByKeyboard(r, c, 'mark');
       }
     }
 
@@ -1437,6 +1746,8 @@ let size = 8;
         dragHistoryCommitted = true;
       }
       state.playerState[r][c] = nextValue;
+      paintCell(cell, nextValue);
+      clearLineErrors();
       markStateDirty();
 
       updateCompletedClueStatus(state);
@@ -1450,8 +1761,65 @@ let size = 8;
       showResult(isPlayerSolutionCorrect(state));
     }
 
+    // 對不上線索的列與欄：拿來告訴玩家錯在哪裡，而不是只說「再想想」
+    function findMismatchedLines(state) {
+      const rows = [];
+      const cols = [];
+      for (let r = 0; r < size; r++) if (!isRowCompleted(state, r)) rows.push(r);
+      for (let c = 0; c < size; c++) if (!isColumnCompleted(state, c)) cols.push(c);
+      return { rows, cols };
+    }
+
+    function describeLines(indexes, unit) {
+      if (!indexes.length) return '';
+      const shown = indexes.slice(0, 4).map(i => i + 1).join('、');
+      return indexes.length > 4 ? `共 ${indexes.length} ${unit}（第 ${shown}…${unit}）` : `第 ${shown} ${unit}`;
+    }
+
+    function renderResultPicture(solution) {
+      const targetSize = solution.length;
+      resultPicture.style.setProperty('--picture-size', String(targetSize));
+      resultPicture.innerHTML = solution
+        .map(row => row.map(value => `<span class="${value === 1 ? 'on' : ''}"></span>`).join(''))
+        .join('');
+    }
+
+    function recordWin(state) {
+      const stats = readStats();
+      stats.wins += 1;
+      const picture = isPictureMode() ? NonogramCore.findPictureBySolution(state.solution) : null;
+      const isNewPicture = Boolean(picture && !stats.solvedPictures.includes(picture.id));
+      if (isNewPicture) stats.solvedPictures.push(picture.id);
+      writeStats(stats);
+      return { stats, picture, isNewPicture };
+    }
+
+    function showWinDialog(state, info) {
+      const { stats, picture, isNewPicture } = info;
+      const hintsUsed = normalizeHintsUsed(state.hintsUsed);
+      const hintText = hintsUsed ? `用了 ${hintsUsed} 次提示` : '沒用提示';
+      if (picture) {
+        const pool = NonogramCore.getPictures(size);
+        const solvedCount = pool.filter(p => stats.solvedPictures.includes(p.id)).length;
+        resultTitle.textContent = `完成！是「${picture.name}」`;
+        resultPicture.setAttribute('aria-label', `解開的圖案：${picture.name}`);
+        resultDetail.textContent = `${hintText}・${isNewPicture ? '收集到新圖案' : '這張之前解過'}・${size}×${size} 圖案已完成 ${solvedCount}／${pool.length}`;
+      } else {
+        const revealText = getDifficultyRevealText(state);
+        resultTitle.textContent = '答對了！';
+        resultPicture.setAttribute('aria-label', '完成的盤面');
+        resultDetail.textContent = [hintText, revealText, `總共過關 ${stats.wins} 次`].filter(Boolean).join('・');
+      }
+      renderResultPicture(state.solution);
+      updatePictureProgress();
+      openDialog(resultDialog, resultAgainBtn);
+      if (confetti && confettiCanvas) confetti.burst(confettiCanvas);
+      announce(`${resultTitle.textContent}。${resultDetail.textContent}`);
+    }
+
     function showResult(isWin) {
       clearHint();
+      clearLineErrors();
       mainActions.classList.add('hidden');
       resultBox.classList.remove('hidden');
       resultBtns.innerHTML = '';
@@ -1473,27 +1841,38 @@ let size = 8;
         actionHistory = [];
         markStateDirty();
         renderBoard();
-
         saveData();
+        showWinDialog(state, recordWin(state));
       } else {
         state.resultState = RESULT_STATE.IN_PROGRESS;
-        topMsg.style.color = 'var(--text-secondary)';
-        topMsg.innerText = '你再想想看';
+        const { rows, cols } = findMismatchedLines(state);
+        rows.forEach(r => rowClueEls[r] && rowClueEls[r].classList.add('line-error'));
+        cols.forEach(c => colClueEls[c] && colClueEls[c].classList.add('line-error'));
+        const parts = [describeLines(rows, '列'), describeLines(cols, '欄')].filter(Boolean);
+        topMsg.style.color = 'var(--error-color)';
+        topMsg.innerText = parts.length
+          ? `還沒對：${parts.join('，')}和數字對不上（已標成紅色）`
+          : '你再想想看';
+        announce(topMsg.innerText);
 
         const answerBtn = document.createElement('button');
         answerBtn.className = 'secondary-btn';
         answerBtn.type = 'button';
-        answerBtn.innerText = '直接解答';
+        answerBtn.innerText = '直接看答案';
         answerBtn.addEventListener('click', showSolution);
 
         const retryBtn = document.createElement('button');
         retryBtn.className = 'primary-btn';
         retryBtn.type = 'button';
-        retryBtn.innerText = '再試一次';
-        retryBtn.addEventListener('click', () => { resetUI(); });
+        retryBtn.innerText = '繼續作答';
+        retryBtn.addEventListener('click', () => {
+          resetUI({ keepLineErrors: true });
+          setFocusCell(focusR, focusC, true);
+        });
 
         resultBtns.appendChild(answerBtn);
         resultBtns.appendChild(retryBtn);
+        retryBtn.focus();
       }
     }
 
@@ -1506,10 +1885,12 @@ let size = 8;
       renderBoard();
 
       saveData();
+      announce('答案已顯示');
     }
 
-    function resetUI() {
+    function resetUI(options = {}) {
       clearHint();
+      if (!options.keepLineErrors) clearLineErrors();
       if (getCurrentState() && getCurrentState().isGameOver) return; // 避免結束後還原按鈕
 
       actionToggle.classList.remove('hidden');
@@ -1523,7 +1904,11 @@ let size = 8;
     }
 
     // --- 初始化啟動 (Initialization) ---
-    applyDarkMode(darkMode);
+    // 主題跟著全站偏好走：BoboTheme.init() 只套用、不寫入；之後系統主題改變時也會跟著換
+    applyDarkMode(themeKit ? themeKit.init() === 'dark' : readDomTheme());
+    new MutationObserver(() => {
+      if (readDomTheme() !== darkMode) applyDarkMode(readDomTheme());
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     if (!loadData()) {
       switchSlot(size, difficulty); // 如果沒有 cookie/localStorage 記錄，載入預設 8x8 中等
