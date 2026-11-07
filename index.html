@@ -86,6 +86,11 @@
           <p hidden><span id="visible-count"></span> 款遊戲，總有一款對味。</p>
         </div>
       </div>
+      <!-- 最近玩過：從首頁點進去的遊戲會記在這裡（最多 4 款），沒有紀錄時整塊隱藏 -->
+      <div class="recent" id="recent" hidden>
+        <h3 class="recent-title" id="recent-title">最近玩過</h3>
+        <ul class="recent-list" id="recent-list" aria-labelledby="recent-title"></ul>
+      </div>
       <div class="toolbar" aria-label="遊戲篩選工具">
         <label class="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

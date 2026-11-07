@@ -18,6 +18,7 @@
   let timer;
   const gameStats = new Map(); // id -> play count
   const PLAY_TAG_MIN = 10; // 遊玩次數達到這個數字才在卡片上顯示
+  const RECENT_MAX = 4; // 「最近玩過」最多顯示幾款
   const reduceMotion = () => {
     try {
       return matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -48,7 +49,8 @@
       // 只有使用者按過主題鈕才會有 theme 欄位；沒有就跟隨系統，不要在載入時替他決定
       theme: ['dark', 'light'].includes(s.theme) ? s.theme : undefined,
       order,
-      hidden: safe(s.hidden)
+      hidden: safe(s.hidden),
+      recent: safe(s.recent).slice(0, RECENT_MAX)
     };
   };
 
@@ -81,7 +83,45 @@
     [...grid.querySelectorAll('.game-card')].forEach((c, i) => c.style.setProperty('--index', i));
   };
 
+  // 記下玩家從首頁開啟的遊戲，最新的排最前面
+  const remember = (id) => {
+    if (!ids.has(id)) return;
+    prefs.recent = [id, ...prefs.recent.filter((x) => x !== id)].slice(0, RECENT_MAX);
+    save();
+  };
+
+  const renderRecent = () => {
+    const wrap = document.getElementById('recent');
+    const list = document.getElementById('recent-list');
+    if (!wrap || !list) return;
+    const hiddenSet = new Set(prefs.hidden);
+    const recent = prefs.recent.filter((id) => !hiddenSet.has(id) && byId.has(id));
+    list.replaceChildren();
+    recent.forEach((id) => {
+      const c = byId.get(id);
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.className = 'recent-link';
+      a.href = c.querySelector('.card-link').getAttribute('href');
+      a.setAttribute('style', c.getAttribute('style') || '');
+      const icon = document.createElement('span');
+      icon.className = 'recent-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      const svg = c.querySelector('.card-icon svg');
+      if (svg) icon.append(svg.cloneNode(true));
+      const name = document.createElement('span');
+      name.textContent = title(c);
+      a.append(icon, name);
+      a.addEventListener('click', () => remember(id));
+      li.append(a);
+      list.append(li);
+    });
+    // 編輯首頁時不顯示，避免和排序操作混在一起
+    wrap.hidden = !recent.length || body.classList.contains('editing');
+  };
+
   const render = () => {
+    renderRecent();
     const hidden = new Set(prefs.hidden);
     let shown = 0;
 
@@ -375,6 +415,9 @@
       tagsWrapper.append(existingBadge, playTag);
     }
 
+    // 點進遊戲時記到「最近玩過」
+    c.querySelector('.card-link').addEventListener('click', () => remember(c.dataset.id));
+
     // 拖曳排序：滑鼠按住卡片、觸控長按卡片或直接按住拖曳把手皆可啟動
     c.addEventListener('pointerdown', (e) => beginPointer(c, e));
   });
@@ -413,6 +456,7 @@
     if (!available.length) return toast('目前沒有符合條件的遊戲');
     const c = available[Math.floor(Math.random() * available.length)];
     const href = c.querySelector('.card-link').getAttribute('href');
+    remember(c.dataset.id);
     toast(`今天就玩「${title(c)}」！`);
     // 減少動態效果：不捲動、不跳動，直接開遊戲
     if (reduceMotion()) {
