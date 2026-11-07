@@ -56,19 +56,12 @@
         }
         if (focusEl) focusEl.focus();
     }
-    function closeDialog(dialog) {
-        if (typeof dialog.close === 'function' && dialog.open) dialog.close();
-        else dialog.removeAttribute('open');
-    }
     document.querySelectorAll('dialog').forEach(dialog => {
         dialog.addEventListener('close', () => {
             const opener = dialog._opener;
             dialog._opener = null;
-            if (dialog._skipRestore) { dialog._skipRestore = false; return; }
-            // 開啟者若已被停用（例如過關後的送出鈕），改把焦點交給備援元素
             const usable = opener && document.contains(opener) && !opener.disabled && typeof opener.focus === 'function';
-            const target = usable ? opener : dialog._fallback;
-            if (target && typeof target.focus === 'function') target.focus();
+            if (usable) opener.focus();
         });
     });
 
@@ -87,11 +80,6 @@
     document.getElementById('help-btn').addEventListener('click', () => {
         openDialog(rulesDialog, rulesDialog.querySelector('button'));
     });
-
-    const confettiCanvas = document.getElementById('confetti-canvas');
-    const celebrate = () => {
-        if (typeof BoboConfetti !== 'undefined') BoboConfetti.burst(confettiCanvas);
-    };
 
     // ======================================================================
     // 遊戲狀態
@@ -122,8 +110,6 @@
     const undoBtn = document.getElementById('undo-btn');
     const replayBtn = document.getElementById('replay-btn');
     const newBtn = document.getElementById('new-btn');
-    const resultDialog = document.getElementById('result-dialog');
-    resultDialog._fallback = newBtn;
 
     const BULB_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
         + '<path class="bulb-glass" d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3Z"/>'
@@ -254,7 +240,10 @@
             btn.tabIndex = (r === focusR && c === focusC) ? 0 : -1;
         });
         moveEl.textContent = moves;
-        litEl.textContent = litCount();
+        const lit = litCount();
+        litEl.textContent = lit;
+        if (lit === 0) litEl.dataset.zero = '';
+        else delete litEl.dataset.zero;
         bestEl.textContent = stats.best[size] ?? '—';
         sizeBtns.forEach(btn => btn.setAttribute('aria-pressed', Number(btn.dataset.size) === size ? 'true' : 'false'));
         undoBtn.disabled = solved || history.length === 0;
@@ -288,6 +277,68 @@
         setStatus('回到這盤的起點了。');
     }
 
+    // 一盞迷你的「關好燈的夜晚」：n×n 全暗的小盤面加一彎月亮，放在過關卡片上
+    function nightPicture(n) {
+        const NS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(NS, 'svg');
+        const cell = 10;
+        const gap = 3;
+        const span = n * cell + (n - 1) * gap;
+        const pad = 8;
+        const w = span + pad * 2;
+        svg.setAttribute('viewBox', `0 0 ${w} ${w + 18}`);
+        svg.setAttribute('width', '96');
+        svg.setAttribute('aria-hidden', 'true');
+        const add = (tag, attrs) => {
+            const el = document.createElementNS(NS, tag);
+            Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+            svg.appendChild(el);
+            return el;
+        };
+        add('rect', { x: 0, y: 18, width: w, height: w, rx: 10, fill: '#1d2440' });
+        for (let r = 0; r < n; r++) {
+            for (let c = 0; c < n; c++) {
+                add('rect', { x: pad + c * (cell + gap), y: 18 + pad + r * (cell + gap), width: cell, height: cell, rx: 2.5, fill: '#3c4352', stroke: '#7b8396', 'stroke-width': 1 });
+            }
+        }
+        // 月亮：兩個圓相減的彎月
+        add('circle', { cx: w - 14, cy: 12, r: 9, fill: '#ffe08a' });
+        // 用卡片底色挖出彎月（用 style 才能吃到 CSS 變數，深色主題也正確）
+        add('circle', { cx: w - 9, cy: 8, r: 8 }).style.fill = 'var(--br-surface, #ffffff)';
+        return svg;
+    }
+
+    function showWin(prevBest) {
+        const isRecord = BoboCelebrate.isNewRecord(prevBest, moves, { lowerIsBetter: true });
+        let subtitle;
+        if (prevBest === undefined) subtitle = `晚安～第一次把 ${size}×${size} 的燈全部關好，用了 ${moves} 步。`;
+        else if (isRecord) subtitle = `晚安～用了 ${moves} 步，比之前的紀錄少 ${prevBest - moves} 步！`;
+        else subtitle = `晚安～用了 ${moves} 步。最少紀錄是 ${stats.best[size]} 步，下一盤再挑戰看看。`;
+        BoboCelebrate.show({
+            outcome: 'win',
+            gameName: '熄燈遊戲',
+            title: '全部熄滅！',
+            subtitle,
+            stats: [
+                { label: '這盤步數', value: moves, isBest: isRecord },
+                { label: `${size}×${size} 最少`, value: stats.best[size] },
+                { label: '通關次數', value: stats.wins }
+            ],
+            extra: nightPicture(size),
+            accent: '#8a5a00',
+            accentDark: '#ffc93c',
+            returnFocus: newBtn,
+            primary: {
+                label: '下一盤',
+                onClick: () => {
+                    startNew(size);
+                    lightAt(0, 0).focus();
+                }
+            },
+            secondary: { label: '看盤面' }
+        });
+    }
+
     function press(r, c) {
         if (solved) return;
         flip(grid, r, c);
@@ -300,18 +351,20 @@
             solved = true;
             stats.wins++;
             const prev = stats.best[size];
-            const isRecord = prev === undefined || moves < prev;
-            if (isRecord) stats.best[size] = moves;
+            if (prev === undefined || moves < prev) stats.best[size] = moves;
             saveStats();
             saveGameState();
+            // 最後一下關掉的那幾盞燈慢慢暗下，盤面轉成月夜色，然後才跳出過關卡片
+            const lastPressed = [[r, c], [r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]
+                .filter(([rr, cc]) => rr >= 0 && rr < size && cc >= 0 && cc < size)
+                .map(([rr, cc]) => lightAt(rr, cc));
+            lastPressed.forEach(btn => btn.classList.add('is-dimming'));
             render();
             setStatus(`全部熄滅！用了 ${moves} 步。`, 'success');
-            document.getElementById('result-moves').textContent = moves;
-            document.getElementById('result-best').textContent = stats.best[size];
-            document.getElementById('result-record').hidden = !isRecord;
-            celebrate();
-            // 先讓玩家看到最後一盞燈熄掉，再跳出結果
-            setTimeout(() => openDialog(resultDialog, document.getElementById('result-next')), reduceMotion() ? 0 : 450);
+            setTimeout(() => {
+                lastPressed.forEach(btn => btn.classList.remove('is-dimming'));
+                if (typeof BoboCelebrate !== 'undefined') showWin(prev);
+            }, reduceMotion() ? 200 : 750);
             return;
         }
         saveGameState();
@@ -393,18 +446,6 @@
     newBtn.addEventListener('click', async () => {
         const ok = await confirmDiscard('放棄目前這一盤，換一盤新的？', '新的一盤');
         if (ok) startNew(size);
-    });
-
-    document.getElementById('result-next').addEventListener('click', () => {
-        resultDialog._skipRestore = true;
-        closeDialog(resultDialog);
-        startNew(size);
-        lightAt(0, 0).focus();
-    });
-    document.getElementById('result-close').addEventListener('click', () => {
-        resultDialog._skipRestore = true;
-        closeDialog(resultDialog);
-        newBtn.focus();
     });
 
     // --- 啟動 ---

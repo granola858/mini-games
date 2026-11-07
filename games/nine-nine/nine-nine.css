@@ -13,6 +13,15 @@
   --danger: #bd3f46;
   --shadow: 0 14px 38px rgba(22, 62, 39, 0.09);
   --radius: 22px;
+  /* 功能牌依效果分三族上色；牌上仍有文字標籤，顏色只是輔助辨識 */
+  --fx-turn: #3b5bdb;        /* 改變出牌順序：4、5、J（在底色上 5:1） */
+  --fx-turn-tint: #eef1ff;
+  --fx-adjust: #8a5a00;      /* 加減點：10、Q（5.5:1） */
+  --fx-adjust-tint: #fff6e3;
+  --fx-extreme: #9c36b5;     /* 一口氣改變點數：K、黑桃 A（5.2:1） */
+  --fx-extreme-tint: #faeefc;
+  --suit-red-on-tint: #b8333d; /* 紅心、方塊放在彩色牌底上仍有 5:1 */
+  --warn: #9a6200;           /* 點數逼近 99 的提醒色 */
   font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -30,6 +39,14 @@
   --accent-soft: #17482c;
   --danger: #ff858b;
   --shadow: 0 14px 38px rgba(0, 0, 0, 0.25);
+  --fx-turn: #91a7ff;
+  --fx-turn-tint: #1e2547;
+  --fx-adjust: #ffc93c;
+  --fx-adjust-tint: #3a2e10;
+  --fx-extreme: #e599f7;
+  --fx-extreme-tint: #3b1f45;
+  --suit-red-on-tint: #ff9298;
+  --warn: #ffc93c;
 }
 
 * { box-sizing: border-box; }
@@ -130,7 +147,20 @@ body.is-playing .status-line { min-height: 18px; margin: 0 auto 8px; font-size: 
 .score-board strong { display: block; margin: 2px 0 6px; font-size: clamp(2.7rem, 10vh, 4rem); font-variant-numeric: tabular-nums; letter-spacing: -0.06em; line-height: 1; }
 .score-track { height: 9px; overflow: hidden; border-radius: 99px; background: var(--surface-soft); }
 .score-track span { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #76c98a, var(--accent)); transition: width 220ms ease; }
+.score-track span.is-warn { background: var(--warn); }
 .score-track span.is-danger { background: var(--danger); }
+/* 海中點數是整局最重要的數字：逼近 99 時連數字本身都換成警示色 */
+#current-value { transition: color 200ms ease; }
+#current-value.is-warn { color: var(--warn); }
+#current-value.is-danger { color: var(--danger); }
+/* 點數一變就輕輕放大一下，眼睛會被帶到新的數字上 */
+#current-value.is-bumped { animation: value-bump 260ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes value-bump {
+  40% { transform: scale(1.14); }
+}
+@keyframes value-flash {
+  0% { color: var(--accent); }
+}
 .score-caption { margin-top: 4px; font-size: 0.75rem; }
 .history-section { padding-top: 8px; border-top: 1px solid var(--line); }
 .history-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
@@ -177,6 +207,25 @@ body.is-playing .status-line { min-height: 18px; margin: 0 auto 8px; font-size: 
 .card-warning { font-size: 0.6875rem; font-weight: 800; color: var(--danger); }
 /* 功能牌效果標籤：寫出這張牌會做什麼 */
 .card-effect { font-size: 0.6875rem; font-weight: 800; color: var(--muted); line-height: 1.2; white-space: nowrap; }
+/* 功能牌三族配色：牌底淡色、效果標籤用同族深色字 */
+[data-family="turn"] { --fam: var(--fx-turn); --fam-tint: var(--fx-turn-tint); }
+[data-family="adjust"] { --fam: var(--fx-adjust); --fam-tint: var(--fx-adjust-tint); }
+[data-family="extreme"] { --fam: var(--fx-extreme); --fam-tint: var(--fx-extreme-tint); }
+.playing-card[data-family] { background: var(--fam-tint); border-color: color-mix(in srgb, var(--fam) 45%, var(--line)); }
+.playing-card[data-family].red, .history-card[data-family] .red, .final-card[data-family].red { color: var(--suit-red-on-tint); }
+.playing-card[data-family] .card-effect { color: var(--fam); }
+.history-card[data-family]:not(.is-latest) { background: var(--fam-tint); border-color: color-mix(in srgb, var(--fam) 40%, var(--line)); }
+.history-card[data-family] .history-owner { color: var(--text); }
+/* 出牌時從手牌（或電腦座位）飛到桌上的那張牌：只是視覺分身，真正的狀態已經更新 */
+.card-flight { position: fixed; z-index: 40; margin: 0; pointer-events: none; box-shadow: 0 12px 26px rgba(12, 42, 25, 0.22); }
+.history-card.is-arriving { animation: card-arrive 240ms ease-out; }
+@keyframes card-arrive { from { opacity: 0; } }
+/* 過關卡片上的「最後一張牌」 */
+.final-card { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; min-width: 76px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-strong); color: var(--text); }
+.final-card[data-family] { background: var(--fam-tint); border-color: color-mix(in srgb, var(--fam) 45%, var(--line)); }
+.final-card .final-caption { font-size: 0.75rem; font-weight: 800; color: var(--muted); }
+.final-card .final-face { font-size: 1.6rem; font-weight: 950; line-height: 1.1; }
+.final-card .final-effect { font-size: 0.75rem; font-weight: 800; color: var(--fam, var(--muted)); }
 /* 沒有效果選項時不留空白條；選項出現時才佔位 */
 .action-slot { padding-top: 6px; }
 .action-slot:has(> .move-options[hidden]) { display: none; }
@@ -188,9 +237,8 @@ body.is-playing .status-line { min-height: 18px; margin: 0 auto 8px; font-size: 
 .move-options button:hover:not(:disabled) { border-color: var(--accent); }
 .move-options button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.result-panel { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; }
-.result-panel .button { grid-column: 1 / -1; width: 100%; }
-.result-icon { font-size: 2.5rem; }
+.result-panel { display: grid; align-items: center; gap: 10px; }
+.result-panel .button { width: 100%; }
 .result-panel h2 { margin: 0; font-size: 1.2rem; }
 .result-panel p:last-child { margin: 5px 0 0; color: var(--muted); font-size: 0.83rem; }
 .rules-card { width: min(100% - 24px, 580px); max-height: calc(100dvh - 32px); padding: 17px 21px; color: var(--text); background: var(--surface-strong); overflow-y: auto; }
@@ -264,10 +312,12 @@ body.is-playing .status-line { min-height: 18px; margin: 0 auto 8px; font-size: 
   .history-owner, .history-value { line-height: 1.1; }
 }
 
-/* 減少動態效果：本遊戲沒有關鍵幀動畫，只有懸停浮起與分數條伸縮。
-   浮起（位移）關掉，邊框與底色變化保留作為回饋；分數條直接到位。 */
+/* 減少動態效果：懸停浮起、出牌飛行（由 JS 判斷）、點數放大都關掉；
+   邊框、底色、數字顏色的變化保留作為回饋；分數條直接到位；新出的牌改成原地淡入。 */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  /* 點數變化：不縮放，改成數字顏色閃一下 */
+  #current-value.is-bumped { animation: value-flash 400ms ease-out; }
   .icon-button:hover, .button:hover, .playing-card:hover:not(:disabled) { transform: none; }
   .icon-button, .button, .playing-card, .score-track span { transition-property: border-color, background-color, color, box-shadow; }
 }

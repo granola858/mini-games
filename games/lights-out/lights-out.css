@@ -380,64 +380,6 @@ html[data-theme="dark"] .icon-moon {
   flex: 1 1 0;
 }
 
-.sheet .result-emoji {
-  margin: 0 0 4px;
-  font-size: 2.6rem;
-  line-height: 1;
-  text-align: center;
-}
-
-.result-title {
-  text-align: center;
-}
-
-.result-sheet[data-tone="lose"] .result-title {
-  color: var(--muted);
-}
-
-.result-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 12px 0 0;
-}
-
-.result-stats div {
-  padding: 10px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  text-align: center;
-}
-
-.result-stats dt {
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.result-stats dd {
-  margin: 0;
-  font-size: 1.3rem;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-}
-
-.sheet .new-record {
-  margin: 8px 0 0;
-  color: var(--success-ink);
-  font-weight: 800;
-  text-align: center;
-}
-
-.confetti-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
 .visually-hidden {
   position: absolute !important;
   width: 1px;
@@ -478,6 +420,11 @@ html[data-theme="dark"] .icon-moon {
   .btn:active {
     transform: none;
   }
+
+  /* 熄燈仍然看得到（顏色改變），只是不拉長成慢慢暗下 */
+  .light.is-dimming {
+    transition-duration: 0.18s;
+  }
 }
 
 /* ==========================================================================
@@ -491,11 +438,19 @@ html[data-theme="dark"] .icon-moon {
   --accent-ink: #8a5a00;
   --accent-soft: #fff3d6;
   --focus: #6f4800;
-  --light-on: #ffc93c;        /* 與 --light-off 對比 5.3:1 */
-  --light-on-ink: #5c3b00;    /* 實心燈泡 */
-  --light-off: #475063;       /* 在 --bg 上 7.4:1 */
-  --light-off-ink: #a9b1c2;   /* 空心燈泡輪廓 */
-  --light-off-edge: #475063;
+  /* 燈盤是一塊入夜的配電盤：深石板底，亮著的燈才是畫面裡唯一的光源 */
+  --tray: #2a2f3a;
+  --tray-night: #1d2440;      /* 全部熄滅後轉成月夜藍 */
+  --tray-focus: #ffe08a;      /* 深色盤面上的焦點框 */
+  --light-on-core: #fff7d1;
+  --light-on: #ffd45c;        /* 與熄燈底色對比 7:1 */
+  --light-on-rim: #f2b300;
+  --light-on-edge: #ffe08a;
+  --light-on-ink: #5c3b00;    /* 實心燈泡，在燈面上 5.4:1 以上 */
+  --light-off: #3c4352;
+  --light-off-ink: #a9b1c2;   /* 空心燈泡輪廓，4.6:1 */
+  --light-off-edge: #7b8396;  /* 熄燈格邊框，在盤面底上 3.5:1 */
+  --lit-count-ink: #8a5a00;   /* 「還亮著」數字 */
 }
 
 html[data-theme="dark"] {
@@ -505,15 +460,31 @@ html[data-theme="dark"] {
   --accent-soft: #3a2e10;
   --on-accent: #14161c;
   --focus: #ffd866;
-  --light-on: #ffc93c;        /* 與 --light-off 對比 8.6:1 */
+  --tray: #0f1116;
+  --tray-night: #0b1024;
+  --tray-focus: #ffe08a;
+  --light-on-core: #fff7d1;
+  --light-on: #ffd45c;
+  --light-on-rim: #f2b300;
+  --light-on-edge: #ffe08a;
   --light-on-ink: #5c3b00;
   --light-off: #2b303b;
-  --light-off-ink: #7d8596;
-  --light-off-edge: #646c7e;  /* 熄燈格的外框，讓暗格在深色底上仍看得出格子 */
+  --light-off-ink: #7d8596;   /* 空心燈泡輪廓，3.6:1 */
+  --light-off-edge: #646c7e;  /* 熄燈格邊框，在盤面底上 3.6:1 */
+  --lit-count-ink: #ffc93c;
 }
 
 .size-picker {
   margin-bottom: 16px;
+}
+
+/* 「還亮著」是這盤最重要的數字：亮燈的琥珀色；歸零時轉成成功色 */
+#lit-count {
+  color: var(--lit-count-ink);
+}
+
+#lit-count[data-zero] {
+  color: var(--success-ink);
 }
 
 .board {
@@ -521,6 +492,11 @@ html[data-theme="dark"] {
   gap: 8px;
   width: min(100%, 440px);
   margin: 0 auto;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  background: var(--tray);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.35), var(--shadow-sm);
+  transition: background-color 0.6s var(--ease-out);
 }
 
 .board-row {
@@ -549,9 +525,9 @@ html[data-theme="dark"] {
   padding: 0;
   border: 2px solid var(--light-off-edge);
   border-radius: var(--radius-sm);
-  background: var(--light-off);
+  background-color: var(--light-off);
   color: var(--light-off-ink);
-  transition: background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out), color 0.18s;
+  transition: background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out), color 0.18s, box-shadow 0.18s;
 }
 
 .light svg {
@@ -565,11 +541,12 @@ html[data-theme="dark"] {
 }
 
 .light.is-on {
-  border-color: #e0a800;
-  background: var(--light-on);
+  border-color: var(--light-on-edge);
+  /* 燈面是一顆光源：中心最亮、往邊緣轉成琥珀，暗格旁邊一眼就看得出哪裡亮著 */
+  background: radial-gradient(circle at 50% 42%, var(--light-on-core) 0 16%, var(--light-on) 52%, var(--light-on-rim) 100%);
   color: var(--light-on-ink);
-  /* impeccable-disable-next-line dark-glow: 遊戲狀態（燈亮）的視覺語意，亮暗主要靠底色與燈泡形狀區分 */
-  box-shadow: 0 0 0 1px rgba(255, 201, 60, 0.35), 0 0 14px rgba(255, 201, 60, 0.45);
+  /* impeccable-disable-next-line dark-glow: 遊戲狀態（燈亮）的光暈，是燈泡照在配電盤上的光；亮暗主要靠底色與燈泡形狀區分 */
+  box-shadow: 0 0 0 1px rgba(255, 224, 138, 0.45), 0 0 18px rgba(255, 201, 60, 0.5);
 }
 
 .light.is-on .bulb-glass {
@@ -577,12 +554,21 @@ html[data-theme="dark"] {
 }
 
 .light:focus-visible {
-  outline: 3px solid var(--focus);
+  outline: 3px solid var(--tray-focus);
   outline-offset: 2px;
+}
+
+.board.is-solved {
+  background: var(--tray-night);
 }
 
 .board.is-solved .light {
   cursor: default;
+}
+
+/* 最後一下關掉的燈慢慢暗下來：過關的那一刻看得到「熄燈」 */
+.light.is-dimming {
+  transition-duration: 0.7s;
 }
 
 .board-hint {

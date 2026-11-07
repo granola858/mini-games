@@ -26,8 +26,6 @@
 </head>
 
 <body>
-    <canvas class="confetti-canvas" id="confetti-canvas" aria-hidden="true"></canvas>
-
     <div class="page">
         <header class="top-bar">
             <a href="../../index.html" class="back-btn">
@@ -110,20 +108,6 @@
         </form>
     </dialog>
 
-    <dialog class="sheet result-sheet" id="result-dialog" aria-labelledby="result-title">
-        <p class="result-emoji" aria-hidden="true">🌙</p>
-        <h2 class="result-title" id="result-title">全部熄滅了！</h2>
-        <dl class="result-stats">
-            <div><dt>這盤步數</dt><dd id="result-moves">0</dd></div>
-            <div><dt>最少步數</dt><dd id="result-best">—</dd></div>
-        </dl>
-        <p class="new-record" id="result-record" hidden>新紀錄！</p>
-        <div class="sheet-actions">
-            <button class="btn" id="result-close" type="button">看盤面</button>
-            <button class="btn btn-primary" id="result-next" type="button">下一盤</button>
-        </div>
-    </dialog>
-
     <dialog class="sheet" id="confirm-dialog" aria-labelledby="confirm-title">
         <h2 id="confirm-title">確定嗎？</h2>
         <p id="confirm-text"></p>
@@ -135,6 +119,7 @@
 
     <script src="../../assets/js/bobo-theme.js"></script>
     <script src="../../assets/js/bobo-confetti.js"></script>
+    <script src="../../assets/js/bobo-celebrate.js"></script>
     <script src="../../assets/js/stats.js"></script>
     <script src="lights-out.js"></script>
     <script>

@@ -41,6 +41,11 @@
   let selectedMoves = [];
   let aiTimer = null;
   let thinking = false;
+  let lastShownValue = null; // 上一次畫出來的海中點數，用來判斷要不要強調變化
+
+  const reduceMotion = () => {
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; }
+  };
 
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, character => ({
@@ -116,6 +121,7 @@
 
   function recordResult() {
     if (!game || game.status !== 'finished' || savedMatchId === game.matchId) return;
+    const previousBestStreak = stats.bestWinStreak;
     stats.games += 1;
     if (game.winnerId === 'p0') {
       stats.wins += 1;
@@ -127,6 +133,75 @@
     }
     savedMatchId = game.matchId;
     saveStats();
+    // 讓最後一張牌先落到桌上，再跳出過關卡片
+    const finished = game;
+    setTimeout(() => showResultCard(finished, previousBestStreak), reduceMotion() ? 150 : 520);
+  }
+
+  // 過關卡片上的「最後一張牌」：讓玩家記得這局是怎麼結束的
+  function finalCardElement(action) {
+    if (!action || !action.card) return null;
+    const card = action.card;
+    const el = document.createElement('div');
+    el.className = 'final-card' + (isRed(card) ? ' red' : '');
+    const family = cardFamily(card);
+    if (family) el.dataset.family = family;
+    const owner = Core.getPlayer(game, action.playerId);
+    const caption = document.createElement('span');
+    caption.className = 'final-caption';
+    caption.textContent = (owner ? owner.name : '玩家') + '的最後一張';
+    const face = document.createElement('strong');
+    face.className = 'final-face';
+    face.textContent = getCardLabel(card);
+    const effect = document.createElement('span');
+    effect.className = 'final-effect';
+    effect.textContent = '點數 → ' + action.value + (action.busted ? '（爆點）' : '');
+    el.append(caption, face, effect);
+    return el;
+  }
+
+  function showResultCard(finished, previousBestStreak) {
+    if (typeof BoboCelebrate === 'undefined' || !finished || game !== finished) return;
+    const winner = finished.winnerId ? Core.getPlayer(finished, finished.winnerId) : null;
+    const won = finished.winnerId === 'p0';
+    const streakRecord = won && stats.currentWinStreak > 1 && stats.currentWinStreak > previousBestStreak;
+    BoboCelebrate.show({
+      outcome: won ? 'win' : 'lose',
+      gameName: '九九',
+      title: won ? '你贏了！' : (winner ? winner.name + ' 獲勝' : '本局結束'),
+      subtitle: won
+        ? '撐到最後！海中點數停在 ' + finished.currentValue + '。'
+        : '這局由 ' + (winner ? winner.name : '對手') + ' 撐到最後。換個出牌順序，再挑戰一次！',
+      stats: won
+        ? [
+            { label: '目前連勝', value: stats.currentWinStreak + ' 場', isBest: streakRecord },
+            { label: '勝場', value: stats.wins },
+            { label: '總對局', value: stats.games }
+          ]
+        : [
+            { label: '勝場', value: stats.wins },
+            { label: '敗場', value: stats.losses },
+            { label: '最佳連勝', value: stats.bestWinStreak + ' 場' }
+          ],
+      bestLabel: '新的連勝紀錄',
+      extra: finalCardElement(finished.lastAction),
+      accent: '#197148',
+      accentDark: '#46c27c',
+      returnFocus: $('play-again-button'),
+      primary: { label: '再玩一局', onClick: () => startGame(true) },
+      secondary: { label: '看牌桌' }
+    });
+  }
+
+  const isRed = card => card.suit === 'hearts' || card.suit === 'diamonds';
+
+  // 功能牌分三族：turn＝改變出牌順序、adjust＝加減點、extreme＝一口氣改變點數
+  function cardFamily(card) {
+    if (!card) return '';
+    if (card.id === 'spades-A' || card.rank === 'K') return 'extreme';
+    if (card.rank === '4' || card.rank === '5' || card.rank === 'J') return 'turn';
+    if (card.rank === '10' || card.rank === 'Q') return 'adjust';
+    return '';
   }
 
   function getCardLabel(card) {
@@ -171,7 +246,9 @@
       const owner = Core.getPlayer(game, action.playerId);
       const latest = index === game.history.length - 1;
       const red = ['hearts', 'diamonds'].includes(action.card.suit);
-      return '<li class="history-card' + (latest ? ' is-latest' : '') + '" aria-label="'
+      const family = cardFamily(action.card);
+      return '<li class="history-card' + (latest ? ' is-latest' : '') + '"'
+        + (family ? ' data-family="' + family + '"' : '') + ' aria-label="'
         + escapeHtml(actionDescription(action) + '，點數 ' + action.value + (latest ? '，最新' : '')) + '">'
         + '<span class="history-owner">' + escapeHtml(owner.name) + '</span>'
         + '<strong class="history-face' + (red ? ' red' : '') + '">' + getCardLabel(action.card) + '</strong>'
@@ -237,8 +314,10 @@
       const safe = safeMoves.some(move => move.cardId === card.id);
       const blocked = humanTurn && !safe;
       const effect = cardEffect(card);
+      const family = cardFamily(card);
       return '<button class="playing-card' + (red ? ' red' : '') + (selected ? ' selected' : '')
-        + '" type="button" data-card-id="' + card.id + '" aria-label="出 ' + card.rank
+        + '" type="button" data-card-id="' + card.id + '"' + (family ? ' data-family="' + family + '"' : '')
+        + ' aria-label="出 ' + card.rank
         + suitGlyph[card.suit] + (effect ? '，' + effect : '') + (blocked ? '，出牌會爆點淘汰' : '') + '" '
         + (humanTurn ? '' : 'disabled') + '>'
         + '<span class="rank">' + card.rank + '</span><span class="suit" aria-hidden="true">'
@@ -293,9 +372,22 @@
   }
 
   function renderScore() {
-    elements.value.textContent = String(game.currentValue);
-    elements.fill.style.width = Math.max(0, Math.min(100, game.currentValue / 99 * 100)) + '%';
-    elements.fill.classList.toggle('is-danger', game.currentValue >= 85);
+    const value = game.currentValue;
+    elements.value.textContent = String(value);
+    elements.fill.style.width = Math.max(0, Math.min(100, value / 99 * 100)) + '%';
+    const danger = value >= 85;
+    const warn = !danger && value >= 70;
+    elements.fill.classList.toggle('is-danger', danger);
+    elements.fill.classList.toggle('is-warn', warn);
+    elements.value.classList.toggle('is-danger', danger);
+    elements.value.classList.toggle('is-warn', warn);
+    // 點數真的變了才強調（第一次畫面、重繪同一個數字都不動）
+    if (lastShownValue !== null && lastShownValue !== value) {
+      elements.value.classList.remove('is-bumped');
+      void elements.value.offsetWidth; // 重新觸發動畫
+      elements.value.classList.add('is-bumped');
+    }
+    lastShownValue = value;
     elements.caption.textContent = game.currentValue < 0
       ? '目前低於 0 點 ' + Math.abs(game.currentValue) + ' 點'
       : '距離 99 還有 ' + Math.max(0, 99 - game.currentValue) + ' 點';
@@ -355,6 +447,9 @@
       try {
         const move = Core.chooseMove(game, game.difficulty);
         if (!move) throw new Error('Computer has no legal move');
+        const seatIndex = game.players.findIndex(p => p.id === current.id);
+        const seat = elements.players.children[seatIndex];
+        const fromRect = seat ? seat.getBoundingClientRect() : null;
         game = Core.applyMove(game, move);
         thinking = false;
         selectedMoves = [];
@@ -364,6 +459,7 @@
         // 電腦出牌前焦點若在回合標題（鍵盤玩家在等），輪回玩家時移到手牌
         keepFocusInGame = keepFocusInGame || document.activeElement === elements.turnTitle;
         render();
+        animatePlay(fromRect);
         restoreGameFocus();
       } catch (error) {
         thinking = false;
@@ -377,6 +473,7 @@
   // 鍵盤焦點管理：手牌每次重繪都會換掉按鈕，焦點不能就此掉回 body。
   // 只有焦點原本就在牌局裡（鍵盤或螢幕閱讀器操作中）才移動，滑鼠使用者不受影響。
   let keepFocusInGame = false;
+  let pendingFromRect = null; // 玩家點的那張牌的位置（選效果時要等第二下才出牌）
 
   function restoreGameFocus() {
     if (!keepFocusInGame || !game) return;
@@ -389,7 +486,44 @@
     if (target && document.activeElement !== target) target.focus({ preventScroll: true });
   }
 
-  function applyHumanMove(move) {
+  // 出牌動畫：從來源（手牌或電腦座位）飛到桌上最新那一格。
+  // 只是視覺分身，遊戲狀態在動畫開始前就已經更新，所以不會拖慢操作。
+  function animatePlay(fromRect) {
+    const target = elements.history.querySelector('.history-card.is-latest');
+    if (!target) return;
+    if (reduceMotion() || !fromRect || typeof target.animate !== 'function') {
+      target.classList.remove('is-arriving');
+      void target.offsetWidth;
+      target.classList.add('is-arriving');
+      return;
+    }
+    const to = target.getBoundingClientRect();
+    if (!to.width || !to.height) return;
+    const ghost = target.cloneNode(true);
+    ghost.classList.add('card-flight');
+    ghost.removeAttribute('aria-label');
+    ghost.setAttribute('aria-hidden', 'true');
+    Object.assign(ghost.style, {
+      left: to.left + 'px', top: to.top + 'px', width: to.width + 'px', height: to.height + 'px'
+    });
+    document.body.appendChild(ghost);
+    target.style.visibility = 'hidden';
+    const dx = (fromRect.left + fromRect.width / 2) - (to.left + to.width / 2);
+    const dy = (fromRect.top + fromRect.height / 2) - (to.top + to.height / 2);
+    const scale = Math.max(0.6, Math.min(1.6, fromRect.width / to.width));
+    const flight = ghost.animate([
+      { transform: 'translate(' + dx + 'px, ' + dy + 'px) scale(' + scale + ')', opacity: 0.9 },
+      { transform: 'none', opacity: 1 }
+    ], { duration: 280, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' });
+    const land = () => {
+      ghost.remove();
+      target.style.visibility = '';
+    };
+    flight.onfinish = land;
+    flight.oncancel = land;
+  }
+
+  function applyHumanMove(move, fromRect) {
     keepFocusInGame = keepFocusInGame || elements.game.contains(document.activeElement);
     try {
       game = Core.applyMove(game, move);
@@ -399,18 +533,25 @@
       saveGame();
       elements.status.textContent = turnDescription();
       render();
+      animatePlay(fromRect);
       restoreGameFocus();
     } catch (error) {
       elements.status.textContent = '無法出牌：' + error.message;
     }
   }
 
+  const BoboCelebrateClose = () => {
+    if (typeof BoboCelebrate !== 'undefined') BoboCelebrate.close();
+  };
+
   function startGame(confirmed) {
     if (game && game.status === 'active' && !confirmed
       && !window.confirm('目前牌局尚未結束，確定要放棄並開始新局嗎？')) return;
     clearAiTurn();
     saveSettings();
+    BoboCelebrateClose();
     game = Core.createGame(settingsFromForm());
+    lastShownValue = null;
     selectedMoves = [];
     elements.resume.hidden = true;
     elements.status.textContent = '新局開始，輪到你出牌。';
@@ -444,6 +585,7 @@
       return;
     }
     clearAiTurn();
+    lastShownValue = null;
     game = Core.resolveTurn(resumed);
     selectedMoves = [];
     savedMatchId = typeof saved.value.recordedMatchId === 'string'
@@ -462,10 +604,12 @@
     if (!moves.length) return;
     // renderHand() 會換掉被按下的那張牌，先記住焦點原本在牌局裡
     keepFocusInGame = elements.game.contains(document.activeElement);
+    // 記下這張牌在手牌裡的位置，出牌動畫從這裡起飛（renderHand 之後按鈕會被換掉）
+    pendingFromRect = button.getBoundingClientRect();
     selectedMoves = moves;
     renderHand();
     if (moves.length === 1) {
-      applyHumanMove(moves[0]);
+      applyHumanMove(moves[0], pendingFromRect);
     } else {
       renderOptions();
       elements.options.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
@@ -477,7 +621,7 @@
     if (!button) return;
     const index = Number(button.dataset.moveIndex);
     if (!Number.isInteger(index) || !selectedMoves[index]) return;
-    applyHumanMove(selectedMoves[index]);
+    applyHumanMove(selectedMoves[index], pendingFromRect);
   }
 
   // 主題鍵：label 固定為「深色模式」，狀態只由 aria-pressed 表達
