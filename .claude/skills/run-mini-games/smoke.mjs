@@ -34,13 +34,27 @@ function entries() {
 async function poke(d) {
   // 不針對個別遊戲寫腳本：點盤面第一格、按幾個方向鍵，通用地把輸入處理器踩一遍。
   const target = await d.eval(`(() => {
+    const visible = (e) => {
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    };
+    const center = (e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    };
+    // 優先找無障礙語意的盤面（role="grid"）：列常用 display: contents，
+    // 本身寬度為 0，要往下找第一個看得到的格子
+    const grid = [...document.querySelectorAll('[role="grid"]')].find(visible);
+    if (grid) {
+      const cell = [...grid.querySelectorAll('[role="gridcell"], button')].find(visible);
+      if (cell) return center(cell);
+    }
     const g = [...document.querySelectorAll('div,main,section,tbody')]
       .filter(e => e.children.length >= 6 && e.getBoundingClientRect().width > 80)
       .sort((a, b) => b.children.length - a.children.length)[0];
     if (!g) return null;
-    const c = g.firstElementChild;
-    const b = c.getBoundingClientRect();
-    return b.width > 0 ? { x: b.x + b.width / 2, y: b.y + b.height / 2 } : null;
+    const c = [g.firstElementChild, ...g.firstElementChild.querySelectorAll('*')].find(visible);
+    return c ? center(c) : null;
   })()`);
   if (target) {
     for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
