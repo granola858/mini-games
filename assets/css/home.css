@@ -224,6 +224,11 @@ html[data-theme="dark"] .moon-icon {
   color: #fff;
 }
 
+/* 深色主題的品牌色偏亮，白字只有 2.67:1，改用深墨色（6.9:1） */
+html[data-theme="dark"] .pill-button[aria-pressed="true"] {
+  color: #15121f;
+}
+
 .pill-button svg {
   width: 17px;
   height: 17px;
@@ -707,6 +712,12 @@ body.editing .game-card:hover {
   transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* 深色主題：淺色粉彩色塊在深底上像一塊污漬，改成主題色的淡色調 */
+html[data-theme="dark"] .card-blob {
+  background: color-mix(in oklab, var(--accent) 24%, transparent);
+  opacity: 1;
+}
+
 .game-card:hover .card-blob {
   transform: rotate(35deg) scale(1.13);
 }
@@ -1164,11 +1175,9 @@ footer {
   .card-cta {
     display: none;
   }
+  /* 精簡橫列的卡片右上角就是文字區，裝飾色塊會蓋到說明，手機上不顯示 */
   .card-blob {
-    top: -60px;
-    right: -60px;
-    width: 120px;
-    height: 120px;
+    display: none;
   }
   body.editing .card-link {
     padding-top: 4.2rem;

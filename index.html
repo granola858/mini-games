@@ -8,7 +8,8 @@
   <link rel="icon" type="image/svg+xml" href="assets/favicons/favicon.svg">
   <title>波波小遊戲｜今天玩什麼？</title>
   <script>
-    (() => { try { const p=JSON.parse(localStorage.getItem('bobo-home-preferences-v2')||'{}'); document.documentElement.dataset.theme=['dark','light'].includes(p.theme)?p.theme:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'); } catch (_) {} })();
+    // 讀不到本機儲存（隱私模式、封鎖網站資料）時仍要跟隨系統深淺色，所以兩段分開 try
+    (() => { let t; try { const p=JSON.parse(localStorage.getItem('bobo-home-preferences-v2')||'{}'); if (['dark','light'].includes(p.theme)) t=p.theme; } catch (_) {} if (!t) { try { t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'; } catch (_) { t='light'; } } document.documentElement.dataset.theme=t; })();
   </script>
   <link rel="stylesheet" href="assets/css/home.css">
 </head>
