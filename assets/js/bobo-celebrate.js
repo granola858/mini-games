@@ -94,7 +94,9 @@ const BoboCelebrate = (() => {
 
   const CSS = `
 .bobo-result {
-  --br-accent: ${DEFAULT_ACCENT};
+  /* 呼叫端的 accent / accentDark 寫進 --br-accent-light / --br-accent-dark，
+     再依主題挑一個；不能直接寫行內 --br-accent，否則會蓋掉深色主題的規則 */
+  --br-accent: var(--br-accent-light, ${DEFAULT_ACCENT});
   --br-surface: #ffffff;
   --br-ink: #241f33;
   --br-muted: #5f586c;
@@ -272,6 +274,52 @@ html[data-theme="dark"] .bobo-result__button--primary {
   0% { transform: scale(0.4) rotate(-14deg); opacity: 0; }
   100% { transform: none; opacity: 1; }
 }
+/* 手機橫放等矮螢幕：收緊間距與字級，讓按鈕不必捲動就看得到 */
+@media (max-height: 520px) {
+  .bobo-result {
+    width: min(560px, calc(100vw - 24px));
+    max-height: calc(100dvh - 16px);
+  }
+  .bobo-result__body {
+    padding: 12px 18px 14px;
+  }
+  .bobo-result__brand {
+    margin-bottom: 6px;
+  }
+  .bobo-result__extra {
+    max-height: 96px;
+    margin-bottom: 6px;
+    overflow: hidden;
+  }
+  .bobo-result__extra svg,
+  .bobo-result__extra canvas,
+  .bobo-result__extra img {
+    max-height: 96px;
+    width: auto;
+  }
+  .bobo-result__title {
+    font-size: 20px;
+  }
+  .bobo-result__subtitle {
+    margin-top: 4px;
+    font-size: 14px;
+  }
+  .bobo-result__stats {
+    margin-top: 10px;
+  }
+  .bobo-result__stat {
+    padding: 6px;
+  }
+  .bobo-result__stat dd {
+    font-size: 17px;
+  }
+  .bobo-result__actions {
+    margin-top: 12px;
+  }
+  .bobo-result__button {
+    min-height: 44px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .bobo-result[open] {
     animation-name: bobo-result-fade;
@@ -346,7 +394,7 @@ html[data-theme="dark"] .bobo-result__button--primary {
       dialog.dataset.outcome = outcome;
       dialog.setAttribute('aria-labelledby', `${uid}-title`);
       dialog.setAttribute('aria-describedby', `${uid}-subtitle`);
-      if (opts.accent) dialog.style.setProperty('--br-accent', opts.accent);
+      if (opts.accent) dialog.style.setProperty('--br-accent-light', opts.accent);
       if (opts.accentDark) dialog.style.setProperty('--br-accent-dark', opts.accentDark);
 
       dialog.appendChild(make(doc, 'div', 'bobo-result__band'));
