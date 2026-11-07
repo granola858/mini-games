@@ -1,53 +1,145 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" data-theme="light">
 
 <head>
-  <meta charset="UTF-8">
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>LightsOut</title>
-  <!-- impeccable-disable dark-glow: 遊戲狀態（燈亮）的視覺語意，卡片內發光代表燈是亮的 -->
-  <link rel="stylesheet" href="lights-out.css">
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f4f5f8" data-theme-color-light="#f4f5f8" data-theme-color-dark="#14161c">
+    <title>熄燈遊戲 - 波波小遊戲</title>
+    <meta name="description" content="熄燈遊戲（Lights Out）：點一盞燈會切換它和上下左右的燈，想辦法讓整個盤面全部熄滅。">
+    <!-- 防止深色模式閃爍：必須 inline 且排在所有 stylesheet 之前，外連的 script 來不及。
+         內容是 BoboTheme.ANTI_FLASH_SNIPPET 的逐字複製，全站唯一的複製來源在
+         ../../assets/js/bobo-theme.js，要改請改那裡再同步過來。 -->
+    <script>
+        (() => {
+          try {
+            const homePref = JSON.parse(localStorage.getItem('bobo-home-preferences-v2') || '{}');
+            const theme = ['dark', 'light'].includes(homePref.theme)
+              ? homePref.theme
+              : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.dataset.theme = theme;
+          } catch (_) {}
+        })();
+    </script>
+    <link rel="stylesheet" href="lights-out.css">
 </head>
 
 <body>
-  <div class="container">
-    <a href="../../index.html" class="back-btn">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 12H5M12 19l-7-7 7-7"></path>
-      </svg>
-      回首頁
-    </a>
+    <canvas class="confetti-canvas" id="confetti-canvas" aria-hidden="true"></canvas>
 
-    <div class="header-info">
-      <h1 class="main-title">LightsOut</h1>
-      <div class="move-counter">步數：<span id="moveCount">0</span></div>
+    <div class="page">
+        <header class="top-bar">
+            <a href="../../index.html" class="back-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>回首頁</span>
+            </a>
+            <div class="top-actions">
+                <button class="icon-btn" id="help-btn" type="button" aria-label="規則說明" aria-haspopup="dialog"
+                    title="規則說明">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8" />
+                        <path d="M12 17.2h.01" />
+                    </svg>
+                </button>
+                <button class="icon-btn" id="theme-btn" type="button" aria-label="深色模式" aria-pressed="false"
+                    title="切換深色／淺色">
+                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
+                    </svg>
+                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="4" />
+                        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <h1 class="game-title">熄燈遊戲</h1>
+            <p class="goal">讓所有燈都熄滅：點一盞燈，會切換它和上下左右相鄰的燈。</p>
+
+            <ul class="stat-row" aria-label="這一盤的狀態">
+                <li class="stat"><span class="stat-label">步數</span><span class="stat-value" id="move-count">0</span></li>
+                <li class="stat"><span class="stat-label">還亮著</span><span class="stat-value" id="lit-count">0</span></li>
+                <li class="stat"><span class="stat-label">最少步數</span><span class="stat-value" id="best-moves">—</span></li>
+            </ul>
+
+            <div class="size-picker" role="group" aria-labelledby="size-label">
+                <span class="segmented-label" id="size-label">盤面大小</span>
+                <div class="segmented">
+                    <button class="seg-btn" type="button" data-size="4" aria-pressed="true">4×4</button>
+                    <button class="seg-btn" type="button" data-size="5" aria-pressed="false">5×5</button>
+                    <button class="seg-btn" type="button" data-size="6" aria-pressed="false">6×6</button>
+                    <button class="seg-btn" type="button" data-size="7" aria-pressed="false">7×7</button>
+                </div>
+            </div>
+
+            <div class="board" id="board" role="grid" aria-label="燈盤" style="--grid-size: 4;"></div>
+            <p class="board-hint">方向鍵移動、Enter 或空白鍵切換燈。</p>
+
+            <p class="status" id="status" role="status" aria-live="polite"></p>
+
+            <div class="btn-row">
+                <button class="btn" id="undo-btn" type="button">復原一步</button>
+                <button class="btn" id="replay-btn" type="button">重來這盤</button>
+                <button class="btn btn-primary" id="new-btn" type="button">新的一盤</button>
+            </div>
+        </main>
     </div>
 
-    <div class="toggle-container">
-      <button class="mode-btn active" data-size="4">４</button>
-      <button class="mode-btn" data-size="5">５</button>
-      <button class="mode-btn" data-size="6">６</button>
-      <button class="mode-btn" data-size="7">７</button>
-    </div>
+    <dialog class="sheet" id="rules-dialog" aria-labelledby="rules-title">
+        <h2 id="rules-title">怎麼玩</h2>
+        <ol>
+            <li>目標：讓盤面上<strong>所有的燈都熄滅</strong>。</li>
+            <li>點一盞燈，它和<strong>上、下、左、右</strong>相鄰的燈都會切換（亮變暗、暗變亮）。</li>
+            <li>亮著的燈是黃色、帶有實心燈泡；熄滅的是深灰色、空心燈泡。</li>
+            <li>按錯可以「復原一步」，想從頭解同一盤就按「重來這盤」。</li>
+            <li>每盤都保證有解，步數越少越厲害。</li>
+        </ol>
+        <p>鍵盤：Tab 進入燈盤，方向鍵移動，Enter 或空白鍵切換。</p>
+        <form method="dialog" class="sheet-actions">
+            <button class="btn btn-primary" value="close">知道了</button>
+        </form>
+    </dialog>
 
-    <div class="game-board" id="board" style="--grid-size: 4;"></div>
-  </div>
+    <dialog class="sheet result-sheet" id="result-dialog" aria-labelledby="result-title">
+        <p class="result-emoji" aria-hidden="true">🌙</p>
+        <h2 class="result-title" id="result-title">全部熄滅了！</h2>
+        <dl class="result-stats">
+            <div><dt>這盤步數</dt><dd id="result-moves">0</dd></div>
+            <div><dt>最少步數</dt><dd id="result-best">—</dd></div>
+        </dl>
+        <p class="new-record" id="result-record" hidden>新紀錄！</p>
+        <div class="sheet-actions">
+            <button class="btn" id="result-close" type="button">看盤面</button>
+            <button class="btn btn-primary" id="result-next" type="button">下一盤</button>
+        </div>
+    </dialog>
 
-  <div class="popup-overlay" id="winPopup">
-    <div class="popup-content">
-      <h2>過關！</h2>
-      <p>總步數：<span id="finalMoves">0</span></p>
-      <button class="restart-btn" id="restartBtn">再玩一次</button>
-    </div>
-  </div>
+    <dialog class="sheet" id="confirm-dialog" aria-labelledby="confirm-title">
+        <h2 id="confirm-title">確定嗎？</h2>
+        <p id="confirm-text"></p>
+        <form method="dialog" class="sheet-actions">
+            <button class="btn" value="cancel">取消</button>
+            <button class="btn btn-primary" value="ok" id="confirm-ok">確定</button>
+        </form>
+    </dialog>
 
-  <script src="../../assets/js/stats.js"></script>
-  <script src="lights-out.js"></script>
-  <script>
-    if (typeof Stats !== 'undefined') Stats.recordGamePlay('lights-out');
-  </script>
+    <script src="../../assets/js/bobo-theme.js"></script>
+    <script src="../../assets/js/bobo-confetti.js"></script>
+    <script src="../../assets/js/stats.js"></script>
+    <script src="lights-out.js"></script>
+    <script>
+        if (typeof Stats !== 'undefined') Stats.recordGamePlay('lights-out');
+    </script>
 </body>
 
 </html>

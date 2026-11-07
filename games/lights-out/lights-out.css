@@ -1,273 +1,637 @@
-/* 宣告 CSS 變數 (CSS Variables) */
-    :root {
-      --inactive-btn-text: #666;
-      /* 標題用的深琥珀色：原本的金黃漸層字在白底只有約 1.5:1，改成單色並調深到 ≥3:1 */
-      --title-color: #A87900;
-    }
+/* ==========================================================================
+   波波小遊戲：遊戲頁共用外殼（頂端列、標題、狀態列、對話框、主題 token）
+   1a2b / lights-out / color-text / math 四款逐字共用這一段，改動請四份同步。
+   各遊戲只在檔案後段覆寫 --accent 系列變數與自己的盤面樣式。
+   ========================================================================== */
+:root {
+  color-scheme: light;
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --surface-2: #eceef3;
+  --ink: #23262f;
+  --muted: #5b6170;          /* 在 --bg 上 5.7:1、在白底 6.2:1 */
+  --line: #d6dae3;
+  --line-strong: #8a91a1;    /* 需要被看見的元件邊界（≥3:1） */
+  --success-ink: #0b7a55;
+  --error-ink: #c0262d;
+  --accent: #1864ab;         /* 白字按鈕底色，各遊戲覆寫 */
+  --accent-hover: #145591;
+  --accent-ink: #1864ab;     /* 在白底與 --bg 上當文字用 */
+  --accent-soft: #e3eefa;
+  --on-accent: #ffffff;
+  --focus: #1864ab;
+  --shadow-sm: 0 1px 2px rgba(20, 24, 35, 0.06), 0 2px 8px rgba(20, 24, 35, 0.06);
+  --shadow-lg: 0 18px 48px rgba(20, 24, 35, 0.2);
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  --font: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
 
-    /* 全域設定 (Global Styles) */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #14161c;
+  --surface: #1e2129;
+  --surface-2: #272b35;
+  --ink: #eef0f5;
+  --muted: #a9afbd;
+  --line: #353a46;
+  --line-strong: #6f7686;
+  --success-ink: #5fd3a4;
+  --error-ink: #ff8a8f;
+  --accent: #74c0fc;
+  --accent-hover: #a5d8ff;
+  --accent-ink: #74c0fc;
+  --accent-soft: #1d3247;
+  --on-accent: #14161c;
+  --focus: #a5d8ff;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.5);
+}
 
-    body {
-      /* 手機優先設計 (Mobile First) */
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-      min-height: 100dvh;
-      padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-      background-color: transparent;
-      font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
-      touch-action: manipulation;
-      user-select: none;
-      -webkit-user-select: none;
-    }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
-    button, .card, .mode-btn {
-      touch-action: manipulation;
-    }
+html {
+  -webkit-text-size-adjust: 100%;
+}
 
-    /* 容器 (Container) */
-    .container {
-      width: 100%;
-      max-width: 400px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
+/* hidden 屬性一律勝過元件自己的 display（否則 display:grid 會把隱藏的區塊撐出來） */
+[hidden] {
+  display: none !important;
+}
 
-    /* 回首頁樣式 (Back Button Style) */
-    .back-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 40px;
-      gap: 6px;
-      color: var(--inactive-btn-text);
-      background-color: #fff;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-      padding: 8px 12px;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: bold;
-      font-size: 1rem;
-      align-self: flex-start;
-      transition: opacity 0.2s;
-    }
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  line-height: 1.5;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
 
-    .back-btn:hover {
-      opacity: 0.7;
-    }
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
 
-    /* 標題與資訊區 (Header & Info) */
-    .header-info {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      align-items: center;
-    }
+button {
+  cursor: pointer;
+}
 
-    /* 標題樣式 (Title Style) */
-    .main-title {
-      margin-bottom: 20px;
-      font-weight: 900;
-      letter-spacing: 1px;
-      font-size: 2.5rem;
-      color: var(--title-color);
-    }
+.page {
+  width: min(100%, 520px);
+  margin: 0 auto;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+}
 
-    /* 步數顯示 (Move Count) */
-    .move-counter {
-      font-size: 1rem;
-      color: #666;
-      font-weight: bold;
-    }
+/* --- 頂端列：← 回首頁 ／ 規則 · 主題 --- */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
 
-    /* 模式切換容器 (Toggle Container) */
-    .toggle-container {
-      display: flex;
-      width: 100%;
-      gap: 4px;
-      background-color: #f5f5f5;
-      padding: 4px;
-      border-radius: 10px;
-    }
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.15s, border-color 0.15s;
+}
 
-    .mode-btn {
-      background-color: transparent;
-      flex: 1;
-      border: none;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 1.1rem;
-      padding: 10px 0;
-      cursor: pointer;
-      transition: 0.2s;
-      color: #666666;
-    }
+.back-btn:hover {
+  border-color: var(--line-strong);
+}
 
-    /* tag樣式 (Level Tag Style) */
-    .mode-btn.active {
-      background-color: #ffffff;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-      color: var(--inactive-btn-text);
-    }
+.top-actions {
+  display: flex;
+  gap: 8px;
+}
 
-    /* 遊戲網格 (Grid System) */
-    .game-board {
-      display: grid;
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      gap: 8px;
-      grid-template-columns: repeat(var(--grid-size), 1fr);
-      grid-template-rows: repeat(var(--grid-size), 1fr);
-    }
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.15s, border-color 0.15s;
+}
 
-    /* 斷點微調 (Breakpoint Adjustment) */
-    .game-board[style*="--grid-size: 6;"],
-    .game-board[style*="--grid-size: 7;"] {
-      gap: 4px;
-    }
+.icon-btn:hover {
+  border-color: var(--line-strong);
+}
 
-    /* 卡片 (Cards) */
-    .card {
-      width: 100%;
-      height: 100%;
-      border-radius: 8px;
-      background-color: #f0f0f0;
-      cursor: pointer;
-      transition: 0.2s;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-    }
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
 
-    /* 卡片亮燈狀態 (Active State) */
-    .card.active {
-      background-color: #FFFACD;
-      /* 內發光代表「燈亮」這個遊戲狀態，不是裝飾；impeccable 的 dark-glow 已在 index.html 以註解豁免 */
-      box-shadow: inset 0 0 10px rgba(255, 250, 205, 0.8);
-    }
+/* 主題鍵：淺色時顯示月亮（按下變深色），深色時顯示太陽 */
+.icon-sun {
+  display: none;
+}
 
-    /* 過關彈出視窗 (Popup Modal) */
-    .popup-overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.2);
-      justify-content: center;
-      align-items: center;
-      opacity: 0;
-      transition: opacity 0.2s;
-      z-index: 100;
-    }
+html[data-theme="dark"] .icon-sun {
+  display: block;
+}
 
-    .popup-overlay.show {
-      display: flex;
-      opacity: 1;
-    }
+html[data-theme="dark"] .icon-moon {
+  display: none;
+}
 
-    .popup-content {
-      background: #ffffff;
-      padding: 32px;
-      border-radius: 12px;
-      text-align: center;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      transform: translateY(20px);
-      transition: transform 0.2s;
-      width: 80%;
-      max-width: 300px;
-    }
+/* --- 標題區 --- */
+.game-title {
+  margin: 0;
+  font-size: clamp(1.7rem, 6vw, 2.1rem);
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
 
-    .popup-overlay.show .popup-content {
-      transform: translateY(0);
-    }
+.goal {
+  margin: 6px 0 16px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
 
-    .popup-content h2 {
-      color: #333;
-      margin-bottom: 12px;
-    }
+/* --- 統計格 --- */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
 
-    .popup-content p {
-      color: #666;
-      margin-bottom: 24px;
-      font-weight: bold;
-    }
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
 
-    .restart-btn {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 8px;
-      background-color: #FFFACD;
-      font-weight: bold;
-      color: #333;
-      cursor: pointer;
-      transition: 0.2s;
-      width: 100%;
-      font-size: 1rem;
-    }
+.stat-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
 
-    .restart-btn:hover {
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
 
-    /* 響應式微調 */
-    @media (max-width: 380px) {
-      .main-title {
-        font-size: 2rem;
-        margin-bottom: 12px;
-      }
+/* --- 分段選擇（難度／盤面） --- */
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
 
-      .container {
-        gap: 14px;
-      }
+.segmented-label {
+  display: block;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
 
-      .mode-btn {
-        font-size: 0.95rem;
-        padding: 8px 0;
-      }
-    }
+.seg-btn {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+  transition: background-color 0.15s, color 0.15s;
+}
 
-    @media (max-height: 650px) {
-      body {
-        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-      }
+.seg-btn:hover {
+  color: var(--ink);
+}
 
-      .container {
-        gap: 10px;
-        max-width: min(360px, 85vh);
-      }
+.seg-btn[aria-pressed="true"] {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-sm);
+}
 
-      .main-title {
-        font-size: 1.8rem;
-        margin-bottom: 8px;
-      }
+/* --- 按鈕 --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 800;
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s var(--ease-out);
+}
 
-      .game-board {
-        max-height: 52vh;
-      }
-    }
+.btn:hover {
+  border-color: var(--line-strong);
+}
 
-    /* 鍵盤操作時的焦點框 */
-    a:focus-visible,
-    button:focus-visible {
-      outline: 3px solid var(--title-color);
-      outline-offset: 2px;
-    }
+.btn:active {
+  transform: translateY(1px);
+}
 
-    /* 系統要求減少動態效果時，把動畫與轉場縮到幾乎瞬間（事件仍會觸發） */
-    @media (prefers-reduced-motion: reduce) {
-      *,
-      *::before,
-      *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-      }
-    }
+.btn-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn-primary:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-row > .btn {
+  flex: 1 1 0;
+}
+
+/* --- 狀態列（唯一的 live region） --- */
+.status {
+  min-height: 1.6em;
+  margin: 12px 0;
+  font-weight: 800;
+  text-align: center;
+  color: var(--ink);
+}
+
+.status[data-tone="success"] {
+  color: var(--success-ink);
+}
+
+.status[data-tone="error"] {
+  color: var(--error-ink);
+}
+
+/* --- 對話框（原生 <dialog>） --- */
+.sheet {
+  width: min(calc(100% - 32px), 420px);
+  max-height: calc(100dvh - 48px);
+  padding: 24px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+}
+
+.sheet::backdrop {
+  background: rgba(10, 12, 18, 0.45);
+}
+
+.sheet[open] {
+  animation: sheet-in 0.22s var(--ease-out);
+}
+
+.sheet h2 {
+  margin: 0 0 12px;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.sheet p,
+.sheet li {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.sheet ul,
+.sheet ol {
+  margin: 0 0 12px;
+  padding-left: 1.2em;
+}
+
+.sheet li + li {
+  margin-top: 4px;
+}
+
+.sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.sheet-actions > .btn {
+  flex: 1 1 0;
+}
+
+.sheet .result-emoji {
+  margin: 0 0 4px;
+  font-size: 2.6rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.result-title {
+  text-align: center;
+}
+
+.result-sheet[data-tone="lose"] .result-title {
+  color: var(--muted);
+}
+
+.result-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.result-stats div {
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  text-align: center;
+}
+
+.result-stats dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.result-stats dd {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet .new-record {
+  margin: 8px 0 0;
+  color: var(--success-ink);
+  font-weight: 800;
+  text-align: center;
+}
+
+.confetti-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- 焦點 --- */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 減少動態效果：只關掉「位移」，淡入淡出與顏色變化保留，回饋不會消失 */
+@media (prefers-reduced-motion: reduce) {
+  .sheet[open] {
+    animation: fade-in 0.15s linear;
+  }
+
+  .btn:active {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   熄燈遊戲專屬
+   亮燈＝飽和琥珀底＋實心燈泡；熄燈＝深灰底＋空心燈泡。
+   亮暗兩種底色對比 ≥ 5:1，而且有形狀差異，不只靠色相分辨。
+   ========================================================================== */
+:root {
+  --accent: #8a5a00;          /* 白字 5.9:1 */
+  --accent-hover: #6f4800;
+  --accent-ink: #8a5a00;
+  --accent-soft: #fff3d6;
+  --focus: #6f4800;
+  --light-on: #ffc93c;        /* 與 --light-off 對比 5.3:1 */
+  --light-on-ink: #5c3b00;    /* 實心燈泡 */
+  --light-off: #475063;       /* 在 --bg 上 7.4:1 */
+  --light-off-ink: #a9b1c2;   /* 空心燈泡輪廓 */
+  --light-off-edge: #475063;
+}
+
+html[data-theme="dark"] {
+  --accent: #ffc93c;          /* 深字 11.8:1 */
+  --accent-hover: #ffd866;
+  --accent-ink: #ffc93c;
+  --accent-soft: #3a2e10;
+  --on-accent: #14161c;
+  --focus: #ffd866;
+  --light-on: #ffc93c;        /* 與 --light-off 對比 8.6:1 */
+  --light-on-ink: #5c3b00;
+  --light-off: #2b303b;
+  --light-off-ink: #7d8596;
+  --light-off-edge: #646c7e;  /* 熄燈格的外框，讓暗格在深色底上仍看得出格子 */
+}
+
+.size-picker {
+  margin-bottom: 16px;
+}
+
+.board {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 440px);
+  margin: 0 auto;
+}
+
+.board-row {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-size), minmax(0, 1fr));
+  gap: 8px;
+}
+
+.board[style*="--grid-size: 6"],
+.board[style*="--grid-size: 7"],
+.board[style*="--grid-size: 6"] .board-row,
+.board[style*="--grid-size: 7"] .board-row {
+  gap: 6px;
+}
+
+.cell {
+  display: block;
+  min-width: 0;
+}
+
+.light {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 2px solid var(--light-off-edge);
+  border-radius: var(--radius-sm);
+  background: var(--light-off);
+  color: var(--light-off-ink);
+  transition: background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out), color 0.18s;
+}
+
+.light svg {
+  width: 46%;
+  height: 46%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.light.is-on {
+  border-color: #e0a800;
+  background: var(--light-on);
+  color: var(--light-on-ink);
+  /* impeccable-disable-next-line dark-glow: 遊戲狀態（燈亮）的視覺語意，亮暗主要靠底色與燈泡形狀區分 */
+  box-shadow: 0 0 0 1px rgba(255, 201, 60, 0.35), 0 0 14px rgba(255, 201, 60, 0.45);
+}
+
+.light.is-on .bulb-glass {
+  fill: currentColor;
+}
+
+.light:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.board.is-solved .light {
+  cursor: default;
+}
+
+.board-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* 觸控裝置不需要鍵盤提示 */
+@media (hover: none) and (pointer: coarse) {
+  .board-hint {
+    display: none;
+  }
+}
+
+/* 手機橫放：盤面以高度為準，避免整盤超出畫面 */
+@media (max-height: 500px) and (orientation: landscape) {
+  .page {
+    width: min(100%, 860px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title board"
+      "goal board"
+      "stats board"
+      "size board"
+      "status board"
+      "actions board"
+      "hint board";
+    column-gap: 20px;
+    align-items: start;
+  }
+
+  .game-title { grid-area: title; }
+  .goal { grid-area: goal; }
+  .stat-row { grid-area: stats; }
+  .size-picker { grid-area: size; }
+  .status { grid-area: status; }
+  main > .btn-row { grid-area: actions; }
+  .board-hint { grid-area: hint; }
+
+  .board {
+    grid-area: board;
+    width: min(calc(100dvh - 104px), 360px);
+  }
+}

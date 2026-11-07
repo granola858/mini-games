@@ -1,235 +1,406 @@
-// --- 遊戲設定 ---
-        const config = {
-            easy: 4,
-            medium: 6,
-            hard: 9
+// 顏色文字遊戲
+(() => {
+    'use strict';
+
+    // ======================================================================
+    // 共用：安全存取 localStorage（隱私模式、封鎖網站資料時存取本身就會 throw）
+    // ======================================================================
+    const store = {
+        get(key) { try { return window.localStorage.getItem(key); } catch (_) { return null; } },
+        set(key, value) { try { window.localStorage.setItem(key, value); } catch (_) {} },
+        remove(key) { try { window.localStorage.removeItem(key); } catch (_) {} }
+    };
+    const readJSON = (key, fallback) => {
+        const raw = store.get(key);
+        if (!raw) return fallback;
+        try {
+            const value = JSON.parse(raw);
+            return (value && typeof value === 'object') ? value : fallback;
+        } catch (_) {
+            return fallback;
+        }
+    };
+    const writeJSON = (key, value) => {
+        try { store.set(key, JSON.stringify(value)); } catch (_) {}
+    };
+
+    // ======================================================================
+    // 共用：主題（只有按下按鈕才寫入偏好）
+    // ======================================================================
+    const themeBtn = document.getElementById('theme-btn');
+    const syncThemeBtn = () => {
+        const dark = document.documentElement.dataset.theme === 'dark';
+        themeBtn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    };
+    if (typeof BoboTheme !== 'undefined') BoboTheme.init();
+    syncThemeBtn();
+    new MutationObserver(syncThemeBtn).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    themeBtn.addEventListener('click', () => {
+        if (typeof BoboTheme !== 'undefined') {
+            BoboTheme.toggle();
+        } else {
+            const root = document.documentElement;
+            root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        }
+    });
+
+    // ======================================================================
+    // 共用：對話框（原生 <dialog>，關閉後焦點回到開啟它的元素）
+    // ======================================================================
+    function openDialog(dialog, focusEl) {
+        dialog._opener = document.activeElement;
+        if (typeof dialog.showModal === 'function') {
+            if (!dialog.open) dialog.showModal();
+        } else {
+            dialog.setAttribute('open', '');
+        }
+        if (focusEl) focusEl.focus();
+    }
+    function closeDialog(dialog) {
+        if (typeof dialog.close === 'function' && dialog.open) dialog.close();
+        else dialog.removeAttribute('open');
+    }
+    document.querySelectorAll('dialog').forEach(dialog => {
+        dialog.addEventListener('close', () => {
+            const opener = dialog._opener;
+            dialog._opener = null;
+            if (dialog._skipRestore) { dialog._skipRestore = false; return; }
+            // 開啟者若已被停用（例如過關後的送出鈕），改把焦點交給備援元素
+            const usable = opener && document.contains(opener) && !opener.disabled && typeof opener.focus === 'function';
+            const target = usable ? opener : dialog._fallback;
+            if (target && typeof target.focus === 'function') target.focus();
+        });
+    });
+
+    const confirmDialog = document.getElementById('confirm-dialog');
+    function askConfirm(text, okLabel) {
+        document.getElementById('confirm-text').textContent = text;
+        document.getElementById('confirm-ok').textContent = okLabel || '確定';
+        confirmDialog.returnValue = '';
+        openDialog(confirmDialog, document.getElementById('confirm-ok'));
+        return new Promise(resolve => {
+            confirmDialog.addEventListener('close', () => resolve(confirmDialog.returnValue === 'ok'), { once: true });
+        });
+    }
+
+    const rulesDialog = document.getElementById('rules-dialog');
+    document.getElementById('help-btn').addEventListener('click', () => {
+        openDialog(rulesDialog, rulesDialog.querySelector('button'));
+    });
+
+    const confettiCanvas = document.getElementById('confetti-canvas');
+    const celebrate = () => {
+        if (typeof BoboConfetti !== 'undefined') BoboConfetti.burst(confettiCanvas);
+    };
+
+    // ======================================================================
+    // 遊戲設定
+    // ======================================================================
+    const PREFS_KEY = 'colortext_prefs';
+    const STATS_KEY = 'colortext_stats';
+    const ANSWER_SECONDS = 8;
+
+    const MODES = {
+        easy: { count: 4, seconds: 3, cols: 2 },
+        medium: { count: 6, seconds: 6, cols: 3 },
+        hard: { count: 9, seconds: 10, cols: 3 }
+    };
+
+    // 五種字／五種顏色；mark 是色盲輔助記號
+    const ITEMS = [
+        { key: 'red', text: '紅', name: '紅色', mark: '●' },
+        { key: 'blue', text: '藍', name: '藍色', mark: '■' },
+        { key: 'green', text: '綠', name: '綠色', mark: '▲' },
+        { key: 'yellow', text: '黃', name: '黃色', mark: '★' },
+        { key: 'black', text: '黑', name: '黑色', mark: '◆' }
+    ];
+
+    const reduceMotion = () => {
+        try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; }
+    };
+
+    let prefs = { mode: 'easy', timer: false, marks: false };
+    let stats = { streak: 0, best: 0, correct: 0, plays: 0 };
+    let phase = 'idle';      // idle → memorize → question → result
+    let cards = [];          // { text, color(key) }
+    let question = null;     // { type: 'color'|'text', item, answer }
+    let answered = false;
+    let phaseTimer = null;
+    let rafId = null;
+
+    const gridEl = document.getElementById('grid');
+    const phaseBar = document.getElementById('phase-bar');
+    const phaseText = document.getElementById('phase-text');
+    const meterFill = document.getElementById('meter-fill');
+    const questionEl = document.getElementById('question');
+    const questionText = document.getElementById('question-text');
+    const numpad = document.getElementById('numpad');
+    const statusEl = document.getElementById('status');
+    const startBtn = document.getElementById('start-btn');
+    const modeBtns = Array.from(document.querySelectorAll('.seg-btn[data-mode]'));
+    const timerCheck = document.getElementById('timer-check');
+    const marksCheck = document.getElementById('marks-check');
+
+    function setStatus(text, tone) {
+        statusEl.textContent = text;
+        if (tone) statusEl.dataset.tone = tone;
+        else delete statusEl.dataset.tone;
+    }
+
+    // --- 存檔 ---
+    function loadPrefs() {
+        const saved = readJSON(PREFS_KEY, {});
+        prefs.mode = MODES[saved.mode] ? saved.mode : 'easy';
+        prefs.timer = saved.timer === true;
+        prefs.marks = saved.marks === true;
+    }
+    const savePrefs = () => writeJSON(PREFS_KEY, prefs);
+
+    function loadStats() {
+        const saved = readJSON(STATS_KEY, {});
+        ['streak', 'best', 'correct', 'plays'].forEach(k => {
+            stats[k] = Number.isInteger(saved[k]) && saved[k] >= 0 ? saved[k] : 0;
+        });
+    }
+    const saveStats = () => writeJSON(STATS_KEY, stats);
+
+    // --- 畫面 ---
+    function renderStats() {
+        document.getElementById('streak').textContent = stats.streak;
+        document.getElementById('best-streak').textContent = stats.best;
+        document.getElementById('total-correct').textContent = stats.correct;
+    }
+
+    function renderSettings() {
+        modeBtns.forEach(btn => {
+            btn.setAttribute('aria-pressed', btn.dataset.mode === prefs.mode ? 'true' : 'false');
+            btn.disabled = phase === 'memorize' || phase === 'question';
+        });
+        timerCheck.checked = prefs.timer;
+        marksCheck.checked = prefs.marks;
+        document.body.classList.toggle('show-marks', prefs.marks);
+    }
+
+    const itemOf = key => ITEMS.find(it => it.key === key);
+
+    function cardLabel(card, idx) {
+        return `第 ${idx + 1} 張：${itemOf(card.color).name}的「${card.text}」字`;
+    }
+
+    function renderCards({ covered, highlight } = {}) {
+        const mode = MODES[prefs.mode];
+        gridEl.style.setProperty('--cols', mode.cols);
+        gridEl.innerHTML = '';
+        cards.forEach((card, idx) => {
+            const el = document.createElement('div');
+            el.className = 'card';
+            el.setAttribute('role', 'img');
+            if (covered) {
+                el.classList.add('is-covered');
+                el.textContent = '?';
+                el.setAttribute('aria-label', `第 ${idx + 1} 張：已蓋起來`);
+            } else {
+                el.classList.add(`c-${card.color}`);
+                el.dataset.mark = itemOf(card.color).mark;
+                el.textContent = card.text;
+                el.setAttribute('aria-label', cardLabel(card, idx));
+                if (highlight && highlight(card)) el.classList.add('is-match');
+            }
+            gridEl.appendChild(el);
+        });
+    }
+
+    function stopTimers() {
+        if (phaseTimer) clearTimeout(phaseTimer);
+        if (rafId) cancelAnimationFrame(rafId);
+        phaseTimer = null;
+        rafId = null;
+    }
+
+    // 倒數：文字每秒更新，進度條每幀更新（倒數是遊戲資訊，減少動態效果時照樣顯示）
+    function runCountdown(seconds, label, onDone) {
+        stopTimers();
+        phaseBar.hidden = false;
+        const start = performance.now();
+        const total = seconds * 1000;
+        let lastShown = -1;
+        const tick = (now) => {
+            const left = Math.max(0, total - (now - start));
+            const secs = Math.ceil(left / 1000);
+            if (secs !== lastShown) {
+                phaseText.textContent = `${label}：還剩 ${secs} 秒`;
+                lastShown = secs;
+            }
+            meterFill.style.transform = `scaleX(${left / total})`;
+            if (left > 0) rafId = requestAnimationFrame(tick);
         };
+        rafId = requestAnimationFrame(tick);
+        phaseTimer = setTimeout(() => {
+            stopTimers();
+            onDone();
+        }, total);
+    }
 
-        const items = [
-            { text: '紅', class: 'c-red', name: '紅色' },
-            { text: '藍', class: 'c-blue', name: '藍色' },
-            { text: '綠', class: 'c-green', name: '綠色' },
-            { text: '黃', class: 'c-yellow', name: '黃色' },
-            { text: '黑', class: 'c-black', name: '黑色' }
-        ];
+    // --- 流程 ---
+    function startRound() {
+        stopTimers();
+        const mode = MODES[prefs.mode];
+        cards = Array.from({ length: mode.count }, () => ({
+            text: ITEMS[Math.floor(Math.random() * ITEMS.length)].text,
+            color: ITEMS[Math.floor(Math.random() * ITEMS.length)].key
+        }));
+        phase = 'memorize';
+        answered = false;
+        questionEl.hidden = true;
+        startBtn.hidden = true;
+        renderSettings();
+        renderCards();
+        setStatus(`記住這 ${mode.count} 張卡片的字和顏色，${mode.seconds} 秒後蓋牌。`);
+        gridEl.focus();
+        runCountdown(mode.seconds, '記住它們', askQuestion);
+    }
 
-        let currentMode = 'easy';
-        let currentCount = 4;
-        let gameData = [];
-        let correctAnswer = 0;
-        let timerId = null;
-        let currentStreak = 0;
-
-        // --- 功能實作 ---
-
-        function setMode(mode, count, btnElement) {
-            currentMode = mode;
-            currentCount = count;
-
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            btnElement.classList.add('active');
-
-            resetGameUI();
-            updateStreak(0, true);
+    function makeQuestion() {
+        const item = ITEMS[Math.floor(Math.random() * ITEMS.length)];
+        if (Math.random() < 0.5) {
+            return { type: 'color', item, answer: cards.filter(c => c.color === item.key).length };
         }
+        return { type: 'text', item, answer: cards.filter(c => c.text === item.text).length };
+    }
 
-        function resetGameUI() {
-            document.getElementById('grid').innerHTML = '';
-            document.getElementById('question-box').style.display = 'none';
-            document.getElementById('start-btn').style.display = 'block';
-            document.getElementById('result-overlay').style.display = 'none';
-            document.getElementById('timer-bar-container').style.display = 'none';
-
-            const fill = document.getElementById('timer-bar-fill');
-            fill.style.animation = 'none';
-            if (timerId) clearTimeout(timerId);
+    function askQuestion() {
+        phase = 'question';
+        question = makeQuestion();
+        renderCards({ covered: true });
+        const it = question.item;
+        if (question.type === 'color') {
+            questionText.innerHTML = `剛剛<strong>字體顏色</strong>是 <span class="q-swatch c-${it.key}" data-mark="${it.mark}">${it.name}</span> 的卡片有幾張？`;
+        } else {
+            questionText.innerHTML = `剛剛<strong>寫著「${it.text}」</strong>的卡片有幾張？（不管顏色）`;
         }
-
-        function updateStreak(val, isReset = false) {
-            if (isReset) {
-                currentStreak = val;
-            } else {
-                currentStreak += val;
-            }
-            document.getElementById('streak-score').innerText = currentStreak;
-        }
-
-        function startGame() {
-            resetGameUI();
-            document.getElementById('start-btn').style.display = 'none';
-
-            // 1. 生成與排版
-            gameData = [];
-            const gridEl = document.getElementById('grid');
-            gridEl.innerHTML = '';
-
-            if (currentMode === 'hard') {
-                gridEl.style.gridTemplateColumns = 'repeat(3, 1fr)';
-            } else {
-                gridEl.style.gridTemplateColumns = 'repeat(2, 1fr)';
-            }
-
-            for (let i = 0; i < currentCount; i++) {
-                const textObj = items[Math.floor(Math.random() * items.length)];
-                const colorObj = items[Math.floor(Math.random() * items.length)];
-
-                gameData.push({
-                    text: textObj.text,
-                    colorClass: colorObj.class,
-                    colorName: colorObj.name
-                });
-
-                const card = document.createElement('div');
-                card.className = `card ${colorObj.class}`;
-                card.innerText = textObj.text;
-                gridEl.appendChild(card);
-            }
-
-            // 2. 計算停留時間
-            let memoryTime = 2000;
-            if (currentMode === 'easy') memoryTime = 3000;
-            if (currentMode === 'medium') memoryTime = 6000;
-            if (currentMode === 'hard') memoryTime = 10000;
-
-            setTimeout(() => {
-                hideGridAndAsk();
-            }, memoryTime);
-        }
-
-        function hideGridAndAsk() {
-            const cards = document.querySelectorAll('.card');
-            cards.forEach(card => {
-                card.innerText = '?';
-                card.className = 'card';
-                card.style.color = '#DDD';
-            });
-
-            generateQuestion();
-        }
-
-        function generateQuestion() {
-            const type = Math.random() > 0.5 ? 'color' : 'text';
-            const targetItem = items[Math.floor(Math.random() * items.length)];
-            const qContent = document.getElementById('question-content');
-
-            let questionHtml = '';
-            correctAnswer = 0;
-
-            if (type === 'color') {
-                // 顯示圓形色塊，無陰影
-                const hexColor = getColorCode(targetItem.class);
-                questionHtml = `字體顏色是 <span class="q-color-dot" style="background-color:${hexColor}"></span>`;
-                correctAnswer = gameData.filter(d => d.colorName === targetItem.name).length;
-            } else {
-                // 文字內容
-                questionHtml = `<span class="q-content-text">文字內容是 「${targetItem.text}」</span>`;
-                correctAnswer = gameData.filter(d => d.text === targetItem.text).length;
-            }
-
-            qContent.innerHTML = questionHtml;
-            document.getElementById('question-box').style.display = 'block';
-
-            // 生成鍵盤
-            const numpadContainer = document.getElementById('numpad-container');
-            numpadContainer.innerHTML = '';
-
-            if (currentMode === 'hard') {
-                const row1 = document.createElement('div');
-                row1.className = 'numpad-row';
-                for (let i = 0; i <= 4; i++) row1.appendChild(createNumBtn(i));
-
-                const row2 = document.createElement('div');
-                row2.className = 'numpad-row';
-                for (let i = 5; i <= 9; i++) row2.appendChild(createNumBtn(i));
-
-                numpadContainer.appendChild(row1);
-                numpadContainer.appendChild(row2);
-
-            } else {
-                const row = document.createElement('div');
-                row.className = 'numpad-row';
-                row.style.flexWrap = 'wrap';
-                for (let i = 0; i <= currentCount; i++) row.appendChild(createNumBtn(i));
-                numpadContainer.appendChild(row);
-            }
-
-            // 3. 處理計時模式
-            const isTimerMode = document.getElementById('timer-mode-check').checked;
-            if (isTimerMode) {
-                startTimer();
-            }
-        }
-
-        function createNumBtn(num) {
+        numpad.innerHTML = '';
+        for (let n = 0; n <= cards.length; n++) {
             const btn = document.createElement('button');
+            btn.type = 'button';
             btn.className = 'num-btn';
-            btn.innerText = num;
-            btn.onclick = () => checkAnswer(num);
-            return btn;
+            btn.textContent = n;
+            btn.dataset.n = n;
+            btn.setAttribute('aria-label', `${n} 張`);
+            numpad.appendChild(btn);
         }
-
-        function startTimer() {
-            const barContainer = document.getElementById('timer-bar-container');
-            const fill = document.getElementById('timer-bar-fill');
-
-            barContainer.style.display = 'block';
-            fill.style.animation = 'none';
-            fill.offsetHeight;
-            // 8秒計時
-            fill.style.animation = 'timerShrink 8s linear forwards';
-
-            timerId = setTimeout(() => {
-                checkAnswer(-1); // 傳入 -1 代表超時
-            }, 8000);
+        questionEl.hidden = false;
+        renderSettings();
+        setStatus('卡片蓋起來了，請作答。');
+        questionText.focus();
+        if (prefs.timer) {
+            runCountdown(ANSWER_SECONDS, '作答倒數', () => checkAnswer(null));
+        } else {
+            phaseBar.hidden = true;
         }
+    }
 
-        function checkAnswer(userAns) {
-            if (timerId) clearTimeout(timerId);
-            const fill = document.getElementById('timer-bar-fill');
-            fill.style.animationPlayState = 'paused';
+    function checkAnswer(n) {
+        // 防連點：同一題只接受第一次作答，避免連對被灌
+        if (phase !== 'question' || answered) return;
+        answered = true;
+        stopTimers();
+        phaseBar.hidden = true;
+        numpad.querySelectorAll('button').forEach(btn => { btn.disabled = true; });
 
-            let isSuccess = false;
-            let msg = '';
-
-            if (userAns === -1) {
-                isSuccess = false;
-                msg = '時間到！反應太慢囉！';
-                updateStreak(0, true);
-            } else if (userAns === correctAnswer) {
-                isSuccess = true;
-                msg = '答對了！記憶力超強！';
-                updateStreak(1);
-            } else {
-                isSuccess = false;
-                msg = `答錯囉，正確是 ${correctAnswer} 個`;
-                updateStreak(0, true);
+        const correct = n === question.answer;
+        stats.plays++;
+        let tone;
+        let line;
+        let newBest = false;
+        if (n === null) {
+            stats.streak = 0;
+            tone = 'error';
+            line = `時間到！正確答案是 ${question.answer} 張。`;
+        } else if (correct) {
+            stats.streak++;
+            stats.correct++;
+            if (stats.streak > stats.best) {
+                stats.best = stats.streak;
+                newBest = true;
             }
-
-            showResult(isSuccess, msg);
+            tone = 'success';
+            line = newBest && stats.streak >= 3
+                ? `答對了！連對 ${stats.streak} 題，新紀錄！`
+                : `答對了！連對 ${stats.streak} 題。`;
+        } else {
+            stats.streak = 0;
+            tone = 'error';
+            line = `答錯囉，你選 ${n} 張，正確是 ${question.answer} 張。`;
         }
+        saveStats();
+        renderStats();
 
-        function showResult(isSuccess, msg) {
-            const overlay = document.getElementById('result-overlay');
-            const icon = document.getElementById('result-icon');
-            const text = document.getElementById('result-text');
+        // 翻回卡片，把符合題目的卡片框起來，讓玩家知道錯在哪
+        const it = question.item;
+        renderCards({
+            highlight: question.type === 'color' ? (c => c.color === it.key) : (c => c.text === it.text)
+        });
 
-            icon.innerText = isSuccess ? '😎' : '😵';
-            text.innerText = msg;
-            text.style.color = isSuccess ? 'var(--primary-blue)' : '#E63946';
+        phase = 'result';
+        startBtn.textContent = '再來一題';
+        startBtn.hidden = false;
+        renderSettings();
+        setStatus(line, tone);
+        if (newBest && stats.streak >= 3 && typeof BoboConfetti !== 'undefined') celebrate();
+        startBtn.focus();
+    }
 
-            overlay.style.display = 'flex';
-        }
+    // --- 事件 ---
+    startBtn.addEventListener('click', startRound);
 
-        function getColorCode(className) {
-            switch (className) {
-                case 'c-red': return '#E63946';
-                case 'c-green': return '#2A9D8F';
-                case 'c-blue': return '#53B4FF';
-                case 'c-yellow': return '#F4A261';
-                case 'c-black': return '#333333';
-                default: return '#000';
+    numpad.addEventListener('click', (e) => {
+        const btn = e.target.closest('.num-btn');
+        if (btn) checkAnswer(Number(btn.dataset.n));
+    });
+
+    // 作答時可直接按數字鍵
+    document.addEventListener('keydown', (e) => {
+        if (phase !== 'question' || e.altKey || e.ctrlKey || e.metaKey) return;
+        if (document.querySelector('dialog[open]')) return;
+        if (/^[0-9]$/.test(e.key)) {
+            const n = Number(e.key);
+            if (n <= cards.length) {
+                e.preventDefault();
+                checkAnswer(n);
             }
         }
+    });
 
-        // 初始化
-        updateStreak(0, true);
+    modeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.mode === prefs.mode) return;
+            prefs.mode = btn.dataset.mode;
+            savePrefs();
+            const hadStreak = stats.streak > 0;
+            stats.streak = 0;
+            saveStats();
+            renderStats();
+            renderSettings();
+            const mode = MODES[prefs.mode];
+            setStatus(`已切換為 ${mode.count} 張、記憶 ${mode.seconds} 秒${hadStreak ? '，連對重新計算' : ''}。`);
+        });
+    });
+
+    timerCheck.addEventListener('change', () => {
+        prefs.timer = timerCheck.checked;
+        savePrefs();
+    });
+    marksCheck.addEventListener('change', () => {
+        prefs.marks = marksCheck.checked;
+        savePrefs();
+        renderSettings();
+    });
+
+    // --- 啟動 ---
+    loadPrefs();
+    loadStats();
+    renderStats();
+    renderSettings();
+    gridEl.style.setProperty('--cols', MODES[prefs.mode].cols);
+    if (stats.streak > 0) setStatus(`目前連對 ${stats.streak} 題，按「開始記憶」繼續。`);
+})();
