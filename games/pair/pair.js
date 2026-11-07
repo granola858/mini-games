@@ -95,14 +95,22 @@
     const restartBtn = $('restart-btn');
     const themeBtn = $('theme-btn');
     const rulesBtn = $('rules-btn');
-    const victoryDialog = $('victory-dialog');
     const confirmDialog = $('confirm-dialog');
     const rulesDialog = $('rules-dialog');
-    const confettiCanvas = $('confetti-canvas');
     const levelButtons = Array.from(document.querySelectorAll('.mode-btn[data-level]'));
     let cardButtons = [];
 
-    const confetti = (typeof BoboConfetti !== 'undefined') ? BoboConfetti : null;
+    // 全站共用過關卡片（彩帶也由它放）；沒載入時遊戲照常可玩，只是少了卡片
+    const celebrate = (typeof BoboCelebrate !== 'undefined') ? BoboCelebrate : null;
+
+    // 卡背圖騰：四種盤面圖形排成一枚徽記，像紙牌背面的花紋（只是裝飾，不帶資訊）
+    const CARD_BACK_EMBLEM = `<svg class="card-emblem" viewBox="0 0 40 40" fill="none" stroke="currentColor"
+        stroke-width="2.4" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="5" />
+        <polygon points="28,6.5 33.5,17 22.5,17" />
+        <rect x="7" y="23" width="10" height="10" rx="1.5" />
+        <polygon points="28,22.5 33.5,28 28,33.5 22.5,28" />
+    </svg>`;
 
     // ---------------------------------------------------------------------
     // 小工具
@@ -267,7 +275,7 @@
                 btn.dataset.index = String(index);
                 btn.tabIndex = index === game.focusIndex ? 0 : -1;
                 btn.innerHTML = `<span class="card-inner" aria-hidden="true">
-                    <span class="face face-cover"></span>
+                    <span class="face face-cover">${CARD_BACK_EMBLEM}</span>
                     <span class="face face-art">${svgFor(game.deck[index])}</span>
                 </span>`;
 
@@ -427,15 +435,56 @@
         writeJSON(STATS_KEY, stats);
         renderStatus();
 
-        $('final-moves').textContent = `${game.moves} 步`;
-        $('final-time').textContent = formatTime(time);
-        $('final-best').textContent = `${stats[game.level].bestMoves} 步`;
-        $('record-badge').hidden = !isRecord;
+        const level = game.level;
+        const prevBest = Number.isInteger(prev.bestMoves) ? prev.bestMoves : null;
+        let subtitle;
+        if (prevBest === null) subtitle = `第一次完成「${LEVEL_NAMES[level]}」，記下 ${game.moves} 步。`;
+        else if (isRecord) subtitle = `比之前的最佳紀錄少了 ${prevBest - game.moves} 步！`;
+        else if (game.moves === prevBest) subtitle = `和最佳紀錄一樣是 ${prevBest} 步，再少一步就破紀錄。`;
+        else subtitle = `最佳紀錄是 ${prevBest} 步，這局多了 ${game.moves - prevBest} 步。`;
+        const timeRecord = Number.isFinite(prev.bestTime) && time < prev.bestTime;
+        const lastCard = game.deck[Number.isInteger(game.lastFlipped) ? game.lastFlipped : 0];
 
-        if (confetti && confettiCanvas) confetti.burst(confettiCanvas);
-        announce(`全部配對完成！共 ${game.moves} 步，用時 ${formatTime(time)}${isRecord ? '，新紀錄' : ''}。`);
-        const opener = cardButtons[game.lastFlipped] || restartBtn;
-        window.setTimeout(() => openDialog(victoryDialog, opener), 450);
+        if (!celebrate) {
+            announce(`全部配對完成！共 ${game.moves} 步，用時 ${formatTime(time)}${isRecord ? '，新紀錄' : ''}。`);
+            return;
+        }
+        // 最後一對翻開的牌先停在桌上一下，再端出結果卡片
+        window.setTimeout(() => {
+            celebrate.show({
+                outcome: 'win',
+                gameName: '配對遊戲',
+                title: '全部配對完成！',
+                subtitle,
+                stats: [
+                    { label: '步數', value: `${game.moves} 步`, isBest: isRecord },
+                    { label: '用時', value: celebrate.formatDuration(time / 1000), isBest: timeRecord },
+                    { label: '難度', value: LEVEL_NAMES[level] }
+                ],
+                extra: buildFinalPair(lastCard),
+                accent: '#8E24AA',
+                accentDark: '#D69AE6',
+                returnFocus: restartBtn,
+                primary: {
+                    label: '再來一局',
+                    onClick: () => {
+                        newGame(level);
+                        setFocusIndex(0, true);
+                        announce(`新的一局：${LEVEL_NAMES[game.level]}，共 ${totalPairs()} 對。`);
+                    }
+                },
+                secondary: { label: '看盤面' }
+            });
+        }, 450);
+    }
+
+    // 結果卡片上的「最後一對」：兩張迷你紙牌扇形排開，就是剛剛配成的那一對
+    function buildFinalPair(card) {
+        const wrap = document.createElement('div');
+        wrap.className = 'final-pair';
+        wrap.setAttribute('aria-hidden', 'true');
+        if (card) wrap.innerHTML = `<span class="mini-card">${svgFor(card)}</span><span class="mini-card">${svgFor(card)}</span>`;
+        return wrap;
     }
 
     // ---------------------------------------------------------------------
@@ -460,13 +509,13 @@
         }
     }
 
-    [victoryDialog, confirmDialog, rulesDialog].forEach(dialog => {
+    [confirmDialog, rulesDialog].forEach(dialog => {
         if (!dialog) return;
         dialog.addEventListener('close', () => {
             const target = dialogOpeners.get(dialog);
             if (target && document.contains(target) && typeof target.focus === 'function') target.focus();
         });
-        // 點對話框外的遮罩關閉（規則與確認用；過關框也允許，等同「看盤面」）
+        // 點對話框外的遮罩關閉
         dialog.addEventListener('click', (event) => {
             if (event.target === dialog) closeDialog(dialog);
         });
@@ -541,13 +590,6 @@
         pendingLevel = null;
         closeDialog(confirmDialog);
     });
-
-    $('play-again-btn').addEventListener('click', () => {
-        newGame(game.level);
-        closeDialog(victoryDialog, cardButtons[0]);
-        announce(`新的一局：${LEVEL_NAMES[game.level]}，共 ${totalPairs()} 對。`);
-    });
-    $('view-board-btn').addEventListener('click', () => closeDialog(victoryDialog, restartBtn));
 
     rulesBtn.addEventListener('click', () => openDialog(rulesDialog, rulesBtn));
     $('rules-close').addEventListener('click', () => closeDialog(rulesDialog));

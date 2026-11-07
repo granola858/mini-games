@@ -14,6 +14,8 @@
     const DEAL_SPEED = 900;        // 發牌間隔（毫秒）
     const MISCLICK_PENALTY = 0.5;  // 誤按加秒
     const HISTORY_LIMIT = 30;
+    const SET_SIZE = 5;            // 每組回合數：打完一組才端出結果卡片，不打斷每回合的節奏
+    const ROUND_PAUSE = 1300;      // 每回合拍中後，成績留在桌上這麼久再繼續發牌
     const STATE_KEY = 'slap_state_v1';
     const STATS_KEY = 'slap_stats_v1';
 
@@ -53,6 +55,7 @@
         penalty: 0,          // 這一回合累積的誤按秒數
         misclicks: 0,
         history: [],         // [{ time, penalty }]
+        set: [],             // 目前這一組已完成的回合 [{ time, penalty, misclicks }]
         best: null,
         rounds: 0
     };
@@ -66,11 +69,15 @@
     const missedMsg = $('missedMsg');
     const snapBtn = $('snapBtn');
     const restartBtn = $('restartBtn');
+    const pauseBtn = $('pauseBtn');
+    const setProgressEl = $('setProgress');
     const historyPanel = $('historyPanel');
     const bestEl = $('bestTime');
     const statusEl = $('game-status');
-    const resultDialog = $('result-dialog');
     const rulesDialog = $('rules-dialog');
+    const celebrate = (typeof BoboCelebrate !== 'undefined') ? BoboCelebrate : null;
+    // 結果卡片開著時不接受拍擊（修正：結果視窗開著時按 Enter 會多記一筆）
+    const summaryOpen = () => !!(celebrate && celebrate.isOpen());
     const themeBtn = $('theme-btn');
 
     const reduceMotion = () => {
@@ -92,7 +99,7 @@
     // 存檔
     // ---------------------------------------------------------------------
     function saveGameState() {
-        writeJSON(STATE_KEY, { history: game.history.slice(0, HISTORY_LIMIT) });
+        writeJSON(STATE_KEY, { history: game.history.slice(0, HISTORY_LIMIT), set: game.set });
         writeJSON(STATS_KEY, { best: game.best, rounds: game.rounds });
     }
 
@@ -106,6 +113,16 @@
                 .filter(item => item && Number.isFinite(item.time) && item.time >= 0)
                 .map(item => ({ time: item.time, penalty: Number.isFinite(item.penalty) ? item.penalty : 0 }))
                 .slice(0, HISTORY_LIMIT);
+        }
+        if (saved && Array.isArray(saved.set)) {
+            game.set = saved.set
+                .filter(item => item && Number.isFinite(item.time) && item.time >= 0)
+                .map(item => ({
+                    time: item.time,
+                    penalty: Number.isFinite(item.penalty) ? item.penalty : 0,
+                    misclicks: Number.isInteger(item.misclicks) ? item.misclicks : 0
+                }))
+                .slice(0, SET_SIZE - 1);
         }
     }
 
@@ -138,6 +155,20 @@
             historyPanel.appendChild(li);
         });
         bestEl.textContent = game.best ? `最快：${fmt(game.best)}` : '最快：—';
+        renderSetProgress();
+    }
+
+    function renderSetProgress() {
+        setProgressEl.textContent = game.running
+            ? `第 ${Math.min(game.set.length + 1, SET_SIZE)}／${SET_SIZE} 回`
+            : (game.set.length ? `這組已打 ${game.set.length}／${SET_SIZE} 回` : `每組 ${SET_SIZE} 回合`);
+    }
+
+    // 桌上的訊息列：誤按、錯過、每回合成績都寫在這裡（tone: good / bad / 空）
+    function setTableMsg(text, tone) {
+        missedMsg.textContent = text;
+        missedMsg.classList.toggle('good', tone === 'good');
+        missedMsg.classList.toggle('bad', tone === 'bad');
     }
 
     function renderCard(suit, valueIndex) {
@@ -163,18 +194,18 @@
         cardDisplay.innerHTML = '<span class="start-msg">點這裡開始</span>';
         callNum.textContent = '準備開始';
         callNum.classList.remove('show', 'missed');
-        missedMsg.textContent = '';
+        setTableMsg('', '');
     }
 
     function flashMissed() {
         callNum.classList.remove('missed');
         void callNum.offsetWidth;
         callNum.classList.add('missed');
-        missedMsg.textContent = '剛剛那張對上了，錯過囉！';
+        setTableMsg('剛剛那張對上了，錯過囉！', 'bad');
         window.clearTimeout(flashMissed.timer);
         flashMissed.timer = window.setTimeout(() => {
             callNum.classList.remove('missed');
-            missedMsg.textContent = '';
+            setTableMsg('', '');
         }, 900);
     }
 
@@ -205,9 +236,11 @@
         callNum.classList.add('show');
         snapBtn.disabled = false;
         snapBtn.classList.add('active');
+        pauseBtn.hidden = false;
+        renderSetProgress();
         // 開局後焦點交給「拍！」，鍵盤使用者直接按空白鍵／Enter
         snapBtn.focus();
-        announce('開始！翻出的牌和喊的一樣就拍。');
+        announce(`開始！翻出的牌和喊的一樣就拍。第 ${game.set.length + 1}／${SET_SIZE} 回。`);
         startDealing();
     }
 
@@ -227,7 +260,7 @@
 
     function playerSnap() {
         // 結果框開著或緩衝中都不算數（修正：結果框開著時按 Enter 會多記一筆）
-        if (!game.running || game.paused || resultDialog.open) return;
+        if (!game.running || game.paused || summaryOpen()) return;
         lastSnapAt = performance.now();
 
         if (game.isMatch) {
@@ -245,72 +278,137 @@
         void cardDisplay.offsetWidth;
         cardDisplay.classList.add('shake');
         window.setTimeout(() => cardDisplay.classList.remove('shake'), 320);
-        missedMsg.textContent = `誤按！這回合 +${game.penalty.toFixed(1)} 秒`;
+        setTableMsg(`誤按！這回合 +${game.penalty.toFixed(1)} 秒`, 'bad');
         announce(`誤按，這回合加 ${MISCLICK_PENALTY} 秒。`);
     }
 
     function handleSuccess(reaction) {
         const penalty = game.penalty;
+        const misclicks = game.misclicks;
         const total = Math.round((reaction + penalty) * 1000) / 1000;
         const prev = game.history[0] ? game.history[0].time : null;
         const isBest = !game.best || total < game.best;
 
         game.history.unshift({ time: total, penalty });
         game.history = game.history.slice(0, HISTORY_LIMIT);
+        game.set.push({ time: total, penalty, misclicks, isBest });
         game.rounds++;
         if (isBest) game.best = total;
         game.penalty = 0;
-        missedMsg.textContent = '';
+        game.misclicks = 0;
         saveGameState();
         renderHistory();
 
-        const title = $('modalTitle');
-        const msg = $('modalMsg');
-        const breakdown = $('modalBreakdown');
-        $('modalTime').textContent = fmt(total);
-        if (penalty > 0) {
-            breakdown.hidden = false;
-            breakdown.textContent = `反應 ${reaction.toFixed(3)} 秒 ＋ 誤按 ${penalty.toFixed(1)} 秒`;
-        } else {
-            breakdown.hidden = true;
-        }
-
-        title.className = 'result-title';
-        if (prev === null) {
-            title.textContent = '第一筆成績！';
-            msg.textContent = '已記下來了，下一回合試著更快。';
+        // 每回合的成績寫在桌上（不跳視窗），稍等一下自動繼續發牌
+        let verdict;
+        let tone = '';
+        if (isBest && prev !== null) {
+            verdict = '新紀錄！';
+            tone = 'good';
+        } else if (prev === null) {
+            verdict = '第一筆成績';
         } else if (total < prev) {
-            title.textContent = isBest ? '新紀錄！' : '恭喜進步！';
-            title.classList.add('good');
-            msg.textContent = `比上一回合快了 ${(prev - total).toFixed(3)} 秒。`;
+            verdict = `比上回快 ${(prev - total).toFixed(3)} 秒`;
+            tone = 'good';
         } else {
-            title.textContent = '慢了一點點';
-            title.classList.add('bad');
-            msg.textContent = `比上一回合慢 ${(total - prev).toFixed(3)} 秒，深呼吸，再來一次！`;
+            verdict = `比上回慢 ${(total - prev).toFixed(3)} 秒`;
         }
+        const penaltyNote = penalty > 0 ? `（含誤按 +${penalty.toFixed(1)}）` : '';
+        setTableMsg(`拍中！${fmt(total)}${penaltyNote} · ${verdict}`, tone);
+        announce(`拍中，${fmt(total)}${penaltyNote}，${verdict}。`);
 
-        if (typeof resultDialog.showModal === 'function') resultDialog.showModal();
-        else resultDialog.setAttribute('open', '');
-        announce(`${title.textContent} ${fmt(total)}。`);
+        if (game.set.length >= SET_SIZE) {
+            showSetSummary();
+            return;
+        }
+        renderSetProgress();
+        resumeTimer = window.setTimeout(() => {
+            if (game.running && !summaryOpen() && document.visibilityState !== 'hidden') {
+                setTableMsg('', '');
+                startDealing();
+            }
+        }, ROUND_PAUSE);
     }
 
-    function continueGame() {
-        closeResult();
-        // 稍微緩衝再發牌；這段時間 paused 仍為 true，按了也不算
-        resumeTimer = window.setTimeout(() => {
-            if (game.running) startDealing();
-        }, 500);
-        snapBtn.focus();
+    // 一組打完：用全站共用的過關卡片做小結（平均、最快、誤按）
+    function showSetSummary() {
+        const set = game.set.slice();
+        game.set = [];
+        saveGameState();
+        renderSetProgress();
+
+        const times = set.map(item => item.time);
+        const avg = times.reduce((sum, t) => sum + t, 0) / times.length;
+        const fastest = Math.min(...times);
+        const misclicks = set.reduce((sum, item) => sum + (item.misclicks || 0), 0);
+        const brokeRecord = set.some(item => item.isBest);
+
+        if (!celebrate) {
+            announce(`這組完成，平均 ${fmt(avg)}，最快 ${fmt(fastest)}。`);
+            resumeTimer = window.setTimeout(() => {
+                if (game.running) startDealing();
+            }, ROUND_PAUSE);
+            return;
+        }
+
+        // 小結卡片上的「五張成績牌」：這組每一回的秒數，最快的那張標出來
+        const extra = document.createElement('ol');
+        extra.className = 'set-cards';
+        extra.setAttribute('aria-label', '這組每回合的成績');
+        set.forEach((item, i) => {
+            const li = document.createElement('li');
+            li.className = item.time === fastest ? 'set-card fastest' : 'set-card';
+            li.innerHTML = `<span class="set-card-round">第 ${i + 1} 回</span><span class="set-card-time">${item.time.toFixed(3)}</span>`;
+            extra.appendChild(li);
+        });
+
+        window.setTimeout(() => {
+            celebrate.show({
+                outcome: 'win',
+                gameName: '拍拍手遊戲',
+                title: brokeRecord ? '這組刷新了紀錄！' : `${SET_SIZE} 回合完成！`,
+                subtitle: `平均 ${fmt(avg)}，最快一回 ${fmt(fastest)}。`,
+                stats: [
+                    { label: '平均', value: `${avg.toFixed(3)} 秒` },
+                    { label: '本組最快', value: `${fastest.toFixed(3)} 秒`, isBest: brokeRecord },
+                    { label: '誤按', value: `${misclicks} 次` }
+                ],
+                extra,
+                accent: '#357A22',
+                accentDark: '#8BD37A',
+                returnFocus: snapBtn,
+                primary: {
+                    label: '再來一組',
+                    onClick: () => {
+                        if (!game.running) return;
+                        setTableMsg('', '');
+                        renderSetProgress();
+                        snapBtn.focus();
+                        resumeTimer = window.setTimeout(() => {
+                            if (game.running && !summaryOpen()) startDealing();
+                        }, 500);
+                    }
+                },
+                secondary: { label: '先休息', onClick: stopGame },
+                // Esc 關掉卡片等同「先休息」，避免停在沒發牌的狀態
+                onClose: (reason) => {
+                    if (reason === 'dismiss') stopGame();
+                }
+            });
+        }, 450);
     }
 
     function stopGame() {
-        closeResult();
         stopDealing();
         game.running = false;
         game.isMatch = false;
+        game.penalty = 0;
+        game.misclicks = 0;
         snapBtn.disabled = true;
         snapBtn.classList.remove('active');
+        pauseBtn.hidden = true;
         showStartCard();
+        renderSetProgress();
         cardDisplay.focus();
         announce('先休息一下，按「點這裡開始」繼續。');
     }
@@ -320,20 +418,17 @@
         game.running = false;
         game.isMatch = false;
         game.penalty = 0;
+        game.misclicks = 0;
         game.history = [];
+        game.set = [];
         clearGameState();
         saveGameState();
         renderHistory();
         snapBtn.disabled = true;
         snapBtn.classList.remove('active');
+        pauseBtn.hidden = true;
         showStartCard();
         announce('成績已清空，最快紀錄保留。');
-    }
-
-    function closeResult() {
-        if (!resultDialog.open) return;
-        if (typeof resultDialog.close === 'function') resultDialog.close();
-        else resultDialog.removeAttribute('open');
     }
 
     // ---------------------------------------------------------------------
@@ -363,7 +458,7 @@
 
     document.addEventListener('keydown', (event) => {
         if (event.code !== 'Space' && event.key !== 'Enter') return;
-        if (!game.running || resultDialog.open || rulesDialog.open) return;
+        if (!game.running || summaryOpen() || rulesDialog.open) return;
         const target = event.target;
         // 聚焦在其他按鈕或連結時保留它們原本的行為
         if (target instanceof Element && target.closest('a, button') && target !== snapBtn && target !== cardDisplay) return;
@@ -371,20 +466,14 @@
         if (!event.repeat) playerSnap();
     });
 
-    $('continueBtn').addEventListener('click', continueGame);
-    $('stopBtn').addEventListener('click', stopGame);
-    // Esc 關閉結果框等同「先休息」，避免停在沒發牌的狀態
-    resultDialog.addEventListener('cancel', (event) => {
-        event.preventDefault();
-        stopGame();
-    });
-
+    pauseBtn.addEventListener('click', stopGame);
     restartBtn.addEventListener('click', fullReset);
 
     const rulesBtn = $('rules-btn');
     rulesBtn.addEventListener('click', () => {
         // 看規則時暫停發牌，關掉後再接續
-        if (game.running && !game.paused) {
+        // 回合間的等待（成績留在桌上時）也要一併停住，避免看規則時偷發牌
+        if (game.running && !summaryOpen()) {
             stopDealing();
             rulesDialog.dataset.resume = '1';
         }
@@ -397,7 +486,7 @@
         if (rulesDialog.dataset.resume === '1') {
             delete rulesDialog.dataset.resume;
             resumeTimer = window.setTimeout(() => {
-                if (game.running && !resultDialog.open) startDealing();
+                if (game.running && !summaryOpen()) startDealing();
             }, 500);
         }
     });
@@ -413,7 +502,7 @@
 
     // 切到背景就暫停，回來時讓玩家自己按開始（避免背景偷發牌）
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden' && game.running && !resultDialog.open) stopGame();
+        if (document.visibilityState === 'hidden' && game.running && !summaryOpen()) stopGame();
     });
 
     // ---------------------------------------------------------------------

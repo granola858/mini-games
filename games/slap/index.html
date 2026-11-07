@@ -63,17 +63,33 @@
                 <h1 id="game-title">拍拍手遊戲</h1>
                 <p class="goal">依序喊 A、2、3……K，翻出的牌和喊的一樣時，馬上按「拍！」。</p>
 
-                <p class="call-number" id="callNum" aria-hidden="true">準備開始</p>
+                <!-- 牌桌：綠色檯面＋桌邊，莊家的喊數牌立在上方，翻出的牌落在桌心 -->
+                <div class="table">
+                    <div class="table-head">
+                        <p class="call-number" id="callNum" aria-hidden="true">準備開始</p>
+                        <p class="set-progress" id="setProgress" aria-hidden="true">每組 5 回合</p>
+                    </div>
 
-                <!-- 開局前是「開始」按鈕；開局後顯示牌面，改成不可操作 -->
-                <button class="card" id="cardDisplay" type="button">
-                    <span class="start-msg">點這裡開始</span>
-                </button>
-                <p class="missed-msg" id="missedMsg" aria-hidden="true"></p>
+                    <!-- 開局前是「開始」按鈕；開局後顯示牌面，改成不可操作 -->
+                    <button class="card" id="cardDisplay" type="button">
+                        <span class="start-msg">點這裡開始</span>
+                    </button>
+                    <!-- 每回合的成績直接寫在桌上，不跳視窗，節奏不中斷 -->
+                    <p class="table-msg" id="missedMsg" aria-hidden="true"></p>
+                </div>
             </section>
 
             <section class="controls-container" aria-label="操作與成績">
-                <button class="btn-snap" id="snapBtn" type="button" disabled aria-keyshortcuts="Space Enter">拍！</button>
+                <button class="btn-snap" id="snapBtn" type="button" disabled aria-keyshortcuts="Space Enter">
+                    <svg class="palm" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M10 17V8.5a2 2 0 0 1 4 0V15" />
+                        <path d="M14 14V6.5a2 2 0 0 1 4 0V14" />
+                        <path d="M18 14V8a2 2 0 0 1 4 0v7.5" />
+                        <path d="M22 13.5a2 2 0 0 1 4 0V19c0 5-3.6 8.5-8.5 8.5h-1.2c-2.8 0-4.6-1.1-6.2-3.3L5.7 19.4a2 2 0 0 1 3-2.6L10 18" />
+                    </svg>
+                    <span>拍！</span>
+                </button>
                 <p class="snap-hint" id="snapHint">鍵盤：空白鍵或 Enter 也能拍</p>
 
                 <div class="history-head">
@@ -84,24 +100,15 @@
                     <li class="history-empty">還沒有成績，開始後翻到相同的牌就拍！</li>
                 </ol>
 
-                <button class="btn-restart" id="restartBtn" type="button">清空成績重新開局</button>
+                <div class="control-row">
+                    <button class="btn-restart" id="pauseBtn" type="button" hidden>先休息</button>
+                    <button class="btn-restart" id="restartBtn" type="button">清空成績重新開局</button>
+                </div>
             </section>
 
             <p class="sr-only" id="game-status" role="status" aria-live="polite"></p>
         </main>
     </div>
-
-    <!-- 每回合結果 -->
-    <dialog class="dialog" id="result-dialog" aria-labelledby="modalTitle" aria-describedby="modalMsg">
-        <h2 class="result-title" id="modalTitle">標題</h2>
-        <p class="result-time" id="modalTime">0.000 秒</p>
-        <p class="result-breakdown" id="modalBreakdown" hidden></p>
-        <p class="result-msg" id="modalMsg">評語</p>
-        <div class="dialog-actions">
-            <button class="btn-continue" id="continueBtn" type="button">繼續下一回合</button>
-            <button class="btn-secondary" id="stopBtn" type="button">先休息</button>
-        </div>
-    </dialog>
 
     <!-- 規則說明 -->
     <dialog class="dialog rules" id="rules-dialog" aria-labelledby="rules-title">
@@ -115,12 +122,15 @@
         </ul>
         <h3>計分</h3>
         <p>成績是從翻出相同的牌到你按下的秒數，越小越好。<strong>沒對上就拍算誤按</strong>，這一回合的成績會多加 0.5 秒。錯過相同的牌不扣分，但喊數會閃紅提醒。最快成績會保存下來。</p>
+        <p>每 5 回合是一組：每回合的成績直接顯示在牌桌上，牌桌稍等一下就繼續發牌；打完一組會看到這組的平均與最快。想停就按「先休息」。</p>
         <div class="dialog-actions">
             <button class="btn-continue" id="rules-close" type="button">知道了</button>
         </div>
     </dialog>
 
     <script src="../../assets/js/bobo-theme.js"></script>
+    <script src="../../assets/js/bobo-confetti.js"></script>
+    <script src="../../assets/js/bobo-celebrate.js"></script>
     <script src="../../assets/js/stats.js"></script>
     <script src="slap.js"></script>
     <script>

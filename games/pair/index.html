@@ -25,9 +25,6 @@
 </head>
 
 <body>
-    <!-- 過關彩帶畫布 -->
-    <canvas id="confetti-canvas" aria-hidden="true"></canvas>
-
     <div class="page">
         <header class="top-bar">
             <a href="../../index.html" class="back-btn">
@@ -83,29 +80,15 @@
                 </div>
             </div>
 
+            <!-- 翻牌桌布：盤面鋪在一塊縫邊的桌布上，卡片像真的紙牌一樣放在上面 -->
             <div class="board-wrap">
-                <div id="game-container" role="grid" aria-label="卡片盤面" aria-describedby="board-help"></div>
+                <div id="game-container" class="cloth" role="grid" aria-label="卡片盤面" aria-describedby="board-help"></div>
                 <p class="sr-only" id="board-help">用方向鍵移動，按 Enter 或空白鍵翻牌。</p>
             </div>
 
             <p class="sr-only" id="game-status" role="status" aria-live="polite"></p>
         </main>
     </div>
-
-    <!-- 過關對話框 -->
-    <dialog class="dialog" id="victory-dialog" aria-labelledby="victory-title">
-        <h2 id="victory-title">🎉 全部配對完成！</h2>
-        <p class="record-badge" id="record-badge" hidden>新紀錄！</p>
-        <dl class="result-stats">
-            <div><dt>步數</dt><dd id="final-moves">0</dd></div>
-            <div><dt>用時</dt><dd id="final-time">0:00</dd></div>
-            <div><dt>最佳步數</dt><dd id="final-best">—</dd></div>
-        </dl>
-        <div class="dialog-actions">
-            <button class="restart-btn" id="play-again-btn" type="button">再來一局</button>
-            <button class="restart-btn secondary" id="view-board-btn" type="button">看盤面</button>
-        </div>
-    </dialog>
 
     <!-- 放棄目前這局的確認 -->
     <dialog class="dialog" id="confirm-dialog" aria-labelledby="confirm-title">
@@ -136,6 +119,7 @@
 
     <script src="../../assets/js/bobo-theme.js"></script>
     <script src="../../assets/js/bobo-confetti.js"></script>
+    <script src="../../assets/js/bobo-celebrate.js"></script>
     <script src="../../assets/js/stats.js"></script>
     <script src="pair.js"></script>
     <script>
