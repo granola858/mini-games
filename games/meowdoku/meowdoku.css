@@ -59,7 +59,7 @@
     --modal-text: #635a6b;
 
     /* 版面 */
-    --board-chrome: 250px;
+    --board-chrome: 420px;
 }
 
 :root[data-theme="dark"] {
@@ -92,21 +92,23 @@
 
     /* 莫蘭迪深色：同色相族壓暗，交錯亮度 L=0.26~0.46 C≤0.075；最小 dE_OK = 0.114
        低彩度靠亮度錯開拉出辨識度，而不是靠提高彩度 */
-    --region-1: #794851;
-    /* 灰玫瑰 */
-    --region-2: #411305;
+    /* 相鄰色塊要分得出來：拉開亮度（相對亮度 0.03～0.16 交錯）並略提彩度，
+       同時讓反白的貓咪在每一色上都維持 ≥ 4.5:1 */
+    --region-1: #9a5866;
+    /* 玫瑰 */
+    --region-2: #5a2414;
     /* 陶土 */
-    --region-3: #543809;
+    --region-3: #7a5a18;
     /* 赭黃 */
-    --region-4: #4C6031;
+    --region-4: #4a6a30;
     /* 鼠尾草 */
-    --region-5: #00382D;
-    /* 灰綠松 */
-    --region-6: #165B72;
+    --region-5: #0f5546;
+    /* 松綠 */
+    --region-6: #2a74a0;
     /* 霧藍 */
-    --region-7: #211D44;
-    /* 灰紫 */
-    --region-8: #522D4F;
+    --region-7: #2e2a66;
+    /* 靛紫 */
+    --region-8: #7c4478;
     /* 藕紫 */
 
     --toast-error-bg: #ff8f9a;
@@ -137,7 +139,7 @@ body {
     margin: 0;
     padding:
         max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
     background-color: var(--page-bg);
     display: flex;
     justify-content: center;
@@ -184,7 +186,7 @@ a:focus-visible {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 40px;
+    min-height: 44px;
     gap: 6px;
     color: var(--inactive-btn-text);
     background-color: var(--surface-color);
@@ -204,8 +206,8 @@ a:focus-visible {
 }
 
 .theme-toggle-btn {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -223,6 +225,11 @@ a:focus-visible {
 
 .theme-toggle-btn.active {
     color: var(--accent);
+}
+
+.static-icon {
+    width: 20px;
+    height: 20px;
 }
 
 .theme-icon {
@@ -286,10 +293,10 @@ a:focus-visible {
 
 .h1 {
     margin: 0;
-    font-family: 'Baloo 2', 'Segoe UI', sans-serif;
+    font-family: 'Baloo 2', ui-rounded, "Noto Sans TC", system-ui, sans-serif;
     font-weight: 800;
-    letter-spacing: 1px;
-    font-size: clamp(1.75rem, 7.5vw, 2.2rem);
+    letter-spacing: 0.5px;
+    font-size: clamp(1.4rem, 6vw, 2rem);
     line-height: 1.15;
     color: var(--text-color);
     white-space: nowrap;
@@ -301,6 +308,67 @@ a:focus-visible {
     white-space: nowrap;
     flex-shrink: 0;
     min-height: 1.4em;
+}
+
+#confetti-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 200;
+}
+
+.game-main {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.game-goal,
+.tool-hint {
+    margin: 0;
+    color: var(--modal-text);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.game-goal {
+    margin-top: -8px;
+}
+
+/* 工具切換：點一下放貓爪或放貓咪 */
+.tool-row {
+    display: flex;
+    gap: 8px;
+}
+
+.tool-btn {
+    flex: 1;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 2px solid var(--line-color);
+    border-radius: 10px;
+    background-color: var(--surface-color);
+    color: var(--inactive-btn-text);
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.tool-btn.active {
+    border-color: var(--accent);
+    background-color: var(--surface-alt);
+    color: var(--active-btn-text);
+}
+
+.tool-hint {
+    margin-top: -6px;
+    font-size: 0.85rem;
 }
 
 /* ==========================================================================
@@ -317,6 +385,7 @@ a:focus-visible {
 }
 
 .mode-btn {
+    min-height: 44px;
     background-color: transparent;
     flex: 1;
     border: none;
@@ -346,11 +415,13 @@ a:focus-visible {
 }
 
 .action-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 16px;
+    font-weight: 700;
     border: none;
     border-radius: 10px;
     background-color: var(--surface-alt);
@@ -467,6 +538,18 @@ a:focus-visible {
     border: none;
     border-radius: 0;
     transition: transform 0.15s ease, background-color 0.25s ease;
+}
+
+/* 列只為了無障礙結構，不參與格線排版 */
+.board-row {
+    display: contents;
+}
+
+/* 鍵盤焦點：內框，避免被盤面的 overflow: hidden 裁掉 */
+.cell:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: -4px;
+    z-index: 4;
 }
 
 /* 命中判定一律用座標換算，格子內容不該吃到指標事件 */
@@ -685,23 +768,93 @@ a:focus-visible {
    9. Modal
    ========================================================================== */
 
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background-color: var(--overlay-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    z-index: 60;
+dialog.modal-card {
+    margin: auto;
+    border: none;
+    color: var(--text-color);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
 }
 
-.modal-overlay.hidden {
+dialog.modal-card:not([open]) {
     display: none;
 }
 
+dialog.modal-card::backdrop {
+    background-color: var(--overlay-color);
+}
+
+.modal-body p,
+.modal-body ul {
+    margin: 0 0 8px;
+}
+
+.modal-body ul {
+    padding-left: 1.2em;
+}
+
+/* 結果：勝利暖色實框、失敗灰色虛框，一眼分得出來 */
+.result-card {
+    text-align: center;
+    align-items: center;
+}
+
+.result-card.won {
+    border: 3px solid var(--accent);
+}
+
+.result-card.lost {
+    border: 3px dashed var(--toast-error-bg);
+}
+
+.result-badge {
+    font-size: 2.8rem;
+    line-height: 1;
+}
+
+.result-card.lost .modal-title {
+    color: var(--toast-error-bg);
+}
+
+.result-stats {
+    width: 100%;
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    background-color: var(--surface-alt);
+}
+
+.result-stats div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.result-stats dt {
+    font-size: 0.8rem;
+    color: var(--modal-text);
+}
+
+.result-stats dd {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-color);
+}
+
+.result-actions {
+    width: 100%;
+}
+
+.result-actions .modal-btn {
+    flex: 1;
+}
+
 .modal-card {
-    width: min(360px, 100%);
+    width: min(380px, calc(100vw - 32px));
     background-color: var(--modal-bg);
     border-radius: 18px;
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
@@ -725,6 +878,7 @@ a:focus-visible {
 }
 
 .modal-close-btn {
+    min-height: 44px;
     align-self: flex-end;
     border: none;
     background-color: var(--accent);
@@ -743,6 +897,7 @@ a:focus-visible {
 }
 
 .modal-btn {
+    min-height: 44px;
     border: none;
     font-weight: bold;
     font-size: 0.9rem;
@@ -811,7 +966,7 @@ a:focus-visible {
 /* 矮／橫向視窗：縮小周邊 chrome，讓棋盤的高度上限放寬一些 */
 @media (max-height: 620px) {
     :root {
-        --board-chrome: 190px;
+        --board-chrome: 330px;
     }
 
     #app {
@@ -831,7 +986,7 @@ a:focus-visible {
 
 @media (orientation: landscape) and (max-height: 520px) {
     :root {
-        --board-chrome: 165px;
+        --board-chrome: 280px;
     }
 
     .h1 {
@@ -839,13 +994,45 @@ a:focus-visible {
     }
 }
 
+/* 減少動態效果：逐項處理，回饋保留成不位移的版本 */
 @media (prefers-reduced-motion: reduce) {
 
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+    /* 裝飾性位移：關掉（圖示旋轉、hover 縮放、貓咪彈出、貓爪蓋章、提示滑入） */
+    .theme-icon,
+    .message-toast {
+        transition: opacity 0.15s linear;
+    }
+
+    .theme-icon {
+        transform: none !important;
+    }
+
+    .cell {
+        transition: background-color 0.15s linear;
+    }
+
+    .cell:hover {
+        transform: none !important;
+    }
+
+    .cell .cat-face,
+    .cell .paw-mark {
+        animation: none;
+    }
+
+    /* 放錯：不晃動，紅底本身就是回饋（400ms 後消失） */
+    .cell.error {
+        animation: none;
+    }
+
+    /* 「換新題目」提示與過關光暈：不脈動，改成靜態外框 */
+    .action-btn.highlight {
+        animation: none;
+        box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .board-container.celebrate {
+        animation: none;
+        box-shadow: 0 10px 25px var(--board-shadow), 0 0 0 5px var(--accent-glow);
     }
 }

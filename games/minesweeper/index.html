@@ -67,19 +67,38 @@
         <button class="skin-toggle-btn" id="skin-toggle-btn" type="button" aria-label="切換視覺風格" title="切換特工/地宮風格 (經典模式固定復古風)" style="display: none;">
           <span>🤖 戰術特工</span>
         </button>
-        <button class="icon-btn" id="theme-btn" type="button" aria-label="切換深淺色模式" title="切換深淺色">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>
+        <button class="icon-btn" id="stats-btn" type="button" aria-label="戰績紀錄" title="戰績紀錄" aria-haspopup="dialog">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
           </svg>
         </button>
-        <button class="icon-btn" id="sound-btn" type="button" aria-label="音效開關" title="音效開關">
-          <span>🔊</span>
+        <!-- 全站統一順序：規則 · 音效 · 主題 -->
+        <button class="icon-btn" id="help-btn" type="button" aria-label="遊戲規則" title="遊戲規則" aria-haspopup="dialog">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/>
+            <path d="M12 17h.01"/>
+          </svg>
         </button>
-        <button class="icon-btn" id="stats-btn" type="button" aria-label="戰績紀錄" title="戰績統計">
-          <span>📊</span>
+        <button class="icon-btn" id="sound-btn" type="button" aria-label="音效" aria-pressed="true" title="音效">
+          <svg class="sound-on-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          </svg>
+          <svg class="sound-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <line x1="23" y1="9" x2="17" y2="15"/>
+            <line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
         </button>
-        <button class="icon-btn" id="help-btn" type="button" aria-label="玩法教學" title="規則說明">
-          <span>❓</span>
+        <button class="icon-btn" id="theme-btn" type="button" aria-label="深色模式" aria-pressed="false" title="深色模式">
+          <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>
+          </svg>
+          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
         </button>
       </div>
     </header>
@@ -90,28 +109,30 @@
         <span class="main-title-text" id="title-text">掃雷：純粹經典</span>
         <span class="main-title-badge" id="title-badge">Minesweeper</span>
       </h1>
+      <p class="game-goal">翻開所有沒有地雷的格子。數字是周圍 8 格的地雷數；長按或按右鍵插旗。</p>
     </section>
 
     <!-- 3. 三大模式分頁標籤 -->
     <nav class="mode-tabs" role="tablist" aria-label="遊戲模式選擇">
-      <button class="mode-tab-btn" data-mode="tactical" role="tab" aria-selected="false" type="button">
+      <!-- 分頁：方向鍵在分頁間移動，Enter／空白鍵切換（切換會開新局，所以不自動啟用） -->
+      <button class="mode-tab-btn" data-mode="tactical" role="tab" aria-selected="false" id="tab-tactical" aria-controls="board-container" tabindex="-1" type="button">
         <span>🧰 戰術特工</span>
       </button>
-      <button class="mode-tab-btn active" data-mode="classic" role="tab" aria-selected="true" type="button">
+      <button class="mode-tab-btn active" data-mode="classic" role="tab" aria-selected="true" id="tab-classic" aria-controls="board-container" tabindex="0" type="button">
         <span>⏱️ 純粹經典</span>
       </button>
-      <button class="mode-tab-btn" data-mode="dungeon" role="tab" aria-selected="false" type="button">
+      <button class="mode-tab-btn" data-mode="dungeon" role="tab" aria-selected="false" id="tab-dungeon" aria-controls="board-container" tabindex="-1" type="button">
         <span>🏰 地宮探險</span>
       </button>
     </nav>
 
     <!-- 4. 難度切換列 (戰術與經典模式專用) -->
     <div class="difficulty-bar" id="difficulty-bar" role="group" aria-label="難度等級">
-      <button class="diff-btn" data-diff="easy" type="button">簡單 9×9</button>
-      <button class="diff-btn active" data-diff="medium" type="button">標準 16×16</button>
-      <button class="diff-btn" data-diff="hard" type="button">困難 30×16</button>
-      <button class="diff-btn" data-diff="inferno" type="button">🔥 地獄 (雙重雷)</button>
-      <button class="diff-btn" data-diff="custom" type="button">⚙️ 自訂</button>
+      <button class="diff-btn" data-diff="easy" type="button" aria-pressed="false">簡單 9×9</button>
+      <button class="diff-btn active" data-diff="medium" type="button" aria-pressed="true">標準 16×16</button>
+      <button class="diff-btn" data-diff="hard" type="button" aria-pressed="false">困難 30×16</button>
+      <button class="diff-btn" data-diff="inferno" type="button" aria-pressed="false">地獄（雙重雷）</button>
+      <button class="diff-btn" data-diff="custom" type="button" aria-haspopup="dialog">自訂…</button>
     </div>
 
     <!-- 5. 狀態 HUD 面板 -->
@@ -171,8 +192,8 @@
 
     <!-- 7. 踩地雷主棋盤與縮放視窗 -->
     <main class="board-viewport" id="board-viewport">
-      <div class="board-canvas-container" id="board-container">
-        <div class="minesweeper-grid" id="minesweeper-grid" role="grid" aria-label="踩地雷棋盤"></div>
+      <div class="board-canvas-container" id="board-container" role="tabpanel" aria-labelledby="tab-classic">
+        <div class="minesweeper-grid" id="minesweeper-grid" role="grid" aria-label="地雷盤面：方向鍵移動，Enter 翻開，F 插旗"></div>
       </div>
     </main>
 
@@ -214,7 +235,7 @@
         <button class="modal-close-btn" id="shop-close-btn" type="button" aria-label="關閉商店">&times;</button>
       </div>
       <div class="modal-body">
-        <p>通往深處的階梯已開啟！你擁有 <strong id="shop-player-gold" style="color:#eab308">0</strong> 金幣，可採購裝備強化自己：</p>
+        <p>通往深處的階梯已開啟！你擁有 <strong id="shop-player-gold" class="gold-text">0</strong> 金幣，可採購裝備強化自己：</p>
         <div class="shop-items-grid">
           <div class="shop-card">
             <span class="icon">🧪</span>
@@ -350,8 +371,11 @@
         <h3 style="font-size:1.05rem; font-weight:700;">🏰 地宮探險 Roguelite 模式</h3>
         <p>擁有 3 顆生命值 ❤️，踩雷不會立即死亡，而是扣除 1 點生命。挖開寶箱 📦 與金幣 🪙 收集資源，在層間商店購買補給，一路挑戰通關 5 層地宮！</p>
 
-        <h3 style="font-size:1.05rem; font-weight:700;">📱 極致觸控操作</h3>
-        <p>使用底部懸浮列切換【挖掘 ⛏️】、【插旗 🚩】或【連開 ⚡】；手機長按方塊 280ms 可直接快速插旗，支援雙指縮放與平移畫面！</p>
+        <h3 style="font-size:1.05rem; font-weight:700;">📱 觸控操作</h3>
+        <p>用底部操作列切換【挖掘】、【插旗】、【標記】或【連開】；也可以長按格子直接插旗（按住不動約 0.3 秒，手指稍微晃動沒關係）。支援雙指縮放與平移。</p>
+
+        <h3 style="font-size:1.05rem; font-weight:700;">⌨️ 鍵盤操作</h3>
+        <p>按 Tab 移到盤面後，用方向鍵移動；Enter 或空白鍵執行目前的操作（預設是翻開，在已翻開的數字上是連開），F 插旗，Home／End 跳到該列頭尾。桌機也可以按右鍵插旗、按滑鼠中鍵連開。</p>
       </div>
       <div class="modal-footer">
         <button class="btn-primary" id="help-ok-btn" type="button">了解，開始挑戰！</button>

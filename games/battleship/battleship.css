@@ -1,51 +1,148 @@
-:root {
+/* 海戰棋配色
+   深色（夜航）：深海軍藍底 + 黃銅色雷達 / 主要操作 + 鋼藍色我方艦隊。
+   淺色（日間海圖）：紙質海圖的淺灰藍底 + 深黃銅 + 深鋼藍，沿用同一套儀器色調。
+   刻意不用螢光青與發光光暈。 */
+:root,
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-page-top: #060c19;
+  --bg-page-bottom: #091326;
   --bg-primary: #060c19;
   --bg-secondary: #0c162d;
   --bg-surface: #132244;
   --bg-surface-hover: #1b2f5d;
-  /* 配色：深海軍藍底 + 黃銅色雷達 / 主要操作 + 鋼藍色我方艦隊。
-     刻意不用螢光青與發光光暈，改用海圖桌上的黃銅儀器色調 */
   --border-color: rgba(140, 180, 224, 0.18);
   --border-strong: rgba(140, 180, 224, 0.4);
+  --hairline: rgba(255, 255, 255, 0.06);
+  --subtle-bg: rgba(255, 255, 255, 0.04);
+  --subtle-border: rgba(255, 255, 255, 0.08);
 
   --color-radar: #e0b04a;
   --color-radar-strong: #c99a35;
   --color-radar-tint: rgba(224, 176, 74, 0.14);
+  --color-radar-hover: rgba(224, 176, 74, 0.25);
+  --on-radar: #060c19;
   --color-friendly: #8cb4e0;
+  --friendly-tint: rgba(140, 180, 224, 0.1);
+  --friendly-border: rgba(140, 180, 224, 0.25);
+  --ship-body-bg: #2a4a72;
   --color-enemy: #f43f5e;
   --color-hit: #ff2a5f;
+  --hit-bg: rgba(239, 68, 68, 0.35);
+  --sunk-bg: rgba(225, 29, 72, 0.6);
+  --sunk-border: #f43f5e;
   --color-miss: #94a3b8;
+  --miss-bg: rgba(148, 163, 184, 0.12);
   --color-sunk: #e11d48;
+  --sunk-text: #fca5a5;
+  --sunk-row-bg: rgba(239, 68, 68, 0.12);
   --color-success: #10b981;
   --color-warning: #f59e0b;
-  
+  --muted-icon: #f87171;
+  --win-text: #34d399;
+  --win-border: #10b981;
+  --lose-text: #f87171;
+  --lose-border: #ef4444;
+
+  --cell-bg: rgba(19, 34, 68, 0.6);
+  --cell-border: rgba(140, 180, 224, 0.14);
+  --fog-peg: rgba(140, 180, 224, 0.2);
+  --overlay: rgba(6, 12, 25, 0.85);
+  --stats-bg: rgba(0, 0, 0, 0.25);
+  --last-action: #fbbf24;
+
   --text-main: #f1f5f9;
   --text-dim: #94a3b8;
   --text-bright: #ffffff;
 
+  --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg-page-top: #eef3f8;
+  --bg-page-bottom: #e3ebf4;
+  --bg-primary: #eef3f8;
+  --bg-secondary: #ffffff;
+  --bg-surface: #e4ecf5;
+  --bg-surface-hover: #d6e2ef;
+  --border-color: rgba(30, 58, 95, 0.16);
+  --border-strong: rgba(30, 58, 95, 0.35);
+  --hairline: rgba(30, 58, 95, 0.1);
+  --subtle-bg: rgba(30, 58, 95, 0.04);
+  --subtle-border: rgba(30, 58, 95, 0.12);
+
+  --color-radar: #8a6414;
+  --color-radar-strong: #6f500f;
+  --color-radar-tint: rgba(138, 100, 20, 0.12);
+  --color-radar-hover: rgba(138, 100, 20, 0.2);
+  --on-radar: #ffffff;
+  --color-friendly: #2f5f93;
+  --friendly-tint: rgba(47, 95, 147, 0.1);
+  --friendly-border: rgba(47, 95, 147, 0.3);
+  --ship-body-bg: #a9c6e6;
+  --color-enemy: #be123c;
+  --color-hit: #be123c;
+  --hit-bg: rgba(225, 29, 72, 0.22);
+  --sunk-bg: rgba(225, 29, 72, 0.42);
+  --sunk-border: #be123c;
+  --color-miss: #64748b;
+  --miss-bg: rgba(100, 116, 139, 0.1);
+  --color-sunk: #be123c;
+  --sunk-text: #b91c1c;
+  --sunk-row-bg: rgba(225, 29, 72, 0.08);
+  --color-success: #047857;
+  --color-warning: #b45309;
+  --muted-icon: #b91c1c;
+  --win-text: #047857;
+  --win-border: #047857;
+  --lose-text: #b91c1c;
+  --lose-border: #b91c1c;
+
+  --cell-bg: #f7fafd;
+  --cell-border: rgba(30, 58, 95, 0.18);
+  --fog-peg: rgba(47, 95, 147, 0.22);
+  --overlay: rgba(15, 30, 55, 0.45);
+  --stats-bg: rgba(30, 58, 95, 0.06);
+  --last-action: #b45309;
+
+  --text-main: #13233d;
+  --text-dim: #4a5a70;
+  --text-bright: #0b1628;
+
+  --shadow-card: 0 6px 20px rgba(15, 30, 55, 0.08);
+  --shadow-raised: 0 8px 20px rgba(15, 30, 55, 0.14);
+  --shadow-modal: 0 24px 50px rgba(15, 30, 55, 0.22);
+}
+
+:root {
   --cell-size: 34px;
   --grid-gap: 2px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
-
-  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.45);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: ui-rounded, "SF Pro Rounded", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 @media (max-width: 640px) {
   :root {
-    --cell-size: 28px;
+    --cell-size: 29px;
   }
 }
 
 @media (max-width: 380px) {
   :root {
-    --cell-size: 24px;
+    --cell-size: 26px;
   }
+}
+
+[hidden] {
+  display: none !important;
 }
 
 * {
@@ -57,6 +154,7 @@
 
 body {
   background-color: var(--bg-primary);
+  background-image: linear-gradient(to bottom, var(--bg-page-top), var(--bg-page-bottom));
   color: var(--text-main);
   font-family: var(--font-sans);
   min-height: 100vh;
@@ -66,11 +164,19 @@ body {
   flex-direction: column;
   align-items: center;
   overflow-x: hidden;
-  background-image: linear-gradient(to bottom, #060c19, #091326);
 }
 
-button, .cell, .dock-ship, .back-btn {
+button, .cell, .back-btn {
   touch-action: manipulation;
+}
+
+#confetti-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2000;
 }
 
 /* Container */
@@ -80,46 +186,40 @@ button, .cell, .dock-ship, .back-btn {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
-/* Header */
-.game-header {
+.game-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 頂端列：回首頁 · 規則 · 音效 · 主題 */
+.top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: nowrap;
   width: 100%;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  flex: 1;
 }
 
 .back-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: 44px;
   gap: 6px;
   color: var(--text-dim);
   text-decoration: none;
   font-size: 0.9rem;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--subtle-bg);
+  border: 1px solid var(--subtle-border);
   white-space: nowrap;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .back-btn:hover {
@@ -128,11 +228,68 @@ button, .cell, .dock-ship, .back-btn {
   border-color: var(--color-radar);
 }
 
-.title-group {
+.top-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--color-radar);
+  color: var(--color-radar);
+}
+
+.icon-btn .sound-off-icon,
+.icon-btn .sun-icon {
+  display: none;
+}
+
+.icon-btn.muted .sound-on-icon {
+  display: none;
+}
+
+.icon-btn.muted .sound-off-icon {
+  display: block;
+  color: var(--muted-icon);
+}
+
+html[data-theme="dark"] #theme-btn .moon-icon {
+  display: none;
+}
+
+html[data-theme="dark"] #theme-btn .sun-icon {
+  display: block;
+}
+
+.title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text-bright);
 }
 
 .radar-logo {
@@ -142,89 +299,29 @@ button, .cell, .dock-ship, .back-btn {
   color: var(--color-radar);
 }
 
-h1 {
-  font-size: 1.35rem;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  color: var(--text-bright);
-}
-
-.title-sub {
-  font-size: 1rem;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-.header-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.icon-btn {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.icon-btn:hover {
-  background: var(--bg-surface-hover);
-  border-color: var(--color-radar);
-  color: var(--color-radar);
-}
-
-.icon-btn .sound-off-icon {
-  display: none;
-}
-
-.icon-btn.muted {
-  border-color: rgba(248, 113, 113, 0.4);
-  background: rgba(248, 113, 113, 0.08);
-}
-
-.icon-btn.muted .sound-on-icon {
-  display: none;
-}
-
-.icon-btn.muted .sound-off-icon {
-  display: block;
-  color: #f87171;
+.game-goal {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 640px) {
   .game-container {
     padding: 12px;
   }
-  .header-left {
-    gap: 8px;
-  }
-  .back-btn {
-    padding: 6px 8px;
-    font-size: 0.8rem;
-    gap: 4px;
-  }
   h1 {
-    font-size: 1.15rem;
-  }
-  .title-sub {
-    display: none;
+    font-size: 1.25rem;
   }
   .radar-logo {
     width: 24px;
     height: 24px;
   }
+  .game-goal {
+    font-size: 0.875rem;
+  }
 }
 
-/* Status Bar & Briefing */
+/* 戰況列 */
 .mission-bar {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -233,9 +330,7 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  position: relative;
-  overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
 
 .status-indicator {
@@ -264,13 +359,12 @@ h1 {
 
 .phase-tag {
   font-size: 0.75rem;
-  font-family: var(--font-mono);
+  font-weight: 700;
   background: var(--color-radar-tint);
   color: var(--color-radar);
   padding: 3px 8px;
   border-radius: 4px;
-  border: 1px solid rgba(224, 176, 74, 0.35);
-  letter-spacing: 0.5px;
+  border: 1px solid var(--color-radar-hover);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -286,11 +380,11 @@ h1 {
 .score-stats {
   display: flex;
   align-items: center;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 8px 20px;
   font-size: 0.85rem;
-  font-family: var(--font-mono);
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 8px;
+  border-top: 1px solid var(--hairline);
 }
 
 .stat-item {
@@ -301,9 +395,14 @@ h1 {
 
 .stat-item strong {
   color: var(--text-bright);
+  font-family: var(--font-mono);
 }
 
-/* Placement Phase Toolbar */
+.replay-btn {
+  margin-left: auto;
+}
+
+/* 佈陣面板 */
 .placement-panel {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -322,83 +421,90 @@ h1 {
 .panel-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .panel-title {
-  font-size: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.panel-title h2 {
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--color-radar);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .panel-hint {
-  font-size: 0.75rem;
-  font-weight: normal;
+  font-size: 0.8rem;
   color: var(--text-dim);
-  background: rgba(255, 255, 255, 0.04);
-  padding: 2px 6px;
-  border-radius: 4px;
+  line-height: 1.5;
 }
 
 .difficulty-selector {
+  /* 面板裡的分段按鈕：只留淡底，不再疊一層有框的卡片 */
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: var(--bg-primary);
+  gap: 4px;
+  background: var(--subtle-bg);
   padding: 4px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
 }
 
 .difficulty-label {
   font-size: 0.8rem;
   color: var(--text-dim);
-  padding-left: 6px;
+  padding: 0 6px;
 }
 
 .diff-btn {
+  min-height: 36px;
   background: transparent;
   border: none;
   color: var(--text-dim);
-  padding: 4px 10px;
-  font-size: 0.8rem;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.2s, background-color 0.2s;
 }
 
 .diff-btn.active {
   background: var(--color-radar);
-  color: #060c19;
+  color: var(--on-radar);
   font-weight: 700;
 }
 
 .ship-dock {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
-  padding: 8px 0;
+  padding: 4px 0;
 }
 
 .dock-ship {
+  font: inherit;
+  color: var(--text-main);
+  min-height: 56px;
+  min-width: 104px;
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
   align-items: center;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .dock-ship:hover {
@@ -409,14 +515,14 @@ h1 {
 
 .dock-ship.selected {
   border-color: var(--color-radar);
+  border-width: 2px;
   background: var(--color-radar-tint);
 }
 
-/* 已部署：用虛線框 + 淡化艦型預覽表示，文字維持可讀的對比，不整塊調透明 */
+/* 已部署：虛線框 + 淡化艦型預覽，文字維持可讀的對比 */
 .dock-ship.placed {
-  cursor: not-allowed;
   border-style: dashed;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--subtle-bg);
   color: var(--text-dim);
 }
 
@@ -431,6 +537,7 @@ h1 {
 .ship-info {
   display: flex;
   justify-content: space-between;
+  gap: 10px;
   width: 100%;
   font-size: 0.8rem;
   font-weight: 600;
@@ -442,8 +549,8 @@ h1 {
 }
 
 .preview-cell {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   background: var(--color-friendly);
   border-radius: 2px;
 }
@@ -457,18 +564,21 @@ h1 {
 }
 
 .action-btn {
+  min-height: 44px;
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   color: var(--text-main);
   padding: 8px 16px;
+  font: inherit;
   font-size: 0.9rem;
   font-weight: 600;
   border-radius: var(--radius-sm);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  transition: all 0.2s;
+  transition: color 0.2s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 .action-btn:hover:not(:disabled) {
@@ -479,27 +589,27 @@ h1 {
 
 .action-btn.primary {
   background: var(--color-radar);
-  color: #060c19;
-  border: none;
+  color: var(--on-radar);
+  border: 1px solid transparent;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .action-btn.primary:hover:not(:disabled) {
   background: var(--color-radar-strong);
   box-shadow: var(--shadow-raised);
-  color: #060c19;
+  color: var(--on-radar);
   transform: translateY(-1px);
 }
 
 .action-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
 
-/* Boards Layout (上下排列/左右自適應) */
+/* 兩個海域 */
 .battlefield {
   display: flex;
   flex-direction: column;
@@ -526,15 +636,16 @@ h1 {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-card);
   position: relative;
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .board-wrapper.active-target {
   border-color: var(--color-radar);
+  border-width: 2px;
   box-shadow: var(--shadow-raised);
 }
 
@@ -563,7 +674,6 @@ h1 {
   color: var(--color-friendly);
 }
 
-/* Compact Fleet Badges in Header */
 .fleet-badges {
   display: flex;
   align-items: center;
@@ -574,19 +684,18 @@ h1 {
   font-size: 0.9rem;
   padding: 2px 4px;
   border-radius: 4px;
-  background: rgba(140, 180, 224, 0.1);
-  border: 1px solid rgba(140, 180, 224, 0.25);
+  background: var(--friendly-tint);
+  border: 1px solid var(--friendly-border);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
   user-select: none;
 }
 
 .fleet-badge.sunk {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: #ef4444;
-  opacity: 0.55;
+  background: var(--sunk-row-bg);
+  border-color: var(--color-sunk);
+  opacity: 0.6;
   filter: grayscale(80%);
   position: relative;
 }
@@ -595,11 +704,10 @@ h1 {
   content: '✕';
   position: absolute;
   font-size: 0.75rem;
-  color: #ef4444;
+  color: var(--color-sunk);
   font-weight: bold;
 }
 
-/* Collapsible Fleet Details (隱藏/展開) */
 .fleet-details {
   width: 100%;
   border-top: 1px solid var(--border-color);
@@ -610,6 +718,7 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 32px;
   font-size: 0.8rem;
   color: var(--text-dim);
   cursor: pointer;
@@ -626,39 +735,37 @@ h1 {
   color: var(--color-radar);
 }
 
-.fleet-details-toggle .toggle-icon {
-  font-size: 0.75rem;
-  opacity: 0.8;
-}
-
-/* 10x10 Grid System */
+/* 10x10 盤面：row 用 display: contents，保留無障礙的列結構又不影響格線排版 */
 .grid-container {
   display: grid;
   grid-template-columns: 20px repeat(10, var(--cell-size));
-  grid-template-rows: 20px repeat(10, var(--cell-size));
+  grid-auto-rows: var(--cell-size);
+  grid-template-rows: 20px;
   gap: var(--grid-gap);
-  /* 外層 .board-wrapper 已經是卡片，格線底板只留間距，不再疊一層框 */
-  padding: 8px 0;
+  padding: 8px 2px;
   position: relative;
   user-select: none;
-  overflow: hidden; /* 嚴格限制不得超出棋盤邊界 */
+  overflow: hidden;
+  border-radius: var(--radius-md);
 }
 
-/* Radar Scan Line Effect */
-.grid-container.radar-active::after {
+.grid-row {
+  display: contents;
+}
+
+/* 雷達掃描線：只有輪到玩家開砲時出現 */
+.board-wrapper.active-target .grid-container.radar-active::after {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 100%;
-  background: linear-gradient(180deg, transparent 0%, rgba(224, 176, 74, 0.16) 50%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, var(--color-radar-tint) 50%, transparent 100%);
   pointer-events: none;
   animation: radar-sweep 3.5s linear infinite;
-  border-radius: var(--radius-md);
 }
 
-/* Coordinate Headers */
 .coord-header {
   display: flex;
   align-items: center;
@@ -669,12 +776,11 @@ h1 {
   font-weight: 600;
 }
 
-/* Grid Cells */
 .cell {
   width: var(--cell-size);
   height: var(--cell-size);
-  background: rgba(19, 34, 68, 0.6);
-  border: 1px solid rgba(140, 180, 224, 0.14);
+  background: var(--cell-bg);
+  border: 1px solid var(--cell-border);
   border-radius: 3px;
   display: flex;
   align-items: center;
@@ -685,17 +791,21 @@ h1 {
   transition: background-color 0.15s, border-color 0.15s;
 }
 
-/* Radar Board Interactivity */
-.enemy-grid .cell:not(.hit):not(.miss):not(.sunk) {
+/* 輪到玩家時，敵方海域未射擊的格子可點 */
+.board-wrapper.active-target .enemy-grid .cell:not(.hit):not(.miss):not(.sunk) {
   cursor: crosshair;
 }
 
-.enemy-grid .cell:not(.hit):not(.miss):not(.sunk):hover {
-  background: rgba(224, 176, 74, 0.25);
+.board-wrapper.active-target .enemy-grid .cell:not(.hit):not(.miss):not(.sunk):hover {
+  background: var(--color-radar-hover);
   border-color: var(--color-radar);
 }
 
-/* Placement Preview */
+.player-grid .cell {
+  cursor: pointer;
+}
+
+/* 佈陣預覽 */
 .cell.preview-valid {
   background: rgba(16, 185, 129, 0.45) !important;
   border-color: var(--color-success) !important;
@@ -706,26 +816,28 @@ h1 {
   border-color: var(--color-enemy) !important;
 }
 
-/* Friendly Ships Display */
-.cell.has-ship {
-  background: rgba(140, 180, 224, 0.25);
-  border-color: rgba(140, 180, 224, 0.4);
+.cell.preview-invalid::before {
+  content: '✕';
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--color-enemy);
 }
 
-.cell.ship-body {
-  background: #2a4a72;
+/* 放不下時盤面輕晃一下（減少動態效果時改成外框閃紅） */
+.player-grid.placement-error {
+  animation: shake-x 0.35s ease;
+}
+
+/* 我方船艦 */
+.cell.has-ship {
+  background: var(--ship-body-bg);
   border-color: var(--color-friendly);
 }
 
-.cell.ship-bow-n { border-top-left-radius: 8px; border-top-right-radius: 8px; }
-.cell.ship-bow-s { border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
-.cell.ship-bow-w { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
-.cell.ship-bow-e { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
-
-/* Attack States */
+/* 被攻擊的狀態 */
 .cell.miss {
-  background: rgba(148, 163, 184, 0.12);
-  border-color: rgba(148, 163, 184, 0.25);
+  background: var(--miss-bg);
+  border-color: var(--cell-border);
 }
 
 .cell.miss::after {
@@ -734,11 +846,10 @@ h1 {
   height: 8px;
   border-radius: 50%;
   background: var(--color-miss);
-  opacity: 0.7;
 }
 
 .cell.hit {
-  background: rgba(239, 68, 68, 0.35);
+  background: var(--hit-bg);
   border-color: var(--color-hit);
   animation: hit-pulse 2s infinite alternate;
 }
@@ -749,8 +860,8 @@ h1 {
 }
 
 .cell.sunk {
-  background: rgba(225, 29, 72, 0.6);
-  border-color: #f43f5e;
+  background: var(--sunk-bg);
+  border-color: var(--sunk-border);
 }
 
 .cell.sunk::after {
@@ -758,12 +869,7 @@ h1 {
   font-size: 0.85rem;
 }
 
-.cell.last-action {
-  outline: 2px solid #fbbf24;
-  outline-offset: -2px;
-}
-
-/* Fleet Ships Overview List */
+/* 艦隊明細 */
 .fleet-manifest {
   width: 100%;
   display: flex;
@@ -780,13 +886,13 @@ h1 {
   font-size: 0.8rem;
   padding: 4px 8px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--subtle-bg);
   color: var(--text-dim);
 }
 
 .manifest-item.sunk {
-  background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
+  background: var(--sunk-row-bg);
+  color: var(--sunk-text);
   text-decoration: line-through;
 }
 
@@ -800,91 +906,80 @@ h1 {
   height: 8px;
   border-radius: 2px;
   background: var(--color-friendly);
-  opacity: 0.8;
 }
 
 .peg.hit {
   background: var(--color-hit);
 }
 
-/* 敵方情報迷霧：未擊沉時為隱藏未知 peg，擊沉時全紅 */
 .peg.fog-peg {
-  background: rgba(140, 180, 224, 0.2);
+  background: var(--fog-peg);
 }
 
-.peg.sunk-peg {
-  background: var(--color-sunk);
-}
-
+.peg.sunk-peg,
 .manifest-item.sunk .peg {
   background: var(--color-sunk);
 }
 
-/* Modal Game Over Overlay */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(6, 12, 25, 0.85);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-  padding: 16px;
-}
-
-.modal-overlay.show {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.modal-card {
+/* 對話框（結果、規則）：原生 dialog */
+dialog.modal-card {
+  margin: auto;
   background: var(--bg-secondary);
+  color: var(--text-main);
   border: 2px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  padding: 32px;
-  max-width: 440px;
+  padding: 28px;
+  max-width: min(440px, calc(100vw - 32px));
   width: 100%;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
   text-align: center;
+  box-shadow: var(--shadow-modal);
+}
+
+dialog.modal-card[open] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
-  transform: scale(0.9);
-  transition: transform 0.3s var(--ease-out-quart);
+  gap: 18px;
+  animation: modal-in 0.3s var(--ease-out-quart);
 }
 
-.modal-overlay.show .modal-card {
-  transform: scale(1);
+dialog.modal-card::backdrop {
+  background: var(--overlay);
 }
 
-.modal-card.victory {
-  border-color: #10b981;
+.result-dialog.victory {
+  border-color: var(--win-border);
 }
 
-.modal-card.defeat {
-  border-color: #ef4444;
+/* 落敗：不同邊框色與虛線，和勝利一眼分得出來 */
+.result-dialog.defeat {
+  border-color: var(--lose-border);
+  border-style: dashed;
 }
 
 .modal-badge {
-  font-size: 3.5rem;
+  font-size: 3.2rem;
+  line-height: 1;
 }
 
 .modal-title {
-  font-size: 1.8rem;
+  font-size: 1.7rem;
   font-weight: 800;
+  color: var(--text-bright);
 }
 
-.modal-card.victory .modal-title {
-  color: #34d399;
+.result-dialog.victory .modal-title {
+  color: var(--win-text);
 }
 
-.modal-card.defeat .modal-title {
-  color: #f87171;
+.result-dialog.defeat .modal-title {
+  color: var(--lose-text);
+}
+
+.modal-desc {
+  line-height: 1.5;
 }
 
 .modal-stats {
@@ -892,11 +987,9 @@ h1 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--stats-bg);
   padding: 16px;
   border-radius: var(--radius-md);
-  font-family: var(--font-mono);
-  font-size: 0.9rem;
 }
 
 .modal-stat-box {
@@ -906,17 +999,65 @@ h1 {
 }
 
 .modal-stat-label {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-dim);
 }
 
 .modal-stat-val {
+  font-family: var(--font-mono);
   font-size: 1.2rem;
   font-weight: bold;
   color: var(--text-bright);
 }
 
-/* Animations */
+.modal-record {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+}
+
+.modal-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-actions .action-btn {
+  width: 100%;
+}
+
+.rules-dialog {
+  text-align: left;
+}
+
+.rules-dialog .modal-title {
+  align-self: flex-start;
+  font-size: 1.35rem;
+}
+
+.rules-body {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.rules-body h3 {
+  margin-top: 8px;
+  font-size: 1rem;
+  color: var(--color-radar);
+}
+
+.rules-body ul {
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 動畫 */
 @keyframes radar-sweep {
   0% { transform: translateY(-100%); }
   100% { transform: translateY(100%); }
@@ -937,7 +1078,27 @@ h1 {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Local Cell Hit Impact Animation */
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shake-x {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes flash-outline {
+  0%, 100% { outline-color: transparent; }
+  30% { outline-color: var(--color-enemy); }
+}
+
+@keyframes impact-flash {
+  0% { background-color: var(--color-hit); }
+}
+
+/* 命中瞬間：格子放大閃紅 */
 .cell.hit-impact {
   animation: cell-impact 0.35s ease-out;
 }
@@ -956,7 +1117,7 @@ h1 {
   }
 }
 
-/* 鍵盤操作時的焦點外框 */
+/* 鍵盤焦點外框 */
 button:focus-visible,
 a:focus-visible,
 summary:focus-visible,
@@ -965,14 +1126,54 @@ summary:focus-visible,
   outline-offset: 2px;
 }
 
-/* 降低動態效果：動畫與轉場縮到幾乎瞬間，事件照常觸發、不影響對局 */
+.cell:focus-visible {
+  outline-offset: -1px;
+  z-index: 2;
+}
+
+/* 換對方回合時，敵方海域整體變淡，表示暫時不能開砲 */
+.enemy-grid[aria-disabled="true"] .cell {
+  cursor: default;
+}
+
+/* 減少動態效果：逐項處理，回饋保留成不位移的版本 */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* 純裝飾或位移：關掉 */
+  .board-wrapper.active-target .grid-container.radar-active::after,
+  .placement-panel,
+  dialog.modal-card[open] {
+    animation: none;
+  }
+
+  .dock-ship:hover,
+  .action-btn.primary:hover:not(:disabled) {
+    transform: none;
+  }
+
+  /* 敵方回合的閃爍點：改成靜態的紅點（顏色本身已表示敵方行動） */
+  .status-dot.enemy-turn {
+    animation: none;
+  }
+
+  /* 命中中的格子：不脈動，改成固定的內陰影 */
+  .cell.hit {
+    animation: none;
+    box-shadow: inset 0 0 0 2px var(--color-hit);
+  }
+
+  /* 命中瞬間：不放大，只閃一下底色 */
+  .cell.hit-impact {
+    animation: impact-flash 0.35s linear;
+  }
+
+  /* 放不下：不晃動，外框閃紅 */
+  .player-grid.placement-error {
+    animation: flash-outline 0.6s linear;
+    outline: 3px solid transparent;
+    outline-offset: 2px;
   }
 }

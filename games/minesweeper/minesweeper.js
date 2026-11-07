@@ -11,6 +11,12 @@
 const SAVE_KEY = 'minesweeper_save_state_v1';
 const STATS_KEY = 'minesweeper_stats_v1';
 const PREF_KEY = 'minesweeper_pref_v1';
+// 長按插旗時允許的手指晃動距離（像素）
+const LONG_PRESS_SLOP_PX = 10;
+// 自動縮放後格子的最小邊長；再小就改成橫向捲動
+const MIN_CELL_PX = 28;
+// 窄於這個寬度且玩家沒選過難度時，預設簡單 9×9
+const NARROW_SCREEN_PX = 600;
 
 const MODES = {
   TACTICAL: 'tactical',
@@ -438,6 +444,11 @@ class MinesweeperApp {
     // Touch & Pan Zoom state
     this.zoomScale = 1.0;
     this.touchMoved = false;
+    // 長按插旗的移動容許量：手指自然晃動不超過這個距離就仍算按住不動
+    this.touchStart = null;
+    // 盤面 roving tabindex：整個盤面只有一格在 Tab 順序裡
+    this.focusCell = { r: 0, c: 0 };
+    this.cellEls = [];
     this.longPressTimer = null;
     this.suppressNextClick = false;
     this.resizeFrame = null;
@@ -598,18 +609,20 @@ class MinesweeperApp {
     this.updateThemeIcon(curTheme);
   }
 
+  // 主題鍵：圖示由 CSS 依 data-theme 切換，這裡只同步 aria-pressed（固定 label，不同時改兩者）
   updateThemeIcon(theme) {
-    if (!this.el.themeBtn) return;
-    this.el.themeBtn.innerHTML = theme === 'dark'
-      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
-      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
+    if (!this.el.themeBtn || typeof this.el.themeBtn.setAttribute !== 'function') return;
+    const dark = theme === 'dark';
+    this.el.themeBtn.setAttribute('aria-pressed', String(dark));
+    this.el.themeBtn.title = dark ? '深色模式：開' : '深色模式：關';
   }
 
   updateSoundIcon() {
-    if (!this.el.soundBtn) return;
-    this.el.soundBtn.innerHTML = this.sound.enabled
-      ? '<span>🔊</span>'
-      : '<span style="opacity:0.5">🔇</span>';
+    if (!this.el.soundBtn || typeof this.el.soundBtn.setAttribute !== 'function') return;
+    const on = !!this.sound.enabled;
+    this.el.soundBtn.classList.toggle('muted', !on);
+    this.el.soundBtn.setAttribute('aria-pressed', String(on));
+    this.el.soundBtn.title = on ? '音效：開' : '音效：關';
   }
 
   // ------------------------------------------------------------------------
@@ -631,12 +644,25 @@ class MinesweeperApp {
     if (this.el.restartBtn) this.el.restartBtn.addEventListener('click', () => this.startNewGame());
 
     // Mode Switcher
-    this.el.modeTabs.forEach(tab => {
+    const tabs = [...this.el.modeTabs];
+    tabs.forEach((tab, index) => {
       tab.addEventListener('click', () => {
         const mode = tab.dataset.mode;
         if (mode && mode !== this.mode) {
           this.switchMode(mode);
         }
+      });
+      // 方向鍵在分頁間移動焦點；切換模式會開新局，所以要按 Enter／空白鍵才啟用
+      tab.addEventListener('keydown', (event) => {
+        let next = null;
+        if (event.key === 'ArrowRight') next = tabs[(index + 1) % tabs.length];
+        else if (event.key === 'ArrowLeft') next = tabs[(index - 1 + tabs.length) % tabs.length];
+        else if (event.key === 'Home') next = tabs[0];
+        else if (event.key === 'End') next = tabs[tabs.length - 1];
+        if (!next) return;
+        event.preventDefault();
+        tabs.forEach(t => { t.tabIndex = t === next ? 0 : -1; });
+        next.focus();
       });
     });
 
@@ -769,6 +795,8 @@ class MinesweeperApp {
       if (!target || this.gameOver || this.gameWon) return;
       this.touchMoved = false;
       this.suppressNextClick = false;
+      this.touchStart = { x: event.clientX, y: event.clientY };
+      this.setFocusCell(target.r, target.c, false);
 
       if (event.pointerType === 'touch') {
         clearLongPress();
@@ -783,13 +811,48 @@ class MinesweeperApp {
     });
 
     this.el.gridEl.addEventListener('pointermove', (event) => {
-      if (event.pointerType === 'touch') this.touchMoved = true;
+      if (event.pointerType !== 'touch' || !this.touchStart) return;
+      // 移動超過容許量才算拖曳／平移，避免手指自然晃動把插旗變成挖開
+      const dx = event.clientX - this.touchStart.x;
+      const dy = event.clientY - this.touchStart.y;
+      if (Math.hypot(dx, dy) > LONG_PRESS_SLOP_PX) {
+        this.touchMoved = true;
+        clearLongPress();
+      }
     });
 
     this.el.gridEl.addEventListener('pointerup', clearLongPress);
     this.el.gridEl.addEventListener('pointercancel', () => {
       this.touchMoved = true;
       clearLongPress();
+    });
+
+    // 鍵盤：方向鍵移動、F 插旗；Enter／空白鍵由按鈕原生觸發 click，走同一條路徑
+    this.el.gridEl.addEventListener('keydown', (event) => {
+      const target = getTarget(event);
+      if (!target) return;
+      let { r, c } = target;
+      let moved = true;
+      switch (event.key) {
+        case 'ArrowUp': r = Math.max(0, r - 1); break;
+        case 'ArrowDown': r = Math.min(this.rows - 1, r + 1); break;
+        case 'ArrowLeft': c = Math.max(0, c - 1); break;
+        case 'ArrowRight': c = Math.min(this.cols - 1, c + 1); break;
+        case 'Home': c = 0; break;
+        case 'End': c = this.cols - 1; break;
+        case 'f':
+        case 'F':
+          moved = false;
+          event.preventDefault();
+          if (!this.gameOver && !this.gameWon) this.handleFlagToggle(r, c);
+          break;
+        default:
+          moved = false;
+      }
+      if (moved) {
+        event.preventDefault();
+        this.setFocusCell(r, c, true);
+      }
     });
 
     this.el.gridEl.addEventListener('click', (event) => {
@@ -801,6 +864,7 @@ class MinesweeperApp {
       }
 
       const { r, c } = target;
+      this.setFocusCell(r, c, false);
       if (this.activeItem) {
         this.executeActiveItem(r, c);
       } else if (this.action === ACTION_MODES.FLAG) {
@@ -835,8 +899,29 @@ class MinesweeperApp {
 
   switchDifficulty(diff) {
     this.difficulty = diff;
+    this.saveDifficultyPref(diff);
     this.syncControlState();
     this.startNewGame();
+  }
+
+  // 記住玩家自己選的難度；沒選過時，窄螢幕預設簡單 9×9（標準盤在手機上格子太小）
+  saveDifficultyPref(diff) {
+    try {
+      const pref = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
+      pref.difficulty = diff;
+      localStorage.setItem(PREF_KEY, JSON.stringify(pref));
+    } catch (_) {}
+  }
+
+  readDifficultyPref() {
+    try {
+      const pref = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
+      if (pref && DIFFICULTY_PRESETS[pref.difficulty]) return pref.difficulty;
+    } catch (_) {}
+    try {
+      if (typeof window !== 'undefined' && window.innerWidth < NARROW_SCREEN_PX) return 'easy';
+    } catch (_) {}
+    return 'medium';
   }
 
   syncControlState() {
@@ -844,6 +929,10 @@ class MinesweeperApp {
       const selected = tab.dataset.mode === this.mode;
       tab.classList.toggle('active', selected);
       tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      if (selected && tab.id && this.el.boardContainer && typeof this.el.boardContainer.setAttribute === 'function') {
+        this.el.boardContainer.setAttribute('aria-labelledby', tab.id);
+      }
     });
     this.el.diffBtns.forEach(btn => {
       const selected = btn.dataset.diff === this.difficulty;
@@ -858,6 +947,7 @@ class MinesweeperApp {
   loadStateOrNewGame() {
     const loaded = this.loadGameState();
     if (!loaded) {
+      this.difficulty = this.readDifficultyPref();
       this.startNewGame();
     }
   }
@@ -947,20 +1037,38 @@ class MinesweeperApp {
     this.el.gridEl.style.gridTemplateColumns = `repeat(${this.cols}, auto)`;
     this.el.gridEl.setAttribute('aria-rowcount', this.rows);
     this.el.gridEl.setAttribute('aria-colcount', this.cols);
+    this.cellEls = [];
 
+    // 換盤面時焦點位置留在範圍內
+    this.focusCell = {
+      r: Math.min(this.focusCell.r, this.rows - 1),
+      c: Math.min(this.focusCell.c, this.cols - 1)
+    };
+
+    // 結構：grid > row > gridcell > button。row 與 gridcell 用 display: contents，
+    // 不影響 CSS grid 排版，又讓輔助科技讀得到列與格
     for (let r = 0; r < this.rows; r++) {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'grid-row';
+      rowEl.setAttribute('role', 'row');
       for (let c = 0; c < this.cols; c++) {
         const cellData = this.grid[r][c];
+        const wrap = document.createElement('div');
+        wrap.className = 'grid-cell';
+        wrap.setAttribute('role', 'gridcell');
         const cellEl = document.createElement('button');
         cellEl.type = 'button';
         cellEl.className = 'cell';
         cellEl.dataset.row = r;
         cellEl.dataset.col = c;
-        cellEl.setAttribute('aria-label', `格子 ${r + 1} 行 ${c + 1} 列`);
+        cellEl.tabIndex = (r === this.focusCell.r && c === this.focusCell.c) ? 0 : -1;
 
         this.updateCellElement(cellEl, cellData);
-        this.el.gridEl.appendChild(cellEl);
+        wrap.appendChild(cellEl);
+        rowEl.appendChild(wrap);
+        this.cellEls.push(cellEl);
       }
+      this.el.gridEl.appendChild(rowEl);
     }
 
     this.autoScaleBoard();
@@ -1727,9 +1835,20 @@ class MinesweeperApp {
     });
   }
 
+  // roving tabindex：把 Tab 停點移到 (r, c)，focus 為 true 時順便移動焦點
+  setFocusCell(r, c, focus) {
+    const prev = this.cellEls[this.focusCell.r * this.cols + this.focusCell.c];
+    if (prev) prev.tabIndex = -1;
+    this.focusCell = { r, c };
+    const next = this.cellEls[r * this.cols + c];
+    if (!next) return;
+    next.tabIndex = 0;
+    if (focus) next.focus();
+  }
+
   refreshGridDOM(changedCells = null) {
     if (!this.el.gridEl) return;
-    const cells = this.el.gridEl.children;
+    const cells = this.cellEls;
     if (Array.isArray(changedCells)) {
       const indexes = new Set(changedCells.map(cell => cell.row * this.cols + cell.col));
       indexes.forEach(index => {
@@ -1786,7 +1905,10 @@ class MinesweeperApp {
     const totalW = this.el.gridEl?.offsetWidth || 0;
 
     if (totalW > viewportW && viewportW > 0) {
-      this.zoomScale = Math.max(0.65, Math.min(1.0, viewportW / totalW));
+      // 縮小時格子不得小於 MIN_CELL_PX（WCAG 2.5.8 觸控目標），再大的盤面就改成橫向捲動
+      const cellW = this.cellEls[0]?.offsetWidth || 36;
+      const minScale = Math.min(1, MIN_CELL_PX / cellW);
+      this.zoomScale = Math.max(minScale, Math.min(1.0, viewportW / totalW));
     } else {
       this.zoomScale = 1.0;
     }

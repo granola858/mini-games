@@ -16,17 +16,27 @@
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   /* 進場一律用 ease-out-quart 平順減速，不用會回彈過頭的彈簧曲線 */
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* 特殊格與金幣：淺色主題用深色字、淺底；深色主題在下方改成深底亮字 */
+  --gold-text: #8a5a00;
+  --tile-double-bg: #fef08a;
+  --tile-double-fg: #92400e;
+  --tile-chest-bg: #fef3c7;
+  --tile-chest-fg: #92400e;
+  --tile-stair-bg: #e0e7ff;
+  --tile-stair-fg: #4338ca;
+  --wrong-flag-fg: #b91c1c;
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.2);
 
   /* Number Colors (Accessible, Vibrant) */
   --num-1: #2563eb;
-  --num-2: #059669;
+  --num-2: #047857;
   --num-3: #dc2626;
   --num-4: #7c3aed;
   --num-5: #b45309;
-  --num-6: #0891b2;
+  --num-6: #0e7490;
   --num-7: #4b5563;
   --num-8: #9333ea;
 }
@@ -228,13 +238,14 @@
 
   /* 原版踩地雷數字配色 */
   --num-1: #0000ff;
-  --num-2: #008000;
-  --num-3: #ff0000;
+  /* 原版的綠、紅、青、灰在 #c0c0c0 底上不到 4.5:1，壓暗到剛好過線，保留同樣的色相 */
+  --num-2: #005a00;
+  --num-3: #9e0000;
   --num-4: #000080;
   --num-5: #800000;
-  --num-6: #008080;
+  --num-6: #005757;
   --num-7: #000000;
-  --num-8: #808080;
+  --num-8: #4d4d4d;
 }
 
 /* --- F. Classic Skin: Dark Theme (深灰復古) --- */
@@ -286,14 +297,26 @@
   --cell-mine-bg: #4a4a4a;
   --cell-flag-color: #ff5555;
 
-  --num-1: #7ab8ff;
+  --num-1: #87bfff;
   --num-2: #5fd06a;
-  --num-3: #ff7676;
+  --num-3: #ffa2a2;
   --num-4: #b3bdff;
-  --num-5: #e59a9a;
+  --num-5: #eaacac;
   --num-6: #6fd6d6;
   --num-7: #f0f0f0;
-  --num-8: #b8b8b8;
+  --num-8: #bbbbbb;
+}
+
+/* 深色主題（任一皮膚）的特殊格與金幣色 */
+[data-theme="dark"] {
+  --gold-text: #eab308;
+  --tile-double-bg: #4a3d0a;
+  --tile-double-fg: #fcd34d;
+  --tile-chest-bg: #3d2b0c;
+  --tile-chest-fg: #fbbf24;
+  --tile-stair-bg: #1e2552;
+  --tile-stair-fg: #a5b4fc;
+  --wrong-flag-fg: #f87171;
 }
 
 /* ==========================================================================
@@ -392,8 +415,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -462,6 +485,35 @@ body {
 /* 標題不從中文字中間斷行，窄螢幕時整塊徽章換行到下一列 */
 .main-title-text {
   white-space: nowrap;
+}
+
+.game-goal {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* 主題鍵：深色時顯示太陽 */
+#theme-btn .sun-icon,
+#sound-btn .sound-off-icon {
+  display: none;
+}
+
+[data-theme="dark"] #theme-btn .sun-icon,
+#sound-btn.muted .sound-off-icon {
+  display: block;
+}
+
+[data-theme="dark"] #theme-btn .moon-icon,
+#sound-btn.muted .sound-on-icon {
+  display: none;
+}
+
+.top-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .main-title-badge {
@@ -534,19 +586,17 @@ body {
 
 /* Difficulty Selector for Tactical / Classic */
 .difficulty-bar {
+  /* 窄螢幕自動換行，所有難度一眼看得到，不再藏在看不見捲軸的橫向捲動裡 */
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
-  overflow-x: auto;
   padding: 2px 4px 10px;
   max-width: 100%;
-  scrollbar-width: none;
-}
-
-.difficulty-bar::-webkit-scrollbar {
-  display: none;
 }
 
 .diff-btn {
+  min-height: 36px;
   padding: 6px 14px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
@@ -573,9 +623,8 @@ body {
 .hud-panel {
   width: 100%;
   max-width: 560px;
+  /* 不用大面積毛玻璃：底色本身已有 85% 以上不透明度，省掉每次重繪的模糊運算 */
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 10px 16px;
@@ -669,7 +718,7 @@ body {
 }
 
 .gold-counter {
-  color: #eab308;
+  color: var(--gold-text);
 }
 
 /* Energy AP Bar for Tactical Mode */
@@ -790,9 +839,7 @@ body {
 .board-viewport {
   width: 100%;
   max-width: 100%;
-  background: var(--bg-glass);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 12px;
@@ -830,6 +877,16 @@ body {
   margin: 0 auto;
   transform-origin: top left;
   transition: transform 0.1s ease-out;
+}
+
+/* 列與格的包裝層只為了無障礙結構，不參與排版 */
+.grid-row,
+.grid-cell {
+  display: contents;
+}
+
+.gold-text {
+  color: var(--gold-text);
 }
 
 /* Cell Style */
@@ -919,7 +976,7 @@ input:focus-visible {
 }
 
 .cell.wrong-flag {
-  color: #ef4444;
+  color: var(--wrong-flag-fg);
   background: rgba(239, 68, 68, 0.14);
   font-size: 1.3rem;
 }
@@ -938,20 +995,20 @@ input:focus-visible {
 }
 
 .cell.double-mine {
-  background: #fef08a;
-  color: #b45309;
+  background: var(--tile-double-bg);
+  color: var(--tile-double-fg);
 }
 
 /* Dungeon Tile Special states */
 .cell.chest {
-  background: #fef3c7;
-  color: #d97706;
+  background: var(--tile-chest-bg);
+  color: var(--tile-chest-fg);
   animation: chestFloat 0.6s ease-in-out infinite alternate;
 }
 
 .cell.stair {
-  background: #e0e7ff;
-  color: #4f46e5;
+  background: var(--tile-stair-bg);
+  color: var(--tile-stair-fg);
   font-weight: 900;
 }
 
@@ -981,8 +1038,8 @@ input:focus-visible {
   align-items: center;
   gap: 6px;
   background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   border: 1.5px solid var(--border-color);
   padding: 6px 12px;
   border-radius: var(--radius-xl);
@@ -1061,8 +1118,6 @@ input:focus-visible {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1130,12 +1185,68 @@ input:focus-visible {
   }
 }
 
+/* 減少動態效果：逐項處理，狀態回饋改成不位移的版本 */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* 裝飾性位移：關掉（寶箱漂浮、插旗彈出、按下下沉、彈窗滑入、棋盤縮放過場） */
+  .cell.chest,
+  .cell.flagged {
+    animation: none;
+  }
+
+  .cell:not(.revealed):not(.flagged):active,
+  .btn-primary:hover {
+    transform: none;
+  }
+
+  .modal-box,
+  .modal-overlay.open .modal-box {
+    transform: none;
+    transition: none;
+  }
+
+  .minesweeper-grid {
+    transition: none;
+  }
+
+  /* 踩雷：不晃動，爆炸格本身的紅底與 💣 已足以表示 */
+  .cell.exploded {
+    animation: none;
+  }
+
+  /* 聲納掃到的格子：不脈動，改成固定的加粗外框 */
+  .cell.radar-highlight {
+    animation: none;
+    outline-width: 3px;
+  }
+
+  /* 連開：不縮放，只保留亮度變化 */
+  .cell.chord-glow {
+    transform: none;
+  }
+}
+
+/* 桌機（滑鼠操作）：操作列放回正常版面流、不再浮在棋盤上蓋住最後幾排；
+   桌機有右鍵插旗與自動縮放，縮放按鈕收起來減少初始控制項 */
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  .page-container {
+    padding-bottom: 16px;
+  }
+
+  .thumb-action-bar {
+    position: static;
+    transform: none;
+    margin: 0 auto 24px;
+    width: max-content;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .zoom-controls {
+    display: none;
   }
 }
 
@@ -1258,7 +1369,7 @@ input:focus-visible {
 
 .shop-card .price {
   font-weight: 800;
-  color: #eab308;
+  color: var(--gold-text);
   font-size: 0.85rem;
 }
 
