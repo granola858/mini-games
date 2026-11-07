@@ -40,6 +40,19 @@
         </a>
 
         <div class="top-controls">
+          <button id="board-lock-btn" class="icon-btn board-lock-btn" type="button" aria-label="鎖定盤面（防誤觸）"
+            aria-pressed="false" title="鎖定盤面（防誤觸）">
+            <svg class="lock-icon unlocked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+            </svg>
+            <svg class="lock-icon locked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </button>
           <button id="rules-btn" class="icon-btn" type="button" aria-label="遊戲規則" title="遊戲規則">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -92,6 +105,18 @@
                   </span>
                 </div>
                 <div id="wake-lock-note" class="menu-note">防止遊戲進行期間螢幕自動變暗或休眠熄屏。</div>
+              </div>
+
+              <div class="menu-section">
+                <div class="menu-title">操作設定</div>
+                <div class="menu-toggle-row">
+                  <label class="menu-label" for="mark-tool-checkbox">顯示標記工具</label>
+                  <span class="toggle-switch">
+                    <input id="mark-tool-checkbox" type="checkbox" role="switch" checked>
+                    <span class="toggle-slider" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div class="menu-note">關閉後盤面上方的「塗黑／標記 Ｏ」切換會收起來，點格子一律塗黑；鍵盤 X 鍵仍可標記。</div>
               </div>
 
               <div class="menu-section">
@@ -159,11 +184,13 @@
         </div>
 
         <div class="control-group">
-          <div class="visually-hidden" id="size-label">盤面大小</div>
-          <div class="toggle-container" id="level-toggle" role="group" aria-labelledby="size-label">
-            <button class="mode-btn active" type="button" data-size="8" aria-pressed="true">8×8</button>
-            <button class="mode-btn" type="button" data-size="10" aria-pressed="false">10×10</button>
-            <button class="mode-btn" type="button" data-size="12" aria-pressed="false">12×12</button>
+          <label class="visually-hidden" for="size-select">盤面大小</label>
+          <div class="toggle-container select-container">
+            <select id="size-select" class="mode-select">
+              <option value="8" selected>8×8</option>
+              <option value="10">10×10</option>
+              <option value="12">12×12</option>
+            </select>
           </div>
         </div>
 
@@ -190,19 +217,6 @@
           <button class="action-btn active" type="button" data-action="fill" aria-pressed="true">塗黑</button>
           <button class="action-btn" type="button" data-action="mark" aria-pressed="false">標記 Ｏ</button>
         </div>
-        <button id="board-lock-btn" class="board-lock-btn" type="button" aria-label="鎖定盤面（防誤觸）"
-          aria-pressed="false" title="鎖定盤面（防誤觸）">
-          <svg class="lock-icon unlocked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-          </svg>
-          <svg class="lock-icon locked-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-        </button>
         <div id="top-msg" class="top-msg hidden"></div>
       </div>
 
@@ -290,7 +304,7 @@
       <p><strong>隨機</strong>：每次隨機出題，可選簡單、中等、困難或隨機難度。<br>
         <strong>圖案</strong>：每題都藏著一張小圖，解完就會看到它；每個盤面大小各有一組圖案可以收集。</p>
       <h3>操作</h3>
-      <p>點或拖曳格子：用上方選的工具「塗黑」或「標記 Ｏ」（Ｏ 只是幫你記住留白，不影響過關）。拖曳時會連續塗過經過的格子。<br>
+      <p>點或拖曳格子：用上方選的工具「塗黑」或「標記 Ｏ」（Ｏ 只是幫你記住留白，不影響過關；用不到的話可以在設定裡收起標記工具）。拖曳時會連續塗過經過的格子。右上角的鎖頭可以鎖住盤面防誤觸。<br>
         鍵盤：Tab 進入盤面，方向鍵移動，空白鍵或 Enter 使用目前的工具，X 鍵標記 Ｏ。</p>
       <h3>提示與對答案</h3>
       <p>每局有 3 次提示：先指出填錯的格子，沒有錯就指出一格可以推理出來的塗黑格。按「對答案」時，對不上的列與欄會標成紅色。</p>
