@@ -106,19 +106,20 @@ try {
   assert.equal(x.lives, 3, '擦貓爪不該扣心');
   console.log('PASS 放貓工具點到貓爪格只擦掉貓爪');
 
-  // 3. 和 S 同一列（不相鄰）的格子：只提醒、不扣心、不打叉，並指出擋住的那隻貓
+  // 3. 和 S 同一列（不相鄰）的格子：放錯一律扣心、打叉，提示說明原因並指出擋住的那隻貓
   const Y = [S[0], S[1] >= 2 ? 0 : S[1] + 2];
-  await tap(cell(...Y));
-  const y = await cellState(...Y);
-  assert.equal(y.lives, 3, '明顯衝突不該扣心');
-  assert.equal(y.cat, false);
-  assert.equal(y.miss, false);
   // 盤面上已有兩隻貓，擋住 Y 的可能是 S 以外的那隻：以遊戲判定的那一隻為準
   const conflict = await driver.eval(`findCatConflict(getState(currentSize), ${Y[0]}, ${Y[1]})`);
   assert.ok(conflict, 'Y 應該和已放的貓衝突');
-  assert.equal(await driver.text('#toast'), await driver.eval(`CONFLICT_MESSAGES['${conflict.reason}']`));
+  await tap(cell(...Y));
+  const y = await cellState(...Y);
+  assert.equal(y.lives, 2, '明顯衝突的錯誤位置也要扣 1 顆心');
+  assert.equal(y.cat, false);
+  assert.equal(y.miss, true, '放錯的格子應該打叉');
+  const reason = await driver.eval(`CONFLICT_MESSAGES['${conflict.reason}']`);
+  assert.equal(await driver.text('#toast'), `${reason}，還剩 2 顆心。`);
   assert.equal(await driver.eval(`document.querySelector('${cell(conflict.r, conflict.c)}').classList.contains('conflict-source')`), true);
-  console.log('PASS 明顯衝突只提醒、不扣心，並指出擋住的貓');
+  console.log('PASS 明顯衝突的錯誤位置照樣扣心，並說明原因、指出擋住的貓');
 
   // 4. 沒有明顯衝突的錯誤位置：扣 1 顆心，留下叉叉；再點同一格不會再扣
   // （放了對照組的貓之後 X 可能變成衝突格，所以重新挑一格）
@@ -126,12 +127,13 @@ try {
   assert.ok(M, '找不到沒有衝突的錯誤格');
   await tap(cell(...M));
   x = await cellState(...M);
-  assert.equal(x.lives, 2, '放錯應該扣 1 顆心');
+  assert.equal(x.lives, 1, '放錯應該扣 1 顆心');
   assert.equal(x.miss, true, '放錯的格子應該打叉');
+  assert.equal(await driver.text('#toast'), '那裡沒有貓咪，還剩 1 顆心。');
   assert.equal(await driver.eval(`document.querySelector('${cell(...M)}').dataset.miss`), 'true');
   await driver.sleep(300);
   await tap(cell(...M));
-  assert.equal((await cellState(...M)).lives, 2, '打叉的格子再點不該再扣心');
+  assert.equal((await cellState(...M)).lives, 1, '打叉的格子再點不該再扣心');
   console.log('PASS 放錯扣心並留下叉叉，同一格不會再扣');
 
   // 5. 貓爪工具碰不到打叉的格子

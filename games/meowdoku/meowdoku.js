@@ -1416,7 +1416,7 @@ function paintPaw(state, r, c, paw) {
 }
 
 // 和已經放對的貓咪有沒有明顯衝突：同列、同行、同色塊，或貼在旁邊（含斜角）。
-// 已放上的貓一定是對的（放錯的不會留在盤面上），所以衝突的位置必定沒有貓，不必扣心
+// 只用來說明「為什麼錯」並指出擋住的那隻貓；放錯照樣扣心
 function findCatConflict(state, r, c) {
     const regionId = state.regions[r][c];
     let found = null;
@@ -1438,10 +1438,10 @@ function findCatConflict(state, r, c) {
 }
 
 const CONFLICT_MESSAGES = {
-    adjacent: '太靠近旁邊的貓咪了（斜角也算）。',
-    row: '這一列已經有貓咪了。',
-    col: '這一行已經有貓咪了。',
-    region: '這個色塊已經有貓咪了。'
+    adjacent: '太靠近旁邊的貓咪了（斜角也算）',
+    row: '這一列已經有貓咪了',
+    col: '這一行已經有貓咪了',
+    region: '這個色塊已經有貓咪了'
 };
 
 function flashConflictSource(r, c) {
@@ -1500,13 +1500,6 @@ function placeCat(state, r, c) {
         return;
     }
 
-    const conflict = findCatConflict(state, r, c);
-    if (conflict) {
-        showToast(CONFLICT_MESSAGES[conflict.reason]);
-        flashConflictSource(conflict.r, conflict.c);
-        return;
-    }
-
     if (state.solution[r][c] === 1) {
         const styleIndex = cellState.catStyle || getCatStyle(state, r, c);
         state.cellStates[r][c] = { cat: true, paw: false, miss: false, catStyle: styleIndex };
@@ -1521,7 +1514,10 @@ function placeCat(state, r, c) {
         return;
     }
 
-    // 放錯：扣心，並把這格標成「確定沒有貓」留在盤面上，同樣的錯不會再犯第二次
+    // 放錯一律扣心，並把這格標成「確定沒有貓」留在盤面上，同樣的錯不會再犯第二次。
+    // 若是和已放的貓明顯衝突，順便說明原因、指出擋住的那隻貓
+    const conflict = findCatConflict(state, r, c);
+    if (conflict) flashConflictSource(conflict.r, conflict.c);
     state.lives = clampLives(state.lives - 1);
     updateLives(state.lives);
     state.cellStates[r][c] = { cat: false, paw: false, miss: true, catStyle: 0 };
@@ -1545,7 +1541,8 @@ function placeCat(state, r, c) {
         showResult(state, false);
     } else {
         saveNow();
-        showToast(`那裡沒有貓咪，還剩 ${state.lives} 顆心。`, 'error');
+        const reason = conflict ? CONFLICT_MESSAGES[conflict.reason] : '那裡沒有貓咪';
+        showToast(`${reason}，還剩 ${state.lives} 顆心。`, 'error');
     }
     updateClearButtonState(state);
 }
