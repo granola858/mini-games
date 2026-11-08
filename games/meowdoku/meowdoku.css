@@ -8,7 +8,6 @@
 
     /* 品牌色：和首頁卡片同一支紫（#765bd8），白字對比 4.9:1 */
     --accent: #765bd8;
-    --accent-strong: #5f45bd;
     --accent-fg: #ffffff;
     --accent-glow: rgba(118, 91, 216, 0.38);
 
@@ -82,7 +81,6 @@
     color-scheme: dark;
 
     --accent: #b5aaff;
-    --accent-strong: #cbc2ff;
     --accent-fg: #1a172c;
     --accent-glow: rgba(181, 170, 255, 0.4);
 
