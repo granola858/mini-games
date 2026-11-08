@@ -1957,7 +1957,8 @@ function showResult(state, won, prevBest) {
                 { label: '此尺寸最快', value: entry.bestTime === null ? '還沒有' : celebrate.formatDuration(entry.bestTime) }
             ],
         extra: buildMeowParade(state, won),
-        accent: '#765bd8',
+        // 卡片的淺色主色比遊戲的 #765bd8 深一階：「新紀錄」小字放在淡紫統計格上要 ≥ 4.5:1（5.3:1）
+        accent: '#6a4ec8',
         accentDark: '#b5aaff',
         primary: won
             ? { label: '下一題', onClick: () => performReset() }
