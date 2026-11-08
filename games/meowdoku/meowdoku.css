@@ -72,8 +72,10 @@
     --modal-bg: #ffffff;
     --modal-text: #5c576d;
 
-    /* 版面 */
-    --board-chrome: 420px;
+    /* 版面：直式時盤面以外的高度（實測 407px），盤面寬度不超過「視窗高 − 這個值」，整頁不必捲動 */
+    --board-chrome: 408px;
+    /* 橫式兩欄時盤面上下要扣掉的高度：body 上下內距 32 + 頂端列 44 + 間距 16 */
+    --board-chrome-landscape: 92px;
 }
 
 :root[data-theme="dark"] {
@@ -440,6 +442,8 @@ a:focus-visible {
 .tool-hint {
     margin-top: -6px;
     font-size: 0.85rem;
+    /* 保留兩行高度：切換工具時提示從兩行變一行，下面的按鈕也不會跳 */
+    min-height: 3em;
 }
 
 /* ==========================================================================
@@ -448,22 +452,24 @@ a:focus-visible {
 
 .toggle-container {
     display: flex;
-    width: 100%;
-    gap: 4px;
+    /* 設定一次就很少再動：縮成靠左的小一號分段按鈕，不和常用的工具按鈕搶位置 */
+    align-self: flex-start;
+    gap: 2px;
     background-color: var(--surface-alt);
-    padding: 4px;
+    padding: 3px;
     border-radius: 10px;
 }
 
 .mode-btn {
-    min-height: 44px;
+    min-height: 40px;
+    min-width: 68px;
     background-color: transparent;
-    flex: 1;
+    flex: 0 0 auto;
     border: none;
-    border-radius: 6px;
+    border-radius: 7px;
     font-weight: bold;
-    font-size: 1.1rem;
-    padding: 10px 0;
+    font-size: 1rem;
+    padding: 6px 14px;
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
     color: var(--inactive-btn-text);
@@ -546,7 +552,7 @@ a:focus-visible {
 .board-container {
     position: relative;
     /* 高度上限：避免橫向／矮螢幕時方形棋盤爆出畫面（棋盤 touch-action:none 無法捲動） */
-    width: min(100%, max(260px, calc(100dvh - var(--board-chrome))));
+    width: min(100%, max(240px, calc(100dvh - var(--board-chrome))));
     aspect-ratio: 1;
     margin-inline: auto;
     background-color: var(--surface-alt);
@@ -1118,15 +1124,17 @@ dialog.modal-card::backdrop {
     }
 
     .mode-btn {
-        font-size: 1rem;
-        padding: 9px 0;
+        min-width: 60px;
+        padding: 6px 10px;
     }
 }
 
 /* 矮／橫向視窗：縮小周邊 chrome，讓棋盤的高度上限放寬一些 */
 @media (max-height: 620px) {
     :root {
-        --board-chrome: 330px;
+        --board-chrome: 392px;
+        /* 盤面頂端（內距 16 + 縮小的頂端列 38 + 間距 10 ＝ 64）再加上下方內距 16，實測 86 */
+        --board-chrome-landscape: 86px;
     }
 
     #app {
@@ -1148,17 +1156,78 @@ dialog.modal-card::backdrop {
     }
 
     .mode-btn {
-        padding: 7px 0;
+        min-height: 36px;
     }
 }
 
-@media (orientation: landscape) and (max-height: 520px) {
-    :root {
-        --board-chrome: 280px;
+/* 橫式（手機橫拿、平板橫放、桌機）：盤面佔左欄、用滿可用高度，其他控制項疊在右欄。
+   直式的單欄在橫拿手機上會把盤面推到畫面外，桌機也只剩 300px 左右 */
+@media (orientation: landscape) and (min-width: 600px) {
+    #app {
+        /* 盤面 620 + 間距 40 + 右欄約 400：桌機上標題和愛心排得下同一行 */
+        max-width: 1060px;
     }
 
+    .game-main {
+        display: grid;
+        grid-template-columns: auto minmax(240px, 1fr);
+        grid-template-areas:
+            "board header"
+            "board goal"
+            "board size"
+            "board tools"
+            "board hint"
+            "board controls"
+            "board .";
+        grid-template-rows: repeat(6, auto) 1fr;
+        column-gap: clamp(20px, 3vw, 40px);
+        row-gap: 14px;
+        align-items: start;
+    }
+
+    .header-row {
+        grid-area: header;
+    }
+
+    .game-goal {
+        grid-area: goal;
+        margin-top: -6px;
+    }
+
+    .toggle-container {
+        grid-area: size;
+        justify-self: start;
+    }
+
+    .board-container {
+        grid-area: board;
+        width: min(620px, max(240px, calc(100dvh - var(--board-chrome-landscape))));
+        margin: 0;
+    }
+
+    .tool-row {
+        grid-area: tools;
+    }
+
+    .tool-hint {
+        grid-area: hint;
+    }
+
+    .controls-row {
+        grid-area: controls;
+        justify-content: flex-start;
+    }
+}
+
+/* 矮的橫式（手機橫拿）：標題縮一號讓愛心留在同一行，右欄間距收緊，整頁不必捲動。
+   必須排在上面的兩欄規則之後，row-gap 才蓋得過去 */
+@media (orientation: landscape) and (max-height: 520px) {
     .h1 {
-        font-size: 1.5rem;
+        font-size: 1.35rem;
+    }
+
+    .game-main {
+        row-gap: 8px;
     }
 }
 

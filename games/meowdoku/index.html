@@ -98,13 +98,16 @@
             </div>
             <p class="game-goal">每個色塊、每一列、每一行各放一隻貓，貓咪之間不能相鄰（含斜角）。</p>
 
+            <!-- 盤面大小：設定一次就很少再動，做成小一號的分段按鈕 -->
             <div class="toggle-container" role="group" aria-label="盤面大小">
                 <button class="mode-btn active" data-size="6" type="button" aria-pressed="true">6×6</button>
                 <button class="mode-btn" data-size="7" type="button" aria-pressed="false">7×7</button>
                 <button class="mode-btn" data-size="8" type="button" aria-pressed="false">8×8</button>
             </div>
 
-            <!-- 工具：點一下要放貓爪還是貓咪。雙擊放貓咪的快捷照樣可用 -->
+            <div class="board-container" id="board" role="grid" aria-label="貓咪數獨盤面：方向鍵移動，空白鍵放貓爪，Enter 放貓咪" aria-describedby="toolHint"></div>
+
+            <!-- 工具：最常切換的控制項，放在盤面正下方、拇指搆得到的位置 -->
             <div class="tool-row" role="group" aria-label="點一下要放什麼">
                 <button class="tool-btn active" data-tool="paw" type="button" aria-pressed="true">
                     <svg class="tool-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
@@ -121,9 +124,7 @@
                     放貓咪
                 </button>
             </div>
-            <p class="tool-hint" id="toolHint">點或拖曳畫貓爪，標出「確定沒有貓」的格子；雙擊直接放貓咪。</p>
-
-            <div class="board-container" id="board" role="grid" aria-label="貓咪數獨盤面：方向鍵移動，空白鍵放貓爪，Enter 放貓咪" aria-describedby="toolHint"></div>
+            <p class="tool-hint" id="toolHint">點或拖曳標記沒有貓的格子；空格點兩下放貓咪。</p>
 
             <div class="controls-row">
                 <button id="resetBtn" class="action-btn" type="button">

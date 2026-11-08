@@ -2024,9 +2024,10 @@ function setTool(tool) {
         btn.setAttribute('aria-pressed', String(on));
     });
     if (toolHintEl) {
+        // 兩種提示都控制在一行左右，提示區另外保留固定高度，切換工具時下方按鈕不會跳
         toolHintEl.textContent = currentTool === 'cat'
             ? '點一下放貓咪；放錯會扣 1 顆心。'
-            : '點或拖曳畫貓爪，標出「確定沒有貓」的格子；雙擊直接放貓咪。';
+            : '點或拖曳標記沒有貓的格子；空格點兩下放貓咪。';
     }
     boardEl.dataset.tool = currentTool;
     try {
