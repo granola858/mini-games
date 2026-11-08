@@ -51,8 +51,9 @@ const SOUND_KEY = 'meowdoku-sound-v1';
 const HOME_PREF_KEY = 'bobo-home-preferences-v2';
 const TOOL_KEY = 'meowdoku-tool-v1';
 const STATS_KEY = 'meowdoku-stats-v1';
-// 色塊的中文名稱，給螢幕閱讀器的格子標籤用（對應 CSS 的 --region-1 ~ 8）
-const REGION_TONE_NAMES = ['玫瑰', '杏桃', '奶油黃', '嫩綠', '薄荷', '天藍', '薰衣草', '藕紫'];
+// 色塊的中文名稱，給螢幕閱讀器的格子標籤用（對應 CSS 的 --region-1 ~ 8）。
+// 用色相家族命名，淺色的粉彩與深色的寶石色都對得上
+const REGION_TONE_NAMES = ['玫瑰', '橘', '黃', '綠', '青綠', '藍', '紫', '梅紫'];
 const VALID_SIZES = [6, 7, 8];
 const CAT_STYLE_KEYS = Object.keys(catAssetPaths).map(Number).sort((a, b) => a - b);
 const REGION_TONE_COUNT = 8;
