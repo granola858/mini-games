@@ -1573,9 +1573,30 @@ function updateGameOverUI(state) {
     resetBtn.classList.toggle('highlight', isOver);
 }
 
+// 愛心：自己畫的 SVG（emoji 在各平台長得不一樣，黑心在深色模式還會消失）。
+// 三顆常駐 DOM，只切換 lost；用掉的心留一圈外框，看得出總共有 3 顆
+const HEART_PATH = 'M12 20.3s-7.4-4.5-9.2-9C1.6 8.2 3.4 4.9 6.7 4.6c2-.2 3.9.8 5.3 2.6 1.4-1.8 3.3-2.8 5.3-2.6 3.3.3 5.1 3.6 3.9 6.7-1.8 4.5-9.2 9-9.2 9z';
+
+function ensureLifeIcons() {
+    if (livesEl.childElementCount === 3) return;
+    livesEl.textContent = '';
+    for (let i = 0; i < 3; i++) {
+        const heart = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        heart.setAttribute('viewBox', '0 0 24 24');
+        heart.setAttribute('aria-hidden', 'true');
+        heart.setAttribute('focusable', 'false');
+        heart.classList.add('life');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', HEART_PATH);
+        heart.appendChild(path);
+        livesEl.appendChild(heart);
+    }
+}
+
 function updateLives(lives) {
     const safeLives = clampLives(lives);
-    livesEl.textContent = '❤️'.repeat(safeLives) + '🖤'.repeat(3 - safeLives);
+    ensureLifeIcons();
+    Array.from(livesEl.children).forEach((heart, i) => heart.classList.toggle('lost', i >= safeLives));
     livesEl.setAttribute('aria-label', `剩餘 ${safeLives} 顆心`);
     livesEl.title = `剩餘 ${safeLives} 顆心`;
 }

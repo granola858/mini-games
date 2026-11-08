@@ -32,6 +32,9 @@
     --cat-filter: none;
     /* 貓爪是「確定沒有貓」的註記：用半透明墨色，疊在色塊上變成該色的深一階，不和黑貓搶眼 */
     --paw-color: rgba(42, 37, 56, 0.38);
+    /* 愛心：剩下的是實心紅，用掉的只留外框 */
+    --life-color: #d5455d;
+    --life-lost: #8f8aa3;
 
     /* 粉彩色塊：色相沿色環每 40° 左右排一格（tone 1→8 依序繞一圈），
        彩度統一 C≈0.06~0.085、亮度 L=0.80~0.95 一高一低交錯。
@@ -91,6 +94,8 @@
     /* 8 隻貓咪 SVG 都是 fill:#000，深色模式反轉成米白才看得見 */
     --cat-filter: invert(0.96);
     --paw-color: rgba(240, 238, 250, 0.42);
+    --life-color: #f6838e;
+    --life-lost: #6e6a84;
 
     /* 寶石色塊：同一組色相壓暗、彩度拉到 C≈0.075~0.10，亮度 L=0.44~0.58 交錯。
        黃色在暗處會變橄欖綠，所以第 3 色往橘偏成琥珀金；
@@ -304,11 +309,30 @@ a:focus-visible {
 }
 
 .lives {
-    font-size: clamp(1rem, 4vw, 1.2rem);
-    letter-spacing: 2px;
-    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     flex-shrink: 0;
     min-height: 1.4em;
+}
+
+.life {
+    width: clamp(20px, 5.6vw, 24px);
+    height: clamp(20px, 5.6vw, 24px);
+    display: block;
+    color: var(--life-color);
+    fill: currentColor;
+    fill-opacity: 1;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+    transition: color 0.3s ease, fill-opacity 0.3s ease, transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.life.lost {
+    color: var(--life-lost);
+    fill-opacity: 0;
+    transform: scale(0.86);
 }
 
 .game-main {
@@ -1013,6 +1037,11 @@ dialog.modal-card::backdrop {
 
     .theme-icon {
         transform: none !important;
+    }
+
+    .life,
+    .life.lost {
+        transform: none;
     }
 
     .cell {
