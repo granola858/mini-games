@@ -26,11 +26,13 @@ const LEGACY_CAT_STYLE_ID_MAP = {
 const boardEl = document.getElementById('board');
 const livesEl = document.getElementById('livesDisplay');
 const toastEl = document.getElementById('toast');
+const srStatusEl = document.getElementById('srStatus');
 const modeBtns = document.querySelectorAll('.mode-btn');
 const darkModeToggle = document.getElementById('darkModeToggle');
 const soundBtn = document.getElementById('soundBtn');
 const resetBtn = document.getElementById('resetBtn');
 const clearBtn = document.getElementById('clearBtn');
+const clearBtnLabel = clearBtn.querySelector('.btn-label');
 const helpBtn = document.getElementById('helpBtn');
 const helpOverlay = document.getElementById('helpOverlay');
 const helpCloseBtn = document.getElementById('helpCloseBtn');
@@ -62,6 +64,10 @@ const PAW_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
     + '<ellipse cx="9.3" cy="6.3" rx="2" ry="2.6" transform="rotate(-6 9.3 6.3)"/>'
     + '<ellipse cx="14.7" cy="6.3" rx="2" ry="2.6" transform="rotate(6 14.7 6.3)"/>'
     + '<ellipse cx="18.6" cy="10.6" rx="1.9" ry="2.4" transform="rotate(18 18.6 10.6)"/>'
+    + '</svg>';
+// 放錯過的格子：遊戲已經證實沒有貓，用叉叉（形狀而不是顏色）標出來，之後不能再放貓也不能塗貓爪
+const MISS_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" aria-hidden="true" focusable="false">'
+    + '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>'
     + '</svg>';
 
 let currentSize = 6;
@@ -782,8 +788,9 @@ function normalizeCatStyleId(style) {
     return LEGACY_CAT_STYLE_ID_MAP[numericStyle] || 0;
 }
 
+// miss：放錯過、已證實沒有貓的格子（遊戲給的資訊，和玩家自己畫的 paw 分開）
 function createEmptyCellState() {
-    return { cat: false, paw: false, catStyle: 0 };
+    return { cat: false, paw: false, miss: false, catStyle: 0 };
 }
 
 function createEmptyCellStates(size) {
@@ -905,9 +912,12 @@ function normalizeSavedState(saved, size) {
         for (let c = 0; c < size; c++) {
             const cell = saved.cellStates[r][c] || {};
             const catStyle = normalizeCatStyleId(cell.catStyle);
+            const cat = Boolean(cell.cat);
+            const miss = Boolean(cell.miss) && !cat;
             row.push({
-                cat: Boolean(cell.cat),
-                paw: Boolean(cell.paw) && !cell.cat,
+                cat,
+                paw: Boolean(cell.paw) && !cat && !miss,
+                miss,
                 catStyle
             });
         }
@@ -1237,6 +1247,7 @@ function ensureBoardDom(size) {
             cell.dataset.c = c;
             cell.dataset.cat = 'false';
             cell.dataset.paw = 'false';
+            cell.dataset.miss = 'false';
             cell.dataset.catStyle = '0';
 
             const face = document.createElement('div');
@@ -1252,8 +1263,14 @@ function ensureBoardDom(size) {
             paw.setAttribute('aria-hidden', 'true');
             paw.innerHTML = PAW_SVG;
 
+            const miss = document.createElement('div');
+            miss.className = 'miss-mark';
+            miss.setAttribute('aria-hidden', 'true');
+            miss.innerHTML = MISS_SVG;
+
             cell.appendChild(face);
             cell.appendChild(paw);
+            cell.appendChild(miss);
             rowEl.appendChild(cell);
             boardCells[r * size + c] = cell;
         }
@@ -1267,8 +1284,11 @@ function applyCellView(cellEl, cellState) {
     const style = cellState.cat ? (normalizeCatStyleId(cellState.catStyle) || 1) : 0;
     cellEl.dataset.cat = cellState.cat ? 'true' : 'false';
     cellEl.dataset.paw = cellState.paw ? 'true' : 'false';
+    cellEl.dataset.miss = cellState.miss ? 'true' : 'false';
     cellEl.dataset.catStyle = String(style);
-    const what = cellState.cat ? '貓咪' : (cellState.paw ? '貓爪（沒有貓）' : '空白');
+    const what = cellState.cat ? '貓咪'
+        : cellState.miss ? '確定沒有貓（放錯過）'
+            : cellState.paw ? '貓爪（沒有貓）' : '空白';
     const r = Number(cellEl.dataset.r) + 1;
     const c = Number(cellEl.dataset.c) + 1;
     cellEl.setAttribute('aria-label', `第 ${r} 列第 ${c} 行，${cellEl.dataset.regionName || ''}，${what}`);
@@ -1386,21 +1406,113 @@ function resetPointerState() {
 }
 
 function paintPaw(state, r, c, paw) {
+    // 貓咪與放錯過的格子都是確定的資訊，貓爪塗不上去
+    if (state.cellStates[r][c].cat || state.cellStates[r][c].miss) return;
     state.cellStates[r][c].paw = paw;
-    state.cellStates[r][c].cat = false;
     applyCellView(cellAt(r, c), state.cellStates[r][c]);
     updateClearButtonState(state);
     scheduleSave();
 }
 
+// 和已經放對的貓咪有沒有明顯衝突：同列、同行、同色塊，或貼在旁邊（含斜角）。
+// 已放上的貓一定是對的（放錯的不會留在盤面上），所以衝突的位置必定沒有貓，不必扣心
+function findCatConflict(state, r, c) {
+    const regionId = state.regions[r][c];
+    let found = null;
+    for (let rr = 0; rr < state.size; rr++) {
+        for (let cc = 0; cc < state.size; cc++) {
+            if (!state.cellStates[rr][cc].cat) continue;
+            let reason = null;
+            if (Math.abs(rr - r) <= 1 && Math.abs(cc - c) <= 1) reason = 'adjacent';
+            else if (rr === r) reason = 'row';
+            else if (cc === c) reason = 'col';
+            else if (state.regions[rr][cc] === regionId) reason = 'region';
+            if (!reason) continue;
+            // 相鄰最具體，先回報
+            if (reason === 'adjacent') return { r: rr, c: cc, reason };
+            if (!found) found = { r: rr, c: cc, reason };
+        }
+    }
+    return found;
+}
+
+const CONFLICT_MESSAGES = {
+    adjacent: '太靠近旁邊的貓咪了（斜角也算）。',
+    row: '這一列已經有貓咪了。',
+    col: '這一行已經有貓咪了。',
+    region: '這個色塊已經有貓咪了。'
+};
+
+function flashConflictSource(r, c) {
+    const source = cellAt(r, c);
+    if (!source) return;
+    source.classList.remove('conflict-source');
+    // 重新觸發動畫
+    void source.offsetWidth;
+    source.classList.add('conflict-source');
+    setTimeout(() => {
+        const target = cellAt(r, c);
+        if (target) target.classList.remove('conflict-source');
+    }, 900);
+}
+
+// 讀給螢幕閱讀器：toast 只在放錯與輸贏時出現，放對時改用這個不顯示的 live region
+function announce(message) {
+    if (!srStatusEl) return;
+    srStatusEl.textContent = '';
+    requestAnimationFrame(() => {
+        srStatusEl.textContent = message;
+    });
+}
+
+function countCorrectCats(state) {
+    let correct = 0;
+    for (let r = 0; r < state.size; r++) {
+        for (let c = 0; c < state.size; c++) {
+            if (state.solution[r][c] === 1 && state.cellStates[r][c].cat) correct++;
+        }
+    }
+    return correct;
+}
+
+// 「放貓咪」的入口（放貓工具點一下、鍵盤 Enter）：
+// 標了貓爪的格子先擦掉貓爪，不直接放貓，避免玩家自己標過「沒有貓」的格子被誤點扣心
+function requestCat(state, r, c) {
+    const cellState = state.cellStates[r][c];
+    if (cellState.cat) return;
+    if (cellState.paw) {
+        paintPaw(state, r, c, false);
+        flushSave();
+        showToast('先擦掉貓爪了，確定要放貓咪就再點一次。');
+        return;
+    }
+    placeCat(state, r, c);
+}
+
 function placeCat(state, r, c) {
     const cellEl = cellAt(r, c);
+    const cellState = state.cellStates[r][c];
+    if (cellState.cat) return;
+
+    if (cellState.miss) {
+        showToast('這格已經確定沒有貓咪了。');
+        return;
+    }
+
+    const conflict = findCatConflict(state, r, c);
+    if (conflict) {
+        showToast(CONFLICT_MESSAGES[conflict.reason]);
+        flashConflictSource(conflict.r, conflict.c);
+        return;
+    }
 
     if (state.solution[r][c] === 1) {
-        const styleIndex = state.cellStates[r][c].catStyle || getCatStyle(state, r, c);
-        state.cellStates[r][c] = { cat: true, paw: false, catStyle: styleIndex };
+        const styleIndex = cellState.catStyle || getCatStyle(state, r, c);
+        state.cellStates[r][c] = { cat: true, paw: false, miss: false, catStyle: styleIndex };
         applyCellView(cellEl, state.cellStates[r][c]);
         sound.playMeow(normalizeCatStyleId(styleIndex) - 1);
+        const remaining = state.size - countCorrectCats(state);
+        if (remaining > 0) announce(`第 ${r + 1} 列第 ${c + 1} 行放對了，還差 ${remaining} 隻貓。`);
         checkWin(state);
         updateGameOverUI(state);
         updateClearButtonState(state);
@@ -1408,15 +1520,18 @@ function placeCat(state, r, c) {
         return;
     }
 
+    // 放錯：扣心，並把這格標成「確定沒有貓」留在盤面上，同樣的錯不會再犯第二次
     state.lives = clampLives(state.lives - 1);
     updateLives(state.lives);
-    state.cellStates[r][c] = { cat: false, paw: false, catStyle: 0 };
+    state.cellStates[r][c] = { cat: false, paw: false, miss: true, catStyle: 0 };
     applyCellView(cellEl, state.cellStates[r][c]);
+    cellEl.classList.remove('error');
+    void cellEl.offsetWidth;
     cellEl.classList.add('error');
     setTimeout(() => {
         const target = cellAt(r, c);
         if (target) target.classList.remove('error');
-    }, 400);
+    }, 700);
 
     sound.playHiss();
     if (state.lives === 0) {
@@ -1453,7 +1568,7 @@ function handleBoardPointerDown(event) {
     // 「放貓咪」工具：點一下直接放，不進入拖曳畫貓爪
     if (currentTool === 'cat') {
         resetPointerState();
-        placeCat(state, r, c);
+        requestCat(state, r, c);
         return;
     }
 
@@ -1468,9 +1583,11 @@ function handleBoardPointerDown(event) {
         return;
     }
 
+    const startCell = state.cellStates[r][c];
     drag.pointerId = event.pointerId;
     drag.active = true;
-    drag.value = !state.cellStates[r][c].paw;
+    // 從放錯過的格子起手：照樣可以往外拖曳塗貓爪，只是這格本身不變
+    drag.value = startCell.miss ? true : !startCell.paw;
     drag.lastR = r;
     drag.lastC = c;
     try {
@@ -1479,9 +1596,11 @@ function handleBoardPointerDown(event) {
         /* 沒有 capture 也還有 document 的 pointerup 保險 */
     }
     paintPaw(state, r, c, drag.value);
+    // 只有「把空格標成貓爪」的那一下能當雙擊的前半；
+    // 擦掉貓爪後快速再點只會把貓爪補回來，不會變成放貓扣心
     lastTapTime = now;
     lastTapCellKey = key;
-    lastTapArmed = true;
+    lastTapArmed = drag.value && !startCell.miss;
 }
 
 function handleBoardPointerMove(event) {
@@ -1558,13 +1677,21 @@ function updateModeButtons() {
 }
 
 function isBoardEmpty(state) {
-    return state.cellStates.every((row) => row.every((cellState) => !cellState.cat && !cellState.paw));
+    return state.cellStates.every((row) => row.every((cellState) => !cellState.cat && !cellState.paw && !cellState.miss));
 }
 
+function hasPaws(state) {
+    return state.cellStates.some((row) => row.some((cellState) => cellState.paw));
+}
+
+// 「清空標記」只擦貓爪；輸掉之後同一顆按鈕變成「再試這題」，關掉結果卡片或重新整理也還能重玩同一題
 function updateClearButtonState(state) {
-    const empty = isBoardEmpty(state);
-    clearBtn.disabled = empty;
-    clearBtn.classList.toggle('disabled', empty);
+    const retry = state.status === 'lost';
+    clearBtn.dataset.mode = retry ? 'retry' : 'clear';
+    clearBtnLabel.textContent = retry ? '再試這題' : '清空標記';
+    const disabled = retry ? false : (state.status !== 'playing' || !hasPaws(state));
+    clearBtn.disabled = disabled;
+    clearBtn.classList.toggle('disabled', disabled);
 }
 
 function updateGameOverUI(state) {
@@ -1633,10 +1760,11 @@ function performReset() {
     initGame(currentSize);
 }
 
+// 只擦掉玩家自己畫的貓爪；放對的貓咪與放錯過的叉叉都是遊戲確認過的資訊，保留
 function performClear() {
     discardPendingSave();
     const state = getState(currentSize);
-    state.cellStates = createEmptyCellStates(state.size);
+    state.cellStates.forEach((row) => row.forEach((cellState) => { cellState.paw = false; }));
     saveGameStates();
     initGame(currentSize);
 }
@@ -1701,9 +1829,9 @@ function closeHelp() {
 function openConfirm(action) {
     pendingConfirmAction = action;
     if (action === 'clear') {
-        confirmTitleEl.textContent = '清空盤面';
-        confirmMessageEl.textContent = '確定要清空目前的標記與貓咪嗎？此動作無法復原。';
-        confirmOkBtn.textContent = '清空';
+        confirmTitleEl.textContent = '清空標記';
+        confirmMessageEl.textContent = '確定要擦掉所有貓爪嗎？已經放對的貓咪和打叉的格子會留著。';
+        confirmOkBtn.textContent = '擦掉貓爪';
     } else {
         confirmTitleEl.textContent = '換新題目';
         confirmMessageEl.textContent = '確定要換一題嗎？目前的進度會消失。';
@@ -1796,7 +1924,7 @@ function showResult(state, won, prevBest) {
         title: won ? '貓咪都回家了！' : '愛心用完了',
         subtitle: won
             ? `${state.size}×${state.size} 的每一隻貓都放對了${isBest && prevBest != null ? '，刷新這個尺寸的最快紀錄' : ''}。`
-            : '這題還沒解完。盤面會保留，再試一次會清掉標記、補滿愛心。',
+            : '這題還沒解完。再試一次會從頭重玩同一題，愛心補滿。',
         stats: won
             ? [
                 { label: '用時', value: celebrate.formatDuration(elapsed), isBest },
@@ -1913,10 +2041,11 @@ function handleBoardKeydown(event) {
         case 'Enter': {
             event.preventDefault();
             const state = getState(currentSize);
-            if (state.status !== 'playing' || state.cellStates[r][c].cat) return;
-            if (event.key === 'Enter') placeCat(state, r, c);
-            else {
-                paintPaw(state, r, c, !state.cellStates[r][c].paw);
+            const cellState = state.cellStates[r][c];
+            if (state.status !== 'playing' || cellState.cat) return;
+            if (event.key === 'Enter') requestCat(state, r, c);
+            else if (!cellState.miss) {
+                paintPaw(state, r, c, !cellState.paw);
                 flushSave();
             }
             return;
@@ -1980,7 +2109,11 @@ resetBtn.addEventListener('click', () => {
 
 clearBtn.addEventListener('click', () => {
     const state = getState(currentSize);
-    if (isBoardEmpty(state)) return;
+    if (state.status === 'lost') {
+        retrySamePuzzle();
+        return;
+    }
+    if (state.status !== 'playing' || !hasPaws(state)) return;
     openConfirm('clear');
 });
 

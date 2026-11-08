@@ -32,6 +32,8 @@
     --cat-filter: none;
     /* 貓爪是「確定沒有貓」的註記：用半透明墨色，疊在色塊上變成該色的深一階，不和黑貓搶眼 */
     --paw-color: rgba(42, 37, 56, 0.38);
+    /* 放錯過的叉叉：遊戲證實的資訊，比貓爪更實 */
+    --miss-color: rgba(42, 37, 56, 0.72);
     /* 愛心：剩下的是實心紅，用掉的只留外框 */
     --life-color: #d5455d;
     --life-lost: #8f8aa3;
@@ -94,6 +96,7 @@
     /* 8 隻貓咪 SVG 都是 fill:#000，深色模式反轉成米白才看得見 */
     --cat-filter: invert(0.96);
     --paw-color: rgba(240, 238, 250, 0.42);
+    --miss-color: rgba(240, 238, 250, 0.8);
     --life-color: #f6838e;
     --life-lost: #6e6a84;
 
@@ -161,6 +164,19 @@ button {
 
 a {
     -webkit-tap-highlight-color: transparent;
+}
+
+/* 只給螢幕閱讀器的文字 */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 button:focus-visible,
@@ -471,6 +487,16 @@ a:focus-visible {
     animation: pulseGlow 1.6s ease-in-out infinite;
 }
 
+/* 清空標記／再試這題：同一顆按鈕，圖示跟著模式換 */
+#clearBtn .icon-retry,
+#clearBtn[data-mode="retry"] .icon-clear {
+    display: none;
+}
+
+#clearBtn[data-mode="retry"] .icon-retry {
+    display: block;
+}
+
 .action-btn:disabled,
 .action-btn.disabled {
     opacity: 0.35;
@@ -662,7 +688,8 @@ a:focus-visible {
 /* --- 貓咪與貓掌：常駐 DOM，用 data 屬性切換（拖曳時零 DOM 異動） --- */
 
 .cell>.cat-face,
-.cell>.paw-mark {
+.cell>.paw-mark,
+.cell>.miss-mark {
     display: none;
 }
 
@@ -670,7 +697,8 @@ a:focus-visible {
     display: flex;
 }
 
-.cell[data-paw="true"]>.paw-mark {
+.cell[data-paw="true"]>.paw-mark,
+.cell[data-miss="true"]>.miss-mark {
     display: flex;
 }
 
@@ -707,10 +735,25 @@ a:focus-visible {
     animation: pawStamp 0.2s ease-out;
 }
 
-.cell .paw-mark svg {
+.cell .paw-mark svg,
+.cell .miss-mark svg {
     width: 100%;
     height: 100%;
     display: block;
+}
+
+.cell .miss-mark {
+    position: relative;
+    z-index: 2;
+    width: 44%;
+    height: 44%;
+    color: var(--miss-color);
+    animation: missStamp 0.32s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 衝突提醒：指出是哪一隻貓擋住了這一格 */
+.cell.conflict-source {
+    animation: conflictPulse 0.45s ease-out 2;
 }
 
 @keyframes catPop {
@@ -734,6 +777,30 @@ a:focus-visible {
     100% {
         transform: scale(1);
         opacity: 1;
+    }
+}
+
+@keyframes missStamp {
+    0% {
+        transform: scale(1.6);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes conflictPulse {
+
+    0%,
+    100% {
+        box-shadow: inset 0 0 0 0 var(--region-boundary);
+    }
+
+    40% {
+        box-shadow: inset 0 0 0 4px var(--region-boundary);
     }
 }
 
@@ -1053,8 +1120,15 @@ dialog.modal-card::backdrop {
     }
 
     .cell .cat-face,
-    .cell .paw-mark {
+    .cell .paw-mark,
+    .cell .miss-mark {
         animation: none;
+    }
+
+    /* 衝突提醒：不閃，改成停留一下的靜態框 */
+    .cell.conflict-source {
+        animation: none;
+        box-shadow: inset 0 0 0 4px var(--region-boundary);
     }
 
     /* 放錯：不晃動，紅底本身就是回饋（400ms 後消失） */

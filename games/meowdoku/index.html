@@ -135,8 +135,9 @@
                     </svg>
                     <span>換新題目</span>
                 </button>
-                <button id="clearBtn" class="action-btn" type="button">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                <!-- 進行中是「清空標記」（只擦貓爪）；輸掉後變成「再試這題」 -->
+                <button id="clearBtn" class="action-btn" type="button" data-mode="clear">
+                    <svg class="icon-clear" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         aria-hidden="true">
                         <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21">
@@ -144,27 +145,37 @@
                         <path d="M22 21H7"></path>
                         <path d="m5 11 9 9"></path>
                     </svg>
-                    <span>清空標記</span>
+                    <svg class="icon-retry" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+                        <path d="M3 3v6h6"></path>
+                    </svg>
+                    <span class="btn-label">清空標記</span>
                 </button>
             </div>
         </main>
     </div>
 
-    <!-- 整頁唯一的 live region：放錯、勝負等訊息 -->
+    <!-- 看得到的 live region：放錯、衝突提醒、勝負等訊息 -->
     <div class="message-toast" id="toast" role="status" aria-live="polite"></div>
+    <!-- 只給螢幕閱讀器：放對貓咪時不跳 toast，改在這裡播報位置與剩下幾隻 -->
+    <div class="sr-only" id="srStatus" role="status" aria-live="polite"></div>
 
     <dialog id="helpOverlay" class="modal-card" aria-labelledby="helpTitle">
         <h2 id="helpTitle" class="modal-title">怎麼玩貓咪數獨</h2>
         <div class="modal-body">
             <p><strong>目標：</strong>每一個色塊、每一列、每一行都剛好有一隻貓，而且貓咪周圍 8 格（含斜角）不能有其他貓。所有貓都放對就過關。</p>
-            <p><strong>放錯會扣心：</strong>在沒有貓的格子放貓咪會扣 1 顆心，3 顆心用完就輸了。</p>
+            <p><strong>放錯會扣心：</strong>在沒有貓的格子放貓咪會扣 1 顆心，那格會打上叉叉，3 顆心用完就輸了。</p>
+            <p><strong>明顯不行的不扣心：</strong>和已經放好的貓咪同列、同行、同色塊，或貼在旁邊（含斜角），只會提醒你，不會扣心。</p>
             <p><strong>觸控／滑鼠：</strong></p>
             <ul>
-                <li>工具選「貓爪」時：點或按住拖曳，標記確定沒有貓的格子；再點一次取消。</li>
-                <li>工具選「放貓咪」時：點一下就放貓咪。</li>
-                <li>不管哪個工具，快速點兩下都會放貓咪。</li>
+                <li>工具選「貓爪」時：點或按住拖曳，標記確定沒有貓的格子；隔一下再點一次就取消。</li>
+                <li>在空格上快速點兩下，會直接放貓咪。</li>
+                <li>工具選「放貓咪」時：點一下就放貓咪；標了貓爪的格子會先擦掉貓爪，再點一次才放。</li>
+                <li>「清空標記」只擦掉貓爪，已經放對的貓咪和打叉的格子會留著。</li>
             </ul>
-            <p><strong>鍵盤：</strong>Tab 移到盤面後用方向鍵移動，空白鍵放／取消貓爪，Enter 放貓咪。</p>
+            <p><strong>鍵盤：</strong>Tab 移到盤面後用方向鍵移動，空白鍵放／取消貓爪，Enter 放貓咪（標了貓爪的格子會先擦掉貓爪）。</p>
         </div>
         <button id="helpCloseBtn" class="modal-close-btn" type="button">知道了</button>
     </dialog>
