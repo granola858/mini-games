@@ -323,9 +323,10 @@ a:focus-visible {
 
 .header-row {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
+    gap: 4px 10px;
 }
 
 .h1 {
@@ -336,7 +337,9 @@ a:focus-visible {
     font-size: clamp(1.4rem, 6vw, 2rem);
     line-height: 1.15;
     color: var(--text-color);
-    white-space: nowrap;
+    /* 可以換行：字放大到 200% 時標題折行、愛心掉到下一行，不會撐出水平捲軸 */
+    min-width: 0;
+    text-wrap: balance;
 }
 
 .lives {
@@ -344,12 +347,15 @@ a:focus-visible {
     align-items: center;
     gap: 4px;
     flex-shrink: 0;
+    margin-left: auto;
     min-height: 1.4em;
+    /* 愛心跟著文字大小縮放（使用者放大字級時一起變大） */
+    font-size: clamp(0.95rem, 4.4vw, 1.15rem);
 }
 
 .life {
-    width: clamp(20px, 5.6vw, 24px);
-    height: clamp(20px, 5.6vw, 24px);
+    width: 1.35em;
+    height: 1.35em;
     display: block;
     color: var(--life-color);
     fill: currentColor;
@@ -415,8 +421,8 @@ a:focus-visible {
 
 /* 工具圖示跟著按鈕文字色走：貓爪是內嵌 SVG，貓咪用 mask 把黑貓 SVG 染成 currentColor */
 .tool-icon {
-    width: 20px;
-    height: 20px;
+    width: 1.3em;
+    height: 1.3em;
     flex-shrink: 0;
 }
 
@@ -476,6 +482,7 @@ a:focus-visible {
 
 .controls-row {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 12px;
 }
