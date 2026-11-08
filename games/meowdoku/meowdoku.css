@@ -6,57 +6,60 @@
 :root {
     color-scheme: light;
 
-    /* 品牌色 */
-    --accent: #8e44ad;
-    --accent-strong: #7a389a;
+    /* 品牌色：和首頁卡片同一支紫（#765bd8），白字對比 4.9:1 */
+    --accent: #765bd8;
+    --accent-strong: #5f45bd;
     --accent-fg: #ffffff;
-    --accent-glow: rgba(142, 68, 173, 0.4);
+    --accent-glow: rgba(118, 91, 216, 0.38);
 
-    /* 介面 */
-    --inactive-btn-text: #6b6274;
-    --active-btn-text: #332b3a;
-    --page-bg: #fdfbff;
-    --text-color: #332b3a;
+    /* 介面：中性色只帶一點點紫，讓盤面的顏色當主角 */
+    --inactive-btn-text: #646073;
+    --active-btn-text: #2a2538;
+    --page-bg: #faf9fe;
+    --text-color: #2a2538;
     --surface-color: #ffffff;
-    --surface-alt: #f3eef6;
-    --line-color: #e8dcf0;
-    --shadow-soft: rgba(74, 49, 90, 0.08);
+    --surface-alt: #f1eefb;
+    --line-color: #dfdaf3;
+    --shadow-soft: rgba(55, 40, 110, 0.08);
 
     /* 棋盤 */
-    --board-border: #b79ccb;
-    --board-shadow: rgba(120, 72, 155, 0.18);
-    --grid-line: rgba(58, 40, 70, 0.14);
-    --region-boundary: #4a4048;
-    --cell-error-bg: #ff9f9f;
-    --frozen-veil: rgba(253, 251, 255, 0.18);
+    --board-border: #b8b0e1;
+    --board-shadow: rgba(90, 70, 170, 0.16);
+    --grid-line: rgba(42, 37, 56, 0.12);
+    --region-boundary: #373148;
+    --cell-error-bg: #f58f94;
+    --frozen-veil: rgba(250, 249, 254, 0.18);
     --cat-filter: none;
-    --paw-filter: none;
-    --paw-disc: transparent;
+    /* 貓爪是「確定沒有貓」的註記：用半透明墨色，疊在色塊上變成該色的深一階，不和黑貓搶眼 */
+    --paw-color: rgba(42, 37, 56, 0.38);
 
-    /* 莫蘭迪霧面調：8 個大地色相＋交錯亮度 L=0.71~0.91 C≤0.075；最小 dE_OK = 0.111 */
-    --region-1: #FFD5DB;
-    /* 灰玫瑰 */
-    --region-2: #EBB09E;
-    /* 陶土 */
-    --region-3: #BA9B6F;
-    /* 赭黃 */
-    --region-4: #C3DBA6;
-    /* 鼠尾草 */
-    --region-5: #82C0AF;
-    /* 灰綠松 */
-    --region-6: #ACE7FF;
-    /* 霧藍 */
-    --region-7: #BCBBF1;
-    /* 灰紫 */
-    --region-8: #BE92B9;
+    /* 粉彩色塊：色相沿色環每 40° 左右排一格（tone 1→8 依序繞一圈），
+       彩度統一 C≈0.06~0.085、亮度 L=0.80~0.95 一高一低交錯。
+       出題時 tone 是等距挑的，所以色環上相鄰的兩色很少同時出現；
+       黑貓在每一色上的對比都 ≥ 12:1 */
+    --region-1: #feb9ba;
+    /* 玫瑰 */
+    --region-2: #ffcfa6;
+    /* 杏桃 */
+    --region-3: #f9f1af;
+    /* 奶油黃 */
+    --region-4: #b7e3ad;
+    /* 嫩綠 */
+    --region-5: #b8f2ea;
+    /* 薄荷 */
+    --region-6: #a5d5f3;
+    /* 天藍 */
+    --region-7: #dccffd;
+    /* 薰衣草 */
+    --region-8: #e6addb;
     /* 藕紫 */
 
     /* 狀態 */
     --toast-error-bg: #b33a45;
     --toast-error-fg: #ffffff;
-    --overlay-color: rgba(35, 24, 45, 0.48);
+    --overlay-color: rgba(30, 24, 52, 0.48);
     --modal-bg: #ffffff;
-    --modal-text: #635a6b;
+    --modal-text: #5c576d;
 
     /* 版面 */
     --board-chrome: 420px;
@@ -65,57 +68,55 @@
 :root[data-theme="dark"] {
     color-scheme: dark;
 
-    --accent: #c9a3e8;
-    --accent-strong: #d9bcf2;
-    --accent-fg: #241a2e;
-    --accent-glow: rgba(201, 163, 232, 0.42);
+    --accent: #b5aaff;
+    --accent-strong: #cbc2ff;
+    --accent-fg: #1a172c;
+    --accent-glow: rgba(181, 170, 255, 0.4);
 
-    --inactive-btn-text: #a79bb2;
-    --active-btn-text: #f1eaf7;
-    --page-bg: #16121d;
-    --text-color: #eee6f5;
-    --surface-color: #221b2c;
-    --surface-alt: #2a2236;
-    --line-color: #3a2f4a;
+    --inactive-btn-text: #aba8bd;
+    --active-btn-text: #eeedf6;
+    --page-bg: #12101a;
+    --text-color: #eeedf6;
+    --surface-color: #1e1c29;
+    --surface-alt: #282535;
+    --line-color: #383549;
     --shadow-soft: rgba(0, 0, 0, 0.32);
 
-    --board-border: #6b5a7a;
+    --board-border: #56506f;
     --board-shadow: rgba(0, 0, 0, 0.46);
-    --grid-line: rgba(240, 230, 250, 0.16);
-    --region-boundary: #ded5d0;
-    --cell-error-bg: #a83a48;
-    --frozen-veil: rgba(12, 8, 18, 0.3);
-    /* 8 隻貓咪 SVG 都是 fill:#000，深色模式反轉成米白才看得見（對比 ≥7.8:1） */
-    --cat-filter: invert(0.94);
-    --paw-filter: grayscale(1) invert(1) brightness(0.96);
-    --paw-disc: transparent;
+    --grid-line: rgba(240, 238, 250, 0.14);
+    --region-boundary: #dedceb;
+    --cell-error-bg: #b2414c;
+    --frozen-veil: rgba(10, 8, 18, 0.3);
+    /* 8 隻貓咪 SVG 都是 fill:#000，深色模式反轉成米白才看得見 */
+    --cat-filter: invert(0.96);
+    --paw-color: rgba(240, 238, 250, 0.42);
 
-    /* 莫蘭迪深色：同色相族壓暗，交錯亮度 L=0.26~0.46 C≤0.075；最小 dE_OK = 0.114
-       低彩度靠亮度錯開拉出辨識度，而不是靠提高彩度 */
-    /* 相鄰色塊要分得出來：拉開亮度（相對亮度 0.03～0.16 交錯）並略提彩度，
-       同時讓反白的貓咪在每一色上都維持 ≥ 4.5:1 */
-    --region-1: #9a5866;
-    /* 玫瑰 */
-    --region-2: #5a2414;
-    /* 陶土 */
-    --region-3: #7a5a18;
-    /* 赭黃 */
-    --region-4: #4a6a30;
-    /* 鼠尾草 */
-    --region-5: #0f5546;
-    /* 松綠 */
-    --region-6: #2a74a0;
-    /* 霧藍 */
-    --region-7: #2e2a66;
-    /* 靛紫 */
-    --region-8: #7c4478;
-    /* 藕紫 */
+    /* 寶石色塊：同一組色相壓暗、彩度拉到 C≈0.075~0.10，亮度 L=0.44~0.58 交錯。
+       黃色在暗處會變橄欖綠，所以第 3 色往橘偏成琥珀金；
+       反白的貓咪在每一色上的對比都 ≥ 3.9:1（圖形元素門檻 3:1） */
+    --region-1: #843b41;
+    /* 石榴 */
+    --region-2: #975b34;
+    /* 銅橘 */
+    --region-3: #96752a;
+    /* 琥珀 */
+    --region-4: #31693f;
+    /* 森綠 */
+    --region-5: #2e7c7d;
+    /* 湖綠 */
+    --region-6: #2a5885;
+    /* 藍寶 */
+    --region-7: #6a5d9d;
+    /* 紫晶 */
+    --region-8: #723c6b;
+    /* 莓紫 */
 
     --toast-error-bg: #ff8f9a;
     --toast-error-fg: #2a1015;
-    --overlay-color: rgba(4, 8, 16, 0.72);
-    --modal-bg: #221b2c;
-    --modal-text: #cabfda;
+    --overlay-color: rgba(4, 3, 12, 0.72);
+    --modal-bg: #1e1c29;
+    --modal-text: #bebbd0;
 }
 
 /* ==========================================================================
@@ -355,6 +356,24 @@ a:focus-visible {
     border-color: var(--accent);
     background-color: var(--surface-alt);
     color: var(--active-btn-text);
+}
+
+/* 工具圖示跟著按鈕文字色走：貓爪是內嵌 SVG，貓咪用 mask 把黑貓 SVG 染成 currentColor */
+.tool-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.tool-icon--cat {
+    display: inline-block;
+    background-color: currentColor;
+    -webkit-mask: url("images/2.svg") center / contain no-repeat;
+    mask: url("images/2.svg") center / contain no-repeat;
+}
+
+.tool-btn.active .tool-icon {
+    color: var(--accent);
 }
 
 .tool-hint {
@@ -658,16 +677,16 @@ a:focus-visible {
 .cell .paw-mark {
     position: relative;
     z-index: 2;
-    width: 68%;
-    height: 68%;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.3em;
-    line-height: 1;
-    border-radius: 50%;
-    background-color: var(--paw-disc);
-    filter: var(--paw-filter);
+    width: 46%;
+    height: 46%;
+    color: var(--paw-color);
     animation: pawStamp 0.2s ease-out;
+}
+
+.cell .paw-mark svg {
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 @keyframes catPop {
@@ -801,7 +820,8 @@ dialog.modal-card::backdrop {
     height: 40px;
     padding: 4px;
     border-radius: 12px;
-    background: var(--surface-alt);
+    /* 每隻貓坐在牠回家的那個色塊顏色上，和盤面對得起來 */
+    background: var(--tile, var(--surface-alt));
     animation: meow-hop 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
     animation-delay: calc(var(--i, 0) * 70ms);
 }
@@ -810,6 +830,8 @@ dialog.modal-card::backdrop {
     display: block;
     width: 100%;
     height: 100%;
+    /* 深色模式要和盤面一樣把黑貓反白，不然會被深色底吃掉 */
+    filter: var(--cat-filter);
 }
 
 /* 失敗時只留一隻貓在旁邊陪著，不跳動 */

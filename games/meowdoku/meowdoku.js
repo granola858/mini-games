@@ -50,11 +50,19 @@ const HOME_PREF_KEY = 'bobo-home-preferences-v2';
 const TOOL_KEY = 'meowdoku-tool-v1';
 const STATS_KEY = 'meowdoku-stats-v1';
 // 色塊的中文名稱，給螢幕閱讀器的格子標籤用（對應 CSS 的 --region-1 ~ 8）
-const REGION_TONE_NAMES = ['玫瑰', '陶土', '赭黃', '鼠尾草', '松綠', '霧藍', '靛紫', '藕紫'];
+const REGION_TONE_NAMES = ['玫瑰', '杏桃', '奶油黃', '嫩綠', '薄荷', '天藍', '薰衣草', '藕紫'];
 const VALID_SIZES = [6, 7, 8];
 const CAT_STYLE_KEYS = Object.keys(catAssetPaths).map(Number).sort((a, b) => a - b);
 const REGION_TONE_COUNT = 8;
 const REGION_TONE_IDS = Array.from({ length: REGION_TONE_COUNT }, (_, i) => i + 1);
+// 貓爪註記：自己畫的 SVG，fill 跟著 CSS 的 --paw-color 走（emoji 在各平台顏色不一，會和色塊打架）
+const PAW_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">'
+    + '<path d="M12 12.2c-2.6 0-5.6 3-5.6 5.4 0 1.6 1.2 2.6 2.7 2.6 1.1 0 1.9-.5 2.9-.5s1.8.5 2.9.5c1.5 0 2.7-1 2.7-2.6 0-2.4-3-5.4-5.6-5.4z"/>'
+    + '<ellipse cx="5.4" cy="10.6" rx="1.9" ry="2.4" transform="rotate(-18 5.4 10.6)"/>'
+    + '<ellipse cx="9.3" cy="6.3" rx="2" ry="2.6" transform="rotate(-6 9.3 6.3)"/>'
+    + '<ellipse cx="14.7" cy="6.3" rx="2" ry="2.6" transform="rotate(6 14.7 6.3)"/>'
+    + '<ellipse cx="18.6" cy="10.6" rx="1.9" ry="2.4" transform="rotate(18 18.6 10.6)"/>'
+    + '</svg>';
 
 let currentSize = 6;
 let darkMode = false;
@@ -1242,7 +1250,7 @@ function ensureBoardDom(size) {
             const paw = document.createElement('div');
             paw.className = 'paw-mark';
             paw.setAttribute('aria-hidden', 'true');
-            paw.textContent = '🐾';
+            paw.innerHTML = PAW_SVG;
 
             cell.appendChild(face);
             cell.appendChild(paw);
@@ -1277,7 +1285,7 @@ function syncBoardToState(state) {
         for (let c = 0; c < state.size; c++) {
             const cellEl = cellAt(r, c);
             const regionId = state.regions[r][c];
-            const tone = state.regionTones[regionId] || ((regionId - 1) % REGION_TONE_COUNT) + 1;
+            const tone = getRegionTone(state, regionId);
 
             cellEl.className = 'cell region-tone-' + tone;
             cellEl.dataset.regionName = `${REGION_TONE_NAMES[(tone - 1) % REGION_TONE_NAMES.length]}色塊`;
@@ -1287,6 +1295,10 @@ function syncBoardToState(state) {
             applyCellView(cellEl, state.cellStates[r][c]);
         }
     }
+}
+
+function getRegionTone(state, regionId) {
+    return state.regionTones?.[regionId] || ((regionId - 1) % REGION_TONE_COUNT) + 1;
 }
 
 function getCatStyle(state, r, c) {
@@ -1723,20 +1735,25 @@ function recordResult(state, won) {
 function buildMeowParade(state, won) {
     const list = document.createElement('ul');
     list.className = won ? 'meow-parade' : 'meow-parade meow-parade--rest';
-    const styles = [];
+    const cats = [];
     for (let r = 0; r < state.size; r++) {
         for (let c = 0; c < state.size; c++) {
             if (state.solution[r][c] !== 1) continue;
             const cell = state.cellStates[r][c];
-            styles.push(normalizeCatStyleId(cell.catStyle) || getCatStyle(state, r, c) || 1);
+            cats.push({
+                style: normalizeCatStyleId(cell.catStyle) || getCatStyle(state, r, c) || 1,
+                tone: getRegionTone(state, state.regions[r][c])
+            });
         }
     }
-    const shown = won ? styles : styles.slice(0, 1);
+    const shown = won ? cats : cats.slice(0, 1);
     list.setAttribute('role', 'img');
     list.setAttribute('aria-label', won ? `${shown.length} 隻貓咪都回家了` : '貓咪在旁邊等你再試一次');
-    shown.forEach((style, i) => {
+    shown.forEach(({ style, tone }, i) => {
         const item = document.createElement('li');
         item.style.setProperty('--i', String(i));
+        // 底色用牠所在色塊的顏色：盤面上住哪一塊，卡片上就坐在哪個顏色
+        item.style.setProperty('--tile', `var(--region-${tone})`);
         const img = document.createElement('img');
         img.src = catAssetPaths[normalizeCatStyleId(style) || 1];
         img.alt = '';
@@ -1770,8 +1787,8 @@ function showResult(state, won, prevBest) {
                 { label: '此尺寸最快', value: entry.bestTime === null ? '還沒有' : celebrate.formatDuration(entry.bestTime) }
             ],
         extra: buildMeowParade(state, won),
-        accent: '#8e44ad',
-        accentDark: '#c9a3e8',
+        accent: '#765bd8',
+        accentDark: '#b5aaff',
         primary: won
             ? { label: '下一題', onClick: () => performReset() }
             : { label: '再試一次', onClick: () => retrySamePuzzle() },
