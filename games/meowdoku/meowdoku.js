@@ -1694,10 +1694,28 @@ function updateClearButtonState(state) {
     clearBtn.classList.toggle('disabled', disabled);
 }
 
+// 過關和輸掉分開：輸了才蓋上灰霧；過關的盤面保持全彩，擦掉推理過程（貓爪、叉叉），只留回到家的貓
 function updateGameOverUI(state) {
     const isOver = state.status !== 'playing';
-    boardEl.classList.toggle('frozen', isOver);
+    boardEl.classList.toggle('frozen', state.status === 'lost');
+    boardEl.classList.toggle('won', state.status === 'won');
     resetBtn.classList.toggle('highlight', isOver);
+}
+
+// 最後一隻貓回家的那一刻：每隻貓依位置輪流在自己的色塊裡輕跳一下、坐定。
+// 只在過關當下播一次，重新整理回到已過關的盤面不會重播
+function playSettle(state) {
+    let order = 0;
+    for (let r = 0; r < state.size; r++) {
+        for (let c = 0; c < state.size; c++) {
+            if (!state.cellStates[r][c].cat) continue;
+            cellAt(r, c).style.setProperty('--settle-i', String(order++));
+        }
+    }
+    boardEl.classList.remove('settling');
+    void boardEl.offsetWidth;
+    boardEl.classList.add('settling');
+    setTimeout(() => boardEl.classList.remove('settling'), 450 + order * 55 + 100);
 }
 
 // 愛心：自己畫的 SVG（emoji 在各平台長得不一樣，黑心在深色模式還會消失）。
@@ -1746,7 +1764,7 @@ function initGame(size) {
     updateLives(state.lives);
 
     ensureBoardDom(size);
-    boardEl.classList.remove('celebrate');
+    boardEl.classList.remove('celebrate', 'settling');
     syncBoardToState(state);
     updateGameOverUI(state);
     updateClearButtonState(state);
@@ -1791,6 +1809,8 @@ function checkWin(state) {
         recordResult(state, true);
         saveNow();
         boardEl.classList.add('celebrate');
+        updateGameOverUI(state);
+        playSettle(state);
         showToast('貓咪都回家了！', 'success');
         setTimeout(() => sound.playPurr(), 260);
         showResult(state, true, prevBest);
